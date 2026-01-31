@@ -4,12 +4,18 @@
  * Models lifecycle spending behaviour including:
  * - Age-based spending reductions (go-go, slow-go, no-go phases)
  * - One-off expenses (car purchases, home repairs, etc.)
+ * - Care cost shocks (late-life care scenarios)
  * - Bequest motives (minimum amount to leave behind)
  * 
  * Research shows retirement spending typically declines with age:
  * - Active phase (65-79): Full spending
  * - Slower phase (80-89): Reduced spending (~15% less)
  * - Final phase (90+): Further reduced (~25% less)
+ * 
+ * Care costs in the UK can be substantial:
+ * - Residential care: £35,000-50,000/year
+ * - Nursing care: £50,000-70,000/year
+ * - Duration: Average 2-3 years, but can be 5+ years
  */
 
 /**
@@ -22,6 +28,53 @@ export const DEFAULT_AGE_ADJUSTMENTS = Object.freeze([
   { fromAge: 80, reductionPercent: 15, label: 'Slower phase (80+)' },
   { fromAge: 90, reductionPercent: 25, label: 'Final phase (90+)' }
 ]);
+
+/**
+ * Default care cost scenarios for UK
+ * Based on Age UK and CMA research
+ */
+export const CARE_COST_SCENARIOS = Object.freeze({
+  none: {
+    id: 'none',
+    name: 'No Care Costs',
+    description: 'No additional care costs modelled',
+    annualCost: 0,
+    startAge: 0,
+    duration: 0
+  },
+  moderate: {
+    id: 'moderate',
+    name: 'Moderate Care',
+    description: 'Home care or residential care for 2 years',
+    annualCost: 35000,
+    startAge: 85,
+    duration: 2
+  },
+  extended: {
+    id: 'extended',
+    name: 'Extended Care',
+    description: 'Residential care for 4 years',
+    annualCost: 45000,
+    startAge: 85,
+    duration: 4
+  },
+  intensive: {
+    id: 'intensive',
+    name: 'Intensive Nursing Care',
+    description: 'Nursing home care for 3 years',
+    annualCost: 60000,
+    startAge: 85,
+    duration: 3
+  },
+  custom: {
+    id: 'custom',
+    name: 'Custom Care Scenario',
+    description: 'User-defined care costs',
+    annualCost: 0,
+    startAge: 85,
+    duration: 0
+  }
+});
 
 /**
  * Calculate spending at a given age, applying age-based reductions
@@ -79,6 +132,7 @@ export function calculateSpendingAtAge(baseSpending, age, options = {}) {
  * @param {boolean} options.applyDefaultReductions - Use default age reductions
  * @param {object[]} options.oneOffExpenses - One-time expenses
  * @param {number} options.minimumBequest - Minimum amount to leave behind
+ * @param {string|object} options.careScenario - Care cost scenario ID or custom config
  * @returns {object} Frozen spending rules object
  * 
  * @example
@@ -88,10 +142,33 @@ export function calculateSpendingAtAge(baseSpending, age, options = {}) {
  *   oneOffExpenses: [
  *     { age: 70, amount: 25000, description: 'New car' }
  *   ],
- *   minimumBequest: 50000
+ *   minimumBequest: 50000,
+ *   careScenario: 'moderate'
  * });
  */
 export function createSpendingRules(options = {}) {
+  // Handle care scenario
+  let careConfig = null;
+  if (options.careScenario) {
+    if (typeof options.careScenario === 'string') {
+      // Preset scenario
+      const preset = CARE_COST_SCENARIOS[options.careScenario];
+      if (preset && preset.id !== 'none') {
+        careConfig = { ...preset };
+      }
+    } else if (typeof options.careScenario === 'object') {
+      // Custom scenario
+      careConfig = {
+        id: 'custom',
+        name: options.careScenario.name || 'Custom Care',
+        description: options.careScenario.description || 'Custom care costs',
+        annualCost: options.careScenario.annualCost || 0,
+        startAge: options.careScenario.startAge || 85,
+        duration: options.careScenario.duration || 0
+      };
+    }
+  }
+  
   const rules = {
     baseSpending: options.baseSpending || 30000,
     ageAdjustments: options.ageAdjustments || [],
@@ -101,7 +178,8 @@ export function createSpendingRules(options = {}) {
       amount: exp.amount,
       description: exp.description || 'One-off expense'
     })),
-    minimumBequest: options.minimumBequest || 0
+    minimumBequest: options.minimumBequest || 0,
+    careScenario: careConfig ? Object.freeze(careConfig) : null
   };
   
   return Object.freeze(rules);
@@ -121,11 +199,33 @@ export function getOneOffExpensesAtAge(spendingRules, age) {
 }
 
 /**
- * Calculate total spending for a year including one-off expenses
+ * Get care costs for a specific age
+ * 
+ * @param {object} spendingRules - Spending rules object
+ * @param {number} age - Age to check
+ * @returns {number} Care costs for that age (0 if outside care period)
+ */
+export function getCareCostsAtAge(spendingRules, age) {
+  if (!spendingRules.careScenario) {
+    return 0;
+  }
+  
+  const { startAge, duration, annualCost } = spendingRules.careScenario;
+  const endAge = startAge + duration;
+  
+  if (age >= startAge && age < endAge) {
+    return annualCost;
+  }
+  
+  return 0;
+}
+
+/**
+ * Calculate total spending for a year including one-off expenses and care costs
  * 
  * @param {object} spendingRules - Spending rules object
  * @param {number} age - Current age
- * @returns {object} { regular: number, oneOff: number, total: number }
+ * @returns {object} { regular: number, oneOff: number, care: number, total: number }
  */
 export function calculateYearlySpending(spendingRules, age) {
   const regular = calculateSpendingAtAge(
@@ -138,11 +238,13 @@ export function calculateYearlySpending(spendingRules, age) {
   );
   
   const oneOff = getOneOffExpensesAtAge(spendingRules, age);
+  const care = getCareCostsAtAge(spendingRules, age);
   
   return {
     regular,
     oneOff,
-    total: regular + oneOff
+    care,
+    total: regular + oneOff + care
   };
 }
 
@@ -157,7 +259,7 @@ export function getSpendingRulesSummary(spendingRules) {
     ? (spendingRules.ageAdjustments.length > 0 ? spendingRules.ageAdjustments : DEFAULT_AGE_ADJUSTMENTS)
     : spendingRules.ageAdjustments;
   
-  return {
+  const summary = {
     baseSpending: `£${spendingRules.baseSpending.toLocaleString()}`,
     hasAgeReductions: adjustments.length > 0,
     ageReductions: adjustments.map(adj => 
@@ -170,6 +272,37 @@ export function getSpendingRulesSummary(spendingRules) {
       ? `£${spendingRules.minimumBequest.toLocaleString()}`
       : 'None'
   };
+  
+  // Add care scenario details
+  if (spendingRules.careScenario) {
+    const endAge = spendingRules.careScenario.startAge + spendingRules.careScenario.duration - 1;
+    summary.careScenario = {
+      name: spendingRules.careScenario.name,
+      description: spendingRules.careScenario.description,
+      cost: `£${spendingRules.careScenario.annualCost.toLocaleString()}/year`,
+      period: `Ages ${spendingRules.careScenario.startAge}-${endAge}`,
+      totalCost: `£${(spendingRules.careScenario.annualCost * spendingRules.careScenario.duration).toLocaleString()}`
+    };
+  } else {
+    summary.careScenario = null;
+  }
+  
+  return summary;
+}
+
+/**
+ * Get available care scenario options for UI
+ * 
+ * @returns {object[]} Array of care scenario options
+ */
+export function getCareScenarioOptions() {
+  return Object.values(CARE_COST_SCENARIOS).map(scenario => ({
+    id: scenario.id,
+    name: scenario.name,
+    description: scenario.description,
+    annualCost: scenario.annualCost,
+    totalCost: scenario.annualCost * scenario.duration
+  }));
 }
 
 /**

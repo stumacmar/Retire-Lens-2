@@ -1,0 +1,1299 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="RetireLens 2 - Income-first retirement planning for UK pensions">
+  <title>RetireLens 2 | Retirement Planning</title>
+  
+  <!-- Chart.js from CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  
+  <style>
+    /* ═══════════════════════════════════════════════════════════════
+       RetireLens 2 - Calm, Modern, Professional Aesthetic
+       Mobile-first design
+       ═══════════════════════════════════════════════════════════════ */
+    
+    :root {
+      /* Color palette */
+      --color-primary: #3b82f6;
+      --color-primary-dark: #2563eb;
+      --color-success: #22c55e;
+      --color-warning: #f59e0b;
+      --color-danger: #ef4444;
+      --color-text: #1f2937;
+      --color-text-light: #6b7280;
+      --color-background: #f9fafb;
+      --color-surface: #ffffff;
+      --color-border: #e5e7eb;
+      
+      /* Typography */
+      --font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+      --font-size-sm: 0.875rem;
+      --font-size-base: 1rem;
+      --font-size-lg: 1.125rem;
+      --font-size-xl: 1.5rem;
+      --font-size-2xl: 2rem;
+      --font-size-3xl: 2.5rem;
+      
+      /* Spacing */
+      --spacing-xs: 0.25rem;
+      --spacing-sm: 0.5rem;
+      --spacing-md: 1rem;
+      --spacing-lg: 1.5rem;
+      --spacing-xl: 2rem;
+      --spacing-2xl: 3rem;
+      
+      /* Borders */
+      --radius-sm: 0.25rem;
+      --radius-md: 0.5rem;
+      --radius-lg: 1rem;
+      --radius-full: 9999px;
+      
+      /* Shadows */
+      --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+      --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.1);
+      --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.1);
+    }
+    
+    /* Reset */
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    
+    /* Base */
+    html {
+      font-size: 16px;
+      scroll-behavior: smooth;
+    }
+    
+    body {
+      font-family: var(--font-family);
+      font-size: var(--font-size-base);
+      line-height: 1.6;
+      color: var(--color-text);
+      background: var(--color-background);
+      min-height: 100vh;
+    }
+    
+    /* Layout */
+    .app-container {
+      max-width: 600px;
+      margin: 0 auto;
+      padding: var(--spacing-md);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+    
+    /* Progress bar */
+    .progress-container {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 4px;
+      background: var(--color-border);
+      z-index: 100;
+    }
+    
+    #progress-bar {
+      height: 100%;
+      width: 0%;
+      background: var(--color-primary);
+      transition: width 0.3s ease;
+    }
+    
+    /* Screens */
+    .screen {
+      display: none;
+      flex-direction: column;
+      flex: 1;
+      animation: fadeIn 0.3s ease;
+    }
+    
+    .screen.active {
+      display: flex;
+    }
+    
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    
+    /* Screen content */
+    .screen-header {
+      text-align: center;
+      padding: var(--spacing-2xl) 0;
+    }
+    
+    .screen-title {
+      font-size: var(--font-size-2xl);
+      font-weight: 700;
+      color: var(--color-text);
+      margin-bottom: var(--spacing-sm);
+    }
+    
+    .screen-subtitle {
+      font-size: var(--font-size-lg);
+      color: var(--color-text-light);
+    }
+    
+    .screen-content {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+    
+    /* Input groups */
+    .input-group {
+      margin-bottom: var(--spacing-lg);
+    }
+    
+    .input-group label {
+      display: block;
+      font-weight: 500;
+      margin-bottom: var(--spacing-sm);
+      color: var(--color-text);
+    }
+    
+    .input-wrapper {
+      display: flex;
+      align-items: center;
+      background: var(--color-surface);
+      border: 2px solid var(--color-border);
+      border-radius: var(--radius-md);
+      padding: var(--spacing-sm) var(--spacing-md);
+      transition: border-color 0.2s ease;
+    }
+    
+    .input-wrapper:focus-within {
+      border-color: var(--color-primary);
+    }
+    
+    .currency-symbol {
+      font-size: var(--font-size-lg);
+      color: var(--color-text-light);
+      margin-right: var(--spacing-sm);
+    }
+    
+    input[type="number"],
+    input[type="text"] {
+      flex: 1;
+      border: none;
+      font-size: var(--font-size-xl);
+      font-weight: 600;
+      color: var(--color-text);
+      background: transparent;
+      outline: none;
+      width: 100%;
+    }
+    
+    input[type="number"]::-webkit-inner-spin-button,
+    input[type="number"]::-webkit-outer-spin-button {
+      -webkit-appearance: none;
+      margin: 0;
+    }
+    
+    input[type="number"] {
+      -moz-appearance: textfield;
+    }
+    
+    .help-text {
+      font-size: var(--font-size-sm);
+      color: var(--color-text-light);
+      margin-top: var(--spacing-sm);
+    }
+    
+    /* Buttons */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: var(--spacing-md) var(--spacing-xl);
+      font-size: var(--font-size-base);
+      font-weight: 600;
+      border: none;
+      border-radius: var(--radius-md);
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    
+    .btn-primary {
+      background: var(--color-primary);
+      color: white;
+    }
+    
+    .btn-primary:hover {
+      background: var(--color-primary-dark);
+    }
+    
+    .btn-secondary {
+      background: var(--color-surface);
+      color: var(--color-text);
+      border: 2px solid var(--color-border);
+    }
+    
+    .btn-secondary:hover {
+      background: var(--color-background);
+    }
+    
+    .btn-large {
+      padding: var(--spacing-lg) var(--spacing-2xl);
+      font-size: var(--font-size-lg);
+    }
+    
+    .nav-buttons {
+      display: flex;
+      justify-content: space-between;
+      gap: var(--spacing-md);
+      padding: var(--spacing-xl) 0;
+    }
+    
+    .nav-buttons .btn {
+      flex: 1;
+    }
+    
+    /* Results */
+    .results-hero {
+      text-align: center;
+      padding: var(--spacing-2xl) 0;
+    }
+    
+    .answer-badge {
+      display: inline-block;
+      font-size: var(--font-size-xl);
+      font-weight: 700;
+      padding: var(--spacing-md) var(--spacing-xl);
+      border-radius: var(--radius-full);
+      margin-bottom: var(--spacing-lg);
+    }
+    
+    .answer-badge.success {
+      background: rgba(34, 197, 94, 0.1);
+      color: var(--color-success);
+    }
+    
+    .answer-badge.partial {
+      background: rgba(245, 158, 11, 0.1);
+      color: var(--color-warning);
+    }
+    
+    .results-question {
+      font-size: var(--font-size-lg);
+      color: var(--color-text-light);
+      margin-bottom: var(--spacing-md);
+    }
+    
+    .results-confidence {
+      font-size: var(--font-size-base);
+      color: var(--color-text);
+    }
+    
+    .sustainability-indicator {
+      margin-top: var(--spacing-lg);
+      font-size: var(--font-size-lg);
+      font-weight: 600;
+    }
+    
+    .sustainability-label {
+      font-weight: 400;
+      font-size: var(--font-size-base);
+    }
+    
+    .results-metrics {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: var(--spacing-md);
+      padding: var(--spacing-lg);
+      background: var(--color-surface);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-md);
+    }
+    
+    .metric {
+      text-align: center;
+      padding: var(--spacing-md);
+    }
+    
+    .metric-label {
+      display: block;
+      font-size: var(--font-size-sm);
+      color: var(--color-text-light);
+      margin-bottom: var(--spacing-xs);
+    }
+    
+    .metric-value {
+      display: block;
+      font-size: var(--font-size-lg);
+      font-weight: 700;
+      color: var(--color-text);
+    }
+    
+    .results-suggestion {
+      margin-top: var(--spacing-lg);
+      padding: var(--spacing-md);
+      background: rgba(59, 130, 246, 0.1);
+      border-radius: var(--radius-md);
+      color: var(--color-primary-dark);
+    }
+    
+    /* Charts */
+    .chart-container {
+      position: relative;
+      height: 300px;
+      margin: var(--spacing-xl) 0;
+      background: var(--color-surface);
+      border-radius: var(--radius-lg);
+      padding: var(--spacing-md);
+      box-shadow: var(--shadow-sm);
+    }
+    
+    /* Comparison table */
+    .comparison-table {
+      overflow-x: auto;
+      margin: var(--spacing-lg) 0;
+    }
+    
+    .comparison-table table {
+      width: 100%;
+      border-collapse: collapse;
+      background: var(--color-surface);
+      border-radius: var(--radius-md);
+      overflow: hidden;
+    }
+    
+    .comparison-table th,
+    .comparison-table td {
+      padding: var(--spacing-md);
+      text-align: left;
+      border-bottom: 1px solid var(--color-border);
+    }
+    
+    .comparison-table th {
+      background: var(--color-background);
+      font-weight: 600;
+    }
+    
+    .comparison-table .positive {
+      color: var(--color-success);
+    }
+    
+    .comparison-table .negative {
+      color: var(--color-danger);
+    }
+    
+    /* Assumptions panel */
+    .assumptions-panel {
+      background: var(--color-surface);
+      border-radius: var(--radius-md);
+      margin: var(--spacing-lg) 0;
+    }
+    
+    .assumptions-panel summary {
+      padding: var(--spacing-md);
+      cursor: pointer;
+      font-weight: 500;
+    }
+    
+    .assumptions-content {
+      padding: 0 var(--spacing-md) var(--spacing-md);
+    }
+    
+    .assumption-section {
+      margin-bottom: var(--spacing-lg);
+    }
+    
+    .assumption-section h4 {
+      font-size: var(--font-size-sm);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--color-text-light);
+      margin-bottom: var(--spacing-sm);
+    }
+    
+    .assumption-section dl {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: var(--spacing-xs);
+    }
+    
+    .assumption-section dt {
+      color: var(--color-text-light);
+    }
+    
+    .assumption-section dd {
+      font-weight: 500;
+      text-align: right;
+    }
+    
+    .assumptions-note {
+      font-size: var(--font-size-sm);
+      color: var(--color-text-light);
+      padding: var(--spacing-md);
+      background: var(--color-background);
+      border-radius: var(--radius-sm);
+    }
+    
+    /* Debug output */
+    .debug-table {
+      font-family: 'Monaco', 'Menlo', monospace;
+      font-size: var(--font-size-sm);
+      background: #1e1e1e;
+      color: #d4d4d4;
+      padding: var(--spacing-md);
+      border-radius: var(--radius-md);
+      overflow-x: auto;
+      white-space: pre;
+    }
+    
+    /* Error message */
+    #error-message {
+      position: fixed;
+      bottom: var(--spacing-lg);
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--color-danger);
+      color: white;
+      padding: var(--spacing-md) var(--spacing-xl);
+      border-radius: var(--radius-md);
+      opacity: 0;
+      transition: opacity 0.3s ease;
+      z-index: 200;
+    }
+    
+    #error-message.visible {
+      opacity: 1;
+    }
+    
+    /* Welcome screen */
+    .welcome-content {
+      text-align: center;
+    }
+    
+    .welcome-logo {
+      font-size: var(--font-size-3xl);
+      margin-bottom: var(--spacing-lg);
+    }
+    
+    .welcome-tagline {
+      font-size: var(--font-size-lg);
+      color: var(--color-text-light);
+      margin-bottom: var(--spacing-2xl);
+    }
+    
+    .trust-badges {
+      display: flex;
+      justify-content: center;
+      gap: var(--spacing-xl);
+      margin-top: var(--spacing-2xl);
+      color: var(--color-text-light);
+      font-size: var(--font-size-sm);
+    }
+    
+    .trust-badge {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: var(--spacing-xs);
+    }
+    
+    /* Responsive */
+    @media (min-width: 768px) {
+      .app-container {
+        padding: var(--spacing-xl);
+      }
+      
+      .results-metrics {
+        grid-template-columns: repeat(4, 1fr);
+      }
+      
+      .chart-container {
+        height: 400px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <!-- Progress bar -->
+  <div class="progress-container">
+    <div id="progress-bar" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
+  </div>
+  
+  <!-- Main app container -->
+  <div class="app-container">
+    
+    <!-- ═══════════════════════════════════════════════════════════════
+         Screen: Welcome
+         ═══════════════════════════════════════════════════════════════ -->
+    <div id="screen-welcome" class="screen active" aria-hidden="false">
+      <div class="screen-content welcome-content">
+        <div class="welcome-logo">🔭</div>
+        <h1 class="screen-title">RetireLens 2</h1>
+        <p class="welcome-tagline">Can I retire at age X with £Y income?</p>
+        
+        <button type="button" class="btn btn-primary btn-large" data-action="next">
+          Start Planning →
+        </button>
+        
+        <div class="trust-badges">
+          <div class="trust-badge">
+            <span>🔒</span>
+            <span>100% Private</span>
+          </div>
+          <div class="trust-badge">
+            <span>🎯</span>
+            <span>Honest Results</span>
+          </div>
+          <div class="trust-badge">
+            <span>🆓</span>
+            <span>Completely Free</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- ═══════════════════════════════════════════════════════════════
+         Screen: Current Age
+         ═══════════════════════════════════════════════════════════════ -->
+    <div id="screen-age" class="screen" aria-hidden="true">
+      <div class="screen-header">
+        <h2 class="screen-title">How old are you?</h2>
+        <p class="screen-subtitle">Your current age</p>
+      </div>
+      
+      <div class="screen-content">
+        <div class="input-group">
+          <div class="input-wrapper">
+            <input type="number" id="input-current-age" min="18" max="100" placeholder="45" inputmode="numeric" />
+          </div>
+          <p class="help-text">Enter your age in years</p>
+        </div>
+      </div>
+      
+      <div class="nav-buttons">
+        <button type="button" class="btn btn-secondary" data-action="back">Back</button>
+        <button type="button" class="btn btn-primary" data-action="next">Next</button>
+      </div>
+    </div>
+    
+    <!-- ═══════════════════════════════════════════════════════════════
+         Screen: Retirement Age
+         ═══════════════════════════════════════════════════════════════ -->
+    <div id="screen-retirement-age" class="screen" aria-hidden="true">
+      <div class="screen-header">
+        <h2 class="screen-title">When do you want to retire?</h2>
+        <p class="screen-subtitle">Target retirement age</p>
+      </div>
+      
+      <div class="screen-content">
+        <div class="input-group">
+          <div class="input-wrapper">
+            <input type="number" id="input-retirement-age" min="50" max="100" placeholder="65" inputmode="numeric" />
+          </div>
+          <p class="help-text">The age you plan to stop working</p>
+        </div>
+      </div>
+      
+      <div class="nav-buttons">
+        <button type="button" class="btn btn-secondary" data-action="back">Back</button>
+        <button type="button" class="btn btn-primary" data-action="next">Next</button>
+      </div>
+    </div>
+    
+    <!-- ═══════════════════════════════════════════════════════════════
+         Screen: Target Income
+         ═══════════════════════════════════════════════════════════════ -->
+    <div id="screen-income-target" class="screen" aria-hidden="true">
+      <div class="screen-header">
+        <h2 class="screen-title">How much income do you need?</h2>
+        <p class="screen-subtitle">Annual net income after tax</p>
+      </div>
+      
+      <div class="screen-content">
+        <div class="input-group">
+          <div class="input-wrapper">
+            <span class="currency-symbol">£</span>
+            <input type="number" id="input-target-income" min="0" step="1000" placeholder="30000" inputmode="numeric" />
+          </div>
+          <p class="help-text">Your target annual spending in today's money</p>
+        </div>
+      </div>
+      
+      <div class="nav-buttons">
+        <button type="button" class="btn btn-secondary" data-action="back">Back</button>
+        <button type="button" class="btn btn-primary" data-action="next">Next</button>
+      </div>
+    </div>
+    
+    <!-- ═══════════════════════════════════════════════════════════════
+         Screen: Pension Pot
+         ═══════════════════════════════════════════════════════════════ -->
+    <div id="screen-pension-pot" class="screen" aria-hidden="true">
+      <div class="screen-header">
+        <h2 class="screen-title">What's in your pension?</h2>
+        <p class="screen-subtitle">Current DC pension value</p>
+      </div>
+      
+      <div class="screen-content">
+        <div class="input-group">
+          <div class="input-wrapper">
+            <span class="currency-symbol">£</span>
+            <input type="number" id="input-pension-pot" min="0" step="1000" placeholder="100000" inputmode="numeric" />
+          </div>
+          <p class="help-text">Your defined contribution pension pot</p>
+        </div>
+      </div>
+      
+      <div class="nav-buttons">
+        <button type="button" class="btn btn-secondary" data-action="back">Back</button>
+        <button type="button" class="btn btn-primary" data-action="next">Next</button>
+      </div>
+    </div>
+    
+    <!-- ═══════════════════════════════════════════════════════════════
+         Screen: Contributions
+         ═══════════════════════════════════════════════════════════════ -->
+    <div id="screen-contributions" class="screen" aria-hidden="true">
+      <div class="screen-header">
+        <h2 class="screen-title">How much do you contribute?</h2>
+        <p class="screen-subtitle">Monthly pension contributions</p>
+      </div>
+      
+      <div class="screen-content">
+        <div class="input-group">
+          <div class="input-wrapper">
+            <span class="currency-symbol">£</span>
+            <input type="number" id="input-pension-contribution" min="0" step="50" placeholder="500" inputmode="numeric" />
+          </div>
+          <p class="help-text">Monthly contribution until retirement (including employer)</p>
+        </div>
+      </div>
+      
+      <div class="nav-buttons">
+        <button type="button" class="btn btn-secondary" data-action="back">Back</button>
+        <button type="button" class="btn btn-primary" data-action="next">Next</button>
+      </div>
+    </div>
+    
+    <!-- ═══════════════════════════════════════════════════════════════
+         Screen: ISA Savings
+         ═══════════════════════════════════════════════════════════════ -->
+    <div id="screen-isa-savings" class="screen" aria-hidden="true">
+      <div class="screen-header">
+        <h2 class="screen-title">Any ISA savings?</h2>
+        <p class="screen-subtitle">Tax-free ISA investments</p>
+      </div>
+      
+      <div class="screen-content">
+        <div class="input-group">
+          <label>Current ISA balance</label>
+          <div class="input-wrapper">
+            <span class="currency-symbol">£</span>
+            <input type="number" id="input-isa-balance" min="0" step="1000" placeholder="0" inputmode="numeric" />
+          </div>
+        </div>
+        
+        <div class="input-group">
+          <label>Annual ISA contribution</label>
+          <div class="input-wrapper">
+            <span class="currency-symbol">£</span>
+            <input type="number" id="input-isa-contribution" min="0" step="500" placeholder="0" inputmode="numeric" />
+          </div>
+          <p class="help-text">How much you add to ISA each year</p>
+        </div>
+      </div>
+      
+      <div class="nav-buttons">
+        <button type="button" class="btn btn-secondary" data-action="back">Back</button>
+        <button type="button" class="btn btn-primary" data-action="next">Next</button>
+      </div>
+    </div>
+    
+    <!-- ═══════════════════════════════════════════════════════════════
+         Screen: State Pension
+         ═══════════════════════════════════════════════════════════════ -->
+    <div id="screen-state-pension" class="screen" aria-hidden="true">
+      <div class="screen-header">
+        <h2 class="screen-title">State Pension</h2>
+        <p class="screen-subtitle">Your UK State Pension entitlement</p>
+      </div>
+      
+      <div class="screen-content">
+        <div class="input-group">
+          <label>State Pension age</label>
+          <div class="input-wrapper">
+            <input type="number" id="input-state-pension-age" min="60" max="75" value="67" inputmode="numeric" />
+          </div>
+        </div>
+        
+        <div class="input-group">
+          <label>Expected annual State Pension</label>
+          <div class="input-wrapper">
+            <span class="currency-symbol">£</span>
+            <input type="number" id="input-state-pension-amount" min="0" step="100" value="11500" inputmode="numeric" />
+          </div>
+          <p class="help-text">Full new State Pension is ~£11,500/year (2024/25)</p>
+        </div>
+      </div>
+      
+      <div class="nav-buttons">
+        <button type="button" class="btn btn-secondary" data-action="back">Back</button>
+        <button type="button" class="btn btn-primary" data-action="next">Next</button>
+      </div>
+    </div>
+    
+    <!-- ═══════════════════════════════════════════════════════════════
+         Screen: Review
+         ═══════════════════════════════════════════════════════════════ -->
+    <div id="screen-review" class="screen" aria-hidden="true">
+      <div class="screen-header">
+        <h2 class="screen-title">Ready to calculate?</h2>
+        <p class="screen-subtitle">Review your inputs</p>
+      </div>
+      
+      <div class="screen-content">
+        <div id="review-summary">
+          <!-- Populated by JavaScript -->
+        </div>
+        
+        <div id="assumptions-panel">
+          <!-- Populated by JavaScript -->
+        </div>
+      </div>
+      
+      <div class="nav-buttons">
+        <button type="button" class="btn btn-secondary" data-action="back">Edit</button>
+        <button type="button" class="btn btn-primary" id="calculate-btn">Calculate →</button>
+      </div>
+    </div>
+    
+    <!-- ═══════════════════════════════════════════════════════════════
+         Screen: Results
+         ═══════════════════════════════════════════════════════════════ -->
+    <div id="screen-results" class="screen" aria-hidden="true">
+      <div id="results-container">
+        <!-- Populated by JavaScript -->
+      </div>
+      
+      <div class="chart-container">
+        <canvas id="capital-chart"></canvas>
+      </div>
+      
+      <div id="assumptions-results-panel">
+        <!-- Populated by JavaScript -->
+      </div>
+      
+      <div class="nav-buttons">
+        <button type="button" class="btn btn-secondary" data-action="back">Edit Inputs</button>
+        <button type="button" class="btn btn-primary" data-action="next">Compare Plans</button>
+      </div>
+      
+      <!-- Debug output (visible with ?debug=1) -->
+      <div id="debug-output" style="display: none;"></div>
+    </div>
+    
+    <!-- ═══════════════════════════════════════════════════════════════
+         Screen: Compare (Plan A vs Plan B)
+         ═══════════════════════════════════════════════════════════════ -->
+    <div id="screen-compare" class="screen" aria-hidden="true">
+      <div class="screen-header">
+        <h2 class="screen-title">Compare Plans</h2>
+        <p class="screen-subtitle">What if you changed one thing?</p>
+      </div>
+      
+      <div class="screen-content">
+        <div class="input-group">
+          <label>Plan B: Retire at different age</label>
+          <div class="input-wrapper">
+            <input type="number" id="input-planb-retirement-age" min="50" max="100" placeholder="67" inputmode="numeric" />
+          </div>
+          <p class="help-text">Change the retirement age for Plan B</p>
+        </div>
+        
+        <button type="button" class="btn btn-primary" id="compare-btn" style="margin-top: 1rem;">
+          Compare Plans
+        </button>
+        
+        <div id="comparison-container">
+          <!-- Populated by JavaScript -->
+        </div>
+        
+        <div class="chart-container">
+          <canvas id="comparison-chart"></canvas>
+        </div>
+      </div>
+      
+      <div class="nav-buttons">
+        <button type="button" class="btn btn-secondary" data-action="back">Back to Results</button>
+        <button type="button" class="btn btn-secondary" onclick="location.reload()">Start Over</button>
+      </div>
+    </div>
+    
+  </div>
+  
+  <!-- Error message toast -->
+  <div id="error-message"></div>
+  
+  <!-- Main application script -->
+  <script type="module">
+    import { createPlan, runProjection, comparePlans, generateDebugOutput } from './engine/projections.js';
+    import { createAssumptions } from './config/defaults.js';
+    
+    // ═══════════════════════════════════════════════════════════════
+    // State Management
+    // ═══════════════════════════════════════════════════════════════
+    
+    const DEBUG = new URLSearchParams(window.location.search).get('debug') === '1';
+    
+    const state = {
+      currentScreen: 'welcome',
+      formData: {},
+      planA: null,
+      projectionA: null,
+      planB: null,
+      projectionB: null
+    };
+    
+    function debugLog(category, message, data = null) {
+      if (!DEBUG) return;
+      console.log(`[${category}] ${message}`, data || '');
+    }
+    
+    // ═══════════════════════════════════════════════════════════════
+    // Navigation
+    // ═══════════════════════════════════════════════════════════════
+    
+    const SCREEN_ORDER = [
+      'welcome', 'age', 'retirement-age', 'income-target', 
+      'pension-pot', 'contributions', 'isa-savings', 
+      'state-pension', 'review', 'results', 'compare'
+    ];
+    
+    function showScreen(screenId) {
+      debugLog('NAV', `Showing screen: ${screenId}`);
+      
+      document.querySelectorAll('.screen').forEach(el => {
+        el.classList.remove('active');
+        el.setAttribute('aria-hidden', 'true');
+      });
+      
+      const screen = document.getElementById(`screen-${screenId}`);
+      if (screen) {
+        screen.classList.add('active');
+        screen.setAttribute('aria-hidden', 'false');
+        
+        const input = screen.querySelector('input');
+        if (input) input.focus();
+      }
+      
+      // Update progress
+      const progress = ((SCREEN_ORDER.indexOf(screenId) + 1) / SCREEN_ORDER.length) * 100;
+      document.getElementById('progress-bar').style.width = `${progress}%`;
+      
+      state.currentScreen = screenId;
+      
+      // Special handling for review screen
+      if (screenId === 'review') {
+        renderReviewSummary();
+      }
+    }
+    
+    function nextScreen() {
+      const currentIndex = SCREEN_ORDER.indexOf(state.currentScreen);
+      if (currentIndex < SCREEN_ORDER.length - 1) {
+        showScreen(SCREEN_ORDER[currentIndex + 1]);
+      }
+    }
+    
+    function prevScreen() {
+      const currentIndex = SCREEN_ORDER.indexOf(state.currentScreen);
+      if (currentIndex > 0) {
+        showScreen(SCREEN_ORDER[currentIndex - 1]);
+      }
+    }
+    
+    // ═══════════════════════════════════════════════════════════════
+    // Form Handling
+    // ═══════════════════════════════════════════════════════════════
+    
+    function getValue(id, defaultVal = 0) {
+      const el = document.getElementById(id);
+      if (!el) return defaultVal;
+      const val = parseFloat(el.value);
+      return isNaN(val) ? defaultVal : val;
+    }
+    
+    function collectFormData() {
+      return {
+        currentAge: getValue('input-current-age'),
+        retirementAge: getValue('input-retirement-age'),
+        targetNetIncome: getValue('input-target-income'),
+        currentPension: getValue('input-pension-pot', 0),
+        annualPensionContribution: getValue('input-pension-contribution', 0) * 12,
+        currentIsa: getValue('input-isa-balance', 0),
+        annualIsaContribution: getValue('input-isa-contribution', 0),
+        statePensionAge: getValue('input-state-pension-age', 67),
+        expectedStatePension: getValue('input-state-pension-amount', 11500)
+      };
+    }
+    
+    function showError(message) {
+      const el = document.getElementById('error-message');
+      el.textContent = message;
+      el.classList.add('visible');
+      setTimeout(() => el.classList.remove('visible'), 3000);
+    }
+    
+    // ═══════════════════════════════════════════════════════════════
+    // Review Screen
+    // ═══════════════════════════════════════════════════════════════
+    
+    function renderReviewSummary() {
+      const data = collectFormData();
+      state.formData = data;
+      
+      const html = `
+        <div class="results-metrics" style="margin-bottom: 1rem;">
+          <div class="metric">
+            <span class="metric-label">Current Age</span>
+            <span class="metric-value">${data.currentAge}</span>
+          </div>
+          <div class="metric">
+            <span class="metric-label">Retire At</span>
+            <span class="metric-value">${data.retirementAge}</span>
+          </div>
+          <div class="metric">
+            <span class="metric-label">Target Income</span>
+            <span class="metric-value">£${data.targetNetIncome.toLocaleString()}</span>
+          </div>
+          <div class="metric">
+            <span class="metric-label">Pension Pot</span>
+            <span class="metric-value">£${data.currentPension.toLocaleString()}</span>
+          </div>
+        </div>
+      `;
+      
+      document.getElementById('review-summary').innerHTML = html;
+    }
+    
+    // ═══════════════════════════════════════════════════════════════
+    // Results Rendering
+    // ═══════════════════════════════════════════════════════════════
+    
+    function formatCurrency(amount) {
+      return '£' + Math.round(amount).toLocaleString();
+    }
+    
+    function renderResults(projection) {
+      const { summary, plan } = projection;
+      const withdrawalRate = (plan.targetNetIncome / summary.retirementPot) * 100;
+      
+      let sustainability = { label: 'Sustainable', color: '#22c55e', emoji: '✅' };
+      if (withdrawalRate > 6) sustainability = { label: 'High Risk', color: '#ef4444', emoji: '❌' };
+      else if (withdrawalRate > 5) sustainability = { label: 'Higher Risk', color: '#f97316', emoji: '⚠️' };
+      else if (withdrawalRate > 4) sustainability = { label: 'Moderate Risk', color: '#f59e0b', emoji: '⚠️' };
+      
+      const isSuccess = summary.successRate >= 1.0;
+      
+      const html = `
+        <div class="results-hero">
+          <div class="answer-badge ${isSuccess ? 'success' : 'partial'}">
+            ${isSuccess ? '✅ YES' : '⚠️ MAYBE'}
+          </div>
+          
+          <h2 class="results-question">
+            Can I retire at age ${plan.retirementAge} with ${formatCurrency(plan.targetNetIncome)} net income?
+          </h2>
+          
+          <p class="results-confidence">
+            Confidence: <strong>${(summary.successRate * 100).toFixed(0)}%</strong>
+          </p>
+          
+          <div class="sustainability-indicator" style="color: ${sustainability.color}">
+            ${sustainability.emoji} Withdrawal rate: ${withdrawalRate.toFixed(1)}% 
+            <span class="sustainability-label">(${sustainability.label})</span>
+          </div>
+        </div>
+        
+        <div class="results-metrics">
+          <div class="metric">
+            <span class="metric-label">Retirement Pot</span>
+            <span class="metric-value">${formatCurrency(summary.retirementPot)}</span>
+          </div>
+          <div class="metric">
+            <span class="metric-label">Tax-Free Cash</span>
+            <span class="metric-value">${formatCurrency(summary.pclsTaken)}</span>
+          </div>
+          <div class="metric">
+            <span class="metric-label">Years Supported</span>
+            <span class="metric-value">${summary.yearsWithFullIncome}/${summary.totalYearsInRetirement}</span>
+          </div>
+          <div class="metric">
+            <span class="metric-label">Final Balance</span>
+            <span class="metric-value">${formatCurrency(summary.finalBalance)}</span>
+          </div>
+        </div>
+        
+        ${!isSuccess && summary.depletionAge ? `
+          <div class="results-suggestion">
+            <strong>💡 Suggestion:</strong> Funds may run out at age ${summary.depletionAge}. 
+            Consider increasing contributions or reducing target income.
+          </div>
+        ` : ''}
+      `;
+      
+      document.getElementById('results-container').innerHTML = html;
+      
+      // Render chart
+      renderCapitalChart(projection);
+      
+      // Debug output
+      if (DEBUG) {
+        document.getElementById('debug-output').style.display = 'block';
+        document.getElementById('debug-output').innerHTML = 
+          `<pre class="debug-table">${generateDebugOutput(projection)}</pre>`;
+      }
+    }
+    
+    function renderCapitalChart(projection) {
+      const canvas = document.getElementById('capital-chart');
+      if (!canvas || typeof Chart === 'undefined') return;
+      
+      const existingChart = Chart.getChart(canvas);
+      if (existingChart) existingChart.destroy();
+      
+      const accData = projection.accumulation.years.map(y => ({ x: y.age, y: y.endBalances.total }));
+      const decData = projection.decumulation.years
+        .filter(y => y.endBalances)
+        .map(y => ({ x: y.age, y: y.endBalances.total }));
+      
+      const allData = [...accData, ...decData];
+      
+      new Chart(canvas, {
+        type: 'line',
+        data: {
+          labels: allData.map(d => d.x),
+          datasets: [{
+            label: 'Total Wealth',
+            data: allData.map(d => d.y),
+            borderColor: '#3b82f6',
+            backgroundColor: 'rgba(59, 130, 246, 0.1)',
+            fill: true,
+            tension: 0.3,
+            pointRadius: 0
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              callbacks: {
+                label: (ctx) => formatCurrency(ctx.parsed.y)
+              }
+            }
+          },
+          scales: {
+            x: { title: { display: true, text: 'Age' }},
+            y: { 
+              title: { display: true, text: 'Total Wealth (£)' },
+              ticks: { callback: (v) => formatCurrency(v) }
+            }
+          }
+        }
+      });
+    }
+    
+    // ═══════════════════════════════════════════════════════════════
+    // Comparison
+    // ═══════════════════════════════════════════════════════════════
+    
+    function renderComparison(projA, projB) {
+      const comparison = comparePlans(projA, projB);
+      const { deltas } = comparison;
+      
+      const formatDelta = (val, isCurrency = true) => {
+        const sign = val >= 0 ? '+' : '';
+        return isCurrency ? sign + formatCurrency(val) : sign + val.toFixed(1);
+      };
+      
+      const html = `
+        <div class="comparison-table">
+          <table>
+            <thead>
+              <tr>
+                <th>Metric</th>
+                <th>${projA.plan.name}</th>
+                <th>${projB.plan.name}</th>
+                <th>Difference</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Retirement Pot</td>
+                <td>${formatCurrency(projA.summary.retirementPot)}</td>
+                <td>${formatCurrency(projB.summary.retirementPot)}</td>
+                <td class="${deltas.retirementPot >= 0 ? 'positive' : 'negative'}">${formatDelta(deltas.retirementPot)}</td>
+              </tr>
+              <tr>
+                <td>Total Net Income</td>
+                <td>${formatCurrency(projA.summary.totalNetIncome)}</td>
+                <td>${formatCurrency(projB.summary.totalNetIncome)}</td>
+                <td class="${deltas.totalNetIncome >= 0 ? 'positive' : 'negative'}">${formatDelta(deltas.totalNetIncome)}</td>
+              </tr>
+              <tr>
+                <td>Final Balance</td>
+                <td>${formatCurrency(projA.summary.finalBalance)}</td>
+                <td>${formatCurrency(projB.summary.finalBalance)}</td>
+                <td class="${deltas.finalBalance >= 0 ? 'positive' : 'negative'}">${formatDelta(deltas.finalBalance)}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      `;
+      
+      document.getElementById('comparison-container').innerHTML = html;
+      
+      // Render comparison chart
+      const canvas = document.getElementById('comparison-chart');
+      if (!canvas || typeof Chart === 'undefined') return;
+      
+      const existingChart = Chart.getChart(canvas);
+      if (existingChart) existingChart.destroy();
+      
+      const prepareData = (proj) => {
+        const acc = proj.accumulation.years.map(y => ({ x: y.age, y: y.endBalances.total }));
+        const dec = proj.decumulation.years.filter(y => y.endBalances).map(y => ({ x: y.age, y: y.endBalances.total }));
+        return [...acc, ...dec];
+      };
+      
+      const dataA = prepareData(projA);
+      const dataB = prepareData(projB);
+      
+      new Chart(canvas, {
+        type: 'line',
+        data: {
+          labels: dataA.map(d => d.x),
+          datasets: [
+            {
+              label: projA.plan.name,
+              data: dataA.map(d => d.y),
+              borderColor: '#3b82f6',
+              fill: false,
+              tension: 0.3,
+              pointRadius: 0
+            },
+            {
+              label: projB.plan.name,
+              data: dataB.map(d => d.y),
+              borderColor: '#10b981',
+              fill: false,
+              tension: 0.3,
+              pointRadius: 0
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            x: { title: { display: true, text: 'Age' }},
+            y: { 
+              title: { display: true, text: 'Total Wealth (£)' },
+              ticks: { callback: (v) => formatCurrency(v) }
+            }
+          }
+        }
+      });
+    }
+    
+    // ═══════════════════════════════════════════════════════════════
+    // Event Listeners
+    // ═══════════════════════════════════════════════════════════════
+    
+    document.addEventListener('DOMContentLoaded', () => {
+      debugLog('INIT', 'App initializing');
+      
+      // Navigation buttons
+      document.querySelectorAll('[data-action="next"]').forEach(btn => {
+        btn.addEventListener('click', nextScreen);
+      });
+      
+      document.querySelectorAll('[data-action="back"]').forEach(btn => {
+        btn.addEventListener('click', prevScreen);
+      });
+      
+      // Calculate button
+      document.getElementById('calculate-btn')?.addEventListener('click', () => {
+        try {
+          const data = collectFormData();
+          
+          const plan = createPlan({
+            name: 'Plan A',
+            ...data
+          });
+          
+          const projection = runProjection(plan, { endAge: 90 });
+          
+          state.planA = plan;
+          state.projectionA = projection;
+          
+          debugLog('CALC', 'Projection complete', projection.summary);
+          
+          nextScreen();
+          renderResults(projection);
+          
+        } catch (error) {
+          console.error(error);
+          showError(error.message);
+        }
+      });
+      
+      // Compare button
+      document.getElementById('compare-btn')?.addEventListener('click', () => {
+        try {
+          const planBRetireAge = getValue('input-planb-retirement-age', 67);
+          
+          const planB = createPlan({
+            name: 'Plan B',
+            ...state.formData,
+            retirementAge: planBRetireAge
+          });
+          
+          const projectionB = runProjection(planB, { endAge: 90 });
+          
+          state.planB = planB;
+          state.projectionB = projectionB;
+          
+          renderComparison(state.projectionA, projectionB);
+          
+        } catch (error) {
+          console.error(error);
+          showError(error.message);
+        }
+      });
+      
+      // Enter key advances
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && e.target.tagName === 'INPUT') {
+          e.preventDefault();
+          nextScreen();
+        }
+      });
+      
+      debugLog('INIT', 'App ready');
+    });
+    
+    // Expose for debugging
+    if (DEBUG) {
+      window.__RL_STATE__ = state;
+    }
+  </script>
+</body>
+</html>

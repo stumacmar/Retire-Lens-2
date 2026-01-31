@@ -99,6 +99,19 @@ function expect(actual) {
       if (!threw) {
         throw new Error('Expected function to throw');
       }
+    },
+    toContain(expected) {
+      if (typeof actual === 'string') {
+        if (!actual.includes(expected)) {
+          throw new Error(`Expected "${actual}" to contain "${expected}"`);
+        }
+      } else if (Array.isArray(actual)) {
+        if (!actual.includes(expected)) {
+          throw new Error(`Expected array to contain ${expected}`);
+        }
+      } else {
+        throw new Error('toContain only works with strings and arrays');
+      }
     }
   };
 }
@@ -480,6 +493,227 @@ test('backward compatibility: flat spending without reductions', () => {
   
   const year85 = result.decumulation.years.find(y => y.age === 85);
   expect(year85.targetSpending).toBe(30000); // No reduction
+});
+
+console.log('');
+
+// ═══════════════════════════════════════════════════════════════
+// ENHANCED ASSUMPTIONS MODULE TESTS
+// ═══════════════════════════════════════════════════════════════
+
+console.log('ENHANCED ASSUMPTIONS MODULE');
+console.log('─────────────────────────────────────────────────────────────────');
+
+import { 
+  getEffectiveReturn, 
+  getEffectiveVolatility,
+  realToNominal,
+  nominalToReal,
+  getDocumentedDefaults
+} from '../engine/assumptions.js';
+
+test('getEffectiveReturn returns single rate when phase-based disabled', () => {
+  const assumptions = createUserAssumptions({ usePhaseBasedReturns: false });
+  expect(getEffectiveReturn(assumptions, 'accumulation')).toBe(assumptions.netGrowthRate);
+  expect(getEffectiveReturn(assumptions, 'decumulation')).toBe(assumptions.netGrowthRate);
+});
+
+test('getEffectiveReturn returns phase-based rates when enabled', () => {
+  const assumptions = createUserAssumptions({ 
+    usePhaseBasedReturns: true,
+    preRetirementReturn: 0.05,
+    postRetirementReturn: 0.03,
+    feeRate: 0.005
+  });
+  expect(getEffectiveReturn(assumptions, 'accumulation')).toBeCloseTo(0.045, 0.001);
+  expect(getEffectiveReturn(assumptions, 'decumulation')).toBeCloseTo(0.025, 0.001);
+});
+
+test('realToNominal converts correctly', () => {
+  const real = 100000;
+  const years = 10;
+  const inflation = 0.02;
+  const nominal = realToNominal(real, years, inflation);
+  expect(nominal).toBeCloseTo(121899, 10);
+});
+
+test('nominalToReal converts correctly', () => {
+  const nominal = 121899;
+  const years = 10;
+  const inflation = 0.02;
+  const real = nominalToReal(nominal, years, inflation);
+  expect(real).toBeCloseTo(100000, 10);
+});
+
+test('getDocumentedDefaults returns documented values', () => {
+  const docs = getDocumentedDefaults();
+  expect(docs.growthRate).toBeTruthy();
+  expect(docs.growthRate.value).toBeTruthy();
+  expect(docs.growthRate.rationale).toBeTruthy();
+});
+
+console.log('');
+
+// ═══════════════════════════════════════════════════════════════
+// CARE COST SCENARIOS TESTS
+// ═══════════════════════════════════════════════════════════════
+
+console.log('CARE COST SCENARIOS');
+console.log('─────────────────────────────────────────────────────────────────');
+
+import { getCareCostsAtAge, CARE_COST_SCENARIOS, getCareScenarioOptions } from '../engine/spendingPolicy.js';
+
+test('createSpendingRules handles care scenario preset', () => {
+  const rules = createSpendingRules({
+    baseSpending: 30000,
+    careScenario: 'moderate'
+  });
+  expect(rules.careScenario).toBeTruthy();
+  expect(rules.careScenario.annualCost).toBe(35000);
+  expect(rules.careScenario.startAge).toBe(85);
+  expect(rules.careScenario.duration).toBe(2);
+});
+
+test('createSpendingRules handles custom care scenario', () => {
+  const rules = createSpendingRules({
+    baseSpending: 30000,
+    careScenario: {
+      annualCost: 50000,
+      startAge: 88,
+      duration: 3
+    }
+  });
+  expect(rules.careScenario.annualCost).toBe(50000);
+  expect(rules.careScenario.startAge).toBe(88);
+});
+
+test('getCareCostsAtAge returns correct costs during care period', () => {
+  const rules = createSpendingRules({
+    baseSpending: 30000,
+    careScenario: 'moderate'  // 85-87, £35k/year
+  });
+  
+  expect(getCareCostsAtAge(rules, 84)).toBe(0);  // Before care
+  expect(getCareCostsAtAge(rules, 85)).toBe(35000);  // During care
+  expect(getCareCostsAtAge(rules, 86)).toBe(35000);  // During care
+  expect(getCareCostsAtAge(rules, 87)).toBe(0);  // After care (endAge is exclusive)
+});
+
+test('calculateYearlySpending includes care costs', () => {
+  const rules = createSpendingRules({
+    baseSpending: 30000,
+    applyDefaultReductions: false,
+    careScenario: 'moderate'
+  });
+  
+  const result = calculateYearlySpending(rules, 85);
+  expect(result.regular).toBe(30000);
+  expect(result.care).toBe(35000);
+  expect(result.total).toBe(65000);
+});
+
+test('getCareScenarioOptions returns all scenarios', () => {
+  const options = getCareScenarioOptions();
+  expect(options.length).toBe(Object.keys(CARE_COST_SCENARIOS).length);
+  expect(options.find(o => o.id === 'moderate')).toBeTruthy();
+});
+
+console.log('');
+
+// ═══════════════════════════════════════════════════════════════
+// MONTE CARLO WITH BANDS TESTS
+// ═══════════════════════════════════════════════════════════════
+
+console.log('MONTE CARLO WITH FAN CHART DATA');
+console.log('─────────────────────────────────────────────────────────────────');
+
+import { runMonteCarloWithBands } from '../engine/monteCarlo.js';
+
+test('runMonteCarloWithBands generates yearly percentile bands', () => {
+  const plan = createPlan({
+    currentAge: 55,
+    retirementAge: 60,
+    targetNetIncome: 25000,
+    currentPension: 250000,
+    annualPensionContribution: 10000,
+    statePensionAge: 67,
+    expectedStatePension: 11500
+  });
+  
+  const result = runMonteCarloWithBands(plan, { iterations: 50, endAge: 70, seed: 12345 });
+  
+  expect(result.yearlyBands).toBeTruthy();
+  expect(result.yearlyBands.length).toBeGreaterThan(0);
+  
+  // Check band structure
+  const band = result.yearlyBands[0];
+  expect(band.age).toBeTruthy();
+  expect(typeof band.p10).toBe('number');
+  expect(typeof band.p50).toBe('number');
+  expect(typeof band.p90).toBe('number');
+  
+  // p10 should be less than p90
+  expect(band.p10).toBeLessThan(band.p90);
+});
+
+test('runMonteCarloWithBands includes depletion histogram when applicable', () => {
+  // Create a scenario likely to have some depletions
+  const plan = createPlan({
+    currentAge: 60,
+    retirementAge: 62,
+    targetNetIncome: 50000,  // High spending
+    currentPension: 200000,   // Moderate savings
+    statePensionAge: 67,
+    expectedStatePension: 11500
+  });
+  
+  const result = runMonteCarloWithBands(plan, { iterations: 100, endAge: 90, seed: 54321 });
+  
+  // May or may not have depletions depending on random returns
+  if (result.statistics.depletionAge) {
+    expect(result.statistics.depletionAge.histogram).toBeTruthy();
+    expect(Array.isArray(result.statistics.depletionAge.histogram)).toBeTruthy();
+  }
+});
+
+console.log('');
+
+// ═══════════════════════════════════════════════════════════════
+// CONFIDENCE EXPLAINER TESTS
+// ═══════════════════════════════════════════════════════════════
+
+console.log('CONFIDENCE EXPLAINER');
+console.log('─────────────────────────────────────────────────────────────────');
+
+import { generateConfidenceExplanation, getSuccessDefinition } from '../ui/components/confidenceExplainer.js';
+
+test('generateConfidenceExplanation produces valid output', () => {
+  const mockMcResult = {
+    iterations: 1000,
+    statistics: {
+      successRate: 0.85,
+      depletionAge: {
+        count: 150,
+        earliest: 78,
+        median: 82,
+        latest: 88
+      }
+    }
+  };
+  
+  const explanation = generateConfidenceExplanation(mockMcResult, 90);
+  
+  expect(explanation.core.percentage).toBe('85');
+  expect(explanation.core.successCount).toBe(850);
+  expect(explanation.core.failureCount).toBe(150);
+  expect(explanation.core.level.label).toBe('High');
+  expect(explanation.caveats.length).toBeGreaterThan(0);
+});
+
+test('getSuccessDefinition returns clear definition', () => {
+  const definition = getSuccessDefinition(90);
+  expect(definition).toContain('90');
+  expect(definition).toContain('Portfolio');
 });
 
 console.log('');

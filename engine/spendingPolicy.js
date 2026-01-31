@@ -275,11 +275,12 @@ export function getSpendingRulesSummary(spendingRules) {
   
   // Add care scenario details
   if (spendingRules.careScenario) {
+    const endAge = spendingRules.careScenario.startAge + spendingRules.careScenario.duration - 1;
     summary.careScenario = {
       name: spendingRules.careScenario.name,
       description: spendingRules.careScenario.description,
       cost: `£${spendingRules.careScenario.annualCost.toLocaleString()}/year`,
-      period: `Ages ${spendingRules.careScenario.startAge} to ${spendingRules.careScenario.startAge + spendingRules.careScenario.duration}`,
+      period: `Ages ${spendingRules.careScenario.startAge}-${endAge}`,
       totalCost: `£${(spendingRules.careScenario.annualCost * spendingRules.careScenario.duration).toLocaleString()}`
     };
   } else {

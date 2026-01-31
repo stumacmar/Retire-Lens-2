@@ -60,14 +60,14 @@ export function renderFanChart(yearlyBands, deterministicData, canvasSelector, o
     
     for (const year of accYears) {
       deterministicValues.push({
-        age: year.age + 1,
+        age: year.age,  // Use age directly, represents end of year
         value: year.endBalances.total
       });
     }
     for (const year of decYears) {
       if (year.endBalances) {
         deterministicValues.push({
-          age: year.age + 1,
+          age: year.age,  // Use age directly, represents end of year
           value: year.endBalances.total
         });
       }

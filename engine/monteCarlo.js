@@ -105,7 +105,8 @@ export function runSingleSimulation(plan, accumulationReturns, decumulationRetur
   const pclsRate = plan.assumptions.pension?.pclsRate || 0.25;
   const taxFreeCash = pensionBalance * pclsRate;
   pensionBalance = pensionBalance - taxFreeCash;
-  const retirementPot = pensionBalance + isaBalance + taxFreeCash;
+  // Total retirement assets = pension after PCLS + ISA + tax-free cash taken
+  const totalRetirementAssets = pensionBalance + isaBalance + taxFreeCash;
   
   // Decumulation phase
   let fundsDepleted = false;
@@ -167,7 +168,7 @@ export function runSingleSimulation(plan, accumulationReturns, decumulationRetur
   }
   
   const result = {
-    retirementPot,
+    totalRetirementAssets,  // Renamed from retirementPot for clarity
     finalBalance: Math.max(0, pensionBalance + isaBalance),
     fundsDepleted,
     depletionAge,
@@ -380,17 +381,21 @@ function generateDepletionHistogram(depletionAges, minAge, maxAge) {
   const bins = [];
   for (let startAge = minAge; startAge < maxAge; startAge += 5) {
     const endBin = Math.min(startAge + 5, maxAge);
+    // Inclusive range: ages startAge to (endBin - 1)
     const count = depletionAges.filter(a => a >= startAge && a < endBin).length;
+    // Label shows inclusive range
+    const labelEnd = endBin === maxAge ? endBin : endBin - 1;
     bins.push({
       startAge,
       endAge: endBin,
-      label: `${startAge}-${endBin - 1}`,
+      label: endBin - startAge === 1 ? `${startAge}` : `${startAge}-${labelEnd}`,
       count,
-      percentage: (count / depletionAges.length) * 100
+      percentage: depletionAges.length > 0 ? (count / depletionAges.length) * 100 : 0
     });
   }
   
-  return bins;
+  // Filter out empty bins for cleaner display
+  return bins.filter(b => b.count > 0 || bins.length <= 5);
 }
 
 /**

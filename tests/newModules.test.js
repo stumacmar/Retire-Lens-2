@@ -719,6 +719,164 @@ test('getSuccessDefinition returns clear definition', () => {
 console.log('');
 
 // ═══════════════════════════════════════════════════════════════
+// DB PENSION MODULE TESTS
+// ═══════════════════════════════════════════════════════════════
+
+console.log('DB PENSION MODULE');
+console.log('─────────────────────────────────────────────────────────────────');
+
+import { 
+  createDBPension, 
+  calculateDBIncomeAtAge, 
+  calculateHouseholdDBIncome,
+  validateDBPension,
+  getDBPensionSummary,
+  calculateDBLifetimeValue
+} from '../engine/dbPension.js';
+
+test('createDBPension creates valid configuration', () => {
+  const db = createDBPension({
+    name: 'Test DB',
+    annualIncome: 15000,
+    startAge: 65,
+    inflationLinking: 'cpi'
+  });
+  
+  expect(db.annualIncome).toBe(15000);
+  expect(db.startAge).toBe(65);
+  expect(db.inflationLinking).toBe('cpi');
+  expect(db.survivorBenefit).toBeTruthy();
+  expect(db.survivorRate).toBe(0.5);
+});
+
+test('createDBPension throws for invalid inputs', () => {
+  expect(() => createDBPension({ annualIncome: -1000, startAge: 65 })).toThrow();
+  expect(() => createDBPension({ annualIncome: 15000, startAge: 50 })).toThrow();
+});
+
+test('calculateDBIncomeAtAge returns 0 before start age', () => {
+  const db = createDBPension({
+    annualIncome: 15000,
+    startAge: 65
+  });
+  
+  expect(calculateDBIncomeAtAge(db, 60)).toBe(0);
+  expect(calculateDBIncomeAtAge(db, 64)).toBe(0);
+});
+
+test('calculateDBIncomeAtAge returns income at start age', () => {
+  const db = createDBPension({
+    annualIncome: 15000,
+    startAge: 65,
+    inflationLinking: 'none'
+  });
+  
+  expect(calculateDBIncomeAtAge(db, 65)).toBe(15000);
+  expect(calculateDBIncomeAtAge(db, 70)).toBe(15000);  // Level pension
+});
+
+test('calculateDBIncomeAtAge applies CPI linking', () => {
+  const db = createDBPension({
+    annualIncome: 15000,
+    startAge: 65,
+    inflationLinking: 'cpi'
+  });
+  
+  // At age 66, one year of 2% inflation
+  const income66 = calculateDBIncomeAtAge(db, 66, 0.02);
+  expect(income66).toBeCloseTo(15300, 1);  // 15000 * 1.02
+  
+  // At age 70, five years of 2% inflation
+  const income70 = calculateDBIncomeAtAge(db, 70, 0.02);
+  expect(income70).toBeCloseTo(16561.21, 1);  // 15000 * 1.02^5
+});
+
+test('calculateDBIncomeAtAge applies CPI cap', () => {
+  const db = createDBPension({
+    annualIncome: 15000,
+    startAge: 65,
+    inflationLinking: 'cpi',
+    cpiCap: 0.025  // 2.5% cap
+  });
+  
+  // With 5% inflation, should be capped at 2.5%
+  const income66 = calculateDBIncomeAtAge(db, 66, 0.05);
+  expect(income66).toBeCloseTo(15375, 1);  // 15000 * 1.025
+});
+
+test('calculateDBIncomeAtAge applies fixed increase', () => {
+  const db = createDBPension({
+    annualIncome: 15000,
+    startAge: 65,
+    inflationLinking: 'fixed',
+    fixedIncreaseRate: 0.03  // 3% fixed
+  });
+  
+  // At age 67, two years of 3% increase
+  const income67 = calculateDBIncomeAtAge(db, 67, 0.02);
+  expect(income67).toBeCloseTo(15913.50, 1);  // 15000 * 1.03^2 = 15913.50
+});
+
+test('calculateHouseholdDBIncome sums multiple pensions', () => {
+  // Use 'none' inflation linking for precise test
+  const db1 = createDBPension({ annualIncome: 10000, startAge: 65, inflationLinking: 'none' });
+  const db2 = createDBPension({ annualIncome: 8000, startAge: 60, inflationLinking: 'none' });
+  
+  const result = calculateHouseholdDBIncome([db1, db2], null, 65);
+  
+  expect(result.person1Total).toBe(18000);  // Both pensions paying
+  expect(result.householdTotal).toBe(18000);
+});
+
+test('calculateHouseholdDBIncome handles couple', () => {
+  const person1DB = [createDBPension({ annualIncome: 12000, startAge: 65 })];
+  const person2DB = [createDBPension({ annualIncome: 8000, startAge: 60 })];
+  
+  const result = calculateHouseholdDBIncome(person1DB, person2DB, 68, 65);
+  
+  expect(result.person1Total).toBeGreaterThan(12000);  // With CPI
+  expect(result.person2Total).toBeGreaterThan(8000);   // With CPI
+  expect(result.householdTotal).toBe(result.person1Total + result.person2Total);
+});
+
+test('validateDBPension returns valid for correct input', () => {
+  const db = createDBPension({ annualIncome: 15000, startAge: 65 });
+  const result = validateDBPension(db);
+  expect(result.valid).toBeTruthy();
+});
+
+test('getDBPensionSummary returns formatted summary', () => {
+  const db = createDBPension({
+    name: 'Civil Service Pension',
+    annualIncome: 20000,
+    startAge: 65,
+    inflationLinking: 'cpi',
+    cpiCap: 0.025
+  });
+  
+  const summary = getDBPensionSummary(db);
+  expect(summary.name).toBe('Civil Service Pension');
+  expect(summary.annualIncome).toContain('20,000');
+  expect(summary.inflationLinking).toContain('capped');
+});
+
+test('calculateDBLifetimeValue computes total and present value', () => {
+  const db = createDBPension({
+    annualIncome: 15000,
+    startAge: 65,
+    inflationLinking: 'none'
+  });
+  
+  const lifetime = calculateDBLifetimeValue(db, 65, 90);
+  
+  expect(lifetime.totalNominal).toBe(15000 * 26);  // 26 years (65-90 inclusive)
+  expect(lifetime.presentValue).toBeLessThan(lifetime.totalNominal);  // Discounted
+  expect(lifetime.years).toBe(26);
+});
+
+console.log('');
+
+// ═══════════════════════════════════════════════════════════════
 // SUMMARY
 // ═══════════════════════════════════════════════════════════════
 

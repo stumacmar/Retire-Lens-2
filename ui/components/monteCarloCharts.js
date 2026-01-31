@@ -244,7 +244,7 @@ export function renderDepletionHistogram(depletionAges, canvasSelector = '#deple
       plugins: {
         title: {
           display: true,
-          text: `When Might Funds Run Out? (${count} of ${depletionAges.count} simulations)`
+          text: `When Might Funds Run Out? (${count} simulations with depletion)`
         },
         legend: {
           display: false

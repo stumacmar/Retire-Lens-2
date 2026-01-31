@@ -485,6 +485,167 @@ test('backward compatibility: flat spending without reductions', () => {
 console.log('');
 
 // ═══════════════════════════════════════════════════════════════
+// MONTE CARLO ENHANCEMENTS
+// ═══════════════════════════════════════════════════════════════
+
+console.log('MONTE CARLO ENHANCEMENTS (PHASE 3)');
+console.log('─────────────────────────────────────────────────────────────────');
+
+import {
+  runMonteCarloWithBands,
+  generateFanChartData,
+  generateDepletionHistogram,
+  getConfidenceInterpretation,
+  runSingleSimulationWithTracking,
+  generateReturnSequence
+} from '../engine/monteCarlo.js';
+
+test('runSingleSimulationWithTracking returns yearly balance data', () => {
+  const plan = createPlan({
+    currentAge: 55,
+    retirementAge: 60,
+    targetNetIncome: 25000,
+    currentPension: 300000,
+    currentIsa: 50000,
+    statePensionAge: 67,
+    expectedStatePension: 11500
+  });
+  
+  const accReturns = generateReturnSequence(5, 0.04, 0.15, 12345);
+  const decReturns = generateReturnSequence(20, 0.04, 0.15, 12346);
+  
+  const result = runSingleSimulationWithTracking(plan, accReturns, decReturns, 80);
+  
+  expect(result.yearlyData).toBeTruthy();
+  expect(result.yearlyData.length).toBeGreaterThan(0);
+  expect(result.finalResult).toBeTruthy();
+  expect(result.finalResult.finalBalance).toBeGreaterThan(-1); // Always valid
+});
+
+test('runMonteCarloWithBands returns yearly percentile bands', () => {
+  const plan = createPlan({
+    currentAge: 55,
+    retirementAge: 60,
+    targetNetIncome: 20000,
+    currentPension: 300000,
+    currentIsa: 100000,
+    statePensionAge: 67,
+    expectedStatePension: 11500
+  });
+  
+  const result = runMonteCarloWithBands(plan, { iterations: 50, seed: 12345, endAge: 80 });
+  
+  expect(result.yearlyBands).toBeTruthy();
+  expect(result.yearlyBands.length).toBeGreaterThan(0);
+  
+  // Each band should have percentile values
+  const firstBand = result.yearlyBands[0];
+  expect(firstBand.age).toBeTruthy();
+  expect(typeof firstBand.p10).toBe('number');
+  expect(typeof firstBand.p50).toBe('number');
+  expect(typeof firstBand.p90).toBe('number');
+  
+  // p10 <= p50 <= p90
+  expect(firstBand.p10).toBeLessThan(firstBand.p90 + 1);
+});
+
+test('runMonteCarloWithBands returns depletion histogram', () => {
+  const plan = createPlan({
+    currentAge: 55,
+    retirementAge: 60,
+    targetNetIncome: 50000, // High spending to force some depletions
+    currentPension: 200000,
+    currentIsa: 50000,
+    statePensionAge: 67,
+    expectedStatePension: 5000 // Low state pension
+  });
+  
+  const result = runMonteCarloWithBands(plan, { iterations: 100, seed: 12345, endAge: 90 });
+  
+  expect(result.depletionAges).toBeTruthy();
+  expect(typeof result.depletionAges.count).toBe('number');
+  expect(result.depletionAges.histogram).toBeTruthy();
+});
+
+test('generateFanChartData formats data for charting', () => {
+  const plan = createPlan({
+    currentAge: 55,
+    retirementAge: 60,
+    targetNetIncome: 25000,
+    currentPension: 300000,
+    statePensionAge: 67,
+    expectedStatePension: 11500
+  });
+  
+  const mcResult = runMonteCarloWithBands(plan, { iterations: 50, seed: 12345, endAge: 75 });
+  const chartData = generateFanChartData(mcResult);
+  
+  expect(chartData.labels).toBeTruthy();
+  expect(chartData.labels.length).toBeGreaterThan(0);
+  expect(chartData.datasets).toBeTruthy();
+  expect(chartData.datasets.median.data.length).toBe(chartData.labels.length);
+  expect(chartData.metadata.iterations).toBe(50);
+});
+
+test('generateDepletionHistogram creates age bins', () => {
+  const depletionAges = [75, 76, 76, 77, 77, 77, 78, 80, 82, 85];
+  const histogram = generateDepletionHistogram(depletionAges, 60, 90);
+  
+  expect(histogram.length).toBeGreaterThan(0);
+  
+  // Find the most common age
+  const mostCommon = histogram.reduce((max, h) => h.count > max.count ? h : max, histogram[0]);
+  expect(mostCommon.age).toBe(77); // 3 occurrences
+  expect(mostCommon.count).toBe(3);
+});
+
+test('generateDepletionHistogram returns empty for no depletions', () => {
+  const histogram = generateDepletionHistogram([], 60, 90);
+  expect(histogram.length).toBe(0);
+});
+
+test('getConfidenceInterpretation returns correct level for high success', () => {
+  const interpretation = getConfidenceInterpretation(0.96);
+  expect(interpretation.level).toBe('very_high');
+  expect(interpretation.label).toBe('Very High Confidence');
+  expect(interpretation.color).toBe('#22c55e');
+});
+
+test('getConfidenceInterpretation returns correct level for moderate success', () => {
+  const interpretation = getConfidenceInterpretation(0.75);
+  expect(interpretation.level).toBe('moderate');
+  expect(interpretation.label).toBe('Moderate Confidence');
+  expect(interpretation.color).toBe('#f59e0b');
+});
+
+test('getConfidenceInterpretation returns correct level for low success', () => {
+  const interpretation = getConfidenceInterpretation(0.45);
+  expect(interpretation.level).toBe('very_low');
+  expect(interpretation.label).toBe('Very Low Confidence');
+  expect(interpretation.color).toBe('#ef4444');
+});
+
+test('yearly bands are sorted by age', () => {
+  const plan = createPlan({
+    currentAge: 50,
+    retirementAge: 55,
+    targetNetIncome: 20000,
+    currentPension: 200000,
+    statePensionAge: 67,
+    expectedStatePension: 11500
+  });
+  
+  const result = runMonteCarloWithBands(plan, { iterations: 30, seed: 12345, endAge: 70 });
+  
+  // Verify ages are in ascending order
+  for (let i = 1; i < result.yearlyBands.length; i++) {
+    expect(result.yearlyBands[i].age).toBeGreaterThan(result.yearlyBands[i - 1].age);
+  }
+});
+
+console.log('');
+
+// ═══════════════════════════════════════════════════════════════
 // SUMMARY
 // ═══════════════════════════════════════════════════════════════
 

@@ -8,6 +8,7 @@
 import { calculateOptimalWithdrawal, calculatePCLS } from './withdrawals.js';
 import { calculateTaxFromGross } from './tax.js';
 import { createAssumptions, PENSION_CONFIG, TAX_CONFIG } from '../config/defaults.js';
+import { calculateSpendingAtAge, createSpendingRules } from './spendingPolicy.js';
 
 /**
  * Create a new plan state object
@@ -28,7 +29,10 @@ export function createPlan(inputs) {
     annualIsaContribution = 0,
     statePensionAge = PENSION_CONFIG.statePensionAge,
     expectedStatePension = 0,
-    assumptions = {}
+    assumptions = {},
+    // New: optional spending rules
+    spendingRules = null,
+    applyAgeBasedSpendingReductions = false
   } = inputs;
 
   // Validate required fields
@@ -42,6 +46,12 @@ export function createPlan(inputs) {
     throw new Error('Invalid targetNetIncome: must be a positive number');
   }
 
+  // Create spending rules if not provided
+  const effectiveSpendingRules = spendingRules || createSpendingRules({
+    baseSpending: targetNetIncome,
+    applyDefaultReductions: applyAgeBasedSpendingReductions
+  });
+
   return Object.freeze({
     name,
     currentAge,
@@ -54,6 +64,7 @@ export function createPlan(inputs) {
     statePensionAge,
     expectedStatePension,
     assumptions: createAssumptions(assumptions),
+    spendingRules: effectiveSpendingRules,
     createdAt: new Date().toISOString()
   });
 }
@@ -151,7 +162,8 @@ export function projectDecumulation(plan, accumulationResult, endAge = 90) {
     targetNetIncome,
     statePensionAge,
     expectedStatePension,
-    assumptions
+    assumptions,
+    spendingRules
   } = plan;
 
   const { projection, tax: taxConfig } = assumptions;
@@ -172,10 +184,24 @@ export function projectDecumulation(plan, accumulationResult, endAge = 90) {
   let depletionAge = null;
 
   for (let age = retirementAge; age <= endAge; age++) {
+    // Calculate age-adjusted spending target
+    // If spendingRules exist, use them; otherwise fall back to flat targetNetIncome
+    const ageAdjustedSpending = spendingRules 
+      ? calculateSpendingAtAge(
+          spendingRules.baseSpending,
+          age,
+          {
+            ageAdjustments: spendingRules.ageAdjustments,
+            applyDefaultReductions: spendingRules.applyDefaultReductions
+          }
+        )
+      : targetNetIncome;
+
     if (fundsDepleted) {
       years.push({
         age,
         fundsDepleted: true,
+        targetSpending: ageAdjustedSpending,
         netIncome: age >= statePensionAge ? expectedStatePension : 0
       });
       continue;
@@ -190,9 +216,9 @@ export function projectDecumulation(plan, accumulationResult, endAge = 90) {
       total: pensionBalance + isaBalance
     };
 
-    // Calculate withdrawals needed
+    // Calculate withdrawals needed for age-adjusted spending
     const withdrawalResult = calculateOptimalWithdrawal(
-      targetNetIncome,
+      ageAdjustedSpending,
       { pension: pensionBalance, isa: isaBalance },
       { statePensionIncome: statePension, taxConfig }
     );
@@ -223,6 +249,7 @@ export function projectDecumulation(plan, accumulationResult, endAge = 90) {
       age,
       startBalances: yearStart,
       statePension,
+      targetSpending: ageAdjustedSpending,
       withdrawals: withdrawalResult.withdrawals,
       taxPaid: withdrawalResult.taxPaid,
       netIncome: withdrawalResult.netIncome,

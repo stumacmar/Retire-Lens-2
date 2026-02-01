@@ -2,150 +2,186 @@
  * RetireLens 2 - Monte Carlo Charts Component
  * 
  * Visualization components for Monte Carlo simulation results:
- * - Fan charts showing confidence bands over time
+ * - Fan chart (portfolio value with confidence bands)
  * - Depletion age histogram
+ * - Income sources over time
+ * - Tax paid over time
+ * - Withdrawals by source (stacked)
  * 
- * Requires Chart.js to be loaded (from CDN or npm).
+ * Uses Chart.js for rendering. Mobile-responsive design.
  */
-
-import { generateFanChartData } from '../../engine/monteCarlo.js';
 
 /**
- * Render fan chart visualization
- * 
- * Shows portfolio balance confidence bands over time, with:
- * - 10th-90th percentile band (light shade)
- * - 25th-75th percentile band (medium shade)
- * - Median line (solid)
- * - Optional deterministic baseline (dashed)
- * 
- * @param {object} mcResult - Monte Carlo results with yearlyBands
- * @param {object} deterministicData - Optional deterministic projection for comparison
- * @param {string} canvasSelector - CSS selector for canvas element
- * @returns {Chart|null} Chart.js instance or null if Chart.js unavailable
+ * Format currency for chart labels
  */
-export function renderFanChart(mcResult, deterministicData = null, canvasSelector = '#fan-chart') {
-  // Check if Chart.js is available
-  if (typeof Chart === 'undefined') {
-    console.warn('Chart.js not loaded. Fan chart cannot be rendered.');
-    return null;
+function formatCurrency(value) {
+  if (value >= 1000000) {
+    return '£' + (value / 1000000).toFixed(1) + 'M';
+  } else if (value >= 1000) {
+    return '£' + Math.round(value / 1000) + 'k';
   }
-  
+  return '£' + Math.round(value);
+}
+
+/**
+ * Render fan chart showing portfolio value with confidence bands
+ * 
+ * @param {object} yearlyBands - Yearly percentile bands from Monte Carlo
+ * @param {object} deterministicData - Deterministic projection data
+ * @param {string} canvasSelector - CSS selector for canvas element
+ * @param {object} options - Chart options
+ */
+export function renderFanChart(yearlyBands, deterministicData, canvasSelector, options = {}) {
   const canvas = document.querySelector(canvasSelector);
-  if (!canvas) {
-    console.warn(`Canvas element not found: ${canvasSelector}`);
-    return null;
+  if (!canvas || typeof Chart === 'undefined') {
+    console.warn('Chart.js not available or canvas not found');
+    return;
   }
   
-  const ctx = canvas.getContext('2d');
-  const fanChartData = generateFanChartData(mcResult);
-  const { labels, datasets } = fanChartData;
-  
-  // Prepare Chart.js datasets
-  const chartDatasets = [];
-  
-  // Outer band (10th-90th percentile) - filled area
-  chartDatasets.push({
-    label: datasets.p10_p90.label,
-    data: datasets.p10_p90.upper,
-    fill: '+1', // Fill to next dataset
-    backgroundColor: 'rgba(59, 130, 246, 0.15)',
-    borderColor: 'transparent',
-    pointRadius: 0,
-    tension: 0.4
-  });
-  chartDatasets.push({
-    label: '10th percentile',
-    data: datasets.p10_p90.lower,
-    fill: false,
-    backgroundColor: 'rgba(59, 130, 246, 0.15)',
-    borderColor: 'transparent',
-    pointRadius: 0,
-    tension: 0.4
-  });
-  
-  // Inner band (25th-75th percentile) - filled area
-  chartDatasets.push({
-    label: datasets.p25_p75.label,
-    data: datasets.p25_p75.upper,
-    fill: '+1',
-    backgroundColor: 'rgba(59, 130, 246, 0.25)',
-    borderColor: 'transparent',
-    pointRadius: 0,
-    tension: 0.4
-  });
-  chartDatasets.push({
-    label: '25th percentile',
-    data: datasets.p25_p75.lower,
-    fill: false,
-    backgroundColor: 'rgba(59, 130, 246, 0.25)',
-    borderColor: 'transparent',
-    pointRadius: 0,
-    tension: 0.4
-  });
-  
-  // Median line
-  chartDatasets.push({
-    label: datasets.median.label,
-    data: datasets.median.data,
-    fill: false,
-    borderColor: 'rgba(59, 130, 246, 1)',
-    borderWidth: 2,
-    pointRadius: 0,
-    tension: 0.4
-  });
-  
-  // Deterministic baseline (if provided)
-  if (deterministicData && deterministicData.decumulation) {
-    const deterministicLine = deterministicData.decumulation.years.map(y => 
-      y.endBalances ? y.endBalances.total : 0
-    );
-    chartDatasets.push({
-      label: 'Deterministic baseline',
-      data: deterministicLine,
-      fill: false,
-      borderColor: 'rgba(107, 114, 128, 0.8)',
-      borderWidth: 2,
-      borderDash: [5, 5],
-      pointRadius: 0,
-      tension: 0.4
-    });
+  // Destroy existing chart if present
+  const existingChart = Chart.getChart(canvas);
+  if (existingChart) {
+    existingChart.destroy();
   }
   
-  // Create chart
-  return new Chart(ctx, {
+  const ages = yearlyBands.map(b => b.age);
+  const p10 = yearlyBands.map(b => b.p10);
+  const p25 = yearlyBands.map(b => b.p25);
+  const p50 = yearlyBands.map(b => b.p50);
+  const p75 = yearlyBands.map(b => b.p75);
+  const p90 = yearlyBands.map(b => b.p90);
+  
+  // Get deterministic line data
+  const deterministicValues = [];
+  if (deterministicData) {
+    // Combine accumulation and decumulation years
+    const accYears = deterministicData.accumulation?.years || [];
+    const decYears = deterministicData.decumulation?.years || [];
+    
+    for (const year of accYears) {
+      deterministicValues.push({
+        age: year.age,  // Use age directly, represents end of year
+        value: year.endBalances.total
+      });
+    }
+    for (const year of decYears) {
+      if (year.endBalances) {
+        deterministicValues.push({
+          age: year.age,  // Use age directly, represents end of year
+          value: year.endBalances.total
+        });
+      }
+    }
+  }
+  
+  // Find retirement age for annotation
+  const retirementAge = options.retirementAge || deterministicData?.plan?.retirementAge;
+  
+  new Chart(canvas, {
     type: 'line',
     data: {
-      labels,
-      datasets: chartDatasets
+      labels: ages,
+      datasets: [
+        // p10-p90 band (outer)
+        {
+          label: '10th-90th Percentile',
+          data: p90,
+          borderColor: 'rgba(59, 130, 246, 0.1)',
+          backgroundColor: 'rgba(59, 130, 246, 0.1)',
+          fill: '+4',
+          tension: 0.3,
+          pointRadius: 0,
+          order: 5
+        },
+        // p25-p75 band (inner)
+        {
+          label: '25th-75th Percentile',
+          data: p75,
+          borderColor: 'rgba(59, 130, 246, 0.2)',
+          backgroundColor: 'rgba(59, 130, 246, 0.2)',
+          fill: '+2',
+          tension: 0.3,
+          pointRadius: 0,
+          order: 4
+        },
+        // p50 (median)
+        {
+          label: 'Median (p50)',
+          data: p50,
+          borderColor: 'rgba(59, 130, 246, 0.8)',
+          backgroundColor: 'transparent',
+          borderWidth: 2,
+          fill: false,
+          tension: 0.3,
+          pointRadius: 0,
+          order: 2
+        },
+        // p25 (lower inner band edge)
+        {
+          label: '',
+          data: p25,
+          borderColor: 'transparent',
+          backgroundColor: 'transparent',
+          fill: false,
+          pointRadius: 0,
+          order: 6
+        },
+        // p10 (lower outer band edge)
+        {
+          label: '',
+          data: p10,
+          borderColor: 'transparent',
+          backgroundColor: 'transparent',
+          fill: false,
+          pointRadius: 0,
+          order: 7
+        },
+        // Deterministic line
+        ...(deterministicValues.length > 0 ? [{
+          label: 'Deterministic (Expected)',
+          data: ages.map(age => {
+            const match = deterministicValues.find(d => d.age === age);
+            return match ? match.value : null;
+          }),
+          borderColor: '#ef4444',
+          backgroundColor: 'transparent',
+          borderWidth: 2,
+          borderDash: [5, 5],
+          fill: false,
+          tension: 0.3,
+          pointRadius: 0,
+          order: 1
+        }] : [])
+      ]
     },
     options: {
       responsive: true,
       maintainAspectRatio: false,
+      interaction: {
+        mode: 'index',
+        intersect: false
+      },
       plugins: {
-        title: {
-          display: true,
-          text: 'Portfolio Balance Over Time (Monte Carlo Confidence Bands)'
-        },
         legend: {
           display: true,
-          position: 'bottom',
+          position: 'top',
           labels: {
-            filter: (item) => {
-              // Only show meaningful legend items
-              return ['Median outcome', 'Deterministic baseline', '25th-75th percentile', '10th-90th percentile'].includes(item.text);
-            }
+            filter: (item) => item.text && item.text.length > 0
           }
         },
         tooltip: {
-          mode: 'index',
-          intersect: false,
           callbacks: {
-            label: function(context) {
-              const value = context.parsed.y;
-              return `${context.dataset.label}: £${Math.round(value).toLocaleString()}`;
+            label: (ctx) => {
+              if (ctx.dataset.label) {
+                return `${ctx.dataset.label}: ${formatCurrency(ctx.parsed.y)}`;
+              }
+              return null;
             }
           }
+        },
+        title: {
+          display: true,
+          text: 'Portfolio Value Over Time (Monte Carlo Confidence Bands)'
         }
       },
       scales: {
@@ -158,25 +194,13 @@ export function renderFanChart(mcResult, deterministicData = null, canvasSelecto
         y: {
           title: {
             display: true,
-            text: 'Portfolio Balance (£)'
+            text: 'Portfolio Value'
           },
           ticks: {
-            callback: function(value) {
-              if (value >= 1000000) {
-                return '£' + (value / 1000000).toFixed(1) + 'M';
-              }
-              if (value >= 1000) {
-                return '£' + (value / 1000).toFixed(0) + 'K';
-              }
-              return '£' + value;
-            }
-          }
+            callback: (value) => formatCurrency(value)
+          },
+          beginAtZero: true
         }
-      },
-      interaction: {
-        mode: 'nearest',
-        axis: 'x',
-        intersect: false
       }
     }
   });
@@ -185,54 +209,45 @@ export function renderFanChart(mcResult, deterministicData = null, canvasSelecto
 /**
  * Render depletion age histogram
  * 
- * Shows distribution of ages at which funds run out across simulations.
- * Only relevant when some simulations result in fund depletion.
- * 
- * @param {object} depletionAges - Depletion age data from Monte Carlo results
+ * @param {object} depletionStats - Depletion statistics from Monte Carlo
  * @param {string} canvasSelector - CSS selector for canvas element
- * @returns {Chart|null} Chart.js instance or null
  */
-export function renderDepletionHistogram(depletionAges, canvasSelector = '#depletion-histogram') {
-  // Check if Chart.js is available
-  if (typeof Chart === 'undefined') {
-    console.warn('Chart.js not loaded. Histogram cannot be rendered.');
-    return null;
-  }
-  
+export function renderDepletionHistogram(depletionStats, canvasSelector) {
   const canvas = document.querySelector(canvasSelector);
-  if (!canvas) {
-    console.warn(`Canvas element not found: ${canvasSelector}`);
-    return null;
+  if (!canvas || typeof Chart === 'undefined') {
+    console.warn('Chart.js not available or canvas not found');
+    return;
   }
   
-  const ctx = canvas.getContext('2d');
-  const { histogram, count } = depletionAges;
-  
-  if (!histogram || histogram.length === 0) {
-    // No depleted scenarios - show success message
-    const container = canvas.parentElement;
-    if (container) {
-      container.innerHTML = `
-        <div class="histogram-success">
-          <span class="success-icon">✅</span>
-          <p>In all simulations, your funds lasted the full projection period.</p>
-        </div>
-      `;
-    }
-    return null;
+  // Destroy existing chart if present
+  const existingChart = Chart.getChart(canvas);
+  if (existingChart) {
+    existingChart.destroy();
   }
   
-  const labels = histogram.map(h => `Age ${h.age}`);
-  const data = histogram.map(h => h.count);
+  if (!depletionStats || !depletionStats.histogram || depletionStats.histogram.length === 0) {
+    // No depletion - show success message
+    canvas.parentElement.innerHTML = `
+      <div class="no-depletion-message">
+        <span class="success-icon">✅</span>
+        <p>In all simulations, funds lasted to the target age.</p>
+      </div>
+    `;
+    return;
+  }
+  
+  const histogram = depletionStats.histogram;
+  const labels = histogram.map(h => h.label);
+  const counts = histogram.map(h => h.count);
   const percentages = histogram.map(h => h.percentage);
   
-  return new Chart(ctx, {
+  new Chart(canvas, {
     type: 'bar',
     data: {
       labels,
       datasets: [{
-        label: 'Number of simulations',
-        data,
+        label: 'Number of Scenarios',
+        data: counts,
         backgroundColor: 'rgba(239, 68, 68, 0.7)',
         borderColor: 'rgba(239, 68, 68, 1)',
         borderWidth: 1
@@ -242,39 +257,35 @@ export function renderDepletionHistogram(depletionAges, canvasSelector = '#deple
       responsive: true,
       maintainAspectRatio: false,
       plugins: {
-        title: {
-          display: true,
-          text: `When Might Funds Run Out? (${count} simulations with depletion)`
-        },
         legend: {
           display: false
         },
         tooltip: {
           callbacks: {
-            label: function(context) {
-              const index = context.dataIndex;
-              const pct = percentages[index].toFixed(1);
-              return `${context.parsed.y} simulations (${pct}% of failures)`;
+            label: (ctx) => {
+              const pct = percentages[ctx.dataIndex];
+              return `${ctx.parsed.y} scenarios (${pct.toFixed(1)}%)`;
             }
           }
+        },
+        title: {
+          display: true,
+          text: 'When Might Money Run Out?'
         }
       },
       scales: {
         x: {
           title: {
             display: true,
-            text: 'Depletion Age'
+            text: 'Age Range'
           }
         },
         y: {
           title: {
             display: true,
-            text: 'Number of Simulations'
+            text: 'Number of Scenarios'
           },
-          beginAtZero: true,
-          ticks: {
-            stepSize: 1
-          }
+          beginAtZero: true
         }
       }
     }
@@ -282,95 +293,245 @@ export function renderDepletionHistogram(depletionAges, canvasSelector = '#deple
 }
 
 /**
- * Create HTML containers for Monte Carlo charts
+ * Render stacked chart showing withdrawals by source
  * 
- * @returns {string} HTML for chart containers
+ * @param {object} projection - Projection result with decumulation years
+ * @param {string} canvasSelector - CSS selector for canvas element
  */
-export function createMonteCarloChartsContainer() {
-  return `
-    <div class="monte-carlo-charts">
-      <section class="chart-section">
-        <h3>Portfolio Balance Confidence Bands</h3>
-        <p class="chart-description">
-          This "fan chart" shows the range of possible outcomes based on 
-          simulated market conditions. The darker band shows the middle 50% 
-          of outcomes; the lighter band shows the middle 80%.
-        </p>
-        <div class="chart-wrapper" style="height: 300px;">
-          <canvas id="fan-chart"></canvas>
-        </div>
-      </section>
-      
-      <section class="chart-section">
-        <h3>Depletion Risk Distribution</h3>
-        <p class="chart-description">
-          When funds might run out in scenarios where depletion occurs.
-        </p>
-        <div class="chart-wrapper" style="height: 250px;">
-          <canvas id="depletion-histogram"></canvas>
-        </div>
-      </section>
-      
-      <div id="confidence-explainer"></div>
-    </div>
-  `;
+export function renderWithdrawalsBySource(projection, canvasSelector) {
+  const canvas = document.querySelector(canvasSelector);
+  if (!canvas || typeof Chart === 'undefined') {
+    console.warn('Chart.js not available or canvas not found');
+    return;
+  }
+  
+  // Destroy existing chart if present
+  const existingChart = Chart.getChart(canvas);
+  if (existingChart) {
+    existingChart.destroy();
+  }
+  
+  const decumulationYears = projection.decumulation.years.filter(y => !y.fundsDepleted);
+  
+  const ages = decumulationYears.map(y => y.age);
+  const statePension = decumulationYears.map(y => y.statePension || 0);
+  const pensionWithdrawals = decumulationYears.map(y => y.withdrawals?.pension || 0);
+  const isaWithdrawals = decumulationYears.map(y => y.withdrawals?.isa || 0);
+  
+  new Chart(canvas, {
+    type: 'bar',
+    data: {
+      labels: ages,
+      datasets: [
+        {
+          label: 'State Pension',
+          data: statePension,
+          backgroundColor: 'rgba(34, 197, 94, 0.8)',
+          stack: 'income'
+        },
+        {
+          label: 'Pension Drawdown',
+          data: pensionWithdrawals,
+          backgroundColor: 'rgba(59, 130, 246, 0.8)',
+          stack: 'income'
+        },
+        {
+          label: 'ISA Withdrawal',
+          data: isaWithdrawals,
+          backgroundColor: 'rgba(168, 85, 247, 0.8)',
+          stack: 'income'
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          display: true,
+          position: 'top'
+        },
+        tooltip: {
+          callbacks: {
+            label: (ctx) => `${ctx.dataset.label}: ${formatCurrency(ctx.parsed.y)}`
+          }
+        },
+        title: {
+          display: true,
+          text: 'Income Sources by Year'
+        }
+      },
+      scales: {
+        x: {
+          title: {
+            display: true,
+            text: 'Age'
+          },
+          stacked: true
+        },
+        y: {
+          title: {
+            display: true,
+            text: 'Annual Income'
+          },
+          ticks: {
+            callback: (value) => formatCurrency(value)
+          },
+          stacked: true,
+          beginAtZero: true
+        }
+      }
+    }
+  });
 }
 
 /**
- * Get CSS styles for Monte Carlo chart components
+ * Render tax paid over time chart
  * 
- * @returns {string} CSS styles
+ * @param {object} projection - Projection result with decumulation years
+ * @param {string} canvasSelector - CSS selector for canvas element
  */
-export function getMonteCarloChartsStyles() {
-  return `
-    .monte-carlo-charts {
-      display: flex;
-      flex-direction: column;
-      gap: var(--spacing-xl, 2rem);
+export function renderTaxOverTime(projection, canvasSelector) {
+  const canvas = document.querySelector(canvasSelector);
+  if (!canvas || typeof Chart === 'undefined') {
+    console.warn('Chart.js not available or canvas not found');
+    return;
+  }
+  
+  // Destroy existing chart if present
+  const existingChart = Chart.getChart(canvas);
+  if (existingChart) {
+    existingChart.destroy();
+  }
+  
+  const decumulationYears = projection.decumulation.years.filter(y => !y.fundsDepleted);
+  
+  const ages = decumulationYears.map(y => y.age);
+  const taxPaid = decumulationYears.map(y => y.taxPaid || 0);
+  
+  // Calculate cumulative tax
+  let cumulative = 0;
+  const cumulativeTax = taxPaid.map(t => {
+    cumulative += t;
+    return cumulative;
+  });
+  
+  new Chart(canvas, {
+    type: 'line',
+    data: {
+      labels: ages,
+      datasets: [
+        {
+          label: 'Annual Tax Paid',
+          data: taxPaid,
+          borderColor: 'rgba(239, 68, 68, 0.8)',
+          backgroundColor: 'rgba(239, 68, 68, 0.2)',
+          fill: true,
+          tension: 0.3,
+          yAxisID: 'y'
+        },
+        {
+          label: 'Cumulative Tax',
+          data: cumulativeTax,
+          borderColor: 'rgba(107, 114, 128, 0.8)',
+          backgroundColor: 'transparent',
+          borderDash: [5, 5],
+          fill: false,
+          tension: 0.3,
+          yAxisID: 'y1'
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: {
+        mode: 'index',
+        intersect: false
+      },
+      plugins: {
+        legend: {
+          display: true,
+          position: 'top'
+        },
+        tooltip: {
+          callbacks: {
+            label: (ctx) => `${ctx.dataset.label}: ${formatCurrency(ctx.parsed.y)}`
+          }
+        },
+        title: {
+          display: true,
+          text: 'Tax Paid Over Time'
+        }
+      },
+      scales: {
+        x: {
+          title: {
+            display: true,
+            text: 'Age'
+          }
+        },
+        y: {
+          type: 'linear',
+          display: true,
+          position: 'left',
+          title: {
+            display: true,
+            text: 'Annual Tax'
+          },
+          ticks: {
+            callback: (value) => formatCurrency(value)
+          },
+          beginAtZero: true
+        },
+        y1: {
+          type: 'linear',
+          display: true,
+          position: 'right',
+          title: {
+            display: true,
+            text: 'Cumulative Tax'
+          },
+          ticks: {
+            callback: (value) => formatCurrency(value)
+          },
+          grid: {
+            drawOnChartArea: false
+          },
+          beginAtZero: true
+        }
+      }
     }
-    
-    .chart-section {
-      background: var(--color-surface, #ffffff);
-      border-radius: var(--radius-lg, 1rem);
-      padding: var(--spacing-lg, 1.5rem);
-      box-shadow: var(--shadow-sm, 0 1px 2px rgba(0, 0, 0, 0.05));
-    }
-    
-    .chart-section h3 {
-      margin-bottom: var(--spacing-sm, 0.5rem);
-      font-size: var(--font-size-lg, 1.125rem);
-    }
-    
-    .chart-description {
-      color: var(--color-text-light, #6b7280);
-      font-size: var(--font-size-sm, 0.875rem);
-      margin-bottom: var(--spacing-md, 1rem);
-    }
-    
-    .chart-wrapper {
-      position: relative;
-    }
-    
-    .histogram-success {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      height: 200px;
-      background: #d1fae5;
-      border-radius: var(--radius-md, 0.5rem);
-      text-align: center;
-      padding: var(--spacing-lg, 1.5rem);
-    }
-    
-    .histogram-success .success-icon {
-      font-size: 3rem;
-      margin-bottom: var(--spacing-md, 1rem);
-    }
-    
-    .histogram-success p {
-      color: #065f46;
-      font-weight: 500;
-    }
-  `;
+  });
+}
+
+/**
+ * Render all charts for a complete results view
+ * 
+ * @param {object} projection - Deterministic projection result
+ * @param {object} mcResult - Monte Carlo result with yearly bands
+ * @param {object} selectors - Object with canvas selectors
+ */
+export function renderAllCharts(projection, mcResult, selectors) {
+  // Fan chart
+  if (selectors.fanChart && mcResult.yearlyBands) {
+    renderFanChart(mcResult.yearlyBands, projection, selectors.fanChart, {
+      retirementAge: projection.plan.retirementAge
+    });
+  }
+  
+  // Depletion histogram
+  if (selectors.depletionHistogram && mcResult.statistics.depletionAge) {
+    renderDepletionHistogram(mcResult.statistics.depletionAge, selectors.depletionHistogram);
+  }
+  
+  // Withdrawals by source
+  if (selectors.withdrawalsBySource && projection.decumulation) {
+    renderWithdrawalsBySource(projection, selectors.withdrawalsBySource);
+  }
+  
+  // Tax over time
+  if (selectors.taxOverTime && projection.decumulation) {
+    renderTaxOverTime(projection, selectors.taxOverTime);
+  }
 }

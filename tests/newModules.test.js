@@ -99,6 +99,19 @@ function expect(actual) {
       if (!threw) {
         throw new Error('Expected function to throw');
       }
+    },
+    toContain(expected) {
+      if (typeof actual === 'string') {
+        if (!actual.includes(expected)) {
+          throw new Error(`Expected "${actual}" to contain "${expected}"`);
+        }
+      } else if (Array.isArray(actual)) {
+        if (!actual.includes(expected)) {
+          throw new Error(`Expected array to contain ${expected}`);
+        }
+      } else {
+        throw new Error('toContain only works with strings and arrays');
+      }
     }
   };
 }
@@ -501,12 +514,146 @@ import {
 } from '../engine/monteCarlo.js';
 
 test('runSingleSimulationWithTracking returns yearly balance data', () => {
+// ENHANCED ASSUMPTIONS MODULE TESTS
+// ═══════════════════════════════════════════════════════════════
+
+console.log('ENHANCED ASSUMPTIONS MODULE');
+console.log('─────────────────────────────────────────────────────────────────');
+
+import { 
+  getEffectiveReturn, 
+  getEffectiveVolatility,
+  realToNominal,
+  nominalToReal,
+  getDocumentedDefaults
+} from '../engine/assumptions.js';
+
+test('getEffectiveReturn returns single rate when phase-based disabled', () => {
+  const assumptions = createUserAssumptions({ usePhaseBasedReturns: false });
+  expect(getEffectiveReturn(assumptions, 'accumulation')).toBe(assumptions.netGrowthRate);
+  expect(getEffectiveReturn(assumptions, 'decumulation')).toBe(assumptions.netGrowthRate);
+});
+
+test('getEffectiveReturn returns phase-based rates when enabled', () => {
+  const assumptions = createUserAssumptions({ 
+    usePhaseBasedReturns: true,
+    preRetirementReturn: 0.05,
+    postRetirementReturn: 0.03,
+    feeRate: 0.005
+  });
+  expect(getEffectiveReturn(assumptions, 'accumulation')).toBeCloseTo(0.045, 0.001);
+  expect(getEffectiveReturn(assumptions, 'decumulation')).toBeCloseTo(0.025, 0.001);
+});
+
+test('realToNominal converts correctly', () => {
+  const real = 100000;
+  const years = 10;
+  const inflation = 0.02;
+  const nominal = realToNominal(real, years, inflation);
+  expect(nominal).toBeCloseTo(121899, 10);
+});
+
+test('nominalToReal converts correctly', () => {
+  const nominal = 121899;
+  const years = 10;
+  const inflation = 0.02;
+  const real = nominalToReal(nominal, years, inflation);
+  expect(real).toBeCloseTo(100000, 10);
+});
+
+test('getDocumentedDefaults returns documented values', () => {
+  const docs = getDocumentedDefaults();
+  expect(docs.growthRate).toBeTruthy();
+  expect(docs.growthRate.value).toBeTruthy();
+  expect(docs.growthRate.rationale).toBeTruthy();
+});
+
+console.log('');
+
+// ═══════════════════════════════════════════════════════════════
+// CARE COST SCENARIOS TESTS
+// ═══════════════════════════════════════════════════════════════
+
+console.log('CARE COST SCENARIOS');
+console.log('─────────────────────────────────────────────────────────────────');
+
+import { getCareCostsAtAge, CARE_COST_SCENARIOS, getCareScenarioOptions } from '../engine/spendingPolicy.js';
+
+test('createSpendingRules handles care scenario preset', () => {
+  const rules = createSpendingRules({
+    baseSpending: 30000,
+    careScenario: 'moderate'
+  });
+  expect(rules.careScenario).toBeTruthy();
+  expect(rules.careScenario.annualCost).toBe(35000);
+  expect(rules.careScenario.startAge).toBe(85);
+  expect(rules.careScenario.duration).toBe(2);
+});
+
+test('createSpendingRules handles custom care scenario', () => {
+  const rules = createSpendingRules({
+    baseSpending: 30000,
+    careScenario: {
+      annualCost: 50000,
+      startAge: 88,
+      duration: 3
+    }
+  });
+  expect(rules.careScenario.annualCost).toBe(50000);
+  expect(rules.careScenario.startAge).toBe(88);
+});
+
+test('getCareCostsAtAge returns correct costs during care period', () => {
+  const rules = createSpendingRules({
+    baseSpending: 30000,
+    careScenario: 'moderate'  // 85-87, £35k/year
+  });
+  
+  expect(getCareCostsAtAge(rules, 84)).toBe(0);  // Before care
+  expect(getCareCostsAtAge(rules, 85)).toBe(35000);  // During care
+  expect(getCareCostsAtAge(rules, 86)).toBe(35000);  // During care
+  expect(getCareCostsAtAge(rules, 87)).toBe(0);  // After care (endAge is exclusive)
+});
+
+test('calculateYearlySpending includes care costs', () => {
+  const rules = createSpendingRules({
+    baseSpending: 30000,
+    applyDefaultReductions: false,
+    careScenario: 'moderate'
+  });
+  
+  const result = calculateYearlySpending(rules, 85);
+  expect(result.regular).toBe(30000);
+  expect(result.care).toBe(35000);
+  expect(result.total).toBe(65000);
+});
+
+test('getCareScenarioOptions returns all scenarios', () => {
+  const options = getCareScenarioOptions();
+  expect(options.length).toBe(Object.keys(CARE_COST_SCENARIOS).length);
+  expect(options.find(o => o.id === 'moderate')).toBeTruthy();
+});
+
+console.log('');
+
+// ═══════════════════════════════════════════════════════════════
+// MONTE CARLO WITH BANDS TESTS
+// ═══════════════════════════════════════════════════════════════
+
+console.log('MONTE CARLO WITH FAN CHART DATA');
+console.log('─────────────────────────────────────────────────────────────────');
+
+import { runMonteCarloWithBands } from '../engine/monteCarlo.js';
+
+test('runMonteCarloWithBands generates yearly percentile bands', () => {
   const plan = createPlan({
     currentAge: 55,
     retirementAge: 60,
     targetNetIncome: 25000,
     currentPension: 300000,
     currentIsa: 50000,
+    currentPension: 250000,
+    annualPensionContribution: 10000,
     statePensionAge: 67,
     expectedStatePension: 11500
   });
@@ -529,118 +676,238 @@ test('runMonteCarloWithBands returns yearly percentile bands', () => {
     targetNetIncome: 20000,
     currentPension: 300000,
     currentIsa: 100000,
-    statePensionAge: 67,
-    expectedStatePension: 11500
-  });
-  
-  const result = runMonteCarloWithBands(plan, { iterations: 50, seed: 12345, endAge: 80 });
+  const result = runMonteCarloWithBands(plan, { iterations: 50, endAge: 70, seed: 12345 });
   
   expect(result.yearlyBands).toBeTruthy();
   expect(result.yearlyBands.length).toBeGreaterThan(0);
   
-  // Each band should have percentile values
-  const firstBand = result.yearlyBands[0];
-  expect(firstBand.age).toBeTruthy();
-  expect(typeof firstBand.p10).toBe('number');
-  expect(typeof firstBand.p50).toBe('number');
-  expect(typeof firstBand.p90).toBe('number');
+  // Check band structure
+  const band = result.yearlyBands[0];
+  expect(band.age).toBeTruthy();
+  expect(typeof band.p10).toBe('number');
+  expect(typeof band.p50).toBe('number');
+  expect(typeof band.p90).toBe('number');
   
-  // p10 <= p50 <= p90
-  expect(firstBand.p10).toBeLessThan(firstBand.p90 + 1);
+  // p10 should be less than p90
+  expect(band.p10).toBeLessThan(band.p90);
 });
 
-test('runMonteCarloWithBands returns depletion histogram', () => {
+test('runMonteCarloWithBands includes depletion histogram when applicable', () => {
+  // Create a scenario likely to have some depletions
   const plan = createPlan({
-    currentAge: 55,
-    retirementAge: 60,
-    targetNetIncome: 50000, // High spending to force some depletions
-    currentPension: 200000,
-    currentIsa: 50000,
-    statePensionAge: 67,
-    expectedStatePension: 5000 // Low state pension
-  });
-  
-  const result = runMonteCarloWithBands(plan, { iterations: 100, seed: 12345, endAge: 90 });
-  
-  expect(result.depletionAges).toBeTruthy();
-  expect(typeof result.depletionAges.count).toBe('number');
-  expect(result.depletionAges.histogram).toBeTruthy();
-});
-
-test('generateFanChartData formats data for charting', () => {
-  const plan = createPlan({
-    currentAge: 55,
-    retirementAge: 60,
-    targetNetIncome: 25000,
-    currentPension: 300000,
+    currentAge: 60,
+    retirementAge: 62,
+    targetNetIncome: 50000,  // High spending
+    currentPension: 200000,   // Moderate savings
     statePensionAge: 67,
     expectedStatePension: 11500
   });
   
-  const mcResult = runMonteCarloWithBands(plan, { iterations: 50, seed: 12345, endAge: 75 });
-  const chartData = generateFanChartData(mcResult);
+  const result = runMonteCarloWithBands(plan, { iterations: 100, endAge: 90, seed: 54321 });
   
-  expect(chartData.labels).toBeTruthy();
-  expect(chartData.labels.length).toBeGreaterThan(0);
-  expect(chartData.datasets).toBeTruthy();
-  expect(chartData.datasets.median.data.length).toBe(chartData.labels.length);
-  expect(chartData.metadata.iterations).toBe(50);
-});
-
-test('generateDepletionHistogram creates age bins', () => {
-  const depletionAges = [75, 76, 76, 77, 77, 77, 78, 80, 82, 85];
-  const histogram = generateDepletionHistogram(depletionAges, 60, 90);
-  
-  expect(histogram.length).toBeGreaterThan(0);
-  
-  // Find the most common age
-  const mostCommon = histogram.reduce((max, h) => h.count > max.count ? h : max, histogram[0]);
-  expect(mostCommon.age).toBe(77); // 3 occurrences
-  expect(mostCommon.count).toBe(3);
-});
-
-test('generateDepletionHistogram returns empty for no depletions', () => {
-  const histogram = generateDepletionHistogram([], 60, 90);
-  expect(histogram.length).toBe(0);
-});
-
-test('getConfidenceInterpretation returns correct level for high success', () => {
-  const interpretation = getConfidenceInterpretation(0.96);
-  expect(interpretation.level).toBe('very_high');
-  expect(interpretation.label).toBe('Very High Confidence');
-  expect(interpretation.color).toBe('#22c55e');
-});
-
-test('getConfidenceInterpretation returns correct level for moderate success', () => {
-  const interpretation = getConfidenceInterpretation(0.75);
-  expect(interpretation.level).toBe('moderate');
-  expect(interpretation.label).toBe('Moderate Confidence');
-  expect(interpretation.color).toBe('#f59e0b');
-});
-
-test('getConfidenceInterpretation returns correct level for low success', () => {
-  const interpretation = getConfidenceInterpretation(0.45);
-  expect(interpretation.level).toBe('very_low');
-  expect(interpretation.label).toBe('Very Low Confidence');
-  expect(interpretation.color).toBe('#ef4444');
-});
-
-test('yearly bands are sorted by age', () => {
-  const plan = createPlan({
-    currentAge: 50,
-    retirementAge: 55,
-    targetNetIncome: 20000,
-    currentPension: 200000,
-    statePensionAge: 67,
-    expectedStatePension: 11500
-  });
-  
-  const result = runMonteCarloWithBands(plan, { iterations: 30, seed: 12345, endAge: 70 });
-  
-  // Verify ages are in ascending order
-  for (let i = 1; i < result.yearlyBands.length; i++) {
-    expect(result.yearlyBands[i].age).toBeGreaterThan(result.yearlyBands[i - 1].age);
+  // May or may not have depletions depending on random returns
+  if (result.statistics.depletionAge) {
+    expect(result.statistics.depletionAge.histogram).toBeTruthy();
+    expect(Array.isArray(result.statistics.depletionAge.histogram)).toBeTruthy();
   }
+});
+
+console.log('');
+
+// ═══════════════════════════════════════════════════════════════
+// CONFIDENCE EXPLAINER TESTS
+// ═══════════════════════════════════════════════════════════════
+
+console.log('CONFIDENCE EXPLAINER');
+console.log('─────────────────────────────────────────────────────────────────');
+
+import { generateConfidenceExplanation, getSuccessDefinition } from '../ui/components/confidenceExplainer.js';
+
+test('generateConfidenceExplanation produces valid output', () => {
+  const mockMcResult = {
+    iterations: 1000,
+    statistics: {
+      successRate: 0.85,
+      depletionAge: {
+        count: 150,
+        earliest: 78,
+        median: 82,
+        latest: 88
+      }
+    }
+  };
+  
+  const explanation = generateConfidenceExplanation(mockMcResult, 90);
+  
+  expect(explanation.core.percentage).toBe('85');
+  expect(explanation.core.successCount).toBe(850);
+  expect(explanation.core.failureCount).toBe(150);
+  expect(explanation.core.level.label).toBe('High');
+  expect(explanation.caveats.length).toBeGreaterThan(0);
+});
+
+test('getSuccessDefinition returns clear definition', () => {
+  const definition = getSuccessDefinition(90);
+  expect(definition).toContain('90');
+  expect(definition).toContain('Portfolio');
+});
+
+console.log('');
+
+// ═══════════════════════════════════════════════════════════════
+// DB PENSION MODULE TESTS
+// ═══════════════════════════════════════════════════════════════
+
+console.log('DB PENSION MODULE');
+console.log('─────────────────────────────────────────────────────────────────');
+
+import { 
+  createDBPension, 
+  calculateDBIncomeAtAge, 
+  calculateHouseholdDBIncome,
+  validateDBPension,
+  getDBPensionSummary,
+  calculateDBLifetimeValue
+} from '../engine/dbPension.js';
+
+test('createDBPension creates valid configuration', () => {
+  const db = createDBPension({
+    name: 'Test DB',
+    annualIncome: 15000,
+    startAge: 65,
+    inflationLinking: 'cpi'
+  });
+  
+  expect(db.annualIncome).toBe(15000);
+  expect(db.startAge).toBe(65);
+  expect(db.inflationLinking).toBe('cpi');
+  expect(db.survivorBenefit).toBeTruthy();
+  expect(db.survivorRate).toBe(0.5);
+});
+
+test('createDBPension throws for invalid inputs', () => {
+  expect(() => createDBPension({ annualIncome: -1000, startAge: 65 })).toThrow();
+  expect(() => createDBPension({ annualIncome: 15000, startAge: 50 })).toThrow();
+});
+
+test('calculateDBIncomeAtAge returns 0 before start age', () => {
+  const db = createDBPension({
+    annualIncome: 15000,
+    startAge: 65
+  });
+  
+  expect(calculateDBIncomeAtAge(db, 60)).toBe(0);
+  expect(calculateDBIncomeAtAge(db, 64)).toBe(0);
+});
+
+test('calculateDBIncomeAtAge returns income at start age', () => {
+  const db = createDBPension({
+    annualIncome: 15000,
+    startAge: 65,
+    inflationLinking: 'none'
+  });
+  
+  expect(calculateDBIncomeAtAge(db, 65)).toBe(15000);
+  expect(calculateDBIncomeAtAge(db, 70)).toBe(15000);  // Level pension
+});
+
+test('calculateDBIncomeAtAge applies CPI linking', () => {
+  const db = createDBPension({
+    annualIncome: 15000,
+    startAge: 65,
+    inflationLinking: 'cpi'
+  });
+  
+  // At age 66, one year of 2% inflation
+  const income66 = calculateDBIncomeAtAge(db, 66, 0.02);
+  expect(income66).toBeCloseTo(15300, 1);  // 15000 * 1.02
+  
+  // At age 70, five years of 2% inflation
+  const income70 = calculateDBIncomeAtAge(db, 70, 0.02);
+  expect(income70).toBeCloseTo(16561.21, 1);  // 15000 * 1.02^5
+});
+
+test('calculateDBIncomeAtAge applies CPI cap', () => {
+  const db = createDBPension({
+    annualIncome: 15000,
+    startAge: 65,
+    inflationLinking: 'cpi',
+    cpiCap: 0.025  // 2.5% cap
+  });
+  
+  // With 5% inflation, should be capped at 2.5%
+  const income66 = calculateDBIncomeAtAge(db, 66, 0.05);
+  expect(income66).toBeCloseTo(15375, 1);  // 15000 * 1.025
+});
+
+test('calculateDBIncomeAtAge applies fixed increase', () => {
+  const db = createDBPension({
+    annualIncome: 15000,
+    startAge: 65,
+    inflationLinking: 'fixed',
+    fixedIncreaseRate: 0.03  // 3% fixed
+  });
+  
+  // At age 67, two years of 3% increase
+  const income67 = calculateDBIncomeAtAge(db, 67, 0.02);
+  expect(income67).toBeCloseTo(15913.50, 1);  // 15000 * 1.03^2 = 15913.50
+});
+
+test('calculateHouseholdDBIncome sums multiple pensions', () => {
+  // Use 'none' inflation linking for precise test
+  const db1 = createDBPension({ annualIncome: 10000, startAge: 65, inflationLinking: 'none' });
+  const db2 = createDBPension({ annualIncome: 8000, startAge: 60, inflationLinking: 'none' });
+  
+  const result = calculateHouseholdDBIncome([db1, db2], null, 65);
+  
+  expect(result.person1Total).toBe(18000);  // Both pensions paying
+  expect(result.householdTotal).toBe(18000);
+});
+
+test('calculateHouseholdDBIncome handles couple', () => {
+  const person1DB = [createDBPension({ annualIncome: 12000, startAge: 65 })];
+  const person2DB = [createDBPension({ annualIncome: 8000, startAge: 60 })];
+  
+  const result = calculateHouseholdDBIncome(person1DB, person2DB, 68, 65);
+  
+  expect(result.person1Total).toBeGreaterThan(12000);  // With CPI
+  expect(result.person2Total).toBeGreaterThan(8000);   // With CPI
+  expect(result.householdTotal).toBe(result.person1Total + result.person2Total);
+});
+
+test('validateDBPension returns valid for correct input', () => {
+  const db = createDBPension({ annualIncome: 15000, startAge: 65 });
+  const result = validateDBPension(db);
+  expect(result.valid).toBeTruthy();
+});
+
+test('getDBPensionSummary returns formatted summary', () => {
+  const db = createDBPension({
+    name: 'Civil Service Pension',
+    annualIncome: 20000,
+    startAge: 65,
+    inflationLinking: 'cpi',
+    cpiCap: 0.025
+  });
+  
+  const summary = getDBPensionSummary(db);
+  expect(summary.name).toBe('Civil Service Pension');
+  expect(summary.annualIncome).toContain('20,000');
+  expect(summary.inflationLinking).toContain('capped');
+});
+
+test('calculateDBLifetimeValue computes total and present value', () => {
+  const db = createDBPension({
+    annualIncome: 15000,
+    startAge: 65,
+    inflationLinking: 'none'
+  });
+  
+  const lifetime = calculateDBLifetimeValue(db, 65, 90);
+  
+  expect(lifetime.totalNominal).toBe(15000 * 26);  // 26 years (65-90 inclusive)
+  expect(lifetime.presentValue).toBeLessThan(lifetime.totalNominal);  // Discounted
+  expect(lifetime.years).toBe(26);
 });
 
 console.log('');

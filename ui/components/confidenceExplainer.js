@@ -1,85 +1,262 @@
 /**
  * RetireLens 2 - Confidence Explainer Component
  * 
- * Provides clear, user-friendly explanations of Monte Carlo results
- * and what the confidence score means for retirement planning.
+ * Provides plain-English explanations of Monte Carlo results.
+ * Helps users understand what confidence scores mean in practical terms.
  * 
- * Key principles:
- * - Make uncertainty understandable to non-technical users
- * - Provide actionable interpretations
- * - Be transparent about model limitations
+ * Key principle: No marketing language. Clear, defensible statements only.
  */
 
-import { getConfidenceInterpretation } from '../../engine/monteCarlo.js';
+/**
+ * Generate plain-English confidence explanation
+ * 
+ * @param {object} mcResult - Monte Carlo result object
+ * @param {number} targetAge - Target age for success measurement (default: 90)
+ * @returns {object} Confidence explanation with multiple components
+ */
+export function generateConfidenceExplanation(mcResult, targetAge = 90) {
+  const successRate = mcResult.statistics.successRate;
+  const successCount = Math.round(successRate * mcResult.iterations);
+  const failureCount = mcResult.iterations - successCount;
+  
+  // Core explanation
+  const coreExplanation = {
+    percentage: (successRate * 100).toFixed(0),
+    successCount,
+    failureCount,
+    iterations: mcResult.iterations,
+    targetAge,
+    
+    // Plain English summary
+    plainEnglish: generatePlainEnglishSummary(successRate, targetAge, mcResult.iterations),
+    
+    // Interpretation level
+    level: getConfidenceLevel(successRate),
+    
+    // Action guidance
+    guidance: getActionGuidance(successRate)
+  };
+  
+  // Depletion age explanation (if applicable)
+  let depletionExplanation = null;
+  if (mcResult.statistics.depletionAge) {
+    const depletion = mcResult.statistics.depletionAge;
+    depletionExplanation = {
+      count: depletion.count,
+      earliest: depletion.earliest,
+      median: depletion.median,
+      latest: depletion.latest,
+      plainEnglish: generateDepletionExplanation(depletion, failureCount)
+    };
+  }
+  
+  return {
+    core: coreExplanation,
+    depletion: depletionExplanation,
+    caveats: getCaveats()
+  };
+}
+
+/**
+ * Generate plain English summary of confidence
+ * 
+ * @param {number} successRate - Success rate (0-1)
+ * @param {number} targetAge - Target age
+ * @param {number} iterations - Number of simulations
+ * @returns {string} Plain English explanation
+ */
+function generatePlainEnglishSummary(successRate, targetAge, iterations) {
+  const pct = Math.round(successRate * 100);
+  
+  if (pct >= 95) {
+    return `In ${pct} out of 100 simulated market scenarios, your money lasts until age ${targetAge}. This is a very robust plan.`;
+  } else if (pct >= 85) {
+    return `In ${pct} out of 100 simulated market scenarios, your money lasts until age ${targetAge}. This is a robust plan with good probability of success.`;
+  } else if (pct >= 70) {
+    return `In ${pct} out of 100 simulated market scenarios, your money lasts until age ${targetAge}. There is moderate risk of shortfall - consider adjustments.`;
+  } else if (pct >= 50) {
+    return `In ${pct} out of 100 simulated market scenarios, your money lasts until age ${targetAge}. This plan has significant uncertainty - consider increasing savings or reducing spending.`;
+  } else {
+    return `In only ${pct} out of 100 simulated market scenarios does your money last until age ${targetAge}. This plan likely needs substantial changes.`;
+  }
+}
+
+/**
+ * Get confidence level classification
+ * 
+ * @param {number} successRate - Success rate (0-1)
+ * @returns {object} Level classification with label and color
+ */
+function getConfidenceLevel(successRate) {
+  if (successRate >= 0.95) {
+    return {
+      label: 'Very High',
+      color: '#22c55e', // green
+      emoji: '✅',
+      description: 'Very robust - high probability of success'
+    };
+  } else if (successRate >= 0.85) {
+    return {
+      label: 'High',
+      color: '#84cc16', // lime
+      emoji: '✅',
+      description: 'Robust - good probability of success'
+    };
+  } else if (successRate >= 0.70) {
+    return {
+      label: 'Moderate',
+      color: '#f59e0b', // amber
+      emoji: '⚠️',
+      description: 'Moderate - some risk of shortfall'
+    };
+  } else if (successRate >= 0.50) {
+    return {
+      label: 'Low',
+      color: '#f97316', // orange
+      emoji: '⚠️',
+      description: 'Uncertain - significant risk of not meeting goals'
+    };
+  } else {
+    return {
+      label: 'Very Low',
+      color: '#ef4444', // red
+      emoji: '❌',
+      description: 'High risk - substantial probability of failure'
+    };
+  }
+}
+
+/**
+ * Get action guidance based on confidence level
+ * 
+ * @param {number} successRate - Success rate (0-1)
+ * @returns {string[]} Array of action suggestions
+ */
+function getActionGuidance(successRate) {
+  if (successRate >= 0.85) {
+    return [
+      'Your plan appears sustainable under most market conditions.',
+      'Consider reviewing annually as circumstances change.',
+      'You may have room for increased spending or earlier retirement.'
+    ];
+  } else if (successRate >= 0.70) {
+    return [
+      'Your plan has moderate risk. Consider:',
+      '• Increasing contributions by 10-20%',
+      '• Delaying retirement by 1-2 years',
+      '• Reducing target spending by 10-15%',
+      'Any of these changes could significantly improve your confidence.'
+    ];
+  } else if (successRate >= 0.50) {
+    return [
+      'Your plan has significant risk. Recommended actions:',
+      '• Increase contributions substantially',
+      '• Consider delaying retirement by 3-5 years',
+      '• Reduce target spending by 20%+',
+      '• Explore part-time work in early retirement'
+    ];
+  } else {
+    return [
+      'Your plan needs substantial revision:',
+      '• Current savings trajectory is unlikely to meet goals',
+      '• Consider a comprehensive review with a financial adviser',
+      '• Explore multiple levers: savings, retirement age, spending'
+    ];
+  }
+}
+
+/**
+ * Generate depletion age explanation
+ * 
+ * @param {object} depletion - Depletion statistics
+ * @param {number} failureCount - Number of failed simulations
+ * @returns {string} Plain English explanation
+ */
+function generateDepletionExplanation(depletion, failureCount) {
+  if (failureCount === 0) {
+    return 'In all simulations, your money lasted to the target age.';
+  }
+  
+  return `In the ${failureCount} scenarios where funds ran out, the earliest depletion was at age ${depletion.earliest}, ` +
+         `the median was age ${Math.round(depletion.median)}, and the latest was age ${depletion.latest}.`;
+}
+
+/**
+ * Get standard caveats for Monte Carlo results
+ * 
+ * @returns {string[]} Array of caveat statements
+ */
+function getCaveats() {
+  return [
+    'These projections assume returns follow a normal distribution; actual markets may be more volatile.',
+    'Tax rules, State Pension age, and inflation may differ from assumptions.',
+    'Past performance does not guarantee future results.',
+    'This tool provides projections for planning purposes only - not financial advice.',
+    'Consider consulting a regulated financial adviser for personalised guidance.'
+  ];
+}
 
 /**
  * Render confidence explainer panel
  * 
- * @param {object} mcResult - Monte Carlo results from runMonteCarloWithBands
- * @param {object} detResult - Deterministic results from runProjection
- * @param {string} containerSelector - DOM selector for container
+ * @param {object} mcResult - Monte Carlo result object
+ * @param {string} containerSelector - CSS selector for container
+ * @param {number} targetAge - Target age (default: 90)
  */
-export function renderConfidenceExplainer(mcResult, detResult, containerSelector = '#confidence-explainer') {
+export function renderConfidenceExplainer(mcResult, containerSelector, targetAge = 90) {
   const container = document.querySelector(containerSelector);
   if (!container) return;
   
-  const { successRate, iterations, depletionAges } = mcResult;
-  const interpretation = getConfidenceInterpretation(successRate);
-  const percentage = Math.round(successRate * 100);
+  const explanation = generateConfidenceExplanation(mcResult, targetAge);
+  const { core, depletion, caveats } = explanation;
   
   const html = `
-    <div class="confidence-explainer" style="--confidence-color: ${interpretation.color}">
+    <div class="confidence-explainer">
       <div class="confidence-header">
-        <div class="confidence-score">
-          <span class="confidence-number">${percentage}%</span>
-          <span class="confidence-label">${interpretation.label}</span>
+        <span class="confidence-emoji">${core.level.emoji}</span>
+        <div class="confidence-score" style="color: ${core.level.color}">
+          <span class="score-value">${core.percentage}%</span>
+          <span class="score-label">Confidence</span>
         </div>
-        <div class="confidence-indicator" style="background: ${interpretation.color}"></div>
       </div>
       
-      <div class="confidence-body">
-        <p class="confidence-description">
-          ${interpretation.description}
-        </p>
-        
-        <details class="confidence-details">
-          <summary>What does this mean?</summary>
-          <div class="explanation-content">
-            <p>
-              We ran <strong>${iterations.toLocaleString()} simulations</strong> of your retirement plan,
-              each with a different random sequence of market returns.
-            </p>
-            <p>
-              ${interpretation.interpretation}
-            </p>
-            ${depletionAges.count > 0 ? `
-              <p class="depletion-info">
-                In ${depletionAges.count} simulations where funds ran out, the typical depletion age was 
-                <strong>${Math.round(depletionAges.median)}</strong>
-                (ranging from ${depletionAges.earliest} to ${depletionAges.latest}).
-              </p>
-            ` : `
-              <p class="success-info">
-                In all ${iterations.toLocaleString()} simulations, your funds lasted the full projection period.
-              </p>
-            `}
-          </div>
-        </details>
-        
-        ${interpretation.recommendation ? `
-          <div class="confidence-recommendation">
-            <strong>💡 Recommendation:</strong> ${interpretation.recommendation}
-          </div>
-        ` : ''}
+      <div class="confidence-summary">
+        <p class="main-explanation">${core.plainEnglish}</p>
+      </div>
+      
+      <div class="confidence-details">
+        <div class="detail-item">
+          <span class="detail-label">Simulations Run</span>
+          <span class="detail-value">${core.iterations.toLocaleString()}</span>
+        </div>
+        <div class="detail-item">
+          <span class="detail-label">Successful Scenarios</span>
+          <span class="detail-value">${core.successCount.toLocaleString()}</span>
+        </div>
+        <div class="detail-item">
+          <span class="detail-label">Scenarios with Shortfall</span>
+          <span class="detail-value">${core.failureCount.toLocaleString()}</span>
+        </div>
+      </div>
+      
+      ${depletion ? `
+        <div class="depletion-info">
+          <h4>When Might Money Run Out?</h4>
+          <p>${depletion.plainEnglish}</p>
+        </div>
+      ` : ''}
+      
+      <div class="confidence-guidance">
+        <h4>What This Means</h4>
+        <ul>
+          ${core.guidance.map(g => `<li>${g}</li>`).join('')}
+        </ul>
       </div>
       
       <details class="confidence-caveats">
-        <summary>Important caveats</summary>
+        <summary>Important Notes</summary>
         <ul>
-          <li><strong>Model limitations:</strong> Returns are assumed to follow a normal distribution. Real markets may have "fat tails" (more extreme events).</li>
-          <li><strong>Sequence-of-returns risk:</strong> Poor returns early in retirement are particularly damaging. This is captured in the simulation.</li>
-          <li><strong>Not financial advice:</strong> This tool provides projections for planning purposes only, not guarantees.</li>
-          <li><strong>Assumptions may change:</strong> Tax rules, State Pension age, and inflation may differ from current assumptions.</li>
+          ${caveats.map(c => `<li>${c}</li>`).join('')}
         </ul>
       </details>
     </div>
@@ -89,183 +266,13 @@ export function renderConfidenceExplainer(mcResult, detResult, containerSelector
 }
 
 /**
- * Create confidence score badge for compact display
+ * Generate success definition text
  * 
- * @param {number} successRate - Success rate from Monte Carlo (0-1)
- * @returns {string} HTML for confidence badge
+ * @param {number} targetAge - Target age for success
+ * @returns {string} Clear definition of success
  */
-export function createConfidenceBadge(successRate) {
-  const interpretation = getConfidenceInterpretation(successRate);
-  const percentage = Math.round(successRate * 100);
-  
-  return `
-    <span class="confidence-badge" style="background-color: ${interpretation.color}">
-      ${percentage}% ${interpretation.label}
-    </span>
-  `;
-}
-
-/**
- * Create confidence meter visualization
- * 
- * @param {number} successRate - Success rate (0-1)
- * @returns {string} HTML for confidence meter
- */
-export function createConfidenceMeter(successRate) {
-  const interpretation = getConfidenceInterpretation(successRate);
-  const percentage = Math.round(successRate * 100);
-  
-  return `
-    <div class="confidence-meter">
-      <div class="meter-label">Confidence Level</div>
-      <div class="meter-track">
-        <div class="meter-fill" style="width: ${percentage}%; background-color: ${interpretation.color}"></div>
-      </div>
-      <div class="meter-value">${percentage}%</div>
-    </div>
-  `;
-}
-
-/**
- * Get CSS styles for confidence explainer component
- * 
- * @returns {string} CSS styles
- */
-export function getConfidenceExplainerStyles() {
-  return `
-    .confidence-explainer {
-      background: var(--color-surface, #ffffff);
-      border-radius: var(--radius-lg, 1rem);
-      padding: var(--spacing-lg, 1.5rem);
-      margin: var(--spacing-md, 1rem) 0;
-      border-left: 4px solid var(--confidence-color, #3b82f6);
-    }
-    
-    .confidence-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: var(--spacing-md, 1rem);
-    }
-    
-    .confidence-score {
-      display: flex;
-      flex-direction: column;
-    }
-    
-    .confidence-number {
-      font-size: var(--font-size-3xl, 2.5rem);
-      font-weight: 700;
-      line-height: 1;
-      color: var(--confidence-color, #3b82f6);
-    }
-    
-    .confidence-label {
-      font-size: var(--font-size-sm, 0.875rem);
-      color: var(--color-text-light, #6b7280);
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-    }
-    
-    .confidence-indicator {
-      width: 16px;
-      height: 16px;
-      border-radius: 50%;
-    }
-    
-    .confidence-description {
-      font-size: var(--font-size-lg, 1.125rem);
-      margin-bottom: var(--spacing-md, 1rem);
-    }
-    
-    .confidence-details summary,
-    .confidence-caveats summary {
-      cursor: pointer;
-      color: var(--color-primary, #3b82f6);
-      font-weight: 500;
-      margin-bottom: var(--spacing-sm, 0.5rem);
-    }
-    
-    .explanation-content {
-      padding: var(--spacing-md, 1rem);
-      background: var(--color-background, #f9fafb);
-      border-radius: var(--radius-md, 0.5rem);
-      margin-top: var(--spacing-sm, 0.5rem);
-    }
-    
-    .explanation-content p {
-      margin-bottom: var(--spacing-sm, 0.5rem);
-    }
-    
-    .depletion-info {
-      color: var(--color-warning, #f59e0b);
-    }
-    
-    .success-info {
-      color: var(--color-success, #22c55e);
-    }
-    
-    .confidence-recommendation {
-      background: #fef3c7;
-      padding: var(--spacing-md, 1rem);
-      border-radius: var(--radius-md, 0.5rem);
-      margin-top: var(--spacing-md, 1rem);
-    }
-    
-    .confidence-caveats {
-      margin-top: var(--spacing-lg, 1.5rem);
-      font-size: var(--font-size-sm, 0.875rem);
-      color: var(--color-text-light, #6b7280);
-    }
-    
-    .confidence-caveats ul {
-      padding-left: var(--spacing-lg, 1.5rem);
-      margin-top: var(--spacing-sm, 0.5rem);
-    }
-    
-    .confidence-caveats li {
-      margin-bottom: var(--spacing-xs, 0.25rem);
-    }
-    
-    .confidence-badge {
-      display: inline-block;
-      padding: 0.25rem 0.75rem;
-      border-radius: var(--radius-full, 9999px);
-      color: white;
-      font-size: var(--font-size-sm, 0.875rem);
-      font-weight: 500;
-    }
-    
-    .confidence-meter {
-      display: flex;
-      align-items: center;
-      gap: var(--spacing-sm, 0.5rem);
-    }
-    
-    .meter-label {
-      font-size: var(--font-size-sm, 0.875rem);
-      color: var(--color-text-light, #6b7280);
-      min-width: 100px;
-    }
-    
-    .meter-track {
-      flex: 1;
-      height: 8px;
-      background: var(--color-border, #e5e7eb);
-      border-radius: var(--radius-full, 9999px);
-      overflow: hidden;
-    }
-    
-    .meter-fill {
-      height: 100%;
-      border-radius: var(--radius-full, 9999px);
-      transition: width 0.3s ease;
-    }
-    
-    .meter-value {
-      font-weight: 600;
-      min-width: 50px;
-      text-align: right;
-    }
-  `;
+export function getSuccessDefinition(targetAge = 90) {
+  return `Success is defined as: Portfolio value remains above £0 at age ${targetAge}. ` +
+         `This means your investments and income sources can fund your target spending ` +
+         `throughout retirement without running out of money before age ${targetAge}.`;
 }

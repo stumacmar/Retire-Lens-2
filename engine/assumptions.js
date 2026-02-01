@@ -5,18 +5,41 @@
  * Supports scenario presets and custom overrides.
  * 
  * All rates are annual decimals (0.04 = 4%)
+ * 
+ * Key concepts:
+ * - Real returns: After inflation (purchasing power preserved)
+ * - Nominal returns: Before inflation adjustment
+ * - Pre-retirement: Typically higher equity allocation = higher growth/volatility
+ * - Post-retirement: Typically lower risk = lower growth/volatility
  */
 
 /**
  * Default economic assumptions
  * These are reasonable mid-range values for UK retirement planning.
+ * 
+ * Pre-retirement assumes 80/20 equity/bond allocation
+ * Post-retirement assumes 60/40 equity/bond allocation (de-risked)
  */
 export const DEFAULT_ASSUMPTIONS = Object.freeze({
-  // Investment returns (real, after inflation)
-  growthRate: 0.04,           // 4% real growth
-  inflationRate: 0.02,        // 2% long-term inflation
-  volatility: 0.15,           // 15% standard deviation
-  feeRate: 0.005,             // 0.5% annual investment fees
+  // Pre-retirement investment returns (real, after inflation)
+  preRetirementReturn: 0.045,   // 4.5% real growth (higher equity allocation)
+  preRetirementVolatility: 0.16, // 16% standard deviation
+  
+  // Post-retirement investment returns (real, after inflation)
+  postRetirementReturn: 0.035,  // 3.5% real growth (de-risked allocation)
+  postRetirementVolatility: 0.12, // 12% standard deviation
+  
+  // Legacy single growth rate (for backward compatibility)
+  growthRate: 0.04,            // 4% real growth (blended default)
+  
+  // Economic assumptions
+  inflationRate: 0.02,         // 2% long-term inflation (BoE target)
+  volatility: 0.15,            // 15% standard deviation (blended default)
+  feeRate: 0.005,              // 0.5% annual investment fees
+  
+  // Display mode
+  useRealReturns: true,        // true = real (after inflation), false = nominal
+  usePhaseBasedReturns: false, // true = use pre/post retirement rates, false = single rate
   
   // Scenario label
   scenario: 'moderate'
@@ -28,32 +51,55 @@ export const DEFAULT_ASSUMPTIONS = Object.freeze({
  * Conservative: Lower growth, higher volatility - pessimistic view
  * Moderate: Balanced assumptions - reasonable base case
  * Optimistic: Higher growth, lower volatility - best case scenario
+ * 
+ * Each preset includes both single-rate and phase-based returns
  */
 export const SCENARIO_PRESETS = Object.freeze({
   conservative: {
     name: 'Conservative',
     description: 'Lower growth, higher volatility - pessimistic assumptions',
+    // Single rate (legacy)
     growthRate: 0.03,
-    inflationRate: 0.025,
     volatility: 0.18,
+    // Phase-based rates
+    preRetirementReturn: 0.035,
+    preRetirementVolatility: 0.20,
+    postRetirementReturn: 0.025,
+    postRetirementVolatility: 0.15,
+    // Other
+    inflationRate: 0.025,
     feeRate: 0.006,
     scenario: 'conservative'
   },
   moderate: {
     name: 'Moderate',
     description: 'Balanced assumptions - reasonable base case',
+    // Single rate (legacy)
     growthRate: 0.04,
-    inflationRate: 0.02,
     volatility: 0.15,
+    // Phase-based rates
+    preRetirementReturn: 0.045,
+    preRetirementVolatility: 0.16,
+    postRetirementReturn: 0.035,
+    postRetirementVolatility: 0.12,
+    // Other
+    inflationRate: 0.02,
     feeRate: 0.005,
     scenario: 'moderate'
   },
   optimistic: {
     name: 'Optimistic',
     description: 'Higher growth, lower volatility - best case scenario',
+    // Single rate (legacy)
     growthRate: 0.05,
-    inflationRate: 0.02,
     volatility: 0.12,
+    // Phase-based rates
+    preRetirementReturn: 0.055,
+    preRetirementVolatility: 0.14,
+    postRetirementReturn: 0.045,
+    postRetirementVolatility: 0.10,
+    // Other
+    inflationRate: 0.02,
     feeRate: 0.004,
     scenario: 'optimistic'
   }
@@ -72,6 +118,14 @@ export const SCENARIO_PRESETS = Object.freeze({
  * @example
  * // Override specific values
  * const assumptions = createUserAssumptions({ growthRate: 0.03, feeRate: 0.01 });
+ * 
+ * @example
+ * // Use phase-based returns
+ * const assumptions = createUserAssumptions({ 
+ *   usePhaseBasedReturns: true,
+ *   preRetirementReturn: 0.05,
+ *   postRetirementReturn: 0.03
+ * });
  */
 export function createUserAssumptions(overrides = {}) {
   const base = { ...DEFAULT_ASSUMPTIONS, ...overrides };
@@ -91,11 +145,79 @@ export function createUserAssumptions(overrides = {}) {
   const netGrowthRate = base.growthRate - base.feeRate;
   const nominalGrowthRate = base.growthRate + base.inflationRate;
   
+  // Phase-based derived values
+  const netPreRetirementReturn = base.preRetirementReturn - base.feeRate;
+  const netPostRetirementReturn = base.postRetirementReturn - base.feeRate;
+  
   return Object.freeze({
     ...base,
     netGrowthRate,
-    nominalGrowthRate
+    nominalGrowthRate,
+    netPreRetirementReturn,
+    netPostRetirementReturn
   });
+}
+
+/**
+ * Get effective return rate for a given phase
+ * 
+ * @param {object} assumptions - Assumptions object
+ * @param {string} phase - 'accumulation' | 'decumulation'
+ * @returns {number} Effective return rate to use
+ */
+export function getEffectiveReturn(assumptions, phase) {
+  if (!assumptions.usePhaseBasedReturns) {
+    return assumptions.netGrowthRate;
+  }
+  
+  if (phase === 'accumulation') {
+    return assumptions.netPreRetirementReturn;
+  } else {
+    return assumptions.netPostRetirementReturn;
+  }
+}
+
+/**
+ * Get effective volatility for a given phase
+ * 
+ * @param {object} assumptions - Assumptions object
+ * @param {string} phase - 'accumulation' | 'decumulation'
+ * @returns {number} Effective volatility to use
+ */
+export function getEffectiveVolatility(assumptions, phase) {
+  if (!assumptions.usePhaseBasedReturns) {
+    return assumptions.volatility;
+  }
+  
+  if (phase === 'accumulation') {
+    return assumptions.preRetirementVolatility;
+  } else {
+    return assumptions.postRetirementVolatility;
+  }
+}
+
+/**
+ * Convert between real and nominal values
+ * 
+ * @param {number} realValue - Value in real terms
+ * @param {number} years - Number of years
+ * @param {number} inflationRate - Annual inflation rate
+ * @returns {number} Nominal value
+ */
+export function realToNominal(realValue, years, inflationRate) {
+  return realValue * Math.pow(1 + inflationRate, years);
+}
+
+/**
+ * Convert nominal to real values
+ * 
+ * @param {number} nominalValue - Value in nominal terms
+ * @param {number} years - Number of years
+ * @param {number} inflationRate - Annual inflation rate
+ * @returns {number} Real value
+ */
+export function nominalToReal(nominalValue, years, inflationRate) {
+  return nominalValue / Math.pow(1 + inflationRate, years);
 }
 
 /**
@@ -125,14 +247,26 @@ export function applyScenarioPreset(scenario) {
  * @returns {object} Human-readable summary
  */
 export function getAssumptionsSummary(assumptions) {
-  return {
+  const summary = {
     growthRate: `${(assumptions.growthRate * 100).toFixed(1)}%`,
     inflationRate: `${(assumptions.inflationRate * 100).toFixed(1)}%`,
     volatility: `${(assumptions.volatility * 100).toFixed(0)}%`,
     feeRate: `${(assumptions.feeRate * 100).toFixed(2)}%`,
     netGrowthRate: `${(assumptions.netGrowthRate * 100).toFixed(2)}%`,
-    scenario: assumptions.scenario || 'custom'
+    scenario: assumptions.scenario || 'custom',
+    useRealReturns: assumptions.useRealReturns,
+    usePhaseBasedReturns: assumptions.usePhaseBasedReturns
   };
+  
+  // Add phase-based details if enabled
+  if (assumptions.usePhaseBasedReturns) {
+    summary.preRetirementReturn = `${(assumptions.preRetirementReturn * 100).toFixed(1)}%`;
+    summary.postRetirementReturn = `${(assumptions.postRetirementReturn * 100).toFixed(1)}%`;
+    summary.preRetirementVolatility = `${(assumptions.preRetirementVolatility * 100).toFixed(0)}%`;
+    summary.postRetirementVolatility = `${(assumptions.postRetirementVolatility * 100).toFixed(0)}%`;
+  }
+  
+  return summary;
 }
 
 /**
@@ -157,8 +291,65 @@ export function validateAssumptions(assumptions) {
     errors.push('inflationRate must be a number');
   }
   
+  // Validate phase-based returns if enabled
+  if (assumptions.usePhaseBasedReturns) {
+    if (typeof assumptions.preRetirementReturn !== 'number') {
+      errors.push('preRetirementReturn must be a number when usePhaseBasedReturns is true');
+    }
+    if (typeof assumptions.postRetirementReturn !== 'number') {
+      errors.push('postRetirementReturn must be a number when usePhaseBasedReturns is true');
+    }
+  }
+  
   return {
     valid: errors.length === 0,
     errors
+  };
+}
+
+/**
+ * Get documented defaults with explanations
+ * Useful for UI help text and tooltips
+ * 
+ * @returns {object} Documented defaults with explanations
+ */
+export function getDocumentedDefaults() {
+  return {
+    growthRate: {
+      value: DEFAULT_ASSUMPTIONS.growthRate,
+      label: 'Real Growth Rate',
+      description: 'Expected annual return after inflation',
+      rationale: 'Based on long-term equity/bond blend returns of 4-5% real'
+    },
+    inflationRate: {
+      value: DEFAULT_ASSUMPTIONS.inflationRate,
+      label: 'Inflation Rate',
+      description: 'Long-term inflation assumption',
+      rationale: 'Bank of England 2% target rate'
+    },
+    volatility: {
+      value: DEFAULT_ASSUMPTIONS.volatility,
+      label: 'Volatility (σ)',
+      description: 'Standard deviation of annual returns for Monte Carlo',
+      rationale: 'Typical for 60/40 portfolio based on historical data'
+    },
+    feeRate: {
+      value: DEFAULT_ASSUMPTIONS.feeRate,
+      label: 'Annual Fees',
+      description: 'Total investment management fees',
+      rationale: 'Low-cost index fund/ETF assumption'
+    },
+    preRetirementReturn: {
+      value: DEFAULT_ASSUMPTIONS.preRetirementReturn,
+      label: 'Pre-Retirement Return',
+      description: 'Expected return before retirement (higher equity)',
+      rationale: 'Assumes 80/20 equity/bond allocation'
+    },
+    postRetirementReturn: {
+      value: DEFAULT_ASSUMPTIONS.postRetirementReturn,
+      label: 'Post-Retirement Return',
+      description: 'Expected return in retirement (de-risked)',
+      rationale: 'Assumes 60/40 equity/bond allocation'
+    }
   };
 }

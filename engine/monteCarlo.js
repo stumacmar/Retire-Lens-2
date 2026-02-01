@@ -3,6 +3,10 @@
  * 
  * Provides uncertainty bands around deterministic projections.
  * Monte Carlo is used for deviation analysis, not as the primary projection method.
+ * 
+ * Success Definition:
+ * "Portfolio value > 0 at target age (configurable, default 90)"
+ * This means funds were not depleted before the target age.
  */
 
 import { runProjection, createPlan } from './projections.js';
@@ -61,15 +65,16 @@ export function generateReturnSequence(years, mean, stdDev, seed = null) {
 }
 
 /**
- * Run a single Monte Carlo simulation
+ * Run a single Monte Carlo simulation with year-by-year tracking
  * 
  * @param {object} plan - Plan state object
  * @param {number[]} accumulationReturns - Returns for accumulation phase
  * @param {number[]} decumulationReturns - Returns for decumulation phase
  * @param {number} endAge - Age to project until
- * @returns {object} Simulation result
+ * @param {boolean} trackYearlyBalances - Whether to track balances at each year
+ * @returns {object} Simulation result with optional yearly data
  */
-export function runSingleSimulation(plan, accumulationReturns, decumulationReturns, endAge = 90) {
+export function runSingleSimulation(plan, accumulationReturns, decumulationReturns, endAge = 90, trackYearlyBalances = false) {
   const { projection, tax: taxConfig } = plan.assumptions;
   const feeRate = projection.defaultFeeRate;
   
@@ -77,17 +82,31 @@ export function runSingleSimulation(plan, accumulationReturns, decumulationRetur
   let pensionBalance = plan.currentPension;
   let isaBalance = plan.currentIsa;
   
+  const yearlyData = trackYearlyBalances ? [] : null;
   const accumulationYears = plan.retirementAge - plan.currentAge;
+  
   for (let i = 0; i < accumulationYears; i++) {
     const yearReturn = accumulationReturns[i] - feeRate;
     pensionBalance = pensionBalance * (1 + yearReturn) + plan.annualPensionContribution;
     isaBalance = isaBalance * (1 + yearReturn) + plan.annualIsaContribution;
+    
+    if (trackYearlyBalances) {
+      yearlyData.push({
+        age: plan.currentAge + i + 1,
+        phase: 'accumulation',
+        balance: pensionBalance + isaBalance,
+        pension: pensionBalance,
+        isa: isaBalance
+      });
+    }
   }
   
   // Take PCLS
   const pclsRate = plan.assumptions.pension?.pclsRate || 0.25;
   const taxFreeCash = pensionBalance * pclsRate;
   pensionBalance = pensionBalance - taxFreeCash;
+  // Total retirement assets = pension after PCLS + ISA + tax-free cash taken
+  const totalRetirementAssets = pensionBalance + isaBalance + taxFreeCash;
   
   // Decumulation phase
   let fundsDepleted = false;
@@ -95,9 +114,22 @@ export function runSingleSimulation(plan, accumulationReturns, decumulationRetur
   const decumulationYears = endAge - plan.retirementAge;
   
   for (let i = 0; i < decumulationYears; i++) {
-    if (fundsDepleted) continue;
-    
     const age = plan.retirementAge + i;
+    
+    if (fundsDepleted) {
+      if (trackYearlyBalances) {
+        yearlyData.push({
+          age: age + 1,
+          phase: 'decumulation',
+          balance: 0,
+          pension: 0,
+          isa: 0,
+          depleted: true
+        });
+      }
+      continue;
+    }
+    
     const statePension = age >= plan.statePensionAge ? plan.expectedStatePension : 0;
     
     // Simplified withdrawal - target net income minus state pension
@@ -122,10 +154,21 @@ export function runSingleSimulation(plan, accumulationReturns, decumulationRetur
       pensionBalance *= (1 + yearReturn);
       isaBalance *= (1 + yearReturn);
     }
+    
+    if (trackYearlyBalances) {
+      yearlyData.push({
+        age: age + 1,
+        phase: 'decumulation',
+        balance: pensionBalance + isaBalance,
+        pension: pensionBalance,
+        isa: isaBalance,
+        depleted: fundsDepleted
+      });
+    }
   }
   
-  return {
-    retirementPot: pensionBalance + isaBalance + taxFreeCash, // At retirement
+  const result = {
+    totalRetirementAssets,  // Renamed from retirementPot for clarity
     finalBalance: Math.max(0, pensionBalance + isaBalance),
     fundsDepleted,
     depletionAge,
@@ -133,6 +176,12 @@ export function runSingleSimulation(plan, accumulationReturns, decumulationRetur
       ? (depletionAge - plan.retirementAge)
       : decumulationYears
   };
+  
+  if (trackYearlyBalances) {
+    result.yearlyData = yearlyData;
+  }
+  
+  return result;
 }
 
 /**
@@ -272,7 +321,7 @@ export function runMonteCarlo(plan, options = {}) {
     const accReturns = generateReturnSequence(accumulationYears, mean, volatility, iterSeed);
     const decReturns = generateReturnSequence(decumulationYears, mean, volatility, iterSeed ? iterSeed + 10000 : null);
     
-    const result = runSingleSimulation(plan, accReturns, decReturns, endAge);
+    const result = runSingleSimulation(plan, accReturns, decReturns, endAge, false);
     results.push(result);
   }
   
@@ -285,6 +334,7 @@ export function runMonteCarlo(plan, options = {}) {
     iterations,
     mean,
     volatility,
+    endAge,
     statistics: {
       successRate: successRates.reduce((a, b) => a + b, 0) / iterations,
       
@@ -317,6 +367,8 @@ export function runMonteCarlo(plan, options = {}) {
  * 
  * This enhanced version tracks portfolio balance at each age across all
  * simulations, enabling visualization of confidence bands over time.
+ * Run Monte Carlo with year-by-year tracking for fan charts
+ * This is more expensive but provides data for visualization
  * 
  * @param {object} plan - Plan state object
  * @param {object} options - Simulation options
@@ -337,6 +389,16 @@ export function runMonteCarloWithBands(plan, options = {}) {
   // Track balances at each age across all iterations
   const yearlyBalances = {};  // { age: [balance1, balance2, ...] }
   const results = [];
+  const totalYears = accumulationYears + decumulationYears;
+  
+  // Initialize yearly balance tracking
+  const yearlyBalances = {};
+  for (let age = plan.currentAge + 1; age <= endAge; age++) {
+    yearlyBalances[age] = [];
+  }
+  
+  const results = [];
+  const depletionAges = [];
   
   for (let i = 0; i < iterations; i++) {
     const iterSeed = seed !== null ? seed + i : null;
@@ -373,6 +435,40 @@ export function runMonteCarloWithBands(plan, options = {}) {
   // Calculate depletion age histogram
   const depletionAges = results.filter(r => r.fundsDepleted).map(r => r.depletionAge);
   const depletionHistogram = generateDepletionHistogram(depletionAges, plan.retirementAge, endAge);
+    const result = runSingleSimulation(plan, accReturns, decReturns, endAge, true);
+    results.push(result);
+    
+    if (result.fundsDepleted) {
+      depletionAges.push(result.depletionAge);
+    }
+    
+    // Collect yearly balances
+    for (const yearData of result.yearlyData) {
+      if (yearlyBalances[yearData.age]) {
+        yearlyBalances[yearData.age].push(yearData.balance);
+      }
+    }
+  }
+  
+  // Calculate percentile bands per year
+  const yearlyBands = [];
+  for (let age = plan.currentAge + 1; age <= endAge; age++) {
+    const balances = yearlyBalances[age];
+    if (balances && balances.length > 0) {
+      balances.sort((a, b) => a - b);
+      yearlyBands.push({
+        age,
+        p10: percentile(balances, 10),
+        p25: percentile(balances, 25),
+        p50: percentile(balances, 50),
+        p75: percentile(balances, 75),
+        p90: percentile(balances, 90),
+        mean: balances.reduce((a, b) => a + b, 0) / balances.length,
+        min: balances[0],
+        max: balances[balances.length - 1]
+      });
+    }
+  }
   
   // Calculate final balance statistics
   const finalBalances = results.map(r => r.finalBalance).sort((a, b) => a - b);
@@ -414,6 +510,44 @@ export function runMonteCarloWithBands(plan, options = {}) {
     
     // Raw results (for detailed analysis)
     results
+  // Generate depletion age histogram
+  const depletionHistogram = generateDepletionHistogram(depletionAges, plan.retirementAge, endAge);
+  
+  return {
+    iterations,
+    mean,
+    volatility,
+    endAge,
+    statistics: {
+      successRate: successCount / iterations,
+      successCount,
+      failureCount: iterations - successCount,
+      
+      finalBalance: {
+        p5: percentile(finalBalances, 5),
+        p10: percentile(finalBalances, 10),
+        p25: percentile(finalBalances, 25),
+        p50: percentile(finalBalances, 50),
+        p75: percentile(finalBalances, 75),
+        p90: percentile(finalBalances, 90),
+        p95: percentile(finalBalances, 95),
+        mean: finalBalances.reduce((a, b) => a + b, 0) / finalBalances.length
+      },
+      
+      depletionAge: depletionAges.length > 0 ? {
+        earliest: Math.min(...depletionAges),
+        median: percentile(depletionAges.sort((a, b) => a - b), 50),
+        latest: Math.max(...depletionAges),
+        count: depletionAges.length,
+        histogram: depletionHistogram
+      } : null
+    },
+    
+    // Fan chart data
+    yearlyBands,
+    
+    // Raw results (optional, may omit for performance)
+    results: options.includeRawResults ? results : null
   };
 }
 
@@ -563,6 +697,33 @@ export function getConfidenceInterpretation(successRate) {
     recommendation: 'This plan is unlikely to succeed. Major adjustments to retirement timing, income expectations, or savings are needed.',
     interpretation: 'High risk - substantial probability of failure'
   };
+ * @param {number[]} depletionAges - Array of depletion ages
+ * @param {number} minAge - Minimum age (retirement age)
+ * @param {number} maxAge - Maximum age (end age)
+ * @returns {object[]} Histogram bins
+ */
+function generateDepletionHistogram(depletionAges, minAge, maxAge) {
+  if (depletionAges.length === 0) return [];
+  
+  // Create bins by 5-year intervals
+  const bins = [];
+  for (let startAge = minAge; startAge < maxAge; startAge += 5) {
+    const endBin = Math.min(startAge + 5, maxAge);
+    // Inclusive range: ages startAge to (endBin - 1)
+    const count = depletionAges.filter(a => a >= startAge && a < endBin).length;
+    // Label shows inclusive range
+    const labelEnd = endBin === maxAge ? endBin : endBin - 1;
+    bins.push({
+      startAge,
+      endAge: endBin,
+      label: endBin - startAge === 1 ? `${startAge}` : `${startAge}-${labelEnd}`,
+      count,
+      percentage: depletionAges.length > 0 ? (count / depletionAges.length) * 100 : 0
+    });
+  }
+  
+  // Filter out empty bins for cleaner display
+  return bins.filter(b => b.count > 0 || bins.length <= 5);
 }
 
 /**
@@ -598,8 +759,8 @@ export function generateConfidenceBands(plan, options = {}) {
   // Run deterministic projection
   const deterministicResult = runProjection(plan, { endAge });
   
-  // Run Monte Carlo
-  const monteCarloResult = runMonteCarlo(plan, {
+  // Run Monte Carlo with bands
+  const monteCarloResult = runMonteCarloWithBands(plan, {
     iterations,
     endAge,
     volatility
@@ -610,22 +771,24 @@ export function generateConfidenceBands(plan, options = {}) {
     monteCarlo: monteCarloResult,
     bands: {
       pessimistic: {
-        successRate: monteCarloResult.statistics.finalBalance.p10,
+        finalBalance: monteCarloResult.statistics.finalBalance.p10,
         description: '10th percentile - poor market conditions'
       },
       expected: {
-        successRate: deterministicResult.summary.successRate,
+        finalBalance: deterministicResult.summary.finalBalance,
         description: 'Deterministic projection with expected returns'
       },
       optimistic: {
-        successRate: monteCarloResult.statistics.finalBalance.p90,
+        finalBalance: monteCarloResult.statistics.finalBalance.p90,
         description: '90th percentile - favorable market conditions'
       }
     },
     robustness: {
       score: monteCarloResult.statistics.successRate,
       interpretation: interpretRobustness(monteCarloResult.statistics.successRate)
-    }
+    },
+    // Fan chart data for visualization
+    yearlyBands: monteCarloResult.yearlyBands
   };
 }
 

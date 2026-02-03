@@ -32,13 +32,17 @@ export class TouchGestureHandler {
     this.onSwipeUp = null;
     this.onSwipeDown = null;
 
+    this.boundHandleTouchStart = this.handleTouchStart.bind(this);
+    this.boundHandleTouchMove = this.handleTouchMove.bind(this);
+    this.boundHandleTouchEnd = this.handleTouchEnd.bind(this);
+
     this.init();
   }
 
   init() {
-    this.element.addEventListener('touchstart', this.handleTouchStart.bind(this), { passive: true });
-    this.element.addEventListener('touchmove', this.handleTouchMove.bind(this), { passive: true });
-    this.element.addEventListener('touchend', this.handleTouchEnd.bind(this), { passive: true });
+    this.element.addEventListener('touchstart', this.boundHandleTouchStart, { passive: true });
+    this.element.addEventListener('touchmove', this.boundHandleTouchMove, { passive: true });
+    this.element.addEventListener('touchend', this.boundHandleTouchEnd, { passive: true });
   }
 
   handleTouchStart(e) {
@@ -141,9 +145,9 @@ export class TouchGestureHandler {
   }
 
   destroy() {
-    this.element.removeEventListener('touchstart', this.handleTouchStart.bind(this));
-    this.element.removeEventListener('touchmove', this.handleTouchMove.bind(this));
-    this.element.removeEventListener('touchend', this.handleTouchEnd.bind(this));
+    this.element.removeEventListener('touchstart', this.boundHandleTouchStart);
+    this.element.removeEventListener('touchmove', this.boundHandleTouchMove);
+    this.element.removeEventListener('touchend', this.boundHandleTouchEnd);
   }
 }
 

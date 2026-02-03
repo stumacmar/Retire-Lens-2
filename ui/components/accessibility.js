@@ -13,11 +13,12 @@ const FOCUSABLE_SELECTORS = 'button, [href], input, select, textarea, [tabindex]
 export class KeyboardNavigationHandler {
   constructor() {
     this.listeners = new Map();
+    this.boundHandleKeyDown = this.handleKeyDown.bind(this);
     this.init();
   }
 
   init() {
-    document.addEventListener('keydown', this.handleKeyDown.bind(this));
+    document.addEventListener('keydown', this.boundHandleKeyDown);
   }
 
   handleKeyDown(e) {
@@ -68,7 +69,7 @@ export class KeyboardNavigationHandler {
   }
 
   destroy() {
-    document.removeEventListener('keydown', this.handleKeyDown.bind(this));
+    document.removeEventListener('keydown', this.boundHandleKeyDown);
     this.listeners.clear();
   }
 }
@@ -238,7 +239,7 @@ export function enhanceFormAccessibility(formElement) {
   const inputs = formElement.querySelectorAll('input, select, textarea');
   inputs.forEach(input => {
     if (!input.id) {
-      input.id = `input-${Math.random().toString(36).substr(2, 9)}`;
+      input.id = `input-${Math.random().toString(36).substring(2, 11)}`;
     }
     
     const label = formElement.querySelector(`label[for="${input.id}"]`);

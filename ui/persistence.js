@@ -284,7 +284,7 @@ export async function clearAutoSave() {
  * Generate unique ID
  */
 export function generateId() {
-  return `scenario_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  return `scenario_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
 }
 
 /**

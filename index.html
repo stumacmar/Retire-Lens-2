@@ -1621,7 +1621,7 @@
                 html += `<div style="padding: 1rem; margin-bottom: 0.75rem; background: #fffbeb; border-left: 4px solid ${color}; border-radius: 4px;">
                   <div style="font-weight: bold; margin-bottom: 0.5rem;">💡 ${rec.title || 'Recommendation'}</div>
                   <div>${rec.description || rec.message || rec}</div>
-                  ${rec.impact ? `<div style="margin-top: 0.5rem; font-size: 0.875rem; color: #92400e;"><strong>Impact:</strong> ${rec.impact}</div>` : ''}
+                  ${rec.impact ? `<div style="margin-top: 0.5rem; font-size: 0.875rem; color: #92400e;"><strong>Impact:</strong> ${typeof rec.impact === 'object' ? (rec.impact.value || JSON.stringify(rec.impact)) : rec.impact}</div>` : ''}
                 </div>`;
               });
               html += '</div>';
@@ -1685,7 +1685,7 @@
             let recsHtml = '<div style="padding: 1rem;"><strong>Risk recommendations:</strong><ul>';
             if (Array.isArray(riskRecommendations)) {
               riskRecommendations.forEach(rec => {
-                recsHtml += `<li>${rec.message || rec}</li>`;
+                recsHtml += `<li>${typeof rec === 'object' ? (rec.message || rec.recommendation || rec.title || rec.issue || JSON.stringify(rec)) : rec}</li>`;
               });
             }
             recsHtml += '</ul></div>';
@@ -1751,17 +1751,6 @@
                 <div style="padding: 1rem;">
                   <p><strong>Potential IHT liability:</strong> ${formatCurrency(tax)}</p>
                   ${ihtEstimate.taxable ? `<p><strong>Taxable estate:</strong> ${formatCurrency(ihtEstimate.taxable)}</p>` : ''}
-                </div>
-              `;
-            }
-          }
-        }
-      }
-            const iht = document.getElementById('iht-estimate');
-            if (iht) {
-              iht.innerHTML = `
-                <div style="padding: 1rem;">
-                  <p><strong>Potential IHT liability:</strong> ${formatCurrency(ihtEstimate.amount || 0)}</p>
                 </div>
               `;
             }

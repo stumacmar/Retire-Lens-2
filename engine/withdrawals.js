@@ -336,3 +336,146 @@ export function recommendPCLS(pensionValue, options = {}) {
     reason: 'Consider taking PCLS based on income needs and tax position'
   };
 }
+
+/**
+ * PCLS Strategy types
+ */
+export const PCLS_STRATEGIES = {
+  ALL_AT_RETIREMENT: 'all_at_retirement',
+  PHASED: 'phased',
+  DEFERRED: 'deferred'
+};
+
+/**
+ * Calculate PCLS withdrawal schedule based on strategy
+ * 
+ * Strategies:
+ * 1. ALL_AT_RETIREMENT - Take full 25% at retirement age
+ * 2. PHASED - Spread PCLS over N years (default 5)
+ * 3. DEFERRED - Defer until age X (e.g., state pension age)
+ * 
+ * @param {number} pensionValue - Total pension pot value at retirement
+ * @param {object} options - Strategy configuration
+ * @returns {object} PCLS schedule with year-by-year breakdown
+ */
+export function calculatePCLSStrategy(pensionValue, options = {}) {
+  const {
+    strategy = PCLS_STRATEGIES.ALL_AT_RETIREMENT,
+    retirementAge = 60,
+    phaseYears = 5,
+    deferredAge = 67, // Default to state pension age
+    reinvest = true,
+    reinvestmentReturn = 0.04, // 4% real return when reinvested into ISA/GIA
+    cashReturn = 0.0 // 0% return when kept as cash reserve (used when reinvest=false)
+  } = options;
+  
+  const maxPCLS = pensionValue * PENSION_CONFIG.pclsRate;
+  const schedule = [];
+  
+  // Ensure no NaN
+  const safeMax = isNaN(maxPCLS) ? 0 : maxPCLS;
+  
+  switch (strategy) {
+    case PCLS_STRATEGIES.ALL_AT_RETIREMENT:
+      schedule.push({
+        age: retirementAge,
+        amount: safeMax,
+        cumulative: safeMax,
+        remaining: 0
+      });
+      break;
+      
+    case PCLS_STRATEGIES.PHASED:
+      const annualPCLS = safeMax / phaseYears;
+      let cumulative = 0;
+      for (let i = 0; i < phaseYears; i++) {
+        cumulative += annualPCLS;
+        schedule.push({
+          age: retirementAge + i,
+          amount: annualPCLS,
+          cumulative: cumulative,
+          remaining: safeMax - cumulative
+        });
+      }
+      break;
+      
+    case PCLS_STRATEGIES.DEFERRED:
+      // Only include the actual PCLS event at the deferred age
+      // No need for placeholder entries with amount: 0
+      schedule.push({
+        age: deferredAge,
+        amount: safeMax,
+        cumulative: safeMax,
+        remaining: 0,
+        deferredFrom: retirementAge // Track that this was deferred
+      });
+      break;
+      
+    default:
+      // Default to all at retirement
+      schedule.push({
+        age: retirementAge,
+        amount: safeMax,
+        cumulative: safeMax,
+        remaining: 0
+      });
+  }
+  
+  return {
+    strategy,
+    totalPCLS: safeMax,
+    schedule,
+    reinvest,
+    reinvestmentReturn: reinvest ? reinvestmentReturn : cashReturn,
+    settings: {
+      retirementAge,
+      phaseYears,
+      deferredAge
+    }
+  };
+}
+
+/**
+ * Project PCLS reinvestment growth over time
+ * 
+ * @param {object} pclsSchedule - Result from calculatePCLSStrategy
+ * @param {number} endAge - Age to project until
+ * @returns {object[]} Year-by-year PCLS balance (reinvested or cash)
+ */
+export function projectPCLSReinvestment(pclsSchedule, endAge = 90) {
+  const { schedule, reinvestmentReturn, settings } = pclsSchedule;
+  const { retirementAge } = settings;
+  
+  // Create a map for O(1) lookup instead of relying on sequential index
+  // This handles unsorted schedules and gaps correctly
+  const scheduleByAge = new Map();
+  schedule.forEach(entry => {
+    if (entry.amount > 0) {
+      scheduleByAge.set(entry.age, entry.amount);
+    }
+  });
+  
+  const projection = [];
+  let balance = 0;
+  
+  for (let age = retirementAge; age <= endAge; age++) {
+    // Check if PCLS is taken this year using map lookup
+    const pclsTakenThisYear = scheduleByAge.get(age) || 0;
+    if (pclsTakenThisYear > 0) {
+      balance += pclsTakenThisYear;
+    }
+    
+    // Apply growth
+    const growth = balance * reinvestmentReturn;
+    balance += growth;
+    
+    projection.push({
+      age,
+      pclsTaken: pclsTakenThisYear,
+      balance: Math.max(0, balance),
+      growth
+    });
+  }
+  
+  return projection;
+}

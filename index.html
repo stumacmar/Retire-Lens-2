@@ -356,15 +356,18 @@
     /* Comparison table */
     .comparison-table {
       overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
       margin: var(--spacing-lg) 0;
+      width: 100%;
+      max-width: 100%;
     }
     
     .comparison-table table {
       width: 100%;
+      min-width: 500px; /* Ensure table doesn't collapse too much */
       border-collapse: collapse;
       background: var(--color-surface);
       border-radius: var(--radius-md);
-      overflow: hidden;
     }
     
     .comparison-table th,
@@ -372,6 +375,7 @@
       padding: var(--spacing-md);
       text-align: left;
       border-bottom: 1px solid var(--color-border);
+      white-space: nowrap;
     }
     
     .comparison-table th {
@@ -385,6 +389,21 @@
     
     .comparison-table .negative {
       color: var(--color-danger);
+    }
+    
+    /* Scroll hint indicator */
+    .scroll-hint {
+      text-align: center;
+      font-size: var(--font-size-sm);
+      color: var(--color-text-light);
+      padding: var(--spacing-xs);
+      display: none;
+    }
+    
+    @media (max-width: 600px) {
+      .scroll-hint {
+        display: block;
+      }
     }
     
     /* Assumptions panel */
@@ -1307,6 +1326,26 @@
                     <input type="number" id="db-pension-start-age" placeholder="DB pension start age" value="65" style="width: 100%; padding: 0.5rem; border: 1px solid #e5e7eb; border-radius: 4px;">
                   </div>
                 </div>
+                
+                <!-- PCLS Strategy -->
+                <div class="accordion-option" style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid #e5e7eb;">
+                  <div class="accordion-option-content" style="width: 100%;">
+                    <label class="accordion-option-label">💰 Tax-Free Cash (PCLS) Strategy</label>
+                    <p class="accordion-option-helper" style="margin-bottom: 0.5rem;">When to take your 25% pension tax-free cash</p>
+                    <select id="pcls-strategy" style="width: 100%; padding: 0.5rem; border: 1px solid #e5e7eb; border-radius: 4px; margin-bottom: 0.5rem;">
+                      <option value="all_at_retirement">Take all at retirement</option>
+                      <option value="phased">Phase over 5 years</option>
+                      <option value="deferred">Defer until State Pension age</option>
+                    </select>
+                    <div class="accordion-option" style="margin-top: 0.5rem;">
+                      <input type="checkbox" id="pcls-reinvest" checked>
+                      <div class="accordion-option-content">
+                        <label class="accordion-option-label" for="pcls-reinvest">Reinvest PCLS into ISA/GIA</label>
+                        <p class="accordion-option-helper">If ON: grows at portfolio return. If OFF: cash reserve (0%)</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
             
@@ -1362,6 +1401,39 @@
       
       <div class="chart-container">
         <canvas id="capital-chart"></canvas>
+      </div>
+      
+      <!-- Annual Net Cashflow Chart -->
+      <div class="result-card" id="cashflow-section" style="margin-top: 1.5rem;">
+        <h3>📊 Annual Net Income (by source)</h3>
+        <div class="chart-container" style="height: 320px;">
+          <canvas id="cashflow-chart"></canvas>
+        </div>
+        <div id="tax-overlay-container" style="margin-top: 1rem;">
+          <h4 style="font-size: 0.9rem; color: #6b7280; margin-bottom: 0.5rem;">Tax Paid Per Year</h4>
+          <div class="chart-container" style="height: 150px;">
+            <canvas id="tax-chart"></canvas>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Income Sources Breakdown Panel -->
+      <div class="result-card" id="income-sources-section" style="margin-top: 1.5rem;">
+        <h3>💰 Income Sources Breakdown</h3>
+        <div id="income-sources-breakdown">
+          <!-- Populated by JavaScript -->
+        </div>
+      </div>
+      
+      <!-- Guaranteed Income Timeline -->
+      <div class="result-card" id="guaranteed-income-section" style="margin-top: 1.5rem;">
+        <h3>📅 Guaranteed Income Timeline</h3>
+        <div class="chart-container" style="height: 200px;">
+          <canvas id="guaranteed-income-chart"></canvas>
+        </div>
+        <div id="guaranteed-income-details">
+          <!-- Populated by JavaScript -->
+        </div>
       </div>
       
       <div id="assumptions-results-panel">
@@ -1557,6 +1629,11 @@
   <!-- Error message toast -->
   <div id="error-message"></div>
   
+  <!-- Version footer -->
+  <footer id="version-footer" style="position: fixed; bottom: 0; left: 0; right: 0; text-align: center; font-size: 0.7rem; color: var(--color-text-light); padding: 4px 0; background: var(--color-background); z-index: 1;">
+    <span id="model-version">RetireLens Pro v0.9.3</span>
+  </footer>
+  
   <!-- Main application script -->
   <script type="module">
     // Core projection engine (existing)
@@ -1581,7 +1658,7 @@
     import { calculateSpendingAtAge, createSpendingRules } from './engine/spendingPolicy.js';
     import { calculateIncomeTax, calculateTaxFromGross } from './engine/tax.js';
     import { analyzePCLSTiming, analyzeWithdrawalSequencing, generateTaxEfficiencyReport } from './engine/taxOptimizer.js';
-    import { calculatePCLS, calculateOptimalWithdrawal } from './engine/withdrawals.js';
+    import { calculatePCLS, calculateOptimalWithdrawal, calculatePCLSStrategy, projectPCLSReinvestment, PCLS_STRATEGIES } from './engine/withdrawals.js';
     
     // Import config modules
     import { SCENARIOS, getScenarioById } from './config/scenarios.js';
@@ -1597,6 +1674,15 @@
     import { JOURNEY_CONFIG, getJourney, getJourneySteps } from './src/ux/journeys/journeys.js';
     import { MODE_CONFIG, getMode, getModeSteps, isFieldHidden } from './src/ux/modes/modes.js';
     import { estimatePreview, formatPreviewCurrency, formatGapSurplus } from './src/ux/preview/estimate.js';
+    
+    // Import enhanced tax engine with tests
+    import { computeUKTax, runTaxTests } from './engine/tax.js';
+    
+    // ═══════════════════════════════════════════════════════════════
+    // Configuration Constants
+    // ═══════════════════════════════════════════════════════════════
+    
+    const MODEL_VERSION = 'v0.9.3';
     
     // ═══════════════════════════════════════════════════════════════
     // State Management
@@ -1770,6 +1856,16 @@
       renderPathfinderQuestion();
     }
     
+    /**
+     * Determine if a step should auto-advance (single-choice selection)
+     * Auto-advance steps: pathfinder questions, mode selection cards
+     * Non-auto-advance steps: numeric inputs, multi-field forms
+     */
+    function isAutoAdvanceStep(screenId) {
+      const autoAdvanceScreens = ['pathfinder', 'mode-select'];
+      return autoAdvanceScreens.includes(screenId);
+    }
+    
     function renderPathfinderQuestion() {
       const questionIndex = state.pathfinderCurrentQuestion;
       const question = PATHFINDER_QUESTIONS[questionIndex];
@@ -1806,8 +1902,15 @@
       // Show/hide back button
       document.getElementById('pathfinder-back-btn').style.visibility = questionIndex > 0 ? 'visible' : 'hidden';
       
-      // Update next button state
-      document.getElementById('pathfinder-next-btn').disabled = !state.pathfinderAnswers[question.id];
+      // Hide Next button for auto-advance screens (tap option advances immediately)
+      // Pathfinder is always an auto-advance screen (single-choice options)
+      const nextBtn = document.getElementById('pathfinder-next-btn');
+      if (isAutoAdvanceStep(state.currentScreen)) {
+        nextBtn.style.display = 'none';
+      } else {
+        nextBtn.style.display = '';
+        nextBtn.disabled = !state.pathfinderAnswers[question.id];
+      }
     }
     
     function selectPathfinderOption(questionId, value) {
@@ -1818,10 +1921,7 @@
         btn.classList.toggle('selected', btn.dataset.value === value);
       });
       
-      // Enable next button
-      document.getElementById('pathfinder-next-btn').disabled = false;
-      
-      // Auto-advance after short delay
+      // Auto-advance after short delay (Next button is hidden for auto-advance screens)
       setTimeout(() => {
         advancePathfinder();
       }, 200);
@@ -2018,7 +2118,11 @@
         // Phased retirement
         isPhasedRetirement: getChecked('is-phased-retirement'),
         phaseStartAge: getValue('phase-start-age', 0),
-        reducedHours: getValue('reduced-hours', 50)
+        reducedHours: getValue('reduced-hours', 50),
+        
+        // PCLS Strategy
+        pclsStrategy: getSelectedValue('pcls-strategy', 'all_at_retirement'),
+        pclsReinvest: getChecked('pcls-reinvest')
       };
     }
     
@@ -2190,6 +2294,373 @@
       });
     }
     
+    /**
+     * Format currency in compact notation for chart labels
+     */
+    function formatCompactCurrency(value) {
+      if (value >= 1000000) return '£' + (value / 1000000).toFixed(1) + 'm';
+      if (value >= 1000) return '£' + (value / 1000).toFixed(0) + 'k';
+      return '£' + Math.round(value);
+    }
+    
+    /**
+     * Render the Annual Net Cashflow Chart (stacked bars by income source)
+     */
+    function renderCashflowChart(projection, data) {
+      const canvas = document.getElementById('cashflow-chart');
+      if (!canvas || typeof Chart === 'undefined') return;
+      
+      const existingChart = Chart.getChart(canvas);
+      if (existingChart) existingChart.destroy();
+      
+      const decYears = projection.decumulation.years.filter(y => !y.fundsDepleted || y.netIncome > 0);
+      const labels = decYears.map(y => y.age);
+      
+      // Prepare data by income source (all NET amounts)
+      // Use comprehensive tax calculation for each year to handle progressive bands correctly
+      const datasets = [];
+      
+      const spAmount = data.expectedStatePension || 0;
+      const dbAmount = (data.hasDBPension && data.dbPensionAmount > 0) ? data.dbPensionAmount : 0;
+      const dbStartAge = data.dbPensionStartAge || 65;
+      
+      // Calculate net amounts for each year using full tax context
+      const yearlyNetAmounts = decYears.map(y => {
+        const age = y.age;
+        const hasStatePension = y.statePension > 0;
+        const hasDbPension = dbAmount > 0 && age >= dbStartAge;
+        const pensionWithdrawal = y.withdrawals?.pension || 0;
+        const isaWithdrawal = y.withdrawals?.isa || 0;
+        
+        // Calculate tax on all taxable income together (correct progressive calculation)
+        const taxResult = computeUKTax({
+          statePension: hasStatePension ? spAmount : 0,
+          dbPension: hasDbPension ? dbAmount : 0,
+          pensionWithdrawal: pensionWithdrawal,
+          isaWithdrawal: isaWithdrawal
+        });
+        
+        const totalTaxableGross = (hasStatePension ? spAmount : 0) + (hasDbPension ? dbAmount : 0) + pensionWithdrawal;
+        const totalTax = taxResult.incomeTax || 0;
+        
+        // Distribute tax proportionally across taxable sources
+        const effectiveRate = totalTaxableGross > 0 ? totalTax / totalTaxableGross : 0;
+        
+        return {
+          age,
+          statePensionNet: hasStatePension ? Math.max(0, spAmount * (1 - effectiveRate)) : 0,
+          dbPensionNet: hasDbPension ? Math.max(0, dbAmount * (1 - effectiveRate)) : 0,
+          pensionWithdrawalNet: Math.max(0, pensionWithdrawal * (1 - effectiveRate)),
+          isaNet: isaWithdrawal, // Tax-free
+          totalTax
+        };
+      });
+      
+      // State Pension (taxable but shown as net portion)
+      const statePensionData = yearlyNetAmounts.map(y => y.statePensionNet);
+      datasets.push({
+        label: 'State Pension',
+        data: statePensionData,
+        backgroundColor: '#22c55e',
+        stack: 'income'
+      });
+      
+      // DB Pension if present
+      if (dbAmount > 0) {
+        const dbData = yearlyNetAmounts.map(y => y.dbPensionNet);
+        datasets.push({
+          label: 'DB Pension',
+          data: dbData,
+          backgroundColor: '#3b82f6',
+          stack: 'income'
+        });
+      }
+      
+      // Pension Withdrawals (net)
+      const pensionWithdrawals = yearlyNetAmounts.map(y => y.pensionWithdrawalNet);
+      datasets.push({
+        label: 'Pension Withdrawal (net)',
+        data: pensionWithdrawals,
+        backgroundColor: '#f59e0b',
+        stack: 'income'
+      });
+      
+      // ISA Withdrawals (tax-free)
+      const isaWithdrawals = yearlyNetAmounts.map(y => y.isaNet);
+      datasets.push({
+        label: 'ISA (tax-free)',
+        data: isaWithdrawals,
+        backgroundColor: '#8b5cf6',
+        stack: 'income'
+      });
+      
+      // PCLS display: Currently shows all PCLS in first year because the core 
+      // projection engine (projections.js) takes all PCLS at retirement.
+      // The PCLS strategy functions (calculatePCLSStrategy, projectPCLSReinvestment) 
+      // support phased/deferred strategies but are not yet integrated into the main 
+      // projection engine. Future work: integrate PCLS strategy into runProjection().
+      const pclsTaken = projection.decumulation.pclsTaken || 0;
+      const pclsData = decYears.map((y, i) => (i === 0 && pclsTaken > 0) ? pclsTaken : 0);
+      if (pclsTaken > 0) {
+        datasets.push({
+          label: 'PCLS (tax-free)',
+          data: pclsData,
+          backgroundColor: '#10b981',
+          stack: 'income'
+        });
+      }
+      
+      // Target income line
+      const targetLine = decYears.map(() => data.targetNetIncome);
+      datasets.push({
+        label: 'Target Net Income',
+        data: targetLine,
+        type: 'line',
+        borderColor: '#ef4444',
+        borderWidth: 2,
+        borderDash: [5, 5],
+        fill: false,
+        pointRadius: 0,
+        order: 0
+      });
+      
+      new Chart(canvas, {
+        type: 'bar',
+        data: { labels, datasets },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { 
+              position: 'bottom',
+              labels: { boxWidth: 12, padding: 8, font: { size: 10 } }
+            },
+            tooltip: {
+              callbacks: {
+                label: (ctx) => `${ctx.dataset.label}: ${formatCompactCurrency(ctx.parsed.y)}`
+              }
+            }
+          },
+          scales: {
+            x: { 
+              title: { display: true, text: 'Age' },
+              stacked: true
+            },
+            y: { 
+              title: { display: true, text: 'Net Annual Income (£)' },
+              stacked: true,
+              ticks: { callback: (v) => formatCompactCurrency(v) }
+            }
+          }
+        }
+      });
+    }
+    
+    /**
+     * Render Tax Paid Per Year chart
+     */
+    function renderTaxChart(projection) {
+      const canvas = document.getElementById('tax-chart');
+      if (!canvas || typeof Chart === 'undefined') return;
+      
+      const existingChart = Chart.getChart(canvas);
+      if (existingChart) existingChart.destroy();
+      
+      const decYears = projection.decumulation.years.filter(y => !y.fundsDepleted);
+      const labels = decYears.map(y => y.age);
+      const taxData = decYears.map(y => y.taxPaid || 0);
+      
+      new Chart(canvas, {
+        type: 'bar',
+        data: {
+          labels,
+          datasets: [{
+            label: 'Tax Paid',
+            data: taxData,
+            backgroundColor: 'rgba(239, 68, 68, 0.6)',
+            borderColor: '#ef4444',
+            borderWidth: 1
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              callbacks: {
+                label: (ctx) => `Tax: ${formatCompactCurrency(ctx.parsed.y)}`
+              }
+            }
+          },
+          scales: {
+            x: { title: { display: false }},
+            y: { 
+              ticks: { callback: (v) => formatCompactCurrency(v) },
+              beginAtZero: true
+            }
+          }
+        }
+      });
+    }
+    
+    /**
+     * Render Guaranteed Income Timeline (DB + State Pension)
+     */
+    function renderGuaranteedIncomeChart(projection, data) {
+      const canvas = document.getElementById('guaranteed-income-chart');
+      if (!canvas || typeof Chart === 'undefined') return;
+      
+      const existingChart = Chart.getChart(canvas);
+      if (existingChart) existingChart.destroy();
+      
+      const startAge = data.retirementAge;
+      const endAge = 90;
+      const labels = [];
+      const spData = [];
+      const dbData = [];
+      
+      for (let age = startAge; age <= endAge; age++) {
+        labels.push(age);
+        spData.push(age >= data.statePensionAge ? data.expectedStatePension : 0);
+        dbData.push(data.hasDBPension && age >= data.dbPensionStartAge ? data.dbPensionAmount : 0);
+      }
+      
+      const datasets = [
+        {
+          label: 'State Pension',
+          data: spData,
+          backgroundColor: '#22c55e',
+          stack: 'guaranteed'
+        }
+      ];
+      
+      if (data.hasDBPension && data.dbPensionAmount > 0) {
+        datasets.push({
+          label: 'DB Pension',
+          data: dbData,
+          backgroundColor: '#3b82f6',
+          stack: 'guaranteed'
+        });
+      }
+      
+      new Chart(canvas, {
+        type: 'bar',
+        data: { labels, datasets },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 10 } }},
+            tooltip: {
+              callbacks: {
+                label: (ctx) => `${ctx.dataset.label}: ${formatCompactCurrency(ctx.parsed.y)}`
+              }
+            }
+          },
+          scales: {
+            x: { 
+              title: { display: true, text: 'Age' },
+              stacked: true
+            },
+            y: { 
+              title: { display: true, text: 'Annual Income (£)' },
+              stacked: true,
+              ticks: { callback: (v) => formatCompactCurrency(v) }
+            }
+          }
+        }
+      });
+      
+      // Populate details panel
+      const detailsEl = document.getElementById('guaranteed-income-details');
+      if (detailsEl) {
+        let html = '<div style="padding: 0.5rem;">';
+        html += `<p><strong>State Pension:</strong> ${formatCurrency(data.expectedStatePension)}/year from age ${data.statePensionAge}</p>`;
+        if (data.hasDBPension && data.dbPensionAmount > 0) {
+          html += `<p><strong>DB Pension:</strong> ${formatCurrency(data.dbPensionAmount)}/year from age ${data.dbPensionStartAge}</p>`;
+        }
+        const totalGuaranteed = data.expectedStatePension + (data.hasDBPension ? data.dbPensionAmount : 0);
+        html += `<p style="margin-top: 0.5rem; font-weight: 600;">Total Guaranteed: ${formatCurrency(totalGuaranteed)}/year (when all sources active)</p>`;
+        html += '</div>';
+        detailsEl.innerHTML = html;
+      }
+    }
+    
+    /**
+     * Render Income Sources Breakdown Panel
+     */
+    function renderIncomeSourcesBreakdown(projection, data) {
+      const el = document.getElementById('income-sources-breakdown');
+      if (!el) return;
+      
+      // Get first year of retirement for breakdown
+      const firstYear = projection.decumulation.years[0];
+      if (!firstYear) {
+        el.innerHTML = '<p style="color: #6b7280;">No retirement data available</p>';
+        return;
+      }
+      
+      const sources = [
+        { name: 'Pension Withdrawal', amount: firstYear.withdrawals?.pension || 0, taxable: true, color: '#f59e0b' },
+        { name: 'ISA Withdrawal', amount: firstYear.withdrawals?.isa || 0, taxable: false, color: '#8b5cf6' },
+        { name: 'State Pension', amount: firstYear.statePension || 0, taxable: true, color: '#22c55e' }
+      ];
+      
+      if (data.hasDBPension && data.dbPensionAmount > 0 && firstYear.age >= data.dbPensionStartAge) {
+        sources.push({ name: 'DB Pension', amount: data.dbPensionAmount, taxable: true, color: '#3b82f6' });
+      }
+      
+      // Add PCLS if taken in first year
+      if (projection.decumulation.pclsTaken > 0) {
+        sources.push({ name: 'PCLS (Tax-Free Cash)', amount: projection.decumulation.pclsTaken, taxable: false, color: '#10b981' });
+      }
+      
+      let html = '<div style="padding: 0.5rem;">';
+      html += '<table style="width: 100%; border-collapse: collapse;">';
+      html += '<thead><tr style="border-bottom: 2px solid #e5e7eb;"><th style="text-align: left; padding: 0.5rem;">Source</th><th style="text-align: right; padding: 0.5rem;">Amount</th><th style="text-align: center; padding: 0.5rem;">Tax Status</th></tr></thead>';
+      html += '<tbody>';
+      
+      sources.forEach(s => {
+        if (s.amount > 0) {
+          const taxBadge = s.taxable 
+            ? '<span style="background: #fef3c7; color: #92400e; padding: 2px 6px; border-radius: 4px; font-size: 0.75rem;">Taxable</span>'
+            : '<span style="background: #d1fae5; color: #065f46; padding: 2px 6px; border-radius: 4px; font-size: 0.75rem;">Tax-Free</span>';
+          html += `<tr style="border-bottom: 1px solid #e5e7eb;">
+            <td style="padding: 0.5rem;"><span style="display: inline-block; width: 12px; height: 12px; background: ${s.color}; border-radius: 2px; margin-right: 8px;"></span>${s.name}</td>
+            <td style="text-align: right; padding: 0.5rem; font-weight: 600;">${formatCurrency(s.amount)}</td>
+            <td style="text-align: center; padding: 0.5rem;">${taxBadge}</td>
+          </tr>`;
+        }
+      });
+      
+      const totalGross = sources.reduce((sum, s) => sum + s.amount, 0);
+      const taxPaid = firstYear.taxPaid || 0;
+      const totalNet = firstYear.netIncome || (totalGross - taxPaid);
+      
+      html += '</tbody>';
+      html += `<tfoot>
+        <tr style="border-top: 2px solid #e5e7eb;">
+          <td style="padding: 0.5rem; font-weight: 600;">Total Gross</td>
+          <td style="text-align: right; padding: 0.5rem; font-weight: 600;">${formatCurrency(totalGross)}</td>
+          <td></td>
+        </tr>
+        <tr style="color: #ef4444;">
+          <td style="padding: 0.5rem;">Less Tax</td>
+          <td style="text-align: right; padding: 0.5rem;">-${formatCurrency(taxPaid)}</td>
+          <td></td>
+        </tr>
+        <tr style="background: #f0fdf4; font-weight: 700;">
+          <td style="padding: 0.5rem;">Net Income</td>
+          <td style="text-align: right; padding: 0.5rem;">${formatCurrency(totalNet)}</td>
+          <td></td>
+        </tr>
+      </tfoot>`;
+      html += '</table></div>';
+      
+      el.innerHTML = html;
+    }
+    
     // ═══════════════════════════════════════════════════════════════
     // Comparison
     // ═══════════════════════════════════════════════════════════════
@@ -2204,6 +2675,7 @@
       };
       
       const html = `
+        <p class="scroll-hint">👈 Swipe to view more 👉</p>
         <div class="comparison-table">
           <table>
             <thead>
@@ -2216,10 +2688,22 @@
             </thead>
             <tbody>
               <tr>
+                <td>Retirement Age</td>
+                <td>${projA.plan.retirementAge}</td>
+                <td>${projB.plan.retirementAge}</td>
+                <td>${projB.plan.retirementAge - projA.plan.retirementAge} years</td>
+              </tr>
+              <tr>
                 <td>Retirement Pot</td>
                 <td>${formatCurrency(projA.summary.retirementPot)}</td>
                 <td>${formatCurrency(projB.summary.retirementPot)}</td>
                 <td class="${deltas.retirementPot >= 0 ? 'positive' : 'negative'}">${formatDelta(deltas.retirementPot)}</td>
+              </tr>
+              <tr>
+                <td>PCLS Tax-Free</td>
+                <td>${formatCurrency(projA.summary.pclsTaken)}</td>
+                <td>${formatCurrency(projB.summary.pclsTaken)}</td>
+                <td class="${deltas.pclsTaken >= 0 ? 'positive' : 'negative'}">${formatDelta(deltas.pclsTaken)}</td>
               </tr>
               <tr>
                 <td>Total Net Income</td>
@@ -2228,10 +2712,22 @@
                 <td class="${deltas.totalNetIncome >= 0 ? 'positive' : 'negative'}">${formatDelta(deltas.totalNetIncome)}</td>
               </tr>
               <tr>
+                <td>Total Tax Paid</td>
+                <td>${formatCurrency(projA.summary.totalTaxPaid)}</td>
+                <td>${formatCurrency(projB.summary.totalTaxPaid)}</td>
+                <td class="${deltas.totalTaxPaid <= 0 ? 'positive' : 'negative'}">${formatDelta(deltas.totalTaxPaid)}</td>
+              </tr>
+              <tr>
                 <td>Final Balance</td>
                 <td>${formatCurrency(projA.summary.finalBalance)}</td>
                 <td>${formatCurrency(projB.summary.finalBalance)}</td>
                 <td class="${deltas.finalBalance >= 0 ? 'positive' : 'negative'}">${formatDelta(deltas.finalBalance)}</td>
+              </tr>
+              <tr>
+                <td>Success Rate</td>
+                <td>${(projA.summary.successRate * 100).toFixed(0)}%</td>
+                <td>${(projB.summary.successRate * 100).toFixed(0)}%</td>
+                <td class="${deltas.successRate >= 0 ? 'positive' : 'negative'}">${(deltas.successRate * 100).toFixed(1)}%</td>
               </tr>
             </tbody>
           </table>
@@ -2303,10 +2799,22 @@
               taxOptimization, spendingRules, riskScore, riskRecommendations,
               legacyPlan, estateValue, ihtEstimate, phasedRetirement, household, data } = results;
       
-      // Hide all sections by default
+      // Hide all sections by default except cashflow and income sources
       document.querySelectorAll('.result-card').forEach(card => {
-        card.style.display = 'none';
+        // Keep cashflow, income sources, and guaranteed income visible always
+        const alwaysShowIds = ['cashflow-section', 'income-sources-section', 'guaranteed-income-section'];
+        if (!alwaysShowIds.includes(card.id)) {
+          card.style.display = 'none';
+        }
       });
+      
+      // Show income breakdown sections (always visible)
+      const cashflowSection = document.getElementById('cashflow-section');
+      if (cashflowSection) cashflowSection.style.display = 'block';
+      const incomeSourcesSection = document.getElementById('income-sources-section');
+      if (incomeSourcesSection) incomeSourcesSection.style.display = 'block';
+      const guaranteedIncomeSection = document.getElementById('guaranteed-income-section');
+      if (guaranteedIncomeSection) guaranteedIncomeSection.style.display = 'block';
       
       // === Monte Carlo Visualization ===
       if (mcResult) {
@@ -2460,10 +2968,54 @@
           section.style.display = 'block';
           const details = document.getElementById('benchmark-details');
           if (details) {
+            // Safely extract summary - handle object/string types
+            let summaryHtml = '';
+            
+            if (benchmarks.summary) {
+              if (typeof benchmarks.summary === 'string') {
+                summaryHtml = `<p><strong>Summary:</strong> ${benchmarks.summary}</p>`;
+              } else if (typeof benchmarks.summary === 'object') {
+                // Handle structured benchmark summary with strengths/improvements
+                const summary = benchmarks.summary;
+                if (summary.strengths && Array.isArray(summary.strengths) && summary.strengths.length > 0) {
+                  summaryHtml += '<p><strong>✅ Strengths:</strong></p><ul style="margin: 0.5rem 0 1rem 1rem;">';
+                  summary.strengths.forEach(s => { summaryHtml += `<li>${s}</li>`; });
+                  summaryHtml += '</ul>';
+                }
+                if (summary.improvementAreas && Array.isArray(summary.improvementAreas) && summary.improvementAreas.length > 0) {
+                  summaryHtml += '<p><strong>📈 Areas to Improve:</strong></p><ul style="margin: 0.5rem 0 1rem 1rem;">';
+                  summary.improvementAreas.forEach(s => { summaryHtml += `<li>${s}</li>`; });
+                  summaryHtml += '</ul>';
+                }
+                if (summary.overallAssessment) {
+                  const assessmentLabels = {
+                    'above-average': '📊 Above Average',
+                    'average': '📊 Average', 
+                    'below-average': '📊 Below Average'
+                  };
+                  summaryHtml += `<p><strong>Overall:</strong> ${assessmentLabels[summary.overallAssessment] || summary.overallAssessment}</p>`;
+                }
+                if (!summaryHtml) {
+                  summaryHtml = '<p>Benchmark analysis complete</p>';
+                }
+              }
+            } else {
+              summaryHtml = '<p>Benchmark analysis complete</p>';
+            }
+            
+            let peerText = 'Good standing';
+            if (benchmarks.peerComparison) {
+              if (typeof benchmarks.peerComparison === 'string') {
+                peerText = benchmarks.peerComparison;
+              } else if (typeof benchmarks.peerComparison === 'object') {
+                peerText = benchmarks.peerComparison.text || benchmarks.peerComparison.message || 'Good standing';
+              }
+            }
+            
             details.innerHTML = `
               <div style="padding: 1rem;">
-                <p><strong>Benchmark analysis:</strong> ${benchmarks.summary || 'Analysis complete'}</p>
-                <p><strong>Peer comparison:</strong> ${benchmarks.peerComparison || 'Good standing'}</p>
+                ${summaryHtml}
+                <p style="margin-top: 1rem;"><strong>Peer comparison:</strong> ${peerText}</p>
               </div>
             `;
           }
@@ -2558,9 +3110,13 @@
           const projection = document.getElementById('legacy-projection');
           if (projection) {
             const finalBalance = basicProjection && basicProjection.summary ? basicProjection.summary.finalBalance : 0;
+            // Safely calculate estate value - use estateValue if valid, else finalBalance, else show dash
+            const isValidNumber = (v) => typeof v === 'number' && !isNaN(v) && v > 0;
+            const displayValue = isValidNumber(estateValue) ? estateValue : (isValidNumber(finalBalance) ? finalBalance : null);
+            
             projection.innerHTML = `
               <div style="padding: 1rem;">
-                <p><strong>Estimated estate value:</strong> ${formatCurrency(estateValue || finalBalance || 0)}</p>
+                <p><strong>Estimated estate value:</strong> ${displayValue ? formatCurrency(displayValue) : '—'}</p>
               </div>
             `;
           }
@@ -2568,11 +3124,19 @@
           if (ihtEstimate) {
             const iht = document.getElementById('iht-estimate');
             if (iht) {
-              const tax = ihtEstimate.tax || ihtEstimate.amount || 0;
+              let tax = ihtEstimate.tax || ihtEstimate.amount || 0;
+              // Guard against NaN
+              if (typeof tax !== 'number' || isNaN(tax)) {
+                tax = 0;
+              }
+              let taxable = ihtEstimate.taxable;
+              if (typeof taxable !== 'number' || isNaN(taxable)) {
+                taxable = null;
+              }
               iht.innerHTML = `
                 <div style="padding: 1rem;">
-                  <p><strong>Potential IHT liability:</strong> ${formatCurrency(tax)}</p>
-                  ${ihtEstimate.taxable ? `<p><strong>Taxable estate:</strong> ${formatCurrency(ihtEstimate.taxable)}</p>` : ''}
+                  <p><strong>Potential IHT liability:</strong> ${tax > 0 ? formatCurrency(tax) : '—'}</p>
+                  ${taxable ? `<p><strong>Taxable estate:</strong> ${formatCurrency(taxable)}</p>` : ''}
                 </div>
               `;
             }
@@ -2934,6 +3498,16 @@
           // Render basic results first
           renderResults(basicProjection);
           
+          // Render new charts
+          try {
+            renderCashflowChart(basicProjection, data);
+            renderTaxChart(basicProjection);
+            renderGuaranteedIncomeChart(basicProjection, data);
+            renderIncomeSourcesBreakdown(basicProjection, data);
+          } catch (e) {
+            console.warn('Chart rendering failed:', e);
+          }
+          
           // Then render all advanced visualizations
           renderAllVisualizations(results);
           
@@ -2975,12 +3549,28 @@
         }
       });
       
+      // Run tax engine tests in DEBUG mode
+      if (DEBUG) {
+        const taxTestResults = runTaxTests();
+        console.log('═══════════════════════════════════════════════════════════════');
+        console.log('  TAX ENGINE TESTS');
+        console.log('═══════════════════════════════════════════════════════════════');
+        taxTestResults.tests.forEach(t => {
+          console.log(`  ${t.passed ? '✓' : '✗'} ${t.name}${t.details ? ' - ' + t.details : ''}`);
+        });
+        console.log(`  ${taxTestResults.passed}/${taxTestResults.total} tests passed`);
+        if (!taxTestResults.allPassed) {
+          console.warn('  ⚠️ Some tax tests failed!');
+        }
+      }
+      
       debugLog('INIT', 'App ready');
     });
     
     // Expose for debugging
     if (DEBUG) {
       window.__RL_STATE__ = state;
+      window.__RL_TAX_TESTS__ = runTaxTests;
     }
   </script>
 </body>

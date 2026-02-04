@@ -212,3 +212,195 @@ export function calculateNationalInsurance(earnings) {
   
   return { total, byBand };
 }
+
+/**
+ * Compute UK income tax for retirement income (IFA-grade)
+ * 
+ * This function handles mixed retirement income sources:
+ * - State Pension (taxable)
+ * - DB Pension (taxable)
+ * - DC Pension withdrawals (taxable, except PCLS)
+ * - ISA withdrawals (tax-free)
+ * - PCLS (tax-free)
+ * 
+ * @param {object} params - Income parameters
+ * @param {number} params.statePension - Annual state pension (taxable)
+ * @param {number} params.dbPension - Annual DB pension (taxable)
+ * @param {number} params.pensionWithdrawal - DC pension withdrawal (taxable portion)
+ * @param {number} params.isaWithdrawal - ISA withdrawal (tax-free)
+ * @param {number} params.pclsWithdrawal - PCLS tax-free cash (tax-free)
+ * @param {number} params.otherTaxableIncome - Any other taxable income
+ * @param {object} params.config - Tax configuration (optional)
+ * @returns {object} Tax calculation breakdown
+ */
+export function computeUKTax(params = {}) {
+  const {
+    statePension = 0,
+    dbPension = 0,
+    pensionWithdrawal = 0,
+    isaWithdrawal = 0,
+    pclsWithdrawal = 0,
+    otherTaxableIncome = 0,
+    config = TAX_CONFIG
+  } = params;
+  
+  // Ensure no NaN values - defensive programming
+  const safeNumber = (val) => (typeof val === 'number' && !isNaN(val)) ? val : 0;
+  
+  const safeStatePension = safeNumber(statePension);
+  const safeDbPension = safeNumber(dbPension);
+  const safePensionWithdrawal = safeNumber(pensionWithdrawal);
+  const safeIsaWithdrawal = safeNumber(isaWithdrawal);
+  const safePclsWithdrawal = safeNumber(pclsWithdrawal);
+  const safeOtherTaxable = safeNumber(otherTaxableIncome);
+  
+  // Calculate taxable income (SP + DB + DC pension withdrawals + other)
+  const taxableIncome = safeStatePension + safeDbPension + safePensionWithdrawal + safeOtherTaxable;
+  
+  // Tax-free income (ISA + PCLS)
+  const taxFreeIncome = safeIsaWithdrawal + safePclsWithdrawal;
+  
+  // Total gross income (for reference)
+  const grossIncome = taxableIncome + taxFreeIncome;
+  
+  // Calculate personal allowance (with taper if applicable)
+  const personalAllowance = calculatePersonalAllowance(taxableIncome, config);
+  const allowanceUsed = Math.min(personalAllowance, taxableIncome);
+  
+  // Calculate taxable amount after personal allowance
+  const taxableAfterAllowance = Math.max(0, taxableIncome - personalAllowance);
+  
+  // Calculate income tax on taxable portion
+  const taxResult = calculateIncomeTax(taxableAfterAllowance, config);
+  
+  // Net income = gross - tax
+  const netIncome = grossIncome - taxResult.total;
+  
+  // Build breakdown by source
+  const incomeBreakdown = {
+    taxable: {
+      statePension: safeStatePension,
+      dbPension: safeDbPension,
+      pensionWithdrawal: safePensionWithdrawal,
+      otherTaxable: safeOtherTaxable,
+      total: taxableIncome
+    },
+    taxFree: {
+      isaWithdrawal: safeIsaWithdrawal,
+      pclsWithdrawal: safePclsWithdrawal,
+      total: taxFreeIncome
+    }
+  };
+  
+  return {
+    // Primary outputs (never NaN)
+    incomeTax: taxResult.total || 0,
+    netIncome: netIncome || 0,
+    allowanceUsed: allowanceUsed || 0,
+    
+    // Detailed breakdown
+    grossIncome: grossIncome || 0,
+    taxableIncome: taxableIncome || 0,
+    taxFreeIncome: taxFreeIncome || 0,
+    personalAllowance: personalAllowance || 0,
+    taxableAfterAllowance: taxableAfterAllowance || 0,
+    effectiveRate: grossIncome > 0 ? (taxResult.total / grossIncome) : 0,
+    marginalRate: getMarginalRate(taxableIncome, config),
+    
+    // Band breakdown
+    taxByBand: taxResult.byBand || [],
+    
+    // Source breakdown
+    incomeBreakdown
+  };
+}
+
+/**
+ * Run tax engine tests (executed only in DEBUG mode on page load)
+ * 
+ * These tests dynamically reference TAX_CONFIG values to ensure they
+ * automatically adapt if the tax configuration is updated.
+ * Current TAX_CONFIG uses 2024/25 UK rates.
+ * 
+ * @returns {object} Test results
+ */
+export function runTaxTests() {
+  const tests = [];
+  const assert = (condition, name, details = '') => {
+    tests.push({ name, passed: condition, details });
+    return condition;
+  };
+  
+  // Tax thresholds dynamically loaded from TAX_CONFIG
+  const PA = TAX_CONFIG.personalAllowance;
+  const BASIC_RATE = TAX_CONFIG.bands[0].rate;
+  const BASIC_BAND_WIDTH = TAX_CONFIG.bands[0].threshold;
+  const HIGHER_RATE = TAX_CONFIG.bands[1].rate;
+  
+  // Test 1: Gross income of 0
+  const test1 = computeUKTax({ statePension: 0, pensionWithdrawal: 0 });
+  assert(test1.incomeTax === 0, 'Gross 0 → no tax', `Tax: ${test1.incomeTax}`);
+  assert(test1.netIncome === 0, 'Gross 0 → net 0', `Net: ${test1.netIncome}`);
+  assert(!isNaN(test1.incomeTax), 'Gross 0 → no NaN', `Tax: ${test1.incomeTax}`);
+  
+  // Test 2: Income = Personal Allowance
+  const test2 = computeUKTax({ statePension: PA });
+  assert(test2.incomeTax === 0, 'Income = PA → no tax', `Tax: ${test2.incomeTax}`);
+  assert(test2.netIncome === PA, 'Income = PA → full net', `Net: ${test2.netIncome}`);
+  
+  // Test 3: Basic rate band (PA + basic rate)
+  const basicIncome = 25000;
+  const test3 = computeUKTax({ pensionWithdrawal: basicIncome });
+  const expectedTax3 = (basicIncome - PA) * BASIC_RATE;
+  assert(Math.abs(test3.incomeTax - expectedTax3) < 0.01, 'Basic rate band calculation', `Expected: ${expectedTax3}, Got: ${test3.incomeTax}`);
+  
+  // Test 4: Higher rate band
+  const higherIncome = 60000;
+  const test4 = computeUKTax({ pensionWithdrawal: higherIncome });
+  const basicTax = BASIC_BAND_WIDTH * BASIC_RATE;
+  const higherTax = (higherIncome - PA - BASIC_BAND_WIDTH) * HIGHER_RATE;
+  const expectedTax4 = basicTax + higherTax;
+  assert(Math.abs(test4.incomeTax - expectedTax4) < 0.01, 'Higher rate band calculation', `Expected: ${expectedTax4}, Got: ${test4.incomeTax}`);
+  
+  // Test 5: Mix of SP + DB + pension withdrawal
+  const spTest5 = 11500;
+  const dbTest5 = 5200;
+  const pensionTest5 = 20000;
+  const isaTest5 = 5000;
+  const test5 = computeUKTax({
+    statePension: spTest5,
+    dbPension: dbTest5,
+    pensionWithdrawal: pensionTest5,
+    isaWithdrawal: isaTest5
+  });
+  // Taxable income and expected tax using TAX_CONFIG values
+  const taxable5 = spTest5 + dbTest5 + pensionTest5;
+  const taxableAfterPA5 = taxable5 - PA;
+  const expectedTax5 = taxableAfterPA5 * BASIC_RATE; // All in basic band
+  assert(Math.abs(test5.incomeTax - expectedTax5) < 0.01, 'SP + DB + pension mix', `Expected: ${expectedTax5}, Got: ${test5.incomeTax}`);
+  // Net should include tax-free ISA
+  const expectedNet5 = taxable5 + isaTest5 - expectedTax5;
+  assert(Math.abs(test5.netIncome - expectedNet5) < 0.01, 'Net includes ISA', `Expected: ${expectedNet5}, Got: ${test5.netIncome}`);
+  
+  // Test 6: ISA only (tax-free)
+  const test6 = computeUKTax({ isaWithdrawal: 50000 });
+  assert(test6.incomeTax === 0, 'ISA only → no tax', `Tax: ${test6.incomeTax}`);
+  assert(test6.netIncome === 50000, 'ISA only → full net', `Net: ${test6.netIncome}`);
+  
+  // Test 7: PCLS only (tax-free)
+  const test7 = computeUKTax({ pclsWithdrawal: 100000 });
+  assert(test7.incomeTax === 0, 'PCLS only → no tax', `Tax: ${test7.incomeTax}`);
+  assert(test7.netIncome === 100000, 'PCLS only → full net', `Net: ${test7.netIncome}`);
+  
+  // Summary
+  const passed = tests.filter(t => t.passed).length;
+  const failed = tests.filter(t => !t.passed).length;
+  
+  return {
+    total: tests.length,
+    passed,
+    failed,
+    tests,
+    allPassed: failed === 0
+  };
+}

@@ -460,8 +460,10 @@ export function projectPCLSReinvestment(pclsSchedule, endAge = 90) {
   
   for (let age = retirementAge; age <= endAge; age++) {
     // Check if PCLS is taken this year
+    let pclsTakenThisYear = 0;
     if (scheduleIndex < schedule.length && schedule[scheduleIndex].age === age) {
-      balance += schedule[scheduleIndex].amount;
+      pclsTakenThisYear = schedule[scheduleIndex].amount;
+      balance += pclsTakenThisYear;
       scheduleIndex++;
     }
     
@@ -471,7 +473,7 @@ export function projectPCLSReinvestment(pclsSchedule, endAge = 90) {
     
     projection.push({
       age,
-      pclsTaken: scheduleIndex > 0 ? schedule[scheduleIndex - 1]?.amount || 0 : 0,
+      pclsTaken: pclsTakenThisYear,
       balance: Math.max(0, balance),
       growth
     });

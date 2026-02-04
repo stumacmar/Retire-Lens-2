@@ -1904,7 +1904,12 @@
       
       // Hide Next button for auto-advance screens (tap option advances immediately)
       const nextBtn = document.getElementById('pathfinder-next-btn');
-      nextBtn.style.display = 'none';
+      if (isAutoAdvanceStep('pathfinder')) {
+        nextBtn.style.display = 'none';
+      } else {
+        nextBtn.style.display = '';
+        nextBtn.disabled = !state.pathfinderAnswers[question.id];
+      }
     }
     
     function selectPathfinderOption(questionId, value) {
@@ -2313,12 +2318,14 @@
       // Prepare data by income source (all NET amounts)
       const datasets = [];
       
+      // Cache state pension net calculation since it doesn't change
+      const spAmount = data.expectedStatePension || 0;
+      const spTaxResult = computeUKTax({ statePension: spAmount });
+      const spNetAmount = spAmount - (spTaxResult.incomeTax || 0);
+      
       // State Pension (taxable but shown as net portion)
       const statePensionData = decYears.map(y => {
-        const sp = y.statePension || 0;
-        // Calculate net portion of state pension
-        const taxResult = computeUKTax({ statePension: sp });
-        return sp - (taxResult.incomeTax || 0);
+        return (y.statePension > 0) ? spNetAmount : 0;
       });
       datasets.push({
         label: 'State Pension',
@@ -2327,22 +2334,16 @@
         stack: 'income'
       });
       
-      // DB Pension if present
+      // DB Pension if present - cache calculation
       if (data.hasDBPension && data.dbPensionAmount > 0) {
+        const dbGross = data.dbPensionAmount;
+        // Calculate marginal tax on DB pension (after SP)
+        const dbWithSpResult = computeUKTax({ statePension: spAmount, dbPension: dbGross });
+        const dbTax = dbWithSpResult.incomeTax - spTaxResult.incomeTax;
+        const dbNetAmount = Math.max(0, dbGross - dbTax);
+        
         const dbData = decYears.map(y => {
-          if (y.age >= data.dbPensionStartAge) {
-            // Net of tax on DB portion
-            const dbGross = data.dbPensionAmount;
-            const existingTaxable = y.statePension || 0;
-            const totalTaxResult = computeUKTax({ 
-              statePension: existingTaxable, 
-              dbPension: dbGross 
-            });
-            const spOnlyResult = computeUKTax({ statePension: existingTaxable });
-            const dbTax = totalTaxResult.incomeTax - spOnlyResult.incomeTax;
-            return Math.max(0, dbGross - dbTax);
-          }
-          return 0;
+          return (y.age >= data.dbPensionStartAge) ? dbNetAmount : 0;
         });
         datasets.push({
           label: 'DB Pension',
@@ -2352,13 +2353,18 @@
         });
       }
       
-      // Pension Withdrawals (net)
+      // Pension Withdrawals (net) - use projection's existing tax data
       const pensionWithdrawals = decYears.map(y => {
         if (!y.withdrawals) return 0;
         const pensionGross = y.withdrawals.pension || 0;
-        // Calculate tax on pension withdrawal
-        const taxResult = computeUKTax({ pensionWithdrawal: pensionGross });
-        return Math.max(0, pensionGross - (taxResult.incomeTax || 0));
+        // Use the year's calculated tax rate to estimate net
+        const taxPaid = y.taxPaid || 0;
+        const totalGross = (y.withdrawals.pension || 0) + (y.statePension || 0);
+        if (totalGross > 0) {
+          const effectiveRate = taxPaid / totalGross;
+          return Math.max(0, pensionGross * (1 - effectiveRate));
+        }
+        return pensionGross;
       });
       datasets.push({
         label: 'Pension Withdrawal (net)',
@@ -2658,7 +2664,7 @@
       
       const html = `
         <p class="scroll-hint">👈 Swipe to view more 👉</p>
-        <div class="comparison-table" style="overflow-x: auto; -webkit-overflow-scrolling: touch;">
+        <div class="comparison-table">
           <table>
             <thead>
               <tr>
@@ -2673,7 +2679,7 @@
                 <td>Retirement Age</td>
                 <td>${projA.plan.retirementAge}</td>
                 <td>${projB.plan.retirementAge}</td>
-                <td class="${deltas.retirementPot >= 0 ? 'positive' : 'negative'}">${projB.plan.retirementAge - projA.plan.retirementAge} years</td>
+                <td>${projB.plan.retirementAge - projA.plan.retirementAge} years</td>
               </tr>
               <tr>
                 <td>Retirement Pot</td>

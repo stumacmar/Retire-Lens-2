@@ -1041,33 +1041,33 @@
     import { createPlan, runProjection, comparePlans, generateDebugOutput } from './engine/projections.js';
     import { createAssumptions } from './config/defaults.js';
     
-    // Import all engine modules
-    import { createAssumptions as createAssumptionsEngine, SCENARIO_PRESETS } from './engine/assumptions.js';
-    import { calculateBenchmarks, getUserPercentile } from './engine/benchmarking.js';
-    import { createDBPension, projectDBPension } from './engine/dbPension.js';
-    import { estimateCareCosts, getCareCostScenarios } from './engine/healthcareCosts.js';
-    import { createHousehold, modelSurvivor } from './engine/household.js';
-    import { adjustForInflation, realToNominal } from './engine/inflationAdjustment.js';
+    // Import all engine modules with correct exports
+    import { createUserAssumptions, SCENARIO_PRESETS, DEFAULT_ASSUMPTIONS } from './engine/assumptions.js';
+    import { generateBenchmarkAnalysis } from './engine/benchmarking.js';
+    import { createDBPension, calculateDBIncomeAtAge } from './engine/dbPension.js';
+    import { createHealthcarePlan, projectHealthcareCosts } from './engine/healthcareCosts.js';
+    import { createHousehold, createPerson } from './engine/household.js';
+    import { calculateFutureIncome, calculatePresentIncome, calculateInflationSeries } from './engine/inflationAdjustment.js';
     import { generateInsights } from './engine/insightsEngine.js';
-    import { calculateLegacyProjection, estimateIHT } from './engine/legacyPlanning.js';
-    import { trackMilestones, getMilestoneStatus } from './engine/milestones.js';
-    import { runMonteCarloWithBands, generateFanChartData, getConfidenceInterpretation } from './engine/monteCarlo.js';
-    import { modelPhasedRetirement } from './engine/phasedRetirement.js';
-    import { calculateReadinessScore } from './engine/readinessScore.js';
-    import { generateRecommendations } from './engine/recommendations.js';
-    import { assessRiskProfile, scorePortfolioRisk } from './engine/riskScoring.js';
-    import { applySpendingPolicy, calculateAgeAdjustedSpending } from './engine/spendingPolicy.js';
-    import { calculateIncomeTax, calculateNIContributions } from './engine/tax.js';
-    import { optimizeWithdrawals, findOptimalDrawdown } from './engine/taxOptimizer.js';
-    import { calculateWithdrawal, applyWithdrawalStrategy } from './engine/withdrawals.js';
+    import { createLegacyPlan, calculateInheritanceTax, projectEstateValue } from './engine/legacyPlanning.js';
+    import { createMilestone, integrateMilestonesIntoSpending, calculateMilestoneImpact } from './engine/milestones.js';
+    import { runMonteCarlo, runMonteCarloWithBands, generateConfidenceBands } from './engine/monteCarlo.js';
+    import { createPhasedRetirement, calculatePhasedRetirementImpact } from './engine/phasedRetirement.js';
+    import { calculateReadinessScore, generateActionPlan } from './engine/readinessScore.js';
+    import { generateRecommendations, formatRecommendationsForDisplay } from './engine/recommendations.js';
+    import { calculateRiskScore, generateRiskRecommendations } from './engine/riskScoring.js';
+    import { calculateSpendingAtAge, createSpendingRules } from './engine/spendingPolicy.js';
+    import { calculateIncomeTax, calculateTaxFromGross } from './engine/tax.js';
+    import { analyzePCLSTiming, analyzeWithdrawalSequencing, generateTaxEfficiencyReport } from './engine/taxOptimizer.js';
+    import { calculatePCLS, calculateOptimalWithdrawal } from './engine/withdrawals.js';
     
     // Import config modules
     import { SCENARIOS, getScenarioById } from './config/scenarios.js';
     import { POT_SIZE_BENCHMARKS, INCOME_BENCHMARKS } from './config/benchmarkData.js';
     
     // Import UI components
-    import { renderConfidenceExplainer } from './ui/components/confidenceExplainer.js';
-    import { renderMonteCarloCharts, createFanChart, createDepletionHistogram } from './ui/components/monteCarloCharts.js';
+    import { renderConfidenceExplainer, generateConfidenceExplanation } from './ui/components/confidenceExplainer.js';
+    import { renderFanChart, renderDepletionHistogram, renderAllCharts } from './ui/components/monteCarloCharts.js';
     
     // ═══════════════════════════════════════════════════════════════
     // State Management
@@ -1477,9 +1477,9 @@
     
     function renderAllVisualizations(results) {
       const { basicProjection, mcResult, readiness, insights, recommendations, 
-              benchmarks, percentile, milestones, dbProjection, careCosts, 
-              taxOptimization, spendingAdjustments, riskProfile, portfolioRisk,
-              legacyProjection, ihtEstimate, phasedRetirement, household, data } = results;
+              benchmarks, milestones, dbPension, careCosts, 
+              taxOptimization, spendingRules, riskScore, riskRecommendations,
+              legacyPlan, estateValue, ihtEstimate, phasedRetirement, household, data } = results;
       
       // Hide all sections by default
       document.querySelectorAll('.result-card').forEach(card => {
@@ -1496,26 +1496,27 @@
           const explainerContainer = document.getElementById('confidence-explainer-container');
           if (explainerContainer) {
             try {
-              renderConfidenceExplainer(explainerContainer, mcResult);
+              renderConfidenceExplainer(mcResult, 'confidence-explainer-container');
             } catch (e) {
               console.warn('Confidence explainer render failed:', e);
-              explainerContainer.innerHTML = `<p>Monte Carlo ran ${mcResult.iterations} simulations. Success rate: ${(mcResult.statistics.successRate * 100).toFixed(0)}%</p>`;
+              const successRate = mcResult.statistics ? mcResult.statistics.successRate : 0;
+              explainerContainer.innerHTML = `<p>Monte Carlo ran ${mcResult.iterations} simulations. Success rate: ${(successRate * 100).toFixed(0)}%</p>`;
             }
           }
           
           // Render fan chart
-          if (results.fanChartData) {
+          if (mcResult.yearlyBands) {
             try {
-              createFanChart('fan-chart', results.fanChartData, basicProjection);
+              renderFanChart(mcResult.yearlyBands, basicProjection, '#fan-chart', { retirementAge: data.retirementAge });
             } catch (e) {
               console.warn('Fan chart render failed:', e);
             }
           }
           
           // Render depletion histogram
-          if (mcResult.depletionAges && mcResult.depletionAges.length > 0) {
+          if (mcResult.statistics && mcResult.statistics.depletionAge) {
             try {
-              createDepletionHistogram('depletion-histogram', mcResult.depletionAges);
+              renderDepletionHistogram(mcResult.statistics.depletionAge, '#depletion-histogram');
             } catch (e) {
               console.warn('Depletion histogram render failed:', e);
             }
@@ -1600,8 +1601,8 @@
           if (details) {
             details.innerHTML = `
               <div style="padding: 1rem;">
-                <p><strong>Your position:</strong> ${percentile ? percentile.position : 'Calculating...'}</p>
-                <p><strong>Peer comparison:</strong> ${benchmarks.comparison || 'Good standing'}</p>
+                <p><strong>Benchmark analysis:</strong> ${benchmarks.summary || 'Analysis complete'}</p>
+                <p><strong>Peer comparison:</strong> ${benchmarks.peerComparison || 'Good standing'}</p>
               </div>
             `;
           }
@@ -1613,12 +1614,12 @@
         const section = document.getElementById('tax-optimization-section');
         if (section) {
           section.style.display = 'block';
-          const results = document.getElementById('tax-optimization-results');
-          if (results) {
-            results.innerHTML = `
+          const resultsEl = document.getElementById('tax-optimization-results');
+          if (resultsEl) {
+            resultsEl.innerHTML = `
               <div style="padding: 1rem;">
-                <p><strong>Optimized strategy:</strong> ${taxOptimization.strategy || 'Tax-efficient withdrawal sequence'}</p>
-                <p><strong>Estimated tax savings:</strong> ${formatCurrency(taxOptimization.savings || 0)}</p>
+                <p><strong>Tax efficiency report:</strong> Tax-optimized withdrawal strategy analyzed</p>
+                ${taxOptimization.recommendations ? `<p>${taxOptimization.recommendations.join(', ')}</p>` : ''}
               </div>
             `;
           }
@@ -1626,33 +1627,35 @@
       }
       
       // === Risk Assessment ===
-      if (riskProfile || portfolioRisk) {
+      if (riskScore) {
         const section = document.getElementById('risk-section');
         if (section) {
           section.style.display = 'block';
           const profile = document.getElementById('risk-profile');
-          if (profile && riskProfile) {
+          if (profile) {
             profile.innerHTML = `
               <div style="padding: 1rem;">
-                <p><strong>Risk tolerance:</strong> ${riskProfile.tolerance || 'Moderate'}</p>
-                <p><strong>Risk capacity:</strong> ${riskProfile.capacity || 'Adequate'}</p>
+                <p><strong>Risk level:</strong> ${riskScore.level || 'Moderate'}</p>
+                <p><strong>Risk score:</strong> ${riskScore.score || 'N/A'}</p>
               </div>
             `;
           }
           
-          const riskScore = document.getElementById('portfolio-risk-score');
-          if (riskScore && portfolioRisk) {
-            riskScore.innerHTML = `
-              <div style="padding: 1rem;">
-                <p><strong>Portfolio risk score:</strong> ${portfolioRisk.score || 'Moderate'}</p>
-              </div>
-            `;
+          const riskScoreEl = document.getElementById('portfolio-risk-score');
+          if (riskScoreEl && riskRecommendations) {
+            let recsHtml = '<div style="padding: 1rem;"><strong>Risk recommendations:</strong><ul>';
+            if (Array.isArray(riskRecommendations)) {
+              riskRecommendations.forEach(rec => {
+                recsHtml += `<li>${rec.message || rec}</li>`;
+              });
+            }
+            recsHtml += '</ul></div>';
+            riskScoreEl.innerHTML = recsHtml;
           }
         }
       }
-      
       // === Spending Policy ===
-      if (spendingAdjustments) {
+      if (spendingRules) {
         const section = document.getElementById('spending-policy-section');
         if (section) {
           section.style.display = 'block';
@@ -1660,7 +1663,7 @@
           if (adjustments) {
             adjustments.innerHTML = `
               <div style="padding: 1rem;">
-                <p>Age-based spending adjustments applied to maintain purchasing power throughout retirement.</p>
+                <p>Age-based spending rules configured to maintain purchasing power throughout retirement.</p>
               </div>
             `;
           }
@@ -1687,7 +1690,7 @@
       }
       
       // === Legacy Planning ===
-      if (legacyProjection) {
+      if (estateValue || legacyPlan) {
         const section = document.getElementById('legacy-section');
         if (section) {
           section.style.display = 'block';
@@ -1695,7 +1698,7 @@
           if (projection) {
             projection.innerHTML = `
               <div style="padding: 1rem;">
-                <p><strong>Estimated estate value:</strong> ${formatCurrency(legacyProjection.finalValue || 0)}</p>
+                <p><strong>Estimated estate value:</strong> ${formatCurrency(estateValue || 0)}</p>
               </div>
             `;
           }
@@ -1732,7 +1735,7 @@
       }
       
       // === DB Pension ===
-      if (dbProjection) {
+      if (dbPension) {
         const section = document.getElementById('db-pension-section');
         if (section) {
           section.style.display = 'block';
@@ -1824,7 +1827,7 @@
           state.formData = data;
           
           // 1. Create assumptions from selected scenario
-          const assumptions = createAssumptionsEngine(SCENARIO_PRESETS[data.scenario] || SCENARIO_PRESETS.moderate);
+          const assumptions = createUserAssumptions(SCENARIO_PRESETS[data.scenario] || SCENARIO_PRESETS.moderate);
           
           // 2. Create household (single or couple)
           const household = createHousehold({
@@ -1850,23 +1853,15 @@
             basicProjection,
             household,
             assumptions,
-            data
+            data,
+            plan
           };
           
           // 4. Run Monte Carlo simulation if enabled
           if (data.enableMonteCarlo) {
             try {
-              const mcResult = runMonteCarloWithBands({
-                currentPot: data.currentPension,
-                retirementAge: data.retirementAge,
-                targetIncome: data.targetNetIncome,
-                assumptions: assumptions
-              }, { iterations: 1000, endAge: 90 });
+              const mcResult = runMonteCarloWithBands(plan, { iterations: 1000, endAge: 90 });
               results.mcResult = mcResult;
-              
-              // Generate fan chart data
-              results.fanChartData = generateFanChartData(mcResult);
-              results.confidenceInterpretation = getConfidenceInterpretation(mcResult);
             } catch (e) {
               console.warn('Monte Carlo failed:', e);
             }
@@ -1874,13 +1869,7 @@
           
           // 5. Calculate readiness score
           try {
-            const readiness = calculateReadinessScore({
-              currentPot: data.currentPension,
-              targetIncome: data.targetNetIncome,
-              currentAge: data.currentAge,
-              retirementAge: data.retirementAge,
-              successRate: results.mcResult ? results.mcResult.statistics.successRate : basicProjection.summary.successRate
-            });
+            const readiness = calculateReadinessScore(basicProjection, data);
             results.readiness = readiness;
           } catch (e) {
             console.warn('Readiness score failed:', e);
@@ -1888,10 +1877,10 @@
           
           // 6. Generate insights & recommendations
           try {
-            const insights = generateInsights(basicProjection, results.mcResult, results.readiness);
+            const insights = generateInsights(plan, basicProjection);
             results.insights = insights;
             
-            const recommendations = generateRecommendations(insights, data);
+            const recommendations = generateRecommendations(basicProjection, data, results.mcResult);
             results.recommendations = recommendations;
           } catch (e) {
             console.warn('Insights/recommendations failed:', e);
@@ -1900,10 +1889,8 @@
           // 7. Calculate benchmarks if enabled
           if (data.enableBenchmarking) {
             try {
-              const benchmarks = calculateBenchmarks(data.currentAge, data.currentPension);
-              const percentile = getUserPercentile(data.currentAge, data.currentPension);
+              const benchmarks = generateBenchmarkAnalysis(plan, basicProjection);
               results.benchmarks = benchmarks;
-              results.percentile = percentile;
             } catch (e) {
               console.warn('Benchmarking failed:', e);
             }
@@ -1911,7 +1898,7 @@
           
           // 8. Track milestones
           try {
-            const milestones = trackMilestones(basicProjection, data);
+            const milestones = integrateMilestonesIntoSpending([], plan);
             results.milestones = milestones;
           } catch (e) {
             console.warn('Milestones tracking failed:', e);
@@ -1925,8 +1912,7 @@
                 startAge: data.dbPensionStartAge,
                 inflationLinked: true
               });
-              const dbProjection = projectDBPension(dbPension, data.retirementAge, 95);
-              results.dbProjection = dbProjection;
+              results.dbPension = dbPension;
             } catch (e) {
               console.warn('DB pension projection failed:', e);
             }
@@ -1935,7 +1921,11 @@
           // 10. Estimate care costs if enabled
           if (data.modelCareCosts) {
             try {
-              const careCosts = estimateCareCosts(data.currentAge, assumptions);
+              const healthcarePlan = createHealthcarePlan({
+                startAge: data.currentAge,
+                retirementAge: data.retirementAge
+              });
+              const careCosts = projectHealthcareCosts(healthcarePlan, data.retirementAge, 95);
               results.careCosts = careCosts;
             } catch (e) {
               console.warn('Care costs estimation failed:', e);
@@ -1945,13 +1935,12 @@
           // 11. Optimize tax efficiency if enabled
           if (data.enableTaxOptimization) {
             try {
-              const taxOptimization = optimizeWithdrawals({
-                dcPot: data.currentPension,
+              const taxReport = generateTaxEfficiencyReport({
+                currentPot: data.currentPension,
                 isaBalance: data.currentIsa || 0,
-                dbPension: results.dbProjection,
                 targetIncome: data.targetNetIncome
               });
-              results.taxOptimization = taxOptimization;
+              results.taxOptimization = taxReport;
             } catch (e) {
               console.warn('Tax optimization failed:', e);
             }
@@ -1959,27 +1948,36 @@
           
           // 12. Apply spending policy
           try {
-            const spendingAdjustments = applySpendingPolicy(data.targetNetIncome, data.retirementAge);
-            results.spendingAdjustments = spendingAdjustments;
+            const spendingRules = createSpendingRules({});
+            results.spendingRules = spendingRules;
           } catch (e) {
             console.warn('Spending policy failed:', e);
           }
           
           // 13. Assess risk
-          try {
-            const riskProfile = assessRiskProfile(data, assumptions);
-            const portfolioRisk = scorePortfolioRisk(data.currentPension, assumptions);
-            results.riskProfile = riskProfile;
-            results.portfolioRisk = portfolioRisk;
-          } catch (e) {
-            console.warn('Risk assessment failed:', e);
+          if (results.mcResult) {
+            try {
+              const riskScore = calculateRiskScore(results.mcResult, basicProjection);
+              const riskRecommendations = generateRiskRecommendations(riskScore, basicProjection);
+              results.riskScore = riskScore;
+              results.riskRecommendations = riskRecommendations;
+            } catch (e) {
+              console.warn('Risk assessment failed:', e);
+            }
           }
           
           // 14. Calculate legacy
           try {
-            const legacyProjection = calculateLegacyProjection(basicProjection, data);
-            const ihtEstimate = estimateIHT(legacyProjection.finalValue);
-            results.legacyProjection = legacyProjection;
+            const legacyPlan = createLegacyPlan({
+              targetLegacy: 0,
+              beneficiaries: []
+            });
+            const estateValue = projectEstateValue({
+              currentWealth: basicProjection.summary.finalBalance
+            }, 0);
+            const ihtEstimate = calculateInheritanceTax(estateValue);
+            results.legacyPlan = legacyPlan;
+            results.estateValue = estateValue;
             results.ihtEstimate = ihtEstimate;
           } catch (e) {
             console.warn('Legacy planning failed:', e);
@@ -1988,10 +1986,10 @@
           // 15. Model phased retirement if requested
           if (data.isPhasedRetirement && data.phaseStartAge > 0) {
             try {
-              const phasedRetirement = modelPhasedRetirement({
+              const phasedRetirement = createPhasedRetirement({
                 fullRetirementAge: data.retirementAge,
                 phaseStartAge: data.phaseStartAge,
-                reducedHours: data.reducedHours
+                reducedHoursPercent: data.reducedHours
               });
               results.phasedRetirement = phasedRetirement;
             } catch (e) {

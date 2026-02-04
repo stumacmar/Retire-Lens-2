@@ -2394,8 +2394,11 @@
         stack: 'income'
       });
       
-      // PCLS shown for first year only (current projection takes all at retirement)
-      // TODO: Update when projection engine supports phased PCLS strategies
+      // PCLS display: Currently shows all PCLS in first year because the core 
+      // projection engine (projections.js) takes all PCLS at retirement.
+      // The PCLS strategy functions (calculatePCLSStrategy, projectPCLSReinvestment) 
+      // support phased/deferred strategies but are not yet integrated into the main 
+      // projection engine. Future work: integrate PCLS strategy into runProjection().
       const pclsTaken = projection.decumulation.pclsTaken || 0;
       const pclsData = decYears.map((y, i) => (i === 0 && pclsTaken > 0) ? pclsTaken : 0);
       if (pclsTaken > 0) {

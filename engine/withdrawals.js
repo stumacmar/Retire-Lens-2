@@ -365,8 +365,8 @@ export function calculatePCLSStrategy(pensionValue, options = {}) {
     phaseYears = 5,
     deferredAge = 67, // Default to state pension age
     reinvest = true,
-    reinvestmentReturn = 0.04, // 4% real return for reinvested PCLS
-    cashReturn = 0.0 // 0% for cash reserve
+    reinvestmentReturn = 0.04, // 4% real return when reinvested into ISA/GIA
+    cashReturn = 0.0 // 0% return when kept as cash reserve (used when reinvest=false)
   } = options;
   
   const maxPCLS = pensionValue * PENSION_CONFIG.pclsRate;

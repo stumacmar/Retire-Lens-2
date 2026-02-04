@@ -318,11 +318,9 @@ export function computeUKTax(params = {}) {
 /**
  * Run tax engine tests (executed only in DEBUG mode on page load)
  * 
- * Note: These tests use hardcoded values that match TAX_CONFIG (2024/25 rates):
- * - Personal Allowance: £12,570
- * - Basic Rate: 20% on income £0-£37,700 above PA
- * - Higher Rate: 40% on income £37,700-£125,140 above PA
- * If TAX_CONFIG changes, these test values should be updated to match.
+ * These tests dynamically reference TAX_CONFIG values to ensure they
+ * automatically adapt if the tax configuration is updated.
+ * Current TAX_CONFIG uses 2024/25 UK rates.
  * 
  * @returns {object} Test results
  */
@@ -333,11 +331,11 @@ export function runTaxTests() {
     return condition;
   };
   
-  // Tax thresholds from TAX_CONFIG (2024/25)
-  const PA = TAX_CONFIG.personalAllowance; // £12,570
-  const BASIC_RATE = TAX_CONFIG.bands[0].rate; // 0.20
-  const BASIC_BAND_WIDTH = TAX_CONFIG.bands[0].threshold; // £37,700
-  const HIGHER_RATE = TAX_CONFIG.bands[1].rate; // 0.40
+  // Tax thresholds dynamically loaded from TAX_CONFIG
+  const PA = TAX_CONFIG.personalAllowance;
+  const BASIC_RATE = TAX_CONFIG.bands[0].rate;
+  const BASIC_BAND_WIDTH = TAX_CONFIG.bands[0].threshold;
+  const HIGHER_RATE = TAX_CONFIG.bands[1].rate;
   
   // Test 1: Gross income of 0
   const test1 = computeUKTax({ statePension: 0, pensionWithdrawal: 0 });

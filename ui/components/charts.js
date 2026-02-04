@@ -14,6 +14,10 @@
  * Format currency for chart labels
  */
 function formatCurrency(value) {
+  // Guard against null, undefined, NaN, and non-numbers
+  if (value === null || value === undefined || typeof value !== 'number' || isNaN(value)) {
+    return '—';
+  }
   if (value >= 1000000) {
     return '£' + (value / 1000000).toFixed(1) + 'M';
   } else if (value >= 1000) {

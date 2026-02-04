@@ -2170,6 +2170,10 @@
     // ═══════════════════════════════════════════════════════════════
     
     function formatCurrency(amount) {
+      // Guard against null, undefined, NaN, and non-numbers
+      if (amount === null || amount === undefined || typeof amount !== 'number' || isNaN(amount)) {
+        return '—';
+      }
       return '£' + Math.round(amount).toLocaleString();
     }
     
@@ -2298,6 +2302,10 @@
      * Format currency in compact notation for chart labels
      */
     function formatCompactCurrency(value) {
+      // Guard against null, undefined, NaN, and non-numbers
+      if (value === null || value === undefined || typeof value !== 'number' || isNaN(value)) {
+        return '—';
+      }
       if (value >= 1000000) return '£' + (value / 1000000).toFixed(1) + 'm';
       if (value >= 1000) return '£' + (value / 1000).toFixed(0) + 'k';
       return '£' + Math.round(value);

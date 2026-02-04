@@ -145,7 +145,10 @@ export function estimatePreview(inputs) {
  * @returns {string} Formatted currency string
  */
 export function formatPreviewCurrency(amount) {
-  if (amount === null || amount === undefined) return '—';
+  // Guard against null, undefined, NaN, and non-numbers
+  if (amount === null || amount === undefined || typeof amount !== 'number' || isNaN(amount)) {
+    return '—';
+  }
   const absAmount = Math.abs(amount);
   if (absAmount >= 1000000) {
     return '£' + (amount / 1000000).toFixed(1) + 'M';
@@ -162,7 +165,8 @@ export function formatPreviewCurrency(amount) {
  * @returns {{ text: string, class: string }} Display object
  */
 export function formatGapSurplus(amount) {
-  if (amount === null || amount === undefined) {
+  // Guard against null, undefined, NaN, and non-numbers
+  if (amount === null || amount === undefined || typeof amount !== 'number' || isNaN(amount)) {
     return { text: '—', class: 'neutral' };
   }
   

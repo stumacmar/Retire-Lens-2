@@ -1,7 +1,7 @@
 {
   "name": "retirelens-2",
-  "version": "0.1.0",
-  "description": "Income-first retirement planning engine for UK pensions",
+  "version": "0.9.4",
+  "description": "Income-first retirement planning engine for UK pensions - RetireLens Pro",
   "type": "module",
   "main": "engine/projections.js",
   "scripts": {
@@ -10,7 +10,8 @@
     "test:modules": "node tests/newModules.test.js",
     "test:phase4": "node tests/phase4.test.js",
     "test:pathfinder": "node tests/pathfinder.test.js",
-    "test:all": "node tests/engine.test.js && node tests/newModules.test.js && node tests/phase4.test.js && node tests/pathfinder.test.js",
+    "test:couples": "node tests/couples.test.js",
+    "test:all": "node tests/engine.test.js && node tests/newModules.test.js && node tests/phase4.test.js && node tests/pathfinder.test.js && node tests/couples.test.js",
     "test:e2e": "npx playwright test",
     "dev": "npx http-server -p 8080 -c-1",
     "lint": "echo 'No linter configured yet'"
@@ -19,7 +20,9 @@
     "retirement",
     "pension",
     "financial-planning",
-    "uk-tax"
+    "uk-tax",
+    "couples",
+    "pcls"
   ],
   "author": "",
   "license": "MIT",

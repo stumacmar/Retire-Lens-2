@@ -404,3 +404,63 @@ export function runTaxTests() {
     allPassed: failed === 0
   };
 }
+
+/**
+ * Calculate tax for a couple (per-person calculation)
+ * Each person has their own personal allowance and tax bands
+ * 
+ * @param {object} person1Income - Person 1 income breakdown
+ * @param {object} person2Income - Person 2 income breakdown (optional for single)
+ * @param {object} config - Tax configuration (optional)
+ * @returns {object} Combined household tax calculation
+ */
+export function calculateCouplesTax(person1Income, person2Income = null, config = TAX_CONFIG) {
+  // Calculate Person 1 tax
+  const person1Tax = computeUKTax({
+    statePension: person1Income.statePension || 0,
+    dbPension: person1Income.dbPension || 0,
+    pensionWithdrawal: person1Income.pensionWithdrawal || 0,
+    isaWithdrawal: person1Income.isaWithdrawal || 0,
+    pclsWithdrawal: person1Income.pclsWithdrawal || 0,
+    otherTaxableIncome: person1Income.otherTaxableIncome || 0,
+    config
+  });
+  
+  // Single person - return immediately
+  if (!person2Income) {
+    return {
+      household: {
+        totalTax: person1Tax.incomeTax,
+        totalNetIncome: person1Tax.netIncome,
+        totalGrossIncome: person1Tax.grossIncome
+      },
+      person1: person1Tax,
+      person2: null
+    };
+  }
+  
+  // Calculate Person 2 tax
+  const person2Tax = computeUKTax({
+    statePension: person2Income.statePension || 0,
+    dbPension: person2Income.dbPension || 0,
+    pensionWithdrawal: person2Income.pensionWithdrawal || 0,
+    isaWithdrawal: person2Income.isaWithdrawal || 0,
+    pclsWithdrawal: person2Income.pclsWithdrawal || 0,
+    otherTaxableIncome: person2Income.otherTaxableIncome || 0,
+    config
+  });
+  
+  return {
+    household: {
+      totalTax: person1Tax.incomeTax + person2Tax.incomeTax,
+      totalNetIncome: person1Tax.netIncome + person2Tax.netIncome,
+      totalGrossIncome: person1Tax.grossIncome + person2Tax.grossIncome,
+      combinedPersonalAllowance: person1Tax.personalAllowance + person2Tax.personalAllowance,
+      combinedEffectiveRate: (person1Tax.grossIncome + person2Tax.grossIncome) > 0 
+        ? (person1Tax.incomeTax + person2Tax.incomeTax) / (person1Tax.grossIncome + person2Tax.grossIncome)
+        : 0
+    },
+    person1: person1Tax,
+    person2: person2Tax
+  };
+}

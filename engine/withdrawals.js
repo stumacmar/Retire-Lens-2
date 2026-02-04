@@ -339,41 +339,100 @@ export function recommendPCLS(pensionValue, options = {}) {
 
 /**
  * PCLS Strategy types
+ * Enhanced to support all configurable options from requirements
  */
 export const PCLS_STRATEGIES = {
-  ALL_AT_RETIREMENT: 'all_at_retirement',
-  PHASED: 'phased',
-  DEFERRED: 'deferred'
+  ALL_AT_RETIREMENT: 'all_at_retirement',  // Take full 25% at retirement age (default)
+  PARTIAL: 'partial',                       // Take a specific percentage (less than 25%)
+  PHASED: 'phased',                        // Spread PCLS over N years
+  DEFERRED: 'deferred',                    // Defer until age X (e.g., state pension age)
+  NONE: 'none'                             // Do not take any PCLS
+};
+
+/**
+ * PCLS Destination types - what to do with the tax-free cash
+ */
+export const PCLS_DESTINATIONS = {
+  REINVEST_ISA: 'reinvest_isa',            // Reinvest into ISA (subject to annual cap)
+  HOLD_CASH: 'hold_cash',                  // Hold as cash (cash return assumption)
+  SPEND_OVER_YEARS: 'spend_over_years'     // Use as bridging bucket for spending
 };
 
 /**
  * Calculate PCLS withdrawal schedule based on strategy
  * 
  * Strategies:
- * 1. ALL_AT_RETIREMENT - Take full 25% at retirement age
- * 2. PHASED - Spread PCLS over N years (default 5)
- * 3. DEFERRED - Defer until age X (e.g., state pension age)
+ * 1. ALL_AT_RETIREMENT - Take full 25% at retirement age (default)
+ * 2. PARTIAL - Take a specific percentage (less than 25%)
+ * 3. PHASED - Spread PCLS over N years (default 5)
+ * 4. DEFERRED - Defer until age X (e.g., state pension age)
+ * 5. NONE - Do not take any PCLS
+ * 
+ * IMPORTANT: PCLS is NOT income - it's a transfer from pension to another pot.
+ * It should not appear as income spike in charts. Instead, it goes to:
+ * - ISA/GIA (subject to ISA cap) if reinvesting
+ * - Cash reserve if holding cash
+ * - Bridging bucket if spending over years
  * 
  * @param {number} pensionValue - Total pension pot value at retirement
  * @param {object} options - Strategy configuration
+ * @param {string} options.strategy - PCLS strategy type
+ * @param {number} options.retirementAge - Age at retirement
+ * @param {number} options.partialPercent - Percentage to take (for PARTIAL strategy, max 25)
+ * @param {number} options.phaseYears - Number of years to spread PCLS (for PHASED strategy)
+ * @param {number} options.deferredAge - Age to take PCLS (for DEFERRED strategy)
+ * @param {string} options.destination - What to do with PCLS (PCLS_DESTINATIONS)
+ * @param {number} options.spendOverYears - Number of years to spread spending (for SPEND_OVER_YEARS)
+ * @param {boolean} options.reinvest - Legacy: if true, reinvest; if false, hold cash
+ * @param {number} options.reinvestmentReturn - Return rate when reinvested
+ * @param {number} options.cashReturn - Return rate when held as cash
+ * @param {number} options.isaAnnualCap - Annual ISA contribution cap (default £20,000)
  * @returns {object} PCLS schedule with year-by-year breakdown
  */
 export function calculatePCLSStrategy(pensionValue, options = {}) {
   const {
     strategy = PCLS_STRATEGIES.ALL_AT_RETIREMENT,
     retirementAge = 60,
+    partialPercent = 25,
     phaseYears = 5,
-    deferredAge = 67, // Default to state pension age
+    deferredAge = 67,
+    destination = PCLS_DESTINATIONS.REINVEST_ISA,
+    spendOverYears = 5,
     reinvest = true,
-    reinvestmentReturn = 0.04, // 4% real return when reinvested into ISA/GIA
-    cashReturn = 0.0 // 0% return when kept as cash reserve (used when reinvest=false)
+    reinvestmentReturn = 0.04,
+    cashReturn = 0.0,
+    isaAnnualCap = 20000
   } = options;
   
-  const maxPCLS = pensionValue * PENSION_CONFIG.pclsRate;
+  // Calculate max PCLS (25% of pension)
+  const maxPclsPercent = PENSION_CONFIG.pclsRate; // 0.25
+  const effectivePercent = strategy === PCLS_STRATEGIES.PARTIAL 
+    ? Math.min(partialPercent / 100, maxPclsPercent)
+    : maxPclsPercent;
+  
+  const maxPCLS = pensionValue * effectivePercent;
   const schedule = [];
   
   // Ensure no NaN
   const safeMax = isNaN(maxPCLS) ? 0 : maxPCLS;
+  
+  // Handle NONE strategy
+  if (strategy === PCLS_STRATEGIES.NONE || safeMax <= 0) {
+    return {
+      strategy: PCLS_STRATEGIES.NONE,
+      totalPCLS: 0,
+      schedule: [],
+      destination,
+      reinvest: false,
+      reinvestmentReturn: 0,
+      spendingSchedule: [],
+      settings: {
+        retirementAge,
+        phaseYears,
+        deferredAge
+      }
+    };
+  }
   
   switch (strategy) {
     case PCLS_STRATEGIES.ALL_AT_RETIREMENT:
@@ -382,6 +441,16 @@ export function calculatePCLSStrategy(pensionValue, options = {}) {
         amount: safeMax,
         cumulative: safeMax,
         remaining: 0
+      });
+      break;
+      
+    case PCLS_STRATEGIES.PARTIAL:
+      schedule.push({
+        age: retirementAge,
+        amount: safeMax,
+        cumulative: safeMax,
+        remaining: 0,
+        percentTaken: effectivePercent * 100
       });
       break;
       
@@ -400,19 +469,16 @@ export function calculatePCLSStrategy(pensionValue, options = {}) {
       break;
       
     case PCLS_STRATEGIES.DEFERRED:
-      // Only include the actual PCLS event at the deferred age
-      // No need for placeholder entries with amount: 0
       schedule.push({
         age: deferredAge,
         amount: safeMax,
         cumulative: safeMax,
         remaining: 0,
-        deferredFrom: retirementAge // Track that this was deferred
+        deferredFrom: retirementAge
       });
       break;
       
     default:
-      // Default to all at retirement
       schedule.push({
         age: retirementAge,
         amount: safeMax,
@@ -421,16 +487,48 @@ export function calculatePCLSStrategy(pensionValue, options = {}) {
       });
   }
   
+  // Calculate spending schedule if PCLS is used for spending
+  const spendingSchedule = [];
+  if (destination === PCLS_DESTINATIONS.SPEND_OVER_YEARS) {
+    const annualSpending = safeMax / spendOverYears;
+    const startAge = schedule[0]?.age || retirementAge;
+    for (let i = 0; i < spendOverYears; i++) {
+      spendingSchedule.push({
+        age: startAge + i,
+        spendFromPCLS: annualSpending,
+        remainingPCLS: safeMax - (annualSpending * (i + 1))
+      });
+    }
+  }
+  
+  // Determine effective return rate based on destination
+  let effectiveReturn = cashReturn;
+  if (destination === PCLS_DESTINATIONS.REINVEST_ISA) {
+    effectiveReturn = reinvestmentReturn;
+  } else if (destination === PCLS_DESTINATIONS.SPEND_OVER_YEARS) {
+    effectiveReturn = cashReturn; // Cash-like return while spending down
+  }
+  
+  // Legacy support for reinvest boolean
+  if (reinvest && destination === PCLS_DESTINATIONS.HOLD_CASH) {
+    effectiveReturn = reinvestmentReturn;
+  }
+  
   return {
     strategy,
     totalPCLS: safeMax,
     schedule,
-    reinvest,
-    reinvestmentReturn: reinvest ? reinvestmentReturn : cashReturn,
+    destination,
+    reinvest: destination === PCLS_DESTINATIONS.REINVEST_ISA || reinvest,
+    reinvestmentReturn: effectiveReturn,
+    spendingSchedule,
+    isaAnnualCap,
     settings: {
       retirementAge,
+      partialPercent: effectivePercent * 100,
       phaseYears,
-      deferredAge
+      deferredAge,
+      spendOverYears
     }
   };
 }

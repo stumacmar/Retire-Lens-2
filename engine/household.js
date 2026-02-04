@@ -9,6 +9,11 @@
  * - Two State Pensions may start at different times
  * - Two Personal Allowances for tax efficiency
  * - Survivor spending is typically lower (60-70% of joint)
+ * 
+ * Enhanced for RetireLens Pro:
+ * - Full DC pension support (pot, monthly/annual contributions)
+ * - DB pension support (annual amount, start age)
+ * - ISA support (balance, annual contributions)
  */
 
 /**
@@ -22,9 +27,34 @@ export const HOUSEHOLD_DEFAULTS = Object.freeze({
 });
 
 /**
- * Create a person configuration
+ * Safe number parsing - returns default if invalid
+ * @param {*} value - Value to parse
+ * @param {number} defaultVal - Default value if parsing fails
+ * @returns {number} Parsed value or default
+ */
+function safeNumber(value, defaultVal = 0) {
+  if (value === null || value === undefined) return defaultVal;
+  const num = Number(value);
+  return isNaN(num) ? defaultVal : num;
+}
+
+/**
+ * Create a person configuration with full financial details
  * 
  * @param {object} options - Person configuration
+ * @param {string} [options.name='Person'] - Person's name
+ * @param {number} options.currentAge - Current age (required, 18-100)
+ * @param {number} [options.retirementAge] - Target retirement age
+ * @param {number} [options.statePensionAge=67] - State pension start age
+ * @param {number} [options.expectedStatePension=11500] - Annual state pension
+ * @param {number} [options.lifeExpectancy=90] - Life expectancy for planning
+ * @param {number} [options.dcPot=0] - Current DC pension pot value
+ * @param {number} [options.dcMonthlyContrib=0] - Monthly DC pension contribution
+ * @param {number} [options.dcAnnualContrib=0] - Annual DC pension contribution (alternative to monthly)
+ * @param {number} [options.dbAnnual=0] - Annual DB pension amount
+ * @param {number} [options.dbStartAge] - Age when DB pension starts (defaults to retirementAge)
+ * @param {number} [options.isaBalance=0] - Current ISA balance
+ * @param {number} [options.isaAnnualContrib=0] - Annual ISA contribution
  * @returns {object} Frozen person object
  */
 export function createPerson(options = {}) {
@@ -32,13 +62,33 @@ export function createPerson(options = {}) {
     throw new Error('currentAge is required and must be between 18 and 100');
   }
   
+  const retirementAge = safeNumber(options.retirementAge, Math.min(options.currentAge + 10, 67));
+  
+  // Calculate effective annual DC contribution (monthly * 12 or annual)
+  const monthlyContrib = safeNumber(options.dcMonthlyContrib, 0);
+  const annualContrib = safeNumber(options.dcAnnualContrib, 0);
+  const effectiveDcAnnual = monthlyContrib > 0 ? monthlyContrib * 12 : annualContrib;
+  
   return Object.freeze({
     name: options.name || 'Person',
     currentAge: options.currentAge,
-    retirementAge: options.retirementAge || Math.min(options.currentAge + 10, 67),
-    statePensionAge: options.statePensionAge || HOUSEHOLD_DEFAULTS.statePensionAge,
-    expectedStatePension: options.expectedStatePension ?? HOUSEHOLD_DEFAULTS.expectedStatePension,
-    lifeExpectancy: options.lifeExpectancy || HOUSEHOLD_DEFAULTS.lifeExpectancy
+    retirementAge: retirementAge,
+    statePensionAge: safeNumber(options.statePensionAge, HOUSEHOLD_DEFAULTS.statePensionAge),
+    expectedStatePension: safeNumber(options.expectedStatePension, HOUSEHOLD_DEFAULTS.expectedStatePension),
+    lifeExpectancy: safeNumber(options.lifeExpectancy, HOUSEHOLD_DEFAULTS.lifeExpectancy),
+    
+    // DC pension
+    dcPot: safeNumber(options.dcPot, 0),
+    dcMonthlyContrib: monthlyContrib,
+    dcAnnualContrib: effectiveDcAnnual,
+    
+    // DB pension
+    dbAnnual: safeNumber(options.dbAnnual, 0),
+    dbStartAge: safeNumber(options.dbStartAge, retirementAge),
+    
+    // ISA
+    isaBalance: safeNumber(options.isaBalance, 0),
+    isaAnnualContrib: safeNumber(options.isaAnnualContrib, 0)
   });
 }
 
@@ -330,4 +380,116 @@ export function validateHousehold(household) {
     valid: errors.length === 0,
     errors
   };
+}
+
+/**
+ * Calculate comprehensive household income at a given reference age
+ * Includes State Pension, DB pension, and indicates eligibility for each source
+ * 
+ * @param {object} household - Household object
+ * @param {number} referenceAge - Age of person1 (used as reference point)
+ * @returns {object} Detailed income breakdown by source and person
+ */
+export function calculateHouseholdIncomeAtAge(household, referenceAge) {
+  const result = {
+    person1: {
+      age: referenceAge,
+      statePension: 0,
+      dbPension: 0,
+      isRetired: referenceAge >= household.person1.retirementAge,
+      isReceivingStatePension: referenceAge >= household.person1.statePensionAge,
+      isReceivingDbPension: false
+    },
+    total: {
+      statePension: 0,
+      dbPension: 0,
+      guaranteedIncome: 0
+    }
+  };
+  
+  // Person 1 State Pension
+  if (result.person1.isReceivingStatePension) {
+    result.person1.statePension = household.person1.expectedStatePension || 0;
+  }
+  
+  // Person 1 DB Pension
+  if (household.person1.dbAnnual > 0 && referenceAge >= household.person1.dbStartAge) {
+    result.person1.dbPension = household.person1.dbAnnual;
+    result.person1.isReceivingDbPension = true;
+  }
+  
+  // Totals for single
+  result.total.statePension = result.person1.statePension;
+  result.total.dbPension = result.person1.dbPension;
+  
+  // Handle couples
+  if (household.type === 'couple' && household.person2) {
+    const ageDiff = household.person1.currentAge - household.person2.currentAge;
+    const person2Age = referenceAge - ageDiff;
+    
+    result.person2 = {
+      age: person2Age,
+      statePension: 0,
+      dbPension: 0,
+      isRetired: person2Age >= household.person2.retirementAge,
+      isReceivingStatePension: person2Age >= household.person2.statePensionAge,
+      isReceivingDbPension: false
+    };
+    
+    // Check if Person 2 is still alive
+    const survivorStatus = getSurvivorStatus(household, referenceAge);
+    if (!survivorStatus.isSurvivorYear || survivorStatus.person2Alive) {
+      // Person 2 State Pension
+      if (result.person2.isReceivingStatePension) {
+        result.person2.statePension = household.person2.expectedStatePension || 0;
+      }
+      
+      // Person 2 DB Pension
+      if (household.person2.dbAnnual > 0 && person2Age >= household.person2.dbStartAge) {
+        result.person2.dbPension = household.person2.dbAnnual;
+        result.person2.isReceivingDbPension = true;
+      }
+      
+      result.total.statePension += result.person2.statePension;
+      result.total.dbPension += result.person2.dbPension;
+    }
+  }
+  
+  result.total.guaranteedIncome = result.total.statePension + result.total.dbPension;
+  
+  return result;
+}
+
+/**
+ * Generate annual timeline for household from current age to horizon
+ * Shows when each income source becomes active
+ * 
+ * @param {object} household - Household object
+ * @param {number} [horizonAge=90] - End age for timeline
+ * @returns {object[]} Array of year-by-year income data
+ */
+export function generateHouseholdTimeline(household, horizonAge = 90) {
+  const startAge = Math.min(
+    household.person1.currentAge,
+    household.type === 'couple' && household.person2 
+      ? household.person2.currentAge + (household.person1.currentAge - household.person2.currentAge)
+      : household.person1.currentAge
+  );
+  
+  const timeline = [];
+  
+  for (let age = startAge; age <= horizonAge; age++) {
+    const income = calculateHouseholdIncomeAtAge(household, age);
+    timeline.push({
+      year: age - startAge,
+      person1Age: age,
+      person2Age: household.type === 'couple' && household.person2 
+        ? age - (household.person1.currentAge - household.person2.currentAge)
+        : null,
+      ...income.total,
+      details: income
+    });
+  }
+  
+  return timeline;
 }

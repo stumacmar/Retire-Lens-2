@@ -15,7 +15,8 @@ test.describe('Pathfinder Flow', () => {
   });
 
   test('welcome screen displays correctly', async ({ page }) => {
-    await expect(page.locator('.screen-title')).toContainText('RetireLens 2');
+    // Use more specific selectors to avoid strict mode violations
+    await expect(page.locator('#screen-welcome .screen-title')).toContainText('RetireLens 2');
     await expect(page.locator('.welcome-tagline')).toContainText('Can I retire at age X');
     
     // Screenshot

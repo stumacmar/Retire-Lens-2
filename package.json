@@ -8,7 +8,8 @@
     "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js",
     "test:engine": "node tests/engine.test.js",
     "test:modules": "node tests/newModules.test.js",
-    "test:all": "node tests/engine.test.js && node tests/newModules.test.js",
+    "test:phase4": "node tests/phase4.test.js",
+    "test:all": "node tests/engine.test.js && node tests/newModules.test.js && node tests/phase4.test.js",
     "dev": "npx http-server -p 8080 -c-1",
     "lint": "echo 'No linter configured yet'"
   },
@@ -20,6 +21,12 @@
   ],
   "author": "",
   "license": "MIT",
+  "dependencies": {
+    "jspdf": "^2.5.1",
+    "html2canvas": "^1.4.1",
+    "xlsx": "^0.18.5",
+    "qrcode": "^1.5.3"
+  },
   "devDependencies": {
     "jest": "^29.7.0"
   }

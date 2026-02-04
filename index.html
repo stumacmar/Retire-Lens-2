@@ -1304,11 +1304,30 @@
                   </div>
                 </div>
                 <div id="couple-inputs" style="display: none; margin-left: 1.5rem; margin-top: 0.5rem;">
+                  <h5 style="font-size: 0.875rem; color: #6b7280; margin-bottom: 0.75rem;">Partner Details</h5>
                   <div class="input-group" style="margin-bottom: 0.5rem;">
-                    <input type="number" id="partner-age" placeholder="Partner's age" style="width: 100%; padding: 0.5rem; border: 1px solid #e5e7eb; border-radius: 4px;">
+                    <label style="font-size: 0.75rem; color: #6b7280;">Partner's current age</label>
+                    <input type="number" id="partner-age" placeholder="62" min="18" max="100" style="width: 100%; padding: 0.5rem; border: 1px solid #e5e7eb; border-radius: 4px;">
+                  </div>
+                  <div class="input-group" style="margin-bottom: 0.5rem;">
+                    <label style="font-size: 0.75rem; color: #6b7280;">Partner's retirement age</label>
+                    <input type="number" id="partner-retirement-age" placeholder="67" min="50" max="100" style="width: 100%; padding: 0.5rem; border: 1px solid #e5e7eb; border-radius: 4px;">
+                  </div>
+                  <div class="input-group" style="margin-bottom: 0.5rem;">
+                    <label style="font-size: 0.75rem; color: #6b7280;">Partner's State Pension age</label>
+                    <input type="number" id="partner-sp-age" placeholder="67" min="60" max="75" value="67" style="width: 100%; padding: 0.5rem; border: 1px solid #e5e7eb; border-radius: 4px;">
+                  </div>
+                  <div class="input-group" style="margin-bottom: 0.5rem;">
+                    <label style="font-size: 0.75rem; color: #6b7280;">Partner's expected State Pension (£/year)</label>
+                    <input type="number" id="partner-sp-amount" placeholder="11500" min="0" value="11500" style="width: 100%; padding: 0.5rem; border: 1px solid #e5e7eb; border-radius: 4px;">
+                  </div>
+                  <div class="input-group" style="margin-bottom: 0.5rem;">
+                    <label style="font-size: 0.75rem; color: #6b7280;">Partner's DB pension (£/year, if any)</label>
+                    <input type="number" id="partner-db-amount" placeholder="0" min="0" style="width: 100%; padding: 0.5rem; border: 1px solid #e5e7eb; border-radius: 4px;">
                   </div>
                   <div class="input-group">
-                    <input type="number" id="partner-retirement-age" placeholder="Partner's retirement age" style="width: 100%; padding: 0.5rem; border: 1px solid #e5e7eb; border-radius: 4px;">
+                    <label style="font-size: 0.75rem; color: #6b7280;">Partner's DB pension start age</label>
+                    <input type="number" id="partner-db-start-age" placeholder="67" min="50" max="100" value="67" style="width: 100%; padding: 0.5rem; border: 1px solid #e5e7eb; border-radius: 4px;">
                   </div>
                 </div>
                 <div class="accordion-option">
@@ -1976,8 +1995,11 @@
         }
       });
       
-      // Enable continue if mode selected
-      document.getElementById('mode-select-next-btn').disabled = !state.mode;
+      // Hide Continue button - mode-select is now auto-advance (selecting a card advances immediately)
+      const nextBtn = document.getElementById('mode-select-next-btn');
+      if (nextBtn) {
+        nextBtn.style.display = 'none';
+      }
     }
     
     function selectMode(modeId) {
@@ -1991,9 +2013,18 @@
         card.classList.toggle('selected', card.dataset.mode === modeId);
       });
       
-      document.getElementById('mode-select-next-btn').disabled = false;
-      
       debugLog('MODE', `Selected mode: ${modeId}`);
+      
+      // Auto-advance after short delay (like pathfinder)
+      // Hide the Continue button since auto-advance handles navigation
+      const nextBtn = document.getElementById('mode-select-next-btn');
+      if (nextBtn) {
+        nextBtn.style.display = 'none';
+      }
+      
+      setTimeout(() => {
+        nextScreen();
+      }, 300);
     }
     
     // ═══════════════════════════════════════════════════════════════
@@ -2114,6 +2145,10 @@
         isCouple: getChecked('is-couple'),
         partnerAge: getValue('partner-age', 0),
         partnerRetirementAge: getValue('partner-retirement-age', 67),
+        partnerStatePensionAge: getValue('partner-sp-age', 67),
+        partnerStatePension: getValue('partner-sp-amount', 11500),
+        partnerDbPension: getValue('partner-db-amount', 0),
+        partnerDbStartAge: getValue('partner-db-start-age', 67),
         
         // Phased retirement
         isPhasedRetirement: getChecked('is-phased-retirement'),
@@ -2402,16 +2437,22 @@
         stack: 'income'
       });
       
-      // PCLS display: Currently shows all PCLS in first year because the core 
-      // projection engine (projections.js) takes all PCLS at retirement.
-      // The PCLS strategy functions (calculatePCLSStrategy, projectPCLSReinvestment) 
-      // support phased/deferred strategies but are not yet integrated into the main 
-      // projection engine. Future work: integrate PCLS strategy into runProjection().
+      // PCLS display: Do NOT show PCLS as income spike - it's a transfer, not income
+      // PCLS goes into ISA/cash bucket and is SPENT from there over time
+      // The income chart should show the spending from PCLS bucket if used for spending
+      // Otherwise, PCLS should not appear at all in the income chart (it's a balance transfer)
+      
+      // Only show PCLS spending if user selected 'spend_over_years' strategy (or legacy behavior)
+      // For now: spread any PCLS over 5 years as "PCLS Spending" instead of a spike
       const pclsTaken = projection.decumulation.pclsTaken || 0;
-      const pclsData = decYears.map((y, i) => (i === 0 && pclsTaken > 0) ? pclsTaken : 0);
       if (pclsTaken > 0) {
+        // Spread PCLS spending over 5 years to avoid spike
+        const pclsSpreadYears = 5;
+        const pclsAnnualSpend = pclsTaken / pclsSpreadYears;
+        const pclsData = decYears.map((y, i) => (i < pclsSpreadYears && pclsTaken > 0) ? pclsAnnualSpend : 0);
+        
         datasets.push({
-          label: 'PCLS (tax-free)',
+          label: 'PCLS Spending (tax-free)',
           data: pclsData,
           backgroundColor: '#10b981',
           stack: 'income'
@@ -2619,9 +2660,18 @@
         sources.push({ name: 'DB Pension', amount: data.dbPensionAmount, taxable: true, color: '#3b82f6' });
       }
       
-      // Add PCLS if taken in first year
-      if (projection.decumulation.pclsTaken > 0) {
-        sources.push({ name: 'PCLS (Tax-Free Cash)', amount: projection.decumulation.pclsTaken, taxable: false, color: '#10b981' });
+      // Show PCLS as annual spending amount (spread over 5 years), not lump sum
+      // This prevents the "spike" issue in income tables
+      const pclsTaken = projection.decumulation.pclsTaken || 0;
+      if (pclsTaken > 0) {
+        const pclsAnnualSpend = pclsTaken / 5; // Spread over 5 years
+        sources.push({ 
+          name: 'PCLS Spending (5yr)', 
+          amount: pclsAnnualSpend, 
+          taxable: false, 
+          color: '#10b981',
+          note: `(from ${formatCurrency(pclsTaken)} total)`
+        });
       }
       
       let html = '<div style="padding: 0.5rem;">';

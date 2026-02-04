@@ -400,22 +400,14 @@ export function calculatePCLSStrategy(pensionValue, options = {}) {
       break;
       
     case PCLS_STRATEGIES.DEFERRED:
-      const deferralYears = Math.max(0, deferredAge - retirementAge);
-      // No PCLS until deferred age
-      for (let i = 0; i < deferralYears; i++) {
-        schedule.push({
-          age: retirementAge + i,
-          amount: 0,
-          cumulative: 0,
-          remaining: safeMax
-        });
-      }
-      // Take all at deferred age
+      // Only include the actual PCLS event at the deferred age
+      // No need for placeholder entries with amount: 0
       schedule.push({
         age: deferredAge,
         amount: safeMax,
         cumulative: safeMax,
-        remaining: 0
+        remaining: 0,
+        deferredFrom: retirementAge // Track that this was deferred
       });
       break;
       
@@ -454,17 +446,23 @@ export function projectPCLSReinvestment(pclsSchedule, endAge = 90) {
   const { schedule, reinvestmentReturn, settings } = pclsSchedule;
   const { retirementAge } = settings;
   
+  // Create a map for O(1) lookup instead of relying on sequential index
+  // This handles unsorted schedules and gaps correctly
+  const scheduleByAge = new Map();
+  schedule.forEach(entry => {
+    if (entry.amount > 0) {
+      scheduleByAge.set(entry.age, entry.amount);
+    }
+  });
+  
   const projection = [];
   let balance = 0;
-  let scheduleIndex = 0;
   
   for (let age = retirementAge; age <= endAge; age++) {
-    // Check if PCLS is taken this year
-    let pclsTakenThisYear = 0;
-    if (scheduleIndex < schedule.length && schedule[scheduleIndex].age === age) {
-      pclsTakenThisYear = schedule[scheduleIndex].amount;
+    // Check if PCLS is taken this year using map lookup
+    const pclsTakenThisYear = scheduleByAge.get(age) || 0;
+    if (pclsTakenThisYear > 0) {
       balance += pclsTakenThisYear;
-      scheduleIndex++;
     }
     
     // Apply growth

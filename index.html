@@ -1903,8 +1903,9 @@
       document.getElementById('pathfinder-back-btn').style.visibility = questionIndex > 0 ? 'visible' : 'hidden';
       
       // Hide Next button for auto-advance screens (tap option advances immediately)
+      // Pathfinder is always an auto-advance screen (single-choice options)
       const nextBtn = document.getElementById('pathfinder-next-btn');
-      if (isAutoAdvanceStep('pathfinder')) {
+      if (isAutoAdvanceStep(state.currentScreen)) {
         nextBtn.style.display = 'none';
       } else {
         nextBtn.style.display = '';
@@ -2316,17 +2317,47 @@
       const labels = decYears.map(y => y.age);
       
       // Prepare data by income source (all NET amounts)
+      // Use comprehensive tax calculation for each year to handle progressive bands correctly
       const datasets = [];
       
-      // Cache state pension net calculation since it doesn't change
       const spAmount = data.expectedStatePension || 0;
-      const spTaxResult = computeUKTax({ statePension: spAmount });
-      const spNetAmount = spAmount - (spTaxResult.incomeTax || 0);
+      const dbAmount = (data.hasDBPension && data.dbPensionAmount > 0) ? data.dbPensionAmount : 0;
+      const dbStartAge = data.dbPensionStartAge || 65;
+      
+      // Calculate net amounts for each year using full tax context
+      const yearlyNetAmounts = decYears.map(y => {
+        const age = y.age;
+        const hasStatePension = y.statePension > 0;
+        const hasDbPension = dbAmount > 0 && age >= dbStartAge;
+        const pensionWithdrawal = y.withdrawals?.pension || 0;
+        const isaWithdrawal = y.withdrawals?.isa || 0;
+        
+        // Calculate tax on all taxable income together (correct progressive calculation)
+        const taxResult = computeUKTax({
+          statePension: hasStatePension ? spAmount : 0,
+          dbPension: hasDbPension ? dbAmount : 0,
+          pensionWithdrawal: pensionWithdrawal,
+          isaWithdrawal: isaWithdrawal
+        });
+        
+        const totalTaxableGross = (hasStatePension ? spAmount : 0) + (hasDbPension ? dbAmount : 0) + pensionWithdrawal;
+        const totalTax = taxResult.incomeTax || 0;
+        
+        // Distribute tax proportionally across taxable sources
+        const effectiveRate = totalTaxableGross > 0 ? totalTax / totalTaxableGross : 0;
+        
+        return {
+          age,
+          statePensionNet: hasStatePension ? Math.max(0, spAmount * (1 - effectiveRate)) : 0,
+          dbPensionNet: hasDbPension ? Math.max(0, dbAmount * (1 - effectiveRate)) : 0,
+          pensionWithdrawalNet: Math.max(0, pensionWithdrawal * (1 - effectiveRate)),
+          isaNet: isaWithdrawal, // Tax-free
+          totalTax
+        };
+      });
       
       // State Pension (taxable but shown as net portion)
-      const statePensionData = decYears.map(y => {
-        return (y.statePension > 0) ? spNetAmount : 0;
-      });
+      const statePensionData = yearlyNetAmounts.map(y => y.statePensionNet);
       datasets.push({
         label: 'State Pension',
         data: statePensionData,
@@ -2334,17 +2365,9 @@
         stack: 'income'
       });
       
-      // DB Pension if present - cache calculation
-      if (data.hasDBPension && data.dbPensionAmount > 0) {
-        const dbGross = data.dbPensionAmount;
-        // Calculate marginal tax on DB pension (after SP)
-        const dbWithSpResult = computeUKTax({ statePension: spAmount, dbPension: dbGross });
-        const dbTax = dbWithSpResult.incomeTax - spTaxResult.incomeTax;
-        const dbNetAmount = Math.max(0, dbGross - dbTax);
-        
-        const dbData = decYears.map(y => {
-          return (y.age >= data.dbPensionStartAge) ? dbNetAmount : 0;
-        });
+      // DB Pension if present
+      if (dbAmount > 0) {
+        const dbData = yearlyNetAmounts.map(y => y.dbPensionNet);
         datasets.push({
           label: 'DB Pension',
           data: dbData,
@@ -2353,19 +2376,8 @@
         });
       }
       
-      // Pension Withdrawals (net) - use projection's existing tax data
-      const pensionWithdrawals = decYears.map(y => {
-        if (!y.withdrawals) return 0;
-        const pensionGross = y.withdrawals.pension || 0;
-        // Use the year's calculated tax rate to estimate net
-        const taxPaid = y.taxPaid || 0;
-        const totalGross = (y.withdrawals.pension || 0) + (y.statePension || 0);
-        if (totalGross > 0) {
-          const effectiveRate = taxPaid / totalGross;
-          return Math.max(0, pensionGross * (1 - effectiveRate));
-        }
-        return pensionGross;
-      });
+      // Pension Withdrawals (net)
+      const pensionWithdrawals = yearlyNetAmounts.map(y => y.pensionWithdrawalNet);
       datasets.push({
         label: 'Pension Withdrawal (net)',
         data: pensionWithdrawals,
@@ -2374,7 +2386,7 @@
       });
       
       // ISA Withdrawals (tax-free)
-      const isaWithdrawals = decYears.map(y => y.withdrawals?.isa || 0);
+      const isaWithdrawals = yearlyNetAmounts.map(y => y.isaNet);
       datasets.push({
         label: 'ISA (tax-free)',
         data: isaWithdrawals,
@@ -2382,14 +2394,11 @@
         stack: 'income'
       });
       
-      // PCLS shown if taken in the year (simplified - show first year)
-      const pclsData = decYears.map((y, i) => {
-        if (i === 0 && projection.decumulation.pclsTaken > 0) {
-          return projection.decumulation.pclsTaken;
-        }
-        return 0;
-      });
-      if (projection.decumulation.pclsTaken > 0) {
+      // PCLS shown for first year only (current projection takes all at retirement)
+      // TODO: Update when projection engine supports phased PCLS strategies
+      const pclsTaken = projection.decumulation.pclsTaken || 0;
+      const pclsData = decYears.map((y, i) => (i === 0 && pclsTaken > 0) ? pclsTaken : 0);
+      if (pclsTaken > 0) {
         datasets.push({
           label: 'PCLS (tax-free)',
           data: pclsData,
@@ -3098,18 +3107,13 @@
           const projection = document.getElementById('legacy-projection');
           if (projection) {
             const finalBalance = basicProjection && basicProjection.summary ? basicProjection.summary.finalBalance : 0;
-            // Safely calculate estate value - guard against NaN
-            let displayEstateValue = estateValue;
-            if (typeof displayEstateValue !== 'number' || isNaN(displayEstateValue)) {
-              displayEstateValue = finalBalance;
-            }
-            if (typeof displayEstateValue !== 'number' || isNaN(displayEstateValue)) {
-              displayEstateValue = 0;
-            }
+            // Safely calculate estate value - use estateValue if valid, else finalBalance, else show dash
+            const isValidNumber = (v) => typeof v === 'number' && !isNaN(v) && v > 0;
+            const displayValue = isValidNumber(estateValue) ? estateValue : (isValidNumber(finalBalance) ? finalBalance : null);
             
             projection.innerHTML = `
               <div style="padding: 1rem;">
-                <p><strong>Estimated estate value:</strong> ${displayEstateValue > 0 ? formatCurrency(displayEstateValue) : '—'}</p>
+                <p><strong>Estimated estate value:</strong> ${displayValue ? formatCurrency(displayValue) : '—'}</p>
               </div>
             `;
           }

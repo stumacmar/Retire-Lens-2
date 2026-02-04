@@ -317,6 +317,13 @@ export function computeUKTax(params = {}) {
 
 /**
  * Run tax engine tests (executed only in DEBUG mode on page load)
+ * 
+ * Note: These tests use hardcoded values that match TAX_CONFIG (2024/25 rates):
+ * - Personal Allowance: £12,570
+ * - Basic Rate: 20% on income £0-£37,700 above PA
+ * - Higher Rate: 40% on income £37,700-£125,140 above PA
+ * If TAX_CONFIG changes, these test values should be updated to match.
+ * 
  * @returns {object} Test results
  */
 export function runTaxTests() {
@@ -326,50 +333,55 @@ export function runTaxTests() {
     return condition;
   };
   
+  // Tax thresholds from TAX_CONFIG (2024/25)
+  const PA = TAX_CONFIG.personalAllowance; // £12,570
+  const BASIC_RATE = TAX_CONFIG.bands[0].rate; // 0.20
+  const BASIC_BAND_WIDTH = TAX_CONFIG.bands[0].threshold; // £37,700
+  const HIGHER_RATE = TAX_CONFIG.bands[1].rate; // 0.40
+  
   // Test 1: Gross income of 0
   const test1 = computeUKTax({ statePension: 0, pensionWithdrawal: 0 });
   assert(test1.incomeTax === 0, 'Gross 0 → no tax', `Tax: ${test1.incomeTax}`);
   assert(test1.netIncome === 0, 'Gross 0 → net 0', `Net: ${test1.netIncome}`);
   assert(!isNaN(test1.incomeTax), 'Gross 0 → no NaN', `Tax: ${test1.incomeTax}`);
   
-  // Test 2: Income = Personal Allowance (£12,570)
-  const test2 = computeUKTax({ statePension: 12570 });
+  // Test 2: Income = Personal Allowance
+  const test2 = computeUKTax({ statePension: PA });
   assert(test2.incomeTax === 0, 'Income = PA → no tax', `Tax: ${test2.incomeTax}`);
-  assert(test2.netIncome === 12570, 'Income = PA → full net', `Net: ${test2.netIncome}`);
+  assert(test2.netIncome === PA, 'Income = PA → full net', `Net: ${test2.netIncome}`);
   
   // Test 3: Basic rate band (PA + basic rate)
-  const test3 = computeUKTax({ pensionWithdrawal: 25000 }); // £25k
-  // £25k - £12,570 PA = £12,430 taxable at 20% = £2,486
-  const expectedTax3 = (25000 - 12570) * 0.20;
+  const basicIncome = 25000;
+  const test3 = computeUKTax({ pensionWithdrawal: basicIncome });
+  const expectedTax3 = (basicIncome - PA) * BASIC_RATE;
   assert(Math.abs(test3.incomeTax - expectedTax3) < 0.01, 'Basic rate band calculation', `Expected: ${expectedTax3}, Got: ${test3.incomeTax}`);
   
   // Test 4: Higher rate band
-  const test4 = computeUKTax({ pensionWithdrawal: 60000 }); // £60k
-  // PA: £12,570
-  // Basic: £37,700 at 20% = £7,540
-  // Higher: £60,000 - £12,570 - £37,700 = £9,730 at 40% = £3,892
-  // Total: £11,432
-  const basicTax = 37700 * 0.20;
-  const higherTax = (60000 - 12570 - 37700) * 0.40;
+  const higherIncome = 60000;
+  const test4 = computeUKTax({ pensionWithdrawal: higherIncome });
+  const basicTax = BASIC_BAND_WIDTH * BASIC_RATE;
+  const higherTax = (higherIncome - PA - BASIC_BAND_WIDTH) * HIGHER_RATE;
   const expectedTax4 = basicTax + higherTax;
   assert(Math.abs(test4.incomeTax - expectedTax4) < 0.01, 'Higher rate band calculation', `Expected: ${expectedTax4}, Got: ${test4.incomeTax}`);
   
   // Test 5: Mix of SP + DB + pension withdrawal
+  const spTest5 = 11500;
+  const dbTest5 = 5200;
+  const pensionTest5 = 20000;
+  const isaTest5 = 5000;
   const test5 = computeUKTax({
-    statePension: 11500,
-    dbPension: 5200,
-    pensionWithdrawal: 20000,
-    isaWithdrawal: 5000
+    statePension: spTest5,
+    dbPension: dbTest5,
+    pensionWithdrawal: pensionTest5,
+    isaWithdrawal: isaTest5
   });
-  // Taxable: 11500 + 5200 + 20000 = £36,700
-  // PA: £12,570
-  // Taxable after PA: £24,130 at 20% = £4,826
-  const taxable5 = 11500 + 5200 + 20000;
-  const taxableAfterPA5 = taxable5 - 12570;
-  const expectedTax5 = taxableAfterPA5 * 0.20;
+  // Taxable income and expected tax using TAX_CONFIG values
+  const taxable5 = spTest5 + dbTest5 + pensionTest5;
+  const taxableAfterPA5 = taxable5 - PA;
+  const expectedTax5 = taxableAfterPA5 * BASIC_RATE; // All in basic band
   assert(Math.abs(test5.incomeTax - expectedTax5) < 0.01, 'SP + DB + pension mix', `Expected: ${expectedTax5}, Got: ${test5.incomeTax}`);
   // Net should include tax-free ISA
-  const expectedNet5 = taxable5 + 5000 - expectedTax5;
+  const expectedNet5 = taxable5 + isaTest5 - expectedTax5;
   assert(Math.abs(test5.netIncome - expectedNet5) < 0.01, 'Net includes ISA', `Expected: ${expectedNet5}, Got: ${test5.netIncome}`);
   
   // Test 6: ISA only (tax-free)

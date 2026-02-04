@@ -516,6 +516,375 @@
         height: 400px;
       }
     }
+    
+    /* ═══════════════════════════════════════════════════════════════
+       Pathfinder Styles
+       ═══════════════════════════════════════════════════════════════ */
+    
+    .pathfinder-option {
+      display: block;
+      width: 100%;
+      padding: var(--spacing-md) var(--spacing-lg);
+      margin-bottom: var(--spacing-sm);
+      background: var(--color-surface);
+      border: 2px solid var(--color-border);
+      border-radius: var(--radius-md);
+      text-align: left;
+      font-size: var(--font-size-base);
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    
+    .pathfinder-option:hover {
+      border-color: var(--color-primary);
+      background: rgba(59, 130, 246, 0.05);
+    }
+    
+    .pathfinder-option.selected {
+      border-color: var(--color-primary);
+      background: rgba(59, 130, 246, 0.1);
+    }
+    
+    .pathfinder-question {
+      text-align: center;
+      font-size: var(--font-size-xl);
+      font-weight: 600;
+      margin-bottom: var(--spacing-xl);
+      color: var(--color-text);
+    }
+    
+    .pathfinder-progress {
+      display: flex;
+      justify-content: center;
+      gap: var(--spacing-sm);
+      margin-bottom: var(--spacing-xl);
+    }
+    
+    .pathfinder-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--color-border);
+      transition: background 0.3s ease;
+    }
+    
+    .pathfinder-dot.active {
+      background: var(--color-primary);
+    }
+    
+    .pathfinder-dot.completed {
+      background: var(--color-success);
+    }
+    
+    /* ═══════════════════════════════════════════════════════════════
+       Mode Select Styles
+       ═══════════════════════════════════════════════════════════════ */
+    
+    .mode-cards {
+      display: flex;
+      flex-direction: column;
+      gap: var(--spacing-md);
+    }
+    
+    .mode-card {
+      padding: var(--spacing-lg);
+      background: var(--color-surface);
+      border: 2px solid var(--color-border);
+      border-radius: var(--radius-lg);
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    
+    .mode-card:hover {
+      border-color: var(--color-primary);
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-md);
+    }
+    
+    .mode-card.selected {
+      border-color: var(--color-primary);
+      background: rgba(59, 130, 246, 0.05);
+    }
+    
+    .mode-card.recommended {
+      border-color: var(--color-success);
+    }
+    
+    .mode-card.recommended::before {
+      content: '✨ Recommended';
+      display: inline-block;
+      font-size: var(--font-size-sm);
+      color: var(--color-success);
+      margin-bottom: var(--spacing-sm);
+    }
+    
+    .mode-card-header {
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-sm);
+      margin-bottom: var(--spacing-sm);
+    }
+    
+    .mode-card-emoji {
+      font-size: var(--font-size-xl);
+    }
+    
+    .mode-card-title {
+      font-size: var(--font-size-lg);
+      font-weight: 600;
+    }
+    
+    .mode-card-description {
+      color: var(--color-text-light);
+      font-size: var(--font-size-sm);
+      margin-bottom: var(--spacing-sm);
+    }
+    
+    .mode-card-features {
+      font-size: var(--font-size-sm);
+      color: var(--color-text-light);
+    }
+    
+    .journey-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--spacing-xs);
+      padding: var(--spacing-xs) var(--spacing-sm);
+      background: rgba(59, 130, 246, 0.1);
+      border-radius: var(--radius-full);
+      font-size: var(--font-size-sm);
+      color: var(--color-primary);
+      margin-bottom: var(--spacing-md);
+    }
+    
+    /* ═══════════════════════════════════════════════════════════════
+       Answer Preview Card (Sticky)
+       ═══════════════════════════════════════════════════════════════ */
+    
+    .answer-preview-card {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: var(--color-surface);
+      border-top: 1px solid var(--color-border);
+      box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.1);
+      padding: var(--spacing-md);
+      padding-bottom: calc(var(--spacing-md) + env(safe-area-inset-bottom, 0px));
+      z-index: 50;
+      transition: transform 0.3s ease;
+    }
+    
+    .answer-preview-card.hidden {
+      transform: translateY(100%);
+    }
+    
+    .preview-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: var(--spacing-sm);
+    }
+    
+    .preview-title {
+      font-size: var(--font-size-sm);
+      font-weight: 600;
+      color: var(--color-text-light);
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-xs);
+    }
+    
+    .preview-info-btn {
+      background: none;
+      border: none;
+      color: var(--color-text-light);
+      cursor: pointer;
+      padding: var(--spacing-xs);
+      font-size: var(--font-size-sm);
+    }
+    
+    .preview-content {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: var(--spacing-sm);
+    }
+    
+    .preview-item {
+      text-align: center;
+    }
+    
+    .preview-label {
+      font-size: 0.75rem;
+      color: var(--color-text-light);
+      margin-bottom: 2px;
+    }
+    
+    .preview-value {
+      font-size: var(--font-size-base);
+      font-weight: 700;
+      color: var(--color-text);
+    }
+    
+    .preview-value.surplus {
+      color: var(--color-success);
+    }
+    
+    .preview-value.gap {
+      color: var(--color-danger);
+    }
+    
+    .preview-value.neutral {
+      color: var(--color-text-light);
+    }
+    
+    .preview-hint {
+      grid-column: 1 / -1;
+      text-align: center;
+      font-size: var(--font-size-sm);
+      color: var(--color-text-light);
+      padding: var(--spacing-sm);
+    }
+    
+    .preview-info-tooltip {
+      display: none;
+      position: absolute;
+      bottom: 100%;
+      left: var(--spacing-md);
+      right: var(--spacing-md);
+      background: var(--color-text);
+      color: white;
+      padding: var(--spacing-md);
+      border-radius: var(--radius-md);
+      font-size: var(--font-size-sm);
+      margin-bottom: var(--spacing-sm);
+    }
+    
+    .preview-info-tooltip.visible {
+      display: block;
+    }
+    
+    .preview-info-tooltip ul {
+      margin: 0;
+      padding-left: var(--spacing-md);
+    }
+    
+    .preview-info-tooltip li {
+      margin-bottom: var(--spacing-xs);
+    }
+    
+    /* Adjust app container for sticky preview card */
+    .app-container.has-preview {
+      padding-bottom: 180px;
+    }
+    
+    /* Ensure nav buttons are always visible above preview card */
+    .screen .nav-buttons {
+      position: relative;
+      z-index: 40;
+      background: var(--color-background);
+      padding-top: var(--spacing-md);
+      margin-bottom: var(--spacing-xl);
+    }
+    
+    @media (min-width: 768px) {
+      .answer-preview-card {
+        left: 50%;
+        transform: translateX(-50%);
+        max-width: 600px;
+        border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+      }
+      
+      .answer-preview-card.hidden {
+        transform: translate(-50%, 100%);
+      }
+      
+      .preview-content {
+        grid-template-columns: repeat(4, 1fr);
+      }
+    }
+    
+    /* ═══════════════════════════════════════════════════════════════
+       Advanced Options Accordion (Full Mode)
+       ═══════════════════════════════════════════════════════════════ */
+    
+    .advanced-accordion {
+      margin-top: var(--spacing-lg);
+    }
+    
+    .accordion-group {
+      margin-bottom: var(--spacing-sm);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-md);
+      overflow: hidden;
+    }
+    
+    .accordion-header {
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-sm);
+      width: 100%;
+      padding: var(--spacing-md);
+      background: var(--color-background);
+      border: none;
+      cursor: pointer;
+      text-align: left;
+      font-size: var(--font-size-base);
+      font-weight: 500;
+    }
+    
+    .accordion-header:hover {
+      background: var(--color-border);
+    }
+    
+    .accordion-arrow {
+      margin-left: auto;
+      transition: transform 0.2s ease;
+    }
+    
+    .accordion-group.open .accordion-arrow {
+      transform: rotate(180deg);
+    }
+    
+    .accordion-content {
+      display: none;
+      padding: var(--spacing-md);
+      background: var(--color-surface);
+    }
+    
+    .accordion-group.open .accordion-content {
+      display: block;
+    }
+    
+    .accordion-option {
+      display: flex;
+      align-items: flex-start;
+      gap: var(--spacing-sm);
+      margin-bottom: var(--spacing-md);
+    }
+    
+    .accordion-option:last-child {
+      margin-bottom: 0;
+    }
+    
+    .accordion-option input[type="checkbox"] {
+      margin-top: 3px;
+    }
+    
+    .accordion-option-content {
+      flex: 1;
+    }
+    
+    .accordion-option-label {
+      font-weight: 500;
+      cursor: pointer;
+    }
+    
+    .accordion-option-helper {
+      font-size: var(--font-size-sm);
+      color: var(--color-text-light);
+      margin-top: 2px;
+    }
   </style>
 </head>
 <body>
@@ -554,6 +923,90 @@
             <span>Completely Free</span>
           </div>
         </div>
+      </div>
+    </div>
+    
+    <!-- ═══════════════════════════════════════════════════════════════
+         Screen: Pathfinder (Triage Questions)
+         ═══════════════════════════════════════════════════════════════ -->
+    <div id="screen-pathfinder" class="screen" aria-hidden="true">
+      <div class="screen-header">
+        <h2 class="screen-title">Let's personalize your plan</h2>
+        <p class="screen-subtitle">~30 seconds to get started</p>
+      </div>
+      
+      <div class="screen-content">
+        <!-- Progress dots -->
+        <div class="pathfinder-progress" id="pathfinder-progress">
+          <div class="pathfinder-dot active"></div>
+          <div class="pathfinder-dot"></div>
+          <div class="pathfinder-dot"></div>
+          <div class="pathfinder-dot"></div>
+        </div>
+        
+        <!-- Question container -->
+        <div id="pathfinder-question-container">
+          <p class="pathfinder-question" id="pathfinder-question-text"></p>
+          <div id="pathfinder-options"></div>
+        </div>
+      </div>
+      
+      <div class="nav-buttons">
+        <button type="button" class="btn btn-secondary" id="pathfinder-back-btn" style="visibility: hidden;">Back</button>
+        <button type="button" class="btn btn-primary" id="pathfinder-next-btn" disabled>Next</button>
+      </div>
+    </div>
+    
+    <!-- ═══════════════════════════════════════════════════════════════
+         Screen: Mode Select
+         ═══════════════════════════════════════════════════════════════ -->
+    <div id="screen-mode-select" class="screen" aria-hidden="true">
+      <div class="screen-header">
+        <div class="journey-badge" id="journey-badge">
+          <span id="journey-emoji">🌱</span>
+          <span id="journey-title">Getting Started</span>
+        </div>
+        <h2 class="screen-title">How deep do you want to go?</h2>
+        <p class="screen-subtitle">Choose your planning mode</p>
+      </div>
+      
+      <div class="screen-content">
+        <div class="mode-cards">
+          <!-- Quick Mode -->
+          <div class="mode-card" data-mode="quick">
+            <div class="mode-card-header">
+              <span class="mode-card-emoji">⚡</span>
+              <span class="mode-card-title">Quick Estimate</span>
+            </div>
+            <p class="mode-card-description">~1 minute • Get a fast answer</p>
+            <p class="mode-card-features">Basic inputs only. Perfect for a quick check.</p>
+          </div>
+          
+          <!-- Guided Mode -->
+          <div class="mode-card" data-mode="guided">
+            <div class="mode-card-header">
+              <span class="mode-card-emoji">📋</span>
+              <span class="mode-card-title">Guided Plan</span>
+            </div>
+            <p class="mode-card-description">3-5 minutes • Add ISA & State Pension</p>
+            <p class="mode-card-features">Includes ISA savings, State Pension, and scenario planning.</p>
+          </div>
+          
+          <!-- Full Mode -->
+          <div class="mode-card" data-mode="full">
+            <div class="mode-card-header">
+              <span class="mode-card-emoji">🔬</span>
+              <span class="mode-card-title">Full Analysis</span>
+            </div>
+            <p class="mode-card-description">~10 minutes • All advanced options</p>
+            <p class="mode-card-features">Monte Carlo, DB pension, couple planning, care costs & more.</p>
+          </div>
+        </div>
+      </div>
+      
+      <div class="nav-buttons">
+        <button type="button" class="btn btn-secondary" data-action="back">Back</button>
+        <button type="button" class="btn btn-primary" id="mode-select-next-btn" disabled>Continue</button>
       </div>
     </div>
     
@@ -780,83 +1233,113 @@
             <p class="help-text">Select planning assumptions - affects growth rates, volatility, and inflation</p>
           </div>
           
-          <!-- Advanced Options Checkboxes -->
-          <div style="margin-top: 1.5rem;">
+          <!-- Advanced Options with Accordion (shown only in Full mode) -->
+          <div id="advanced-options-container" class="advanced-accordion" style="margin-top: 1.5rem;">
             <h4 style="font-size: 1rem; margin-bottom: 0.75rem;">Advanced Analysis</h4>
             
-            <div style="margin-bottom: 0.5rem;">
-              <label style="display: flex; align-items: center; cursor: pointer;">
-                <input type="checkbox" id="enable-monte-carlo" checked style="margin-right: 0.5rem;">
-                <span>📊 Run Monte Carlo simulation (1000 scenarios)</span>
-              </label>
-            </div>
-            
-            <div style="margin-bottom: 0.5rem;">
-              <label style="display: flex; align-items: center; cursor: pointer;">
-                <input type="checkbox" id="enable-benchmarking" checked style="margin-right: 0.5rem;">
-                <span>📈 Compare to peer benchmarks</span>
-              </label>
-            </div>
-            
-            <div style="margin-bottom: 0.5rem;">
-              <label style="display: flex; align-items: center; cursor: pointer;">
-                <input type="checkbox" id="enable-tax-optimization" checked style="margin-right: 0.5rem;">
-                <span>💷 Optimize tax efficiency</span>
-              </label>
-            </div>
-            
-            <div style="margin-bottom: 0.5rem;">
-              <label style="display: flex; align-items: center; cursor: pointer;">
-                <input type="checkbox" id="model-care-costs" checked style="margin-right: 0.5rem;">
-                <span>🏥 Model potential care costs</span>
-              </label>
-            </div>
-            
-            <div style="margin-bottom: 0.5rem;">
-              <label style="display: flex; align-items: center; cursor: pointer;">
-                <input type="checkbox" id="has-db-pension" style="margin-right: 0.5rem;">
-                <span>💼 I have a Defined Benefit pension</span>
-              </label>
-            </div>
-            
-            <div id="db-pension-inputs" style="display: none; margin-left: 1.5rem; margin-top: 0.5rem;">
-              <div class="input-group" style="margin-bottom: 0.5rem;">
-                <input type="number" id="db-pension-amount" placeholder="Annual DB pension (£)" style="width: 100%; padding: 0.5rem; border: 1px solid #e5e7eb; border-radius: 4px;">
-              </div>
-              <div class="input-group">
-                <input type="number" id="db-pension-start-age" placeholder="DB pension start age" value="65" style="width: 100%; padding: 0.5rem; border: 1px solid #e5e7eb; border-radius: 4px;">
+            <!-- Risk & Uncertainty Group -->
+            <div class="accordion-group">
+              <button type="button" class="accordion-header" onclick="toggleAccordion(this)">
+                <span>📊</span>
+                <span>Risk & Uncertainty</span>
+                <span class="accordion-arrow">▼</span>
+              </button>
+              <div class="accordion-content">
+                <div class="accordion-option">
+                  <input type="checkbox" id="enable-monte-carlo" checked>
+                  <div class="accordion-option-content">
+                    <label class="accordion-option-label" for="enable-monte-carlo">Monte Carlo simulation (1000 scenarios)</label>
+                    <p class="accordion-option-helper">Models market uncertainty with statistical analysis</p>
+                  </div>
+                </div>
+                <div class="accordion-option">
+                  <input type="checkbox" id="enable-benchmarking" checked>
+                  <div class="accordion-option-content">
+                    <label class="accordion-option-label" for="enable-benchmarking">Compare to peer benchmarks</label>
+                    <p class="accordion-option-helper">See how your savings compare to others your age</p>
+                  </div>
+                </div>
               </div>
             </div>
             
-            <div style="margin-bottom: 0.5rem;">
-              <label style="display: flex; align-items: center; cursor: pointer;">
-                <input type="checkbox" id="is-couple" style="margin-right: 0.5rem;">
-                <span>👥 Planning as a couple</span>
-              </label>
+            <!-- Tax & Household Group -->
+            <div class="accordion-group">
+              <button type="button" class="accordion-header" onclick="toggleAccordion(this)">
+                <span>💷</span>
+                <span>Tax & Household</span>
+                <span class="accordion-arrow">▼</span>
+              </button>
+              <div class="accordion-content">
+                <div class="accordion-option">
+                  <input type="checkbox" id="enable-tax-optimization" checked>
+                  <div class="accordion-option-content">
+                    <label class="accordion-option-label" for="enable-tax-optimization">Optimize tax efficiency</label>
+                    <p class="accordion-option-helper">Maximize after-tax retirement income</p>
+                  </div>
+                </div>
+                <div class="accordion-option">
+                  <input type="checkbox" id="is-couple">
+                  <div class="accordion-option-content">
+                    <label class="accordion-option-label" for="is-couple">Planning as a couple</label>
+                    <p class="accordion-option-helper">Joint retirement planning with partner</p>
+                  </div>
+                </div>
+                <div id="couple-inputs" style="display: none; margin-left: 1.5rem; margin-top: 0.5rem;">
+                  <div class="input-group" style="margin-bottom: 0.5rem;">
+                    <input type="number" id="partner-age" placeholder="Partner's age" style="width: 100%; padding: 0.5rem; border: 1px solid #e5e7eb; border-radius: 4px;">
+                  </div>
+                  <div class="input-group">
+                    <input type="number" id="partner-retirement-age" placeholder="Partner's retirement age" style="width: 100%; padding: 0.5rem; border: 1px solid #e5e7eb; border-radius: 4px;">
+                  </div>
+                </div>
+                <div class="accordion-option">
+                  <input type="checkbox" id="has-db-pension">
+                  <div class="accordion-option-content">
+                    <label class="accordion-option-label" for="has-db-pension">I have a Defined Benefit pension</label>
+                    <p class="accordion-option-helper">Include final salary or career average pension</p>
+                  </div>
+                </div>
+                <div id="db-pension-inputs" style="display: none; margin-left: 1.5rem; margin-top: 0.5rem;">
+                  <div class="input-group" style="margin-bottom: 0.5rem;">
+                    <input type="number" id="db-pension-amount" placeholder="Annual DB pension (£)" style="width: 100%; padding: 0.5rem; border: 1px solid #e5e7eb; border-radius: 4px;">
+                  </div>
+                  <div class="input-group">
+                    <input type="number" id="db-pension-start-age" placeholder="DB pension start age" value="65" style="width: 100%; padding: 0.5rem; border: 1px solid #e5e7eb; border-radius: 4px;">
+                  </div>
+                </div>
+              </div>
             </div>
             
-            <div id="couple-inputs" style="display: none; margin-left: 1.5rem; margin-top: 0.5rem;">
-              <div class="input-group" style="margin-bottom: 0.5rem;">
-                <input type="number" id="partner-age" placeholder="Partner's age" style="width: 100%; padding: 0.5rem; border: 1px solid #e5e7eb; border-radius: 4px;">
-              </div>
-              <div class="input-group">
-                <input type="number" id="partner-retirement-age" placeholder="Partner's retirement age" style="width: 100%; padding: 0.5rem; border: 1px solid #e5e7eb; border-radius: 4px;">
-              </div>
-            </div>
-            
-            <div style="margin-bottom: 0.5rem;">
-              <label style="display: flex; align-items: center; cursor: pointer;">
-                <input type="checkbox" id="is-phased-retirement" style="margin-right: 0.5rem;">
-                <span>⏰ Model phased/gradual retirement</span>
-              </label>
-            </div>
-            
-            <div id="phased-inputs" style="display: none; margin-left: 1.5rem; margin-top: 0.5rem;">
-              <div class="input-group" style="margin-bottom: 0.5rem;">
-                <input type="number" id="phase-start-age" placeholder="Phased retirement start age" style="width: 100%; padding: 0.5rem; border: 1px solid #e5e7eb; border-radius: 4px;">
-              </div>
-              <div class="input-group">
-                <input type="number" id="reduced-hours" placeholder="Reduced hours (%)" value="50" style="width: 100%; padding: 0.5rem; border: 1px solid #e5e7eb; border-radius: 4px;">
+            <!-- Life Events Group -->
+            <div class="accordion-group">
+              <button type="button" class="accordion-header" onclick="toggleAccordion(this)">
+                <span>🏥</span>
+                <span>Life Events</span>
+                <span class="accordion-arrow">▼</span>
+              </button>
+              <div class="accordion-content">
+                <div class="accordion-option">
+                  <input type="checkbox" id="model-care-costs" checked>
+                  <div class="accordion-option-content">
+                    <label class="accordion-option-label" for="model-care-costs">Model potential care costs</label>
+                    <p class="accordion-option-helper">Later-life care need probability and costs</p>
+                  </div>
+                </div>
+                <div class="accordion-option">
+                  <input type="checkbox" id="is-phased-retirement">
+                  <div class="accordion-option-content">
+                    <label class="accordion-option-label" for="is-phased-retirement">Model phased/graduated retirement</label>
+                    <p class="accordion-option-helper">Gradual transition from full-time work</p>
+                  </div>
+                </div>
+                <div id="phased-inputs" style="display: none; margin-left: 1.5rem; margin-top: 0.5rem;">
+                  <div class="input-group" style="margin-bottom: 0.5rem;">
+                    <input type="number" id="phase-start-age" placeholder="Phased retirement start age" style="width: 100%; padding: 0.5rem; border: 1px solid #e5e7eb; border-radius: 4px;">
+                  </div>
+                  <div class="input-group">
+                    <input type="number" id="reduced-hours" placeholder="Reduced hours (%)" value="50" style="width: 100%; padding: 0.5rem; border: 1px solid #e5e7eb; border-radius: 4px;">
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -1032,6 +1515,45 @@
     
   </div>
   
+  <!-- Answer Preview Card (Sticky) -->
+  <div id="answer-preview-card" class="answer-preview-card hidden">
+    <div class="preview-info-tooltip" id="preview-tooltip">
+      <ul>
+        <li>Estimate only (no full tax sequencing yet)</li>
+        <li>Results can change with market returns</li>
+        <li>Full plan uses detailed modeling on Calculate</li>
+      </ul>
+    </div>
+    <div class="preview-header">
+      <span class="preview-title">
+        📊 Live Estimate
+      </span>
+      <button type="button" class="preview-info-btn" id="preview-info-btn" aria-label="More info">ℹ️</button>
+    </div>
+    <div class="preview-content" id="preview-content">
+      <div class="preview-item">
+        <div class="preview-label">Retire at</div>
+        <div class="preview-value" id="preview-retire-age">—</div>
+      </div>
+      <div class="preview-item">
+        <div class="preview-label">Target net</div>
+        <div class="preview-value" id="preview-target">—</div>
+      </div>
+      <div class="preview-item">
+        <div class="preview-label">Projected pot</div>
+        <div class="preview-value" id="preview-pot">—</div>
+      </div>
+      <div class="preview-item">
+        <div class="preview-label">Gap/Surplus</div>
+        <div class="preview-value neutral" id="preview-gap">—</div>
+      </div>
+      <div class="preview-hint" id="preview-hint" style="display: none;">Enter pension pot to see estimate</div>
+    </div>
+    <div style="text-align: center; font-size: 0.7rem; color: var(--color-text-light); margin-top: 4px;">
+      Estimate basis: 4% rule + your inputs
+    </div>
+  </div>
+  
   <!-- Error message toast -->
   <div id="error-message"></div>
   
@@ -1069,6 +1591,13 @@
     import { renderConfidenceExplainer, generateConfidenceExplanation } from './ui/components/confidenceExplainer.js';
     import { renderFanChart, renderDepletionHistogram, renderAllCharts } from './ui/components/monteCarloCharts.js';
     
+    // Import new UX modules
+    import { FEATURE_FLAGS, isFeatureEnabled } from './src/ux/config.js';
+    import { PATHFINDER_QUESTIONS, JOURNEYS, MODES, scoreToJourney, scoreToMode, getRouting } from './src/ux/pathfinder/questions.js';
+    import { JOURNEY_CONFIG, getJourney, getJourneySteps } from './src/ux/journeys/journeys.js';
+    import { MODE_CONFIG, getMode, getModeSteps, isFieldHidden } from './src/ux/modes/modes.js';
+    import { estimatePreview, formatPreviewCurrency, formatGapSurplus } from './src/ux/preview/estimate.js';
+    
     // ═══════════════════════════════════════════════════════════════
     // State Management
     // ═══════════════════════════════════════════════════════════════
@@ -1081,7 +1610,12 @@
       planA: null,
       projectionA: null,
       planB: null,
-      projectionB: null
+      projectionB: null,
+      // New pathfinder state
+      pathfinderAnswers: {},
+      pathfinderCurrentQuestion: 0,
+      journey: null,
+      mode: null
     };
     
     function debugLog(category, message, data = null) {
@@ -1116,14 +1650,42 @@
     }
     
     // ═══════════════════════════════════════════════════════════════
-    // Navigation
+    // Navigation - Updated with Pathfinder and Mode Select
     // ═══════════════════════════════════════════════════════════════
     
-    const SCREEN_ORDER = [
-      'welcome', 'age', 'retirement-age', 'income-target', 
+    // Base screen order (will be filtered based on mode)
+    const ALL_SCREENS = [
+      'welcome', 'pathfinder', 'mode-select', 'age', 'retirement-age', 'income-target', 
       'pension-pot', 'contributions', 'isa-savings', 
       'state-pension', 'review', 'results', 'compare'
     ];
+    
+    // Get active screen order based on feature flags and mode
+    function getActiveScreenOrder() {
+      let screens = ['welcome'];
+      
+      // Add pathfinder if enabled
+      if (isFeatureEnabled('PATHFINDER')) {
+        screens.push('pathfinder');
+      }
+      
+      // Add mode select if enabled
+      if (isFeatureEnabled('MODE_SELECT')) {
+        screens.push('mode-select');
+      }
+      
+      // Get steps based on selected mode
+      const modeSteps = state.mode ? getModeSteps(state.mode) : ALL_SCREENS.slice(3, -2);
+      screens = screens.concat(modeSteps);
+      
+      // Always add review, results, compare
+      screens.push('review', 'results', 'compare');
+      
+      return screens;
+    }
+    
+    // For backward compatibility
+    let SCREEN_ORDER = getActiveScreenOrder();
     
     function showScreen(screenId) {
       debugLog('NAV', `Showing screen: ${screenId}`);
@@ -1148,13 +1710,42 @@
       
       state.currentScreen = screenId;
       
-      // Special handling for review screen
+      // Show/hide preview card based on screen
+      const previewCard = document.getElementById('answer-preview-card');
+      const appContainer = document.querySelector('.app-container');
+      const inputScreens = ['age', 'retirement-age', 'income-target', 'pension-pot', 'contributions', 'isa-savings', 'state-pension'];
+      
+      if (isFeatureEnabled('PREVIEW_CARD') && inputScreens.includes(screenId)) {
+        previewCard?.classList.remove('hidden');
+        appContainer?.classList.add('has-preview');
+        updatePreviewCard();
+      } else {
+        previewCard?.classList.add('hidden');
+        appContainer?.classList.remove('has-preview');
+      }
+      
+      // Hide advanced options for non-full modes
       if (screenId === 'review') {
+        const advancedContainer = document.getElementById('advanced-options-container');
+        const scenarioSelect = document.getElementById('scenario-select')?.closest('.input-group');
+        
+        if (state.mode === 'quick') {
+          advancedContainer?.style && (advancedContainer.style.display = 'none');
+          scenarioSelect?.style && (scenarioSelect.style.display = 'none');
+        } else if (state.mode === 'guided') {
+          advancedContainer?.style && (advancedContainer.style.display = 'none');
+          scenarioSelect?.style && (scenarioSelect.style.display = 'block');
+        } else {
+          advancedContainer?.style && (advancedContainer.style.display = 'block');
+          scenarioSelect?.style && (scenarioSelect.style.display = 'block');
+        }
+        
         renderReviewSummary();
       }
     }
     
     function nextScreen() {
+      SCREEN_ORDER = getActiveScreenOrder();
       const currentIndex = SCREEN_ORDER.indexOf(state.currentScreen);
       if (currentIndex < SCREEN_ORDER.length - 1) {
         showScreen(SCREEN_ORDER[currentIndex + 1]);
@@ -1162,10 +1753,215 @@
     }
     
     function prevScreen() {
+      SCREEN_ORDER = getActiveScreenOrder();
       const currentIndex = SCREEN_ORDER.indexOf(state.currentScreen);
       if (currentIndex > 0) {
         showScreen(SCREEN_ORDER[currentIndex - 1]);
       }
+    }
+    
+    // ═══════════════════════════════════════════════════════════════
+    // Pathfinder Logic
+    // ═══════════════════════════════════════════════════════════════
+    
+    function initPathfinder() {
+      state.pathfinderAnswers = {};
+      state.pathfinderCurrentQuestion = 0;
+      renderPathfinderQuestion();
+    }
+    
+    function renderPathfinderQuestion() {
+      const questionIndex = state.pathfinderCurrentQuestion;
+      const question = PATHFINDER_QUESTIONS[questionIndex];
+      
+      if (!question) return;
+      
+      // Update question text
+      document.getElementById('pathfinder-question-text').textContent = question.text;
+      
+      // Update progress dots
+      const dots = document.querySelectorAll('.pathfinder-dot');
+      dots.forEach((dot, i) => {
+        dot.classList.remove('active', 'completed');
+        if (i < questionIndex) dot.classList.add('completed');
+        if (i === questionIndex) dot.classList.add('active');
+      });
+      
+      // Render options
+      const optionsContainer = document.getElementById('pathfinder-options');
+      optionsContainer.innerHTML = question.options.map(opt => `
+        <button type="button" class="pathfinder-option ${state.pathfinderAnswers[question.id] === opt.value ? 'selected' : ''}" 
+                data-value="${opt.value}">
+          ${opt.label}
+        </button>
+      `).join('');
+      
+      // Add click handlers
+      optionsContainer.querySelectorAll('.pathfinder-option').forEach(btn => {
+        btn.addEventListener('click', () => {
+          selectPathfinderOption(question.id, btn.dataset.value);
+        });
+      });
+      
+      // Show/hide back button
+      document.getElementById('pathfinder-back-btn').style.visibility = questionIndex > 0 ? 'visible' : 'hidden';
+      
+      // Update next button state
+      document.getElementById('pathfinder-next-btn').disabled = !state.pathfinderAnswers[question.id];
+    }
+    
+    function selectPathfinderOption(questionId, value) {
+      state.pathfinderAnswers[questionId] = value;
+      
+      // Update UI
+      document.querySelectorAll('.pathfinder-option').forEach(btn => {
+        btn.classList.toggle('selected', btn.dataset.value === value);
+      });
+      
+      // Enable next button
+      document.getElementById('pathfinder-next-btn').disabled = false;
+      
+      // Auto-advance after short delay
+      setTimeout(() => {
+        advancePathfinder();
+      }, 200);
+    }
+    
+    function advancePathfinder() {
+      if (state.pathfinderCurrentQuestion < PATHFINDER_QUESTIONS.length - 1) {
+        state.pathfinderCurrentQuestion++;
+        renderPathfinderQuestion();
+      } else {
+        // Complete pathfinder - calculate routing
+        const routing = getRouting(state.pathfinderAnswers, getValue('input-current-age', null));
+        state.journey = routing.journey;
+        state.mode = routing.mode;
+        
+        debugLog('PATHFINDER', 'Routing complete', routing);
+        
+        // Update screen order based on mode
+        SCREEN_ORDER = getActiveScreenOrder();
+        
+        // Move to mode select
+        showScreen('mode-select');
+        initModeSelect();
+      }
+    }
+    
+    function goBackPathfinder() {
+      if (state.pathfinderCurrentQuestion > 0) {
+        state.pathfinderCurrentQuestion--;
+        renderPathfinderQuestion();
+      }
+    }
+    
+    // ═══════════════════════════════════════════════════════════════
+    // Mode Select Logic
+    // ═══════════════════════════════════════════════════════════════
+    
+    function initModeSelect() {
+      // Update journey badge
+      const journey = getJourney(state.journey);
+      document.getElementById('journey-emoji').textContent = journey.emoji;
+      document.getElementById('journey-title').textContent = journey.title;
+      
+      // Mark recommended mode
+      document.querySelectorAll('.mode-card').forEach(card => {
+        card.classList.remove('selected', 'recommended');
+        if (card.dataset.mode === journey.recommendedMode) {
+          card.classList.add('recommended');
+        }
+        if (card.dataset.mode === state.mode) {
+          card.classList.add('selected');
+        }
+      });
+      
+      // Enable continue if mode selected
+      document.getElementById('mode-select-next-btn').disabled = !state.mode;
+    }
+    
+    function selectMode(modeId) {
+      state.mode = modeId;
+      
+      // Update screen order
+      SCREEN_ORDER = getActiveScreenOrder();
+      
+      // Update UI
+      document.querySelectorAll('.mode-card').forEach(card => {
+        card.classList.toggle('selected', card.dataset.mode === modeId);
+      });
+      
+      document.getElementById('mode-select-next-btn').disabled = false;
+      
+      debugLog('MODE', `Selected mode: ${modeId}`);
+    }
+    
+    // ═══════════════════════════════════════════════════════════════
+    // Answer Preview Card Logic
+    // ═══════════════════════════════════════════════════════════════
+    
+    let previewDebounceTimer = null;
+    
+    function updatePreviewCard() {
+      // Debounce updates
+      clearTimeout(previewDebounceTimer);
+      previewDebounceTimer = setTimeout(() => {
+        const inputs = {
+          currentAge: getValue('input-current-age', 0),
+          retirementAge: getValue('input-retirement-age', 0),
+          targetNetIncome: getValue('input-target-income', 0),
+          currentPension: getValue('input-pension-pot', 0),
+          annualPensionContribution: getValue('input-pension-contribution', 0) * 12,
+          currentIsa: getValue('input-isa-balance', 0),
+          annualIsaContribution: getValue('input-isa-contribution', 0),
+          expectedStatePension: getValue('input-state-pension-amount', 0),
+          statePensionAge: getValue('input-state-pension-age', 67)
+        };
+        
+        const preview = estimatePreview(inputs);
+        
+        // Update retire age
+        document.getElementById('preview-retire-age').textContent = 
+          inputs.retirementAge ? inputs.retirementAge : '—';
+        
+        // Update target
+        document.getElementById('preview-target').textContent = 
+          inputs.targetNetIncome ? formatPreviewCurrency(inputs.targetNetIncome) : '—';
+        
+        if (preview.isComplete) {
+          // Update projected pot
+          document.getElementById('preview-pot').textContent = 
+            formatPreviewCurrency(preview.projectedPotAtRetirement);
+          
+          // Update gap/surplus
+          const gapEl = document.getElementById('preview-gap');
+          const gapFormatted = formatGapSurplus(preview.gapOrSurplus);
+          gapEl.textContent = gapFormatted.text;
+          gapEl.className = `preview-value ${gapFormatted.class}`;
+          
+          // Hide hint
+          document.getElementById('preview-hint').style.display = 'none';
+        } else {
+          // Show placeholder values
+          document.getElementById('preview-pot').textContent = '—';
+          document.getElementById('preview-gap').textContent = '—';
+          document.getElementById('preview-gap').className = 'preview-value neutral';
+          
+          // Show hint if needed
+          const hint = document.getElementById('preview-hint');
+          if (preview.hint) {
+            hint.textContent = preview.hint;
+            hint.style.display = 'block';
+          } else {
+            hint.style.display = 'none';
+          }
+        }
+      }, 150);
+    }
+    
+    function togglePreviewTooltip() {
+      const tooltip = document.getElementById('preview-tooltip');
+      tooltip.classList.toggle('visible');
     }
     
     // ═══════════════════════════════════════════════════════════════
@@ -1860,6 +2656,12 @@
     // Event Listeners
     // ═══════════════════════════════════════════════════════════════
     
+    // Accordion toggle function (needs to be in global scope)
+    window.toggleAccordion = function(header) {
+      const group = header.closest('.accordion-group');
+      group.classList.toggle('open');
+    };
+    
     document.addEventListener('DOMContentLoaded', () => {
       debugLog('INIT', 'App initializing');
       
@@ -1872,7 +2674,59 @@
         btn.addEventListener('click', prevScreen);
       });
       
+      // ═══════════════════════════════════════════════════════════════
+      // Pathfinder Event Handlers
+      // ═══════════════════════════════════════════════════════════════
+      
+      document.getElementById('pathfinder-next-btn')?.addEventListener('click', advancePathfinder);
+      document.getElementById('pathfinder-back-btn')?.addEventListener('click', goBackPathfinder);
+      
+      // Initialize pathfinder when welcome screen "Start" is clicked
+      document.querySelector('#screen-welcome [data-action="next"]')?.addEventListener('click', (e) => {
+        if (isFeatureEnabled('PATHFINDER')) {
+          e.stopPropagation();
+          showScreen('pathfinder');
+          initPathfinder();
+        }
+      });
+      
+      // ═══════════════════════════════════════════════════════════════
+      // Mode Select Event Handlers
+      // ═══════════════════════════════════════════════════════════════
+      
+      document.querySelectorAll('.mode-card').forEach(card => {
+        card.addEventListener('click', () => {
+          selectMode(card.dataset.mode);
+        });
+      });
+      
+      document.getElementById('mode-select-next-btn')?.addEventListener('click', () => {
+        SCREEN_ORDER = getActiveScreenOrder();
+        nextScreen();
+      });
+      
+      // ═══════════════════════════════════════════════════════════════
+      // Preview Card Event Handlers
+      // ═══════════════════════════════════════════════════════════════
+      
+      document.getElementById('preview-info-btn')?.addEventListener('click', togglePreviewTooltip);
+      
+      // Update preview on input changes
+      const inputFields = [
+        'input-current-age', 'input-retirement-age', 'input-target-income',
+        'input-pension-pot', 'input-pension-contribution', 
+        'input-isa-balance', 'input-isa-contribution',
+        'input-state-pension-age', 'input-state-pension-amount'
+      ];
+      
+      inputFields.forEach(id => {
+        document.getElementById(id)?.addEventListener('input', updatePreviewCard);
+      });
+      
+      // ═══════════════════════════════════════════════════════════════
       // Toggle handlers for advanced options
+      // ═══════════════════════════════════════════════════════════════
+      
       document.getElementById('has-db-pension')?.addEventListener('change', (e) => {
         const inputs = document.getElementById('db-pension-inputs');
         if (inputs) inputs.style.display = e.target.checked ? 'block' : 'none';

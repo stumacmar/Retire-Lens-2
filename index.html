@@ -775,7 +775,16 @@
     
     /* Adjust app container for sticky preview card */
     .app-container.has-preview {
-      padding-bottom: 140px;
+      padding-bottom: 180px;
+    }
+    
+    /* Ensure nav buttons are always visible above preview card */
+    .screen .nav-buttons {
+      position: relative;
+      z-index: 40;
+      background: var(--color-background);
+      padding-top: var(--spacing-md);
+      margin-bottom: var(--spacing-xl);
     }
     
     @media (min-width: 768px) {

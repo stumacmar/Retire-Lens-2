@@ -98,7 +98,7 @@ export function createScenarioSliders(baselineInputs, containerId, onScenarioCha
         
         <!-- Retirement Age -->
         <div>
-          <div style="display: flex; justify-content: between; align-items: center; margin-bottom: 8px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
             <label style="font-size: 14px; font-weight: 500; color: #1f2937;">
               Retirement Age
             </label>

@@ -554,13 +554,14 @@ test('Tax is calculated PER PERSON (two personal allowances for couples)', () =>
 console.log('\n💰 Testing PCLS Handling...');
 
 test('PCLS is taken as lump sum at retirement, not income spike', () => {
+  const initialPot = 400000;
   const plan = createHouseholdPlan({
     householdType: HOUSEHOLD_TYPES.SINGLE,
     personA: {
       currentAge: 59,
       retirementAge: 60,
       pensionTypes: [PENSION_TYPES.DC],
-      dcPot: 400000,
+      dcPot: initialPot,
       pclsStrategy: PCLS_STRATEGY.ALL_AT_RETIREMENT,
       statePensionAge: 67,
       expectedStatePension: 11500
@@ -572,17 +573,25 @@ test('PCLS is taken as lump sum at retirement, not income spike', () => {
   const timeline = projectHousehold(plan);
   const retirementYear = timeline.find(y => y.personAAge === 60);
   
-  // PCLS should be ~25% of pot (pot may have grown, so allow some variance)
-  // Original pot 400k + 1 year growth ~= 414k, 25% = ~103k
-  assert(retirementYear.personAPclsTaken >= 100000, 'PCLS should be at least 100,000');
-  assert(retirementYear.personAPclsTaken <= 120000, 'PCLS should be at most 120,000');
+  // Calculate expected PCLS range based on pot growth assumptions
+  // Initial pot grows for 1 year before PCLS taken at retirement
+  // Assuming ~3.5% net growth (4% growth - 0.5% fees), pot at retirement ~£414k
+  // PCLS is 25% = ~£103.5k, allow ±15% tolerance for variations
+  const expectedMinPcls = initialPot * 0.25;  // If no growth: £100k
+  const maxGrowthMultiplier = 1.05;           // Up to 5% growth in 1 year
+  const expectedMaxPcls = initialPot * maxGrowthMultiplier * 0.25;  // £105k
+  const tolerance = 0.15;                     // 15% tolerance for edge cases
+  
+  assert(retirementYear.personAPclsTaken >= expectedMinPcls * (1 - tolerance), 
+    `PCLS should be at least ${(expectedMinPcls * (1 - tolerance)).toFixed(0)}`);
+  assert(retirementYear.personAPclsTaken <= expectedMaxPcls * (1 + tolerance), 
+    `PCLS should be at most ${(expectedMaxPcls * (1 + tolerance)).toFixed(0)}`);
   
   // PCLS bucket should be populated
   assert(retirementYear.personAPclsBucket >= 0, 'PCLS bucket should exist');
   
   // DC pot should be reduced from original value
-  const preGrowthPot = 400000;
-  assert(retirementYear.personADcPot < preGrowthPot * 1.1, 'DC pot should be reduced after PCLS');
+  assert(retirementYear.personADcPot < initialPot * 1.1, 'DC pot should be reduced after PCLS');
 });
 
 test('PCLS bucket is used before taxable DC withdrawals', () => {

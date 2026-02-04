@@ -367,7 +367,7 @@ export function projectHousehold(plan) {
   for (let personAAge = personA.currentAge; personAAge <= planningHorizonAge; personAAge++) {
     const year = personAAge - personA.currentAge;
     const personBAge = householdType === HOUSEHOLD_TYPES.COUPLE && personB
-      ? personBAge_FromPersonA(personAAge, personA.currentAge, personB.currentAge)
+      ? calculatePersonBAge(personAAge, personA.currentAge, personB.currentAge)
       : null;
 
     // Determine if each person is retired
@@ -582,7 +582,7 @@ export function projectHousehold(plan) {
 /**
  * Helper: Calculate person B's age from person A's age
  */
-function personBAge_FromPersonA(personAAge, personACurrentAge, personBCurrentAge) {
+function calculatePersonBAge(personAAge, personACurrentAge, personBCurrentAge) {
   const ageDiff = personACurrentAge - personBCurrentAge;
   return personAAge - ageDiff;
 }
@@ -670,8 +670,9 @@ function calculateOptimalCoupleWithdrawal(targetNet, pots, guaranteedIncome, per
 
   // For amounts above PA, gross up and split between people
   if (stillNeededAfterPa > 0) {
-    // Gross up assuming basic rate
-    const grossNeeded = stillNeededAfterPa / (1 - 0.20);
+    // Gross up assuming basic rate from TAX_CONFIG
+    const basicRate = TAX_CONFIG.bands[0].rate;
+    const grossNeeded = stillNeededAfterPa / (1 - basicRate);
     
     // Split proportionally based on available pots
     const totalPots = personADcPot + personBDcPot;
@@ -706,8 +707,9 @@ function grossUpForTax(netNeeded, existingTaxableIncome) {
   const netWithinPa = paRemaining;
   const netAbovePa = netNeeded - paRemaining;
   
-  // Assume basic rate for simplicity
-  const grossAbovePa = netAbovePa / (1 - 0.20);
+  // Use basic rate from TAX_CONFIG for consistency
+  const basicRate = TAX_CONFIG.bands[0].rate;
+  const grossAbovePa = netAbovePa / (1 - basicRate);
   
   return netWithinPa + grossAbovePa;
 }

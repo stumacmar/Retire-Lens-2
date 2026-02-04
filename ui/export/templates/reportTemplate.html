@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RetireLens 2 - Retirement Plan Report</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      line-height: 1.6;
+      color: #1f2937;
+      background: white;
+    }
+
+    .report-header {
+      background: linear-gradient(135deg, #3b82f6 0%, #1e40af 100%);
+      color: white;
+      padding: 2rem;
+      text-align: center;
+    }
+
+    .report-header h1 {
+      font-size: 2rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .report-header .subtitle {
+      font-size: 1rem;
+      opacity: 0.9;
+    }
+
+    .report-container {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 2rem;
+    }
+
+    .section {
+      margin-bottom: 2rem;
+      page-break-inside: avoid;
+    }
+
+    .section h2 {
+      font-size: 1.5rem;
+      color: #1f2937;
+      margin-bottom: 1rem;
+      padding-bottom: 0.5rem;
+      border-bottom: 2px solid #3b82f6;
+    }
+
+    .section h3 {
+      font-size: 1.2rem;
+      color: #374151;
+      margin: 1rem 0 0.5rem 0;
+    }
+
+    .executive-summary {
+      background: #f0f9ff;
+      border-left: 4px solid #3b82f6;
+      padding: 1.5rem;
+      border-radius: 4px;
+    }
+
+    .key-metrics {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem;
+      margin: 1.5rem 0;
+    }
+
+    .metric-card {
+      background: white;
+      border: 1px solid #e5e7eb;
+      border-radius: 8px;
+      padding: 1rem;
+      text-align: center;
+    }
+
+    .metric-label {
+      display: block;
+      font-size: 0.85rem;
+      color: #6b7280;
+      margin-bottom: 0.5rem;
+    }
+
+    .metric-value {
+      display: block;
+      font-size: 1.75rem;
+      font-weight: 700;
+      color: #1f2937;
+    }
+
+    .metric-value.success {
+      color: #10b981;
+    }
+
+    .metric-value.warning {
+      color: #f59e0b;
+    }
+
+    .metric-value.danger {
+      color: #ef4444;
+    }
+
+    .data-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 1rem 0;
+      font-size: 0.9rem;
+    }
+
+    .data-table thead {
+      background: #f9fafb;
+    }
+
+    .data-table th {
+      text-align: left;
+      padding: 0.75rem;
+      font-weight: 600;
+      border-bottom: 2px solid #e5e7eb;
+    }
+
+    .data-table td {
+      padding: 0.75rem;
+      border-bottom: 1px solid #e5e7eb;
+    }
+
+    .data-table tbody tr:hover {
+      background: #f9fafb;
+    }
+
+    .chart-container {
+      margin: 1.5rem 0;
+      text-align: center;
+    }
+
+    .chart-placeholder {
+      background: #f9fafb;
+      border: 2px dashed #d1d5db;
+      border-radius: 8px;
+      padding: 3rem;
+      text-align: center;
+      color: #6b7280;
+    }
+
+    .insight-card {
+      background: white;
+      border: 1px solid #e5e7eb;
+      border-radius: 8px;
+      padding: 1rem;
+      margin-bottom: 1rem;
+    }
+
+    .insight-card .title {
+      font-weight: 600;
+      color: #1f2937;
+      margin-bottom: 0.5rem;
+    }
+
+    .insight-card .description {
+      color: #4b5563;
+      font-size: 0.9rem;
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 0.25rem 0.75rem;
+      border-radius: 12px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      margin-left: 0.5rem;
+    }
+
+    .badge-high {
+      background: #fee2e2;
+      color: #991b1b;
+    }
+
+    .badge-medium {
+      background: #fef3c7;
+      color: #92400e;
+    }
+
+    .badge-low {
+      background: #dbeafe;
+      color: #1e40af;
+    }
+
+    .footer {
+      margin-top: 3rem;
+      padding-top: 2rem;
+      border-top: 1px solid #e5e7eb;
+      text-align: center;
+      color: #6b7280;
+      font-size: 0.85rem;
+    }
+
+    .disclaimer {
+      background: #fffbeb;
+      border: 1px solid #fde68a;
+      border-radius: 4px;
+      padding: 1rem;
+      margin: 1rem 0;
+      font-size: 0.9rem;
+    }
+
+    @media print {
+      body {
+        background: white;
+      }
+      
+      .report-container {
+        padding: 0;
+      }
+
+      .section {
+        page-break-inside: avoid;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="report-header">
+    <h1>{{PLAN_NAME}} - Retirement Plan Report</h1>
+    <p class="subtitle">Generated on {{GENERATED_DATE}}</p>
+  </div>
+
+  <div class="report-container">
+    <!-- Executive Summary -->
+    <div class="section">
+      <h2>📊 Executive Summary</h2>
+      <div class="executive-summary">
+        <p>{{EXECUTIVE_SUMMARY}}</p>
+      </div>
+    </div>
+
+    <!-- Key Metrics -->
+    <div class="section">
+      <h2>🎯 Key Metrics</h2>
+      <div class="key-metrics">
+        {{KEY_METRICS}}
+      </div>
+    </div>
+
+    <!-- Plan Details -->
+    <div class="section">
+      <h2>📋 Plan Details</h2>
+      {{PLAN_DETAILS}}
+    </div>
+
+    <!-- Projection Results -->
+    <div class="section">
+      <h2>📈 Projection Results</h2>
+      {{PROJECTION_RESULTS}}
+    </div>
+
+    <!-- Charts -->
+    <div class="section">
+      <h2>📊 Visualizations</h2>
+      {{CHARTS}}
+    </div>
+
+    <!-- Year-by-Year Analysis -->
+    <div class="section">
+      <h2>📅 Year-by-Year Analysis</h2>
+      {{YEAR_TABLE}}
+    </div>
+
+    <!-- Insights & Recommendations -->
+    <div class="section">
+      <h2>💡 Insights & Recommendations</h2>
+      {{INSIGHTS}}
+    </div>
+
+    <!-- Disclaimer -->
+    <div class="disclaimer">
+      <strong>⚠️ Important Disclaimer:</strong> This report is for informational purposes only and does not constitute financial advice. 
+      Projections are based on assumptions and historical data. Actual results may vary significantly. 
+      Please consult with a qualified financial advisor before making any investment or retirement decisions.
+    </div>
+
+    <!-- Footer -->
+    <div class="footer">
+      <p>Generated by RetireLens 2 - Income-First Retirement Planning</p>
+      <p>All calculations performed client-side. Your data remains private and secure.</p>
+    </div>
+  </div>
+</body>
+</html>

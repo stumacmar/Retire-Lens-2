@@ -1830,13 +1830,20 @@
           const assumptions = createUserAssumptions(SCENARIO_PRESETS[data.scenario] || SCENARIO_PRESETS.moderate);
           
           // 2. Create household (single or couple)
-          const household = createHousehold({
-            person1: { age: data.currentAge, retirementAge: data.retirementAge },
-            person2: data.isCouple && data.partnerAge > 0 ? { 
-              age: data.partnerAge, 
-              retirementAge: data.partnerRetirementAge 
-            } : null
-          });
+          let household = null;
+          try {
+            household = createHousehold({
+              person1: { age: data.currentAge, retirementAge: data.retirementAge },
+              person2: data.isCouple && data.partnerAge > 0 ? { 
+                age: data.partnerAge, 
+                retirementAge: data.partnerRetirementAge 
+              } : null
+            });
+          } catch (e) {
+            console.warn('Household creation failed:', e);
+            // Create default single household
+            household = { person1: { age: data.currentAge, retirementAge: data.retirementAge }, person2: null, isCouple: false };
+          }
           
           // 3. Run basic deterministic projection (existing)
           const plan = createPlan({

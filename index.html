@@ -1531,26 +1531,38 @@
           section.style.display = 'block';
           const gauge = document.getElementById('readiness-gauge');
           if (gauge) {
-            const score = readiness.score || 0;
-            const color = score >= 80 ? '#22c55e' : score >= 60 ? '#f59e0b' : '#ef4444';
+            const score = readiness.totalScore || 0;
+            const level = readiness.readinessLevel || 'Good';
+            const color = readiness.readinessColor || (score >= 80 ? '#22c55e' : score >= 60 ? '#f59e0b' : '#ef4444');
+            const message = readiness.readinessMessage || 'Your retirement readiness assessment';
+            
             gauge.innerHTML = `
               <div style="text-align: center; padding: 2rem;">
-                <div style="font-size: 4rem; font-weight: bold; color: ${color};">${score}</div>
-                <div style="font-size: 1.5rem; color: #6b7280;">Readiness Score</div>
-                <p style="margin-top: 1rem;">${readiness.summary || 'Your retirement readiness assessment'}</p>
+                <div style="font-size: 4rem; font-weight: bold; color: ${color};">${Math.round(score)}</div>
+                <div style="font-size: 1.5rem; color: #6b7280; margin-bottom: 0.5rem;">${level} Readiness</div>
+                <p style="margin-top: 1rem; color: #4b5563;">${message}</p>
               </div>
             `;
           }
           
           const factors = document.getElementById('readiness-factors');
-          if (factors && readiness.factors) {
-            let factorsHtml = '<ul style="list-style: none; padding: 0;">';
-            for (const [key, value] of Object.entries(readiness.factors)) {
-              factorsHtml += `<li style="padding: 0.5rem 0; border-bottom: 1px solid #e5e7eb;">
-                <strong>${key}:</strong> ${typeof value === 'number' ? value.toFixed(0) : value}
-              </li>`;
+          if (factors && readiness.breakdown) {
+            let factorsHtml = '<div style="padding: 1rem;"><h4 style="margin-bottom: 1rem;">Score Breakdown</h4>';
+            for (const [key, factor] of Object.entries(readiness.breakdown)) {
+              const percentage = (factor.score / factor.maxScore) * 100;
+              factorsHtml += `
+                <div style="margin-bottom: 1rem;">
+                  <div style="display: flex; justify-content: space-between; margin-bottom: 0.25rem;">
+                    <strong>${factor.description}</strong>
+                    <span>${factor.score}/${factor.maxScore}</span>
+                  </div>
+                  <div style="background: #e5e7eb; height: 8px; border-radius: 4px; overflow: hidden;">
+                    <div style="background: ${readiness.readinessColor || '#3b82f6'}; width: ${percentage}%; height: 100%;"></div>
+                  </div>
+                </div>
+              `;
             }
-            factorsHtml += '</ul>';
+            factorsHtml += '</div>';
             factors.innerHTML = factorsHtml;
           }
         }
@@ -1562,30 +1574,57 @@
         if (section) {
           section.style.display = 'block';
           
-          if (insights) {
+          if (insights && Array.isArray(insights)) {
             const insightsList = document.getElementById('insights-list');
-            if (insightsList && Array.isArray(insights)) {
-              let html = '<ul style="list-style: none; padding: 0;">';
+            if (insightsList) {
+              let html = '<div style="padding: 0;">';
               insights.forEach(insight => {
-                html += `<li style="padding: 0.75rem; margin-bottom: 0.5rem; background: #f0f9ff; border-left: 4px solid #3b82f6; border-radius: 4px;">
-                  ${insight.message || insight}
-                </li>`;
+                const iconMap = {
+                  'strengths': '✅',
+                  'opportunities': '📈',
+                  'risks': '⚠️',
+                  'suggestions': '💡'
+                };
+                const colorMap = {
+                  'strengths': '#22c55e',
+                  'opportunities': '#3b82f6',
+                  'risks': '#f59e0b',
+                  'suggestions': '#8b5cf6'
+                };
+                const icon = insight.icon || iconMap[insight.category] || '📌';
+                const color = colorMap[insight.category] || '#3b82f6';
+                
+                html += `<div style="padding: 1rem; margin-bottom: 0.75rem; background: white; border-left: 4px solid ${color}; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                  <div style="font-weight: bold; margin-bottom: 0.5rem;">${icon} ${insight.title || 'Insight'}</div>
+                  <div style="color: #4b5563;">${insight.description || insight.message || ''}</div>
+                  ${insight.detail ? `<div style="margin-top: 0.5rem; font-size: 0.875rem; color: #6b7280;">${insight.detail}</div>` : ''}
+                </div>`;
               });
-              html += '</ul>';
+              html += '</div>';
               insightsList.innerHTML = html;
             }
           }
           
-          if (recommendations) {
+          if (recommendations && Array.isArray(recommendations)) {
             const recommendationsList = document.getElementById('recommendations-list');
-            if (recommendationsList && Array.isArray(recommendations)) {
-              let html = '<ul style="list-style: none; padding: 0;">';
+            if (recommendationsList) {
+              let html = '<div style="padding: 0;">';
               recommendations.forEach(rec => {
-                html += `<li style="padding: 0.75rem; margin-bottom: 0.5rem; background: #fef3c7; border-left: 4px solid #f59e0b; border-radius: 4px;">
-                  💡 ${rec.message || rec}
-                </li>`;
+                const priority = rec.priority || 'medium';
+                const priorityColors = {
+                  'high': '#ef4444',
+                  'medium': '#f59e0b',
+                  'low': '#10b981'
+                };
+                const color = priorityColors[priority] || '#f59e0b';
+                
+                html += `<div style="padding: 1rem; margin-bottom: 0.75rem; background: #fffbeb; border-left: 4px solid ${color}; border-radius: 4px;">
+                  <div style="font-weight: bold; margin-bottom: 0.5rem;">💡 ${rec.title || 'Recommendation'}</div>
+                  <div>${rec.description || rec.message || rec}</div>
+                  ${rec.impact ? `<div style="margin-top: 0.5rem; font-size: 0.875rem; color: #92400e;"><strong>Impact:</strong> ${rec.impact}</div>` : ''}
+                </div>`;
               });
-              html += '</ul>';
+              html += '</div>';
               recommendationsList.innerHTML = html;
             }
           }
@@ -1696,14 +1735,28 @@
           section.style.display = 'block';
           const projection = document.getElementById('legacy-projection');
           if (projection) {
+            const finalBalance = basicProjection && basicProjection.summary ? basicProjection.summary.finalBalance : 0;
             projection.innerHTML = `
               <div style="padding: 1rem;">
-                <p><strong>Estimated estate value:</strong> ${formatCurrency(estateValue || 0)}</p>
+                <p><strong>Estimated estate value:</strong> ${formatCurrency(estateValue || finalBalance || 0)}</p>
               </div>
             `;
           }
           
           if (ihtEstimate) {
+            const iht = document.getElementById('iht-estimate');
+            if (iht) {
+              const tax = ihtEstimate.tax || ihtEstimate.amount || 0;
+              iht.innerHTML = `
+                <div style="padding: 1rem;">
+                  <p><strong>Potential IHT liability:</strong> ${formatCurrency(tax)}</p>
+                  ${ihtEstimate.taxable ? `<p><strong>Taxable estate:</strong> ${formatCurrency(ihtEstimate.taxable)}</p>` : ''}
+                </div>
+              `;
+            }
+          }
+        }
+      }
             const iht = document.getElementById('iht-estimate');
             if (iht) {
               iht.innerHTML = `

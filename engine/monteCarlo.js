@@ -72,7 +72,14 @@ export function generateReturnSequence(years, mean, stdDev, seed = null) {
  * @param {number[]} decumulationReturns - Returns for decumulation phase
  * @param {number} endAge - Age to project until
  * @param {boolean} trackYearlyBalances - Whether to track balances at each year
- * @returns {object} Simulation result with optional yearly data
+ * @returns {object} Simulation result with:
+ *   - totalRetirementAssets: Total assets at retirement
+ *   - finalBalance: Final balance at end of simulation
+ *   - fundsDepleted: Whether funds ran out before horizon
+ *   - depletionAge: Age when funds depleted (null if never)
+ *   - yearsWithFullIncome: Years where target income was achievable
+ *   - isSuccess: TRUE if target income met every year AND wealth > 0 through horizon
+ *   - yearlyData: (optional) Array of yearly balance data
  */
 export function runSingleSimulation(plan, accumulationReturns, decumulationReturns, endAge = 90, trackYearlyBalances = false) {
   const { projection, tax: taxConfig } = plan.assumptions;

@@ -482,7 +482,9 @@ test('createPerson accepts pension types array', () => {
   });
   
   assert(person.currentAge === 55, 'Age should be 55');
-  // Note: createPerson doesn't store pensionTypes, that's in createHouseholdPerson
+  // Note: createPerson (from household.js) doesn't store pensionTypes - that's in createHouseholdPerson (householdPlan.js)
+  // This test verifies createPerson accepts but ignores the pensionTypes parameter
+  assert(person.pensionTypes === undefined, 'createPerson should not store pensionTypes');
 });
 
 test('createHousehold requires person2 for couples', () => {

@@ -1307,7 +1307,7 @@
                 <span class="pension-type-title">Defined Contribution (DC)</span>
               </div>
               <p class="pension-type-description">Pension pot that I or my employer pays into</p>
-              <button type="button" class="pension-explainer-toggle" data-explainer="dc" onclick="event.preventDefault(); event.stopPropagation(); togglePensionExplainer('dc');">
+              <button type="button" class="pension-explainer-toggle" data-explainer="dc">
                 ⓘ What's this?
               </button>
               <div id="explainer-dc" class="pension-explainer-content">
@@ -1325,7 +1325,7 @@
                 <span class="pension-type-title">Defined Benefit (DB)</span>
               </div>
               <p class="pension-type-description">Guaranteed income for life from employer</p>
-              <button type="button" class="pension-explainer-toggle" data-explainer="db" onclick="event.preventDefault(); event.stopPropagation(); togglePensionExplainer('db');">
+              <button type="button" class="pension-explainer-toggle" data-explainer="db">
                 ⓘ What's this?
               </button>
               <div id="explainer-db" class="pension-explainer-content">
@@ -2069,7 +2069,7 @@
     import { POT_SIZE_BENCHMARKS, INCOME_BENCHMARKS } from './config/benchmarkData.js';
     
     // Import UI components
-    import { renderConfidenceExplainer as renderOldConfidenceExplainer, generateConfidenceExplanation } from './ui/components/confidenceExplainer.js';
+    // Note: renderConfidenceExplainer is now in monteCarloCharts.js (consolidated from confidenceExplainer.js)
     import { renderFanChart, renderDepletionHistogram, renderAllCharts, renderConfidenceExplainer } from './ui/components/monteCarloCharts.js';
     
     // Import new UX modules
@@ -4163,6 +4163,18 @@
       // Pension type checkboxes
       document.querySelectorAll('input[name="pension-type"]').forEach(checkbox => {
         checkbox.addEventListener('change', handlePensionTypeChange);
+      });
+      
+      // Pension explainer toggle buttons
+      document.querySelectorAll('.pension-explainer-toggle').forEach(button => {
+        button.addEventListener('click', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          const explainerType = button.dataset.explainer;
+          if (explainerType) {
+            togglePensionExplainer(explainerType);
+          }
+        });
       });
       
       // Pension types next button

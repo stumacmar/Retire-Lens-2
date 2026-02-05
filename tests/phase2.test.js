@@ -9,7 +9,7 @@ import { calculateRiskScore, generateRiskRecommendations, analyzeSimulationRisk 
 import { calculateReadinessScore, generateActionPlan, calculateRetirementMetrics } from '../engine/readinessScore.js';
 import { generateRecommendations, filterByCategory, getHighPriorityRecommendations } from '../engine/recommendations.js';
 import { createPlan, runProjection } from '../engine/projections.js';
-import { runMonteCarlo } from '../engine/monteCarlo.js';
+import { runMonteCarlo, runMonteCarloWithBands } from '../engine/monteCarlo.js';
 
 // Test utilities
 let passCount = 0;
@@ -407,6 +407,111 @@ test('Recommendations handle well-funded scenario', () => {
   
   // Should still generate some recommendations (tax efficiency, etc.)
   expect(Array.isArray(recommendations)).toBeTruthy();
+});
+
+console.log('');
+
+// ═══════════════════════════════════════════════════════════════
+// MONTE CARLO FAN CHART TESTS
+// ═══════════════════════════════════════════════════════════════
+
+console.log('MONTE CARLO FAN CHART TESTS');
+console.log('─────────────────────────────────────────────────────────────────');
+
+test('Monte Carlo with bands produces time-series percentiles', () => {
+  const plan = createPlan({
+    currentAge: 55,
+    retirementAge: 65,
+    targetNetIncome: 30000,
+    currentPension: 400000,
+    currentIsa: 50000,
+    annualPensionContribution: 10000,
+    annualIsaContribution: 5000
+  });
+  
+  const mcResult = runMonteCarloWithBands(plan, { iterations: 100, seed: 12345, endAge: 85 });
+  
+  expect(mcResult.yearlyBands).toBeTruthy();
+  expect(mcResult.yearlyBands.length).toBeGreaterThan(0);
+  
+  // Check first band has all required percentiles
+  const firstBand = mcResult.yearlyBands[0];
+  expect(firstBand.p10 !== undefined).toBeTruthy();
+  expect(firstBand.p25 !== undefined).toBeTruthy();
+  expect(firstBand.p50 !== undefined).toBeTruthy();
+  expect(firstBand.p75 !== undefined).toBeTruthy();
+  expect(firstBand.p90 !== undefined).toBeTruthy();
+});
+
+test('Percentile ordering always holds (p10 <= p25 <= p50 <= p75 <= p90)', () => {
+  const plan = createPlan({
+    currentAge: 55,
+    retirementAge: 65,
+    targetNetIncome: 30000,
+    currentPension: 400000,
+    currentIsa: 50000,
+    annualPensionContribution: 10000,
+    annualIsaContribution: 5000
+  });
+  
+  const mcResult = runMonteCarloWithBands(plan, { iterations: 200, seed: 42, endAge: 85 });
+  
+  // Check all years maintain percentile ordering
+  for (const band of mcResult.yearlyBands) {
+    if (band.p10 > band.p25) {
+      throw new Error(`At age ${band.age}: p10 (${band.p10}) > p25 (${band.p25})`);
+    }
+    if (band.p25 > band.p50) {
+      throw new Error(`At age ${band.age}: p25 (${band.p25}) > p50 (${band.p50})`);
+    }
+    if (band.p50 > band.p75) {
+      throw new Error(`At age ${band.age}: p50 (${band.p50}) > p75 (${band.p75})`);
+    }
+    if (band.p75 > band.p90) {
+      throw new Error(`At age ${band.age}: p75 (${band.p75}) > p90 (${band.p90})`);
+    }
+  }
+});
+
+test('Monte Carlo with seed produces deterministic results', () => {
+  const plan = createPlan({
+    currentAge: 50,
+    retirementAge: 65,
+    targetNetIncome: 25000,
+    currentPension: 200000,
+    currentIsa: 30000,
+    annualPensionContribution: 8000,
+    annualIsaContribution: 3000
+  });
+  
+  const result1 = runMonteCarloWithBands(plan, { iterations: 50, seed: 12345, endAge: 80 });
+  const result2 = runMonteCarloWithBands(plan, { iterations: 50, seed: 12345, endAge: 80 });
+  
+  // Results should be identical with same seed
+  expect(result1.statistics.successRate).toBe(result2.statistics.successRate);
+  expect(result1.yearlyBands[0].p50).toBe(result2.yearlyBands[0].p50);
+});
+
+test('Monte Carlo success probability is calculated correctly', () => {
+  const plan = createPlan({
+    currentAge: 55,
+    retirementAge: 60,
+    targetNetIncome: 20000,
+    currentPension: 500000,
+    currentIsa: 100000,
+    annualPensionContribution: 15000,
+    annualIsaContribution: 10000
+  });
+  
+  const mcResult = runMonteCarloWithBands(plan, { iterations: 100, seed: 54321, endAge: 85 });
+  
+  // Success probability should be a number between 0 and 100
+  expect(parseFloat(mcResult.statistics.successProbability)).toBeGreaterThan(-0.01);
+  expect(parseFloat(mcResult.statistics.successProbability)).toBeLessThan(100.01);
+  
+  // Success rate should be consistent
+  expect(mcResult.statistics.successRate).toBeGreaterThan(-0.01);
+  expect(mcResult.statistics.successRate).toBeLessThan(1.01);
 });
 
 console.log('');

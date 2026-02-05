@@ -2069,8 +2069,8 @@
     import { POT_SIZE_BENCHMARKS, INCOME_BENCHMARKS } from './config/benchmarkData.js';
     
     // Import UI components
-    import { renderConfidenceExplainer, generateConfidenceExplanation } from './ui/components/confidenceExplainer.js';
-    import { renderFanChart, renderDepletionHistogram, renderAllCharts } from './ui/components/monteCarloCharts.js';
+    import { renderConfidenceExplainer as renderOldConfidenceExplainer, generateConfidenceExplanation } from './ui/components/confidenceExplainer.js';
+    import { renderFanChart, renderDepletionHistogram, renderAllCharts, renderConfidenceExplainer } from './ui/components/monteCarloCharts.js';
     
     // Import new UX modules
     import { FEATURE_FLAGS, isFeatureEnabled } from './src/ux/config.js';
@@ -3698,15 +3698,19 @@
         if (section) {
           section.style.display = 'block';
           
-          // Render confidence explainer
+          // Render confidence explainer with provisional state support
           const explainerContainer = document.getElementById('confidence-explainer-container');
           if (explainerContainer) {
             try {
-              renderConfidenceExplainer(mcResult, 'confidence-explainer-container');
+              renderConfidenceExplainer(mcResult, '#confidence-explainer-container', {
+                isProvisional: state.isProvisionalPlan,
+                provisionalReason: state.provisionalReason
+              });
             } catch (e) {
               console.warn('Confidence explainer render failed:', e);
               const successRate = mcResult.statistics ? mcResult.statistics.successRate : 0;
-              explainerContainer.innerHTML = `<p>Monte Carlo ran ${mcResult.iterations} simulations. Success rate: ${(successRate * 100).toFixed(0)}%</p>`;
+              const displayRate = state.isProvisionalPlan ? '— (provisional)' : `${(successRate * 100).toFixed(0)}%`;
+              explainerContainer.innerHTML = `<p>Monte Carlo ran ${mcResult.iterations} simulations. Success rate: ${displayRate}</p>`;
             }
           }
           

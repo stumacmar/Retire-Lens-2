@@ -96,7 +96,8 @@ export function runSingleSimulation(plan, accumulationReturns, decumulationRetur
         phase: 'accumulation',
         balance: pensionBalance + isaBalance,
         pension: pensionBalance,
-        isa: isaBalance
+        isa: isaBalance,
+        targetMet: true // Not in decumulation yet
       });
     }
   }
@@ -111,12 +112,14 @@ export function runSingleSimulation(plan, accumulationReturns, decumulationRetur
   // Decumulation phase
   let fundsDepleted = false;
   let depletionAge = null;
+  let targetMetEveryYear = true; // Track if target income met each year
   const decumulationYears = endAge - plan.retirementAge;
   
   for (let i = 0; i < decumulationYears; i++) {
     const age = plan.retirementAge + i;
     
     if (fundsDepleted) {
+      targetMetEveryYear = false;
       if (trackYearlyBalances) {
         yearlyData.push({
           age: age + 1,
@@ -124,7 +127,8 @@ export function runSingleSimulation(plan, accumulationReturns, decumulationRetur
           balance: 0,
           pension: 0,
           isa: 0,
-          depleted: true
+          depleted: true,
+          targetMet: false
         });
       }
       continue;
@@ -137,11 +141,15 @@ export function runSingleSimulation(plan, accumulationReturns, decumulationRetur
     
     // Withdraw proportionally (simplified)
     const totalBalance = pensionBalance + isaBalance;
+    let targetMetThisYear = true;
+    
     if (totalBalance <= neededFromPortfolio) {
       pensionBalance = 0;
       isaBalance = 0;
       fundsDepleted = true;
       depletionAge = age;
+      targetMetThisYear = false;
+      targetMetEveryYear = false;
     } else {
       const withdrawalRatio = neededFromPortfolio / totalBalance;
       pensionBalance -= pensionBalance * withdrawalRatio;
@@ -162,7 +170,8 @@ export function runSingleSimulation(plan, accumulationReturns, decumulationRetur
         balance: pensionBalance + isaBalance,
         pension: pensionBalance,
         isa: isaBalance,
-        depleted: fundsDepleted
+        depleted: fundsDepleted,
+        targetMet: targetMetThisYear
       });
     }
   }
@@ -174,7 +183,9 @@ export function runSingleSimulation(plan, accumulationReturns, decumulationRetur
     depletionAge,
     yearsWithFullIncome: fundsDepleted 
       ? (depletionAge - plan.retirementAge)
-      : decumulationYears
+      : decumulationYears,
+    // Success criteria: target income met every year AND wealth never <= 0
+    isSuccess: !fundsDepleted && targetMetEveryYear
   };
   
   if (trackYearlyBalances) {
@@ -323,7 +334,12 @@ export function runMonteCarloWithBands(plan, options = {}) {
   
   // Calculate final balance statistics
   const finalBalances = results.map(r => r.finalBalance).sort((a, b) => a - b);
-  const successCount = results.filter(r => !r.fundsDepleted).length;
+  
+  // Success count based on new isSuccess criteria (target met + wealth > 0)
+  const successCount = results.filter(r => r.isSuccess).length;
+  
+  // Legacy success count (just wealth > 0) for backward compatibility
+  const notDepletedCount = results.filter(r => !r.fundsDepleted).length;
   
   // Generate depletion age histogram
   const depletionHistogram = generateDepletionHistogram(depletionAges, plan.retirementAge, endAge);
@@ -334,9 +350,14 @@ export function runMonteCarloWithBands(plan, options = {}) {
     volatility,
     endAge,
     statistics: {
+      // Primary success metric: target income met every year AND wealth never <= 0
       successRate: successCount / iterations,
+      successProbability: (successCount / iterations * 100).toFixed(1),
       successCount,
       failureCount: iterations - successCount,
+      
+      // Legacy metric for backward compatibility
+      notDepletedRate: notDepletedCount / iterations,
       
       finalBalance: {
         p5: percentile(finalBalances, 5),

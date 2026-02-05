@@ -539,3 +539,84 @@ export function renderAllCharts(projection, mcResult, selectors) {
     renderTaxOverTime(projection, selectors.taxOverTime);
   }
 }
+
+/**
+ * Render confidence explainer with success probability
+ * 
+ * @param {object} mcResult - Monte Carlo result with statistics
+ * @param {string} containerSelector - CSS selector for container element
+ * @param {object} options - Additional options
+ */
+export function renderConfidenceExplainer(mcResult, containerSelector, options = {}) {
+  const container = document.querySelector(containerSelector);
+  if (!container) return;
+  
+  const { isProvisional = false, provisionalReason = null } = options;
+  
+  const successRate = mcResult.statistics.successRate;
+  const successPct = mcResult.statistics.successProbability || (successRate * 100).toFixed(1);
+  
+  // Determine confidence level
+  let confidenceLevel = 'Low';
+  let confidenceColor = '#ef4444'; // red
+  let confidenceEmoji = '⚠️';
+  
+  if (successRate >= 0.9) {
+    confidenceLevel = 'Very High';
+    confidenceColor = '#22c55e';
+    confidenceEmoji = '✅';
+  } else if (successRate >= 0.8) {
+    confidenceLevel = 'High';
+    confidenceColor = '#84cc16';
+    confidenceEmoji = '✅';
+  } else if (successRate >= 0.7) {
+    confidenceLevel = 'Moderate';
+    confidenceColor = '#f59e0b';
+    confidenceEmoji = '⚠️';
+  } else if (successRate >= 0.5) {
+    confidenceLevel = 'Low';
+    confidenceColor = '#f97316';
+    confidenceEmoji = '⚠️';
+  }
+  
+  // Build success probability display
+  let successDisplay = `<span style="font-size: 2rem; font-weight: bold; color: ${confidenceColor};">${successPct}%</span>`;
+  
+  if (isProvisional) {
+    successDisplay = `<span style="font-size: 2rem; font-weight: bold; color: #6b7280;">— (provisional)</span>`;
+  }
+  
+  const html = `
+    <div class="confidence-explainer" style="padding: 1rem; background: #f8fafc; border-radius: 8px; margin-bottom: 1rem;">
+      <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem;">
+        <div>
+          <h4 style="font-size: 0.875rem; color: #6b7280; margin: 0 0 0.25rem 0;">Success Probability</h4>
+          ${successDisplay}
+          ${!isProvisional ? `
+            <p style="font-size: 0.75rem; color: #6b7280; margin: 0.25rem 0 0 0;">
+              ${confidenceEmoji} ${confidenceLevel} confidence
+            </p>
+          ` : `
+            <p style="font-size: 0.75rem; color: #6b7280; margin: 0.25rem 0 0 0;">
+              ${provisionalReason || 'Some income amounts not specified'}
+            </p>
+          `}
+        </div>
+        <div style="text-align: right; font-size: 0.75rem; color: #6b7280;">
+          <p style="margin: 0;">Based on ${mcResult.iterations.toLocaleString()} simulations</p>
+          <p style="margin: 0.25rem 0 0 0;">Target met every year + wealth > £0 through age ${mcResult.endAge}</p>
+        </div>
+      </div>
+      ${!isProvisional && mcResult.statistics.depletionAge ? `
+        <div style="margin-top: 0.75rem; padding-top: 0.75rem; border-top: 1px solid #e5e7eb;">
+          <p style="font-size: 0.75rem; color: #6b7280; margin: 0;">
+            In ${mcResult.statistics.depletionAge.count} scenarios (${((mcResult.statistics.depletionAge.count / mcResult.iterations) * 100).toFixed(1)}%), 
+            funds ran out between ages ${mcResult.statistics.depletionAge.earliest} and ${mcResult.statistics.depletionAge.latest}.
+          </p>
+        </div>
+      ` : ''}
+    </div>
+  `;
+  
+  container.innerHTML = html;
+}

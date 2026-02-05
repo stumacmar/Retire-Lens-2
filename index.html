@@ -1796,6 +1796,7 @@
       <div class="nav-buttons">
         <button type="button" class="btn btn-secondary" data-action="back">Edit</button>
         <button type="button" class="btn btn-primary" id="calculate-btn">Calculate →</button>
+        <button type="button" class="btn btn-primary" id="view-results-btn" style="display: none;">View Results →</button>
       </div>
       <p id="calculate-disabled-reason" class="calculate-disabled-reason"></p>
     </div>
@@ -4447,6 +4448,13 @@
           // Render basic results first
           renderResults(basicProjection);
           
+          // Hide Calculate button and show View Results button
+          document.getElementById('calculate-btn').style.display = 'none';
+          const viewResultsBtn = document.getElementById('view-results-btn');
+          if (viewResultsBtn) {
+            viewResultsBtn.style.display = 'inline-block';
+          }
+          
           // Render new charts
           try {
             renderCashflowChart(basicProjection, data);
@@ -4464,6 +4472,11 @@
           console.error(error);
           showError(error.message);
         }
+      });
+      
+      // View Results button - navigate to results screen after calculation
+      document.getElementById('view-results-btn')?.addEventListener('click', () => {
+        nextScreen();
       });
       
       // Compare button

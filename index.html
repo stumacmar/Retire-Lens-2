@@ -2774,7 +2774,7 @@
       document.getElementById('journey-title').textContent = journey.title;
       
       // Mark recommended mode
-      document.querySelectorAll('.mode-card').forEach(card => {
+      document.querySelectorAll('.mode-card[data-mode]').forEach(card => {
         card.classList.remove('selected', 'recommended');
         if (card.dataset.mode === journey.recommendedMode) {
           card.classList.add('recommended');
@@ -2798,7 +2798,7 @@
       SCREEN_ORDER = getActiveScreenOrder();
       
       // Update UI
-      document.querySelectorAll('.mode-card').forEach(card => {
+      document.querySelectorAll('.mode-card[data-mode]').forEach(card => {
         card.classList.toggle('selected', card.dataset.mode === modeId);
       });
       
@@ -4138,7 +4138,7 @@
       // Mode Select Event Handlers
       // ═══════════════════════════════════════════════════════════════
       
-      document.querySelectorAll('.mode-card').forEach(card => {
+      document.querySelectorAll('.mode-card[data-mode]').forEach(card => {
         card.addEventListener('click', () => {
           selectMode(card.dataset.mode);
         });

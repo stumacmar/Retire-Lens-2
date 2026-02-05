@@ -736,6 +736,103 @@
       margin-top: var(--spacing-xs);
     }
     
+    /* Pension Type Explainer Accordion */
+    .pension-explainer-toggle {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      color: var(--color-primary);
+      font-size: var(--font-size-sm);
+      cursor: pointer;
+      margin-top: var(--spacing-xs);
+      padding: 4px 8px;
+      border: none;
+      background: transparent;
+      pointer-events: auto;
+    }
+    
+    .pension-explainer-toggle:hover {
+      text-decoration: underline;
+    }
+    
+    .pension-explainer-content {
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.3s ease, padding 0.3s ease;
+      background: #f8fafc;
+      border-radius: var(--radius-md);
+      margin-top: 0;
+      padding: 0 var(--spacing-md);
+      font-size: var(--font-size-sm);
+      color: var(--color-text);
+      line-height: 1.5;
+      pointer-events: auto;
+    }
+    
+    .pension-explainer-content.expanded {
+      max-height: 200px;
+      padding: var(--spacing-md);
+      margin-top: var(--spacing-sm);
+    }
+    
+    /* Conditional Partner Follow-up Fields */
+    .partner-followup-fields {
+      margin-top: var(--spacing-lg);
+      padding: var(--spacing-lg);
+      background: #f1f5f9;
+      border-radius: var(--radius-lg);
+      display: none;
+    }
+    
+    .partner-followup-fields.visible {
+      display: block;
+    }
+    
+    .partner-followup-fields h3 {
+      font-size: var(--font-size-lg);
+      margin-bottom: var(--spacing-md);
+      color: var(--color-text);
+    }
+    
+    .partner-followup-fields .input-group {
+      margin-bottom: var(--spacing-md);
+    }
+    
+    .partner-followup-fields .input-group:last-child {
+      margin-bottom: 0;
+    }
+    
+    /* Calculate button disabled reason */
+    .calculate-disabled-reason {
+      color: var(--color-warning);
+      font-size: var(--font-size-sm);
+      text-align: center;
+      margin-top: var(--spacing-sm);
+      display: none;
+    }
+    
+    .calculate-disabled-reason.visible {
+      display: block;
+    }
+    
+    /* Provisional results banner */
+    .provisional-banner {
+      background: #fef3c7;
+      border: 1px solid #f59e0b;
+      border-radius: var(--radius-md);
+      padding: var(--spacing-md);
+      margin-bottom: var(--spacing-lg);
+      font-size: var(--font-size-sm);
+      color: #92400e;
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-sm);
+    }
+    
+    .provisional-banner .banner-icon {
+      font-size: 1.25rem;
+    }
+    
     /* ═══════════════════════════════════════════════════════════════
        Bottom Ticker Styles
        ═══════════════════════════════════════════════════════════════ */
@@ -1210,6 +1307,12 @@
                 <span class="pension-type-title">Defined Contribution (DC)</span>
               </div>
               <p class="pension-type-description">Pension pot that I or my employer pays into</p>
+              <button type="button" class="pension-explainer-toggle" data-explainer="dc" onclick="event.preventDefault(); event.stopPropagation(); togglePensionExplainer('dc');">
+                ⓘ What's this?
+              </button>
+              <div id="explainer-dc" class="pension-explainer-content">
+                Defined Contribution pensions are pots of money. You and/or your employer pay in, the money is invested, and the value can go up or down. In retirement, you decide how and when to take money out. Examples include workplace pensions, SIPPs, and personal pensions.
+              </div>
             </div>
           </label>
           
@@ -1222,6 +1325,12 @@
                 <span class="pension-type-title">Defined Benefit (DB)</span>
               </div>
               <p class="pension-type-description">Guaranteed income for life from employer</p>
+              <button type="button" class="pension-explainer-toggle" data-explainer="db" onclick="event.preventDefault(); event.stopPropagation(); togglePensionExplainer('db');">
+                ⓘ What's this?
+              </button>
+              <div id="explainer-db" class="pension-explainer-content">
+                Defined Benefit pensions pay a guaranteed income for life. The amount is usually based on your salary and how long you worked for an employer. It normally increases each year and is paid until you die. Examples include final salary and career-average pensions.
+              </div>
             </div>
           </label>
           
@@ -1243,11 +1352,79 @@
             <div class="pension-type-content">
               <div class="pension-type-header">
                 <span class="pension-type-emoji">❓</span>
-                <span class="pension-type-title">Not sure</span>
+                <span class="pension-type-title">Not sure / None</span>
               </div>
               <p class="pension-type-description">We'll use default assumptions</p>
             </div>
           </label>
+        </div>
+        
+        <!-- Partner Follow-up Fields (shown when collecting partner pension types) -->
+        <div id="partner-followup-fields" class="partner-followup-fields">
+          <h3 id="partner-followup-title">Partner's pension details</h3>
+          
+          <!-- Partner DC Fields -->
+          <div id="partner-dc-fields" style="display: none;">
+            <div class="input-group">
+              <label>Partner's DC pension pot</label>
+              <div class="input-wrapper">
+                <span class="currency-symbol">£</span>
+                <input type="number" id="input-partner-dc-pot" min="0" step="1000" placeholder="0" inputmode="numeric" />
+              </div>
+              <p class="help-text">Enter 0 if unknown - results will be provisional</p>
+            </div>
+            <div class="input-group">
+              <label>Partner's monthly DC contributions</label>
+              <div class="input-wrapper">
+                <span class="currency-symbol">£</span>
+                <input type="number" id="input-partner-dc-contrib" min="0" step="50" placeholder="0" inputmode="numeric" />
+              </div>
+              <p class="help-text">Optional - monthly amount including employer</p>
+            </div>
+          </div>
+          
+          <!-- Partner DB Fields -->
+          <div id="partner-db-fields" style="display: none;">
+            <div class="input-group">
+              <label>Partner's annual DB pension amount *</label>
+              <div class="input-wrapper">
+                <span class="currency-symbol">£</span>
+                <input type="number" id="input-partner-db-amount" min="0" step="500" placeholder="15000" inputmode="numeric" />
+              </div>
+              <p class="help-text">Guaranteed yearly income from DB scheme</p>
+            </div>
+            <div class="input-group">
+              <label>Partner's DB pension start age</label>
+              <div class="input-wrapper">
+                <input type="number" id="input-partner-db-start-age" min="50" max="75" value="67" inputmode="numeric" />
+              </div>
+              <p class="help-text">When DB payments begin (usually retirement age)</p>
+            </div>
+          </div>
+          
+          <!-- Partner State Pension Fields -->
+          <div id="partner-sp-fields" style="display: none;">
+            <div class="input-group">
+              <label>Partner's State Pension age</label>
+              <div class="input-wrapper">
+                <input type="number" id="input-partner-sp-age" min="60" max="75" value="67" inputmode="numeric" />
+              </div>
+            </div>
+            <div class="input-group">
+              <label>Partner's expected State Pension (annual)</label>
+              <div class="input-wrapper">
+                <span class="currency-symbol">£</span>
+                <input type="number" id="input-partner-sp-amount" min="0" step="100" value="11500" inputmode="numeric" />
+              </div>
+              <p class="help-text">Full new State Pension is ~£11,500/year</p>
+            </div>
+            <div class="input-group" style="margin-top: var(--spacing-sm);">
+              <label style="display: flex; align-items: center; gap: var(--spacing-sm); cursor: pointer;">
+                <input type="checkbox" id="partner-sp-unknown" style="width: auto; position: static; opacity: 1;">
+                <span style="font-size: var(--font-size-sm); color: var(--color-text-light);">Not sure about partner's State Pension</span>
+              </label>
+            </div>
+          </div>
         </div>
       </div>
       
@@ -1602,12 +1779,19 @@
         <button type="button" class="btn btn-secondary" data-action="back">Edit</button>
         <button type="button" class="btn btn-primary" id="calculate-btn">Calculate →</button>
       </div>
+      <p id="calculate-disabled-reason" class="calculate-disabled-reason"></p>
     </div>
     
     <!-- ═══════════════════════════════════════════════════════════════
          Screen: Results
          ═══════════════════════════════════════════════════════════════ -->
     <div id="screen-results" class="screen" aria-hidden="true">
+      <!-- Provisional Results Banner (hidden by default) -->
+      <div id="provisional-banner" class="provisional-banner" style="display: none;">
+        <span class="banner-icon">⚠️</span>
+        <span id="provisional-banner-message">Provisional results — partner pension amounts not yet included.</span>
+      </div>
+      
       <div id="results-container">
         <!-- Populated by JavaScript -->
       </div>
@@ -1930,7 +2114,10 @@
       // Couples-first onboarding state
       onboardingState: null,
       // Track which person we're collecting pension types for (for couples)
-      pensionTypesFor: 'personA' // 'personA' or 'personB'
+      pensionTypesFor: 'personA', // 'personA' or 'personB'
+      // Provisional plan tracking
+      isProvisionalPlan: false,
+      provisionalReason: null
     };
     
     // Initialize onboarding state on app start
@@ -2190,6 +2377,11 @@
       const person = state.pensionTypesFor === 'personA' ? 'personA' : 'personB';
       state.onboardingState[person].pensionTypes = selectedTypes;
       
+      // Update partner follow-up fields visibility when selecting partner pension types
+      if (state.pensionTypesFor === 'personB') {
+        updatePartnerFollowupFields();
+      }
+      
       debugLog('ONBOARDING', `Pension types for ${person}: ${selectedTypes.join(', ')}`);
     }
     
@@ -2199,12 +2391,266 @@
           state.pensionTypesFor === 'personA') {
         state.pensionTypesFor = 'personB';
         updatePensionTypesScreen();
+        // Show partner follow-up fields
+        updatePartnerFollowupFields();
         // Stay on same screen, just update content
         showScreen('pension-types');
       } else {
+        // Save partner follow-up field values before moving on
+        if (state.pensionTypesFor === 'personB') {
+          savePartnerFollowupValues();
+        }
         // Move to next screen (age)
         state.pensionTypesFor = 'personA'; // Reset for next time
         nextScreen();
+      }
+    }
+    
+    // ═══════════════════════════════════════════════════════════════
+    // Pension Type Explainer Accordion
+    // ═══════════════════════════════════════════════════════════════
+    
+    function togglePensionExplainer(type) {
+      const explainer = document.getElementById(`explainer-${type}`);
+      if (!explainer) return;
+      
+      // Close other explainers first (only one can be open)
+      document.querySelectorAll('.pension-explainer-content.expanded').forEach(el => {
+        if (el.id !== `explainer-${type}`) {
+          el.classList.remove('expanded');
+        }
+      });
+      
+      // Toggle this explainer
+      explainer.classList.toggle('expanded');
+    }
+    
+    // ═══════════════════════════════════════════════════════════════
+    // Partner Follow-up Fields
+    // ═══════════════════════════════════════════════════════════════
+    
+    function updatePartnerFollowupFields() {
+      const followupContainer = document.getElementById('partner-followup-fields');
+      const dcFields = document.getElementById('partner-dc-fields');
+      const dbFields = document.getElementById('partner-db-fields');
+      const spFields = document.getElementById('partner-sp-fields');
+      const followupTitle = document.getElementById('partner-followup-title');
+      
+      if (!followupContainer) return;
+      
+      // Only show for partner (personB)
+      if (state.pensionTypesFor !== 'personB') {
+        followupContainer.classList.remove('visible');
+        return;
+      }
+      
+      const personB = state.onboardingState.personB;
+      const pensionTypes = personB?.pensionTypes || [];
+      
+      const hasDC = pensionTypes.includes('dc') || pensionTypes.includes('both');
+      const hasDB = pensionTypes.includes('db') || pensionTypes.includes('both');
+      const hasAnyPension = pensionTypes.length > 0 && !pensionTypes.includes('notSure');
+      
+      // Show/hide follow-up container
+      if (hasAnyPension) {
+        followupContainer.classList.add('visible');
+        followupTitle.textContent = "Partner's pension details";
+      } else {
+        followupContainer.classList.remove('visible');
+      }
+      
+      // Show/hide specific field groups
+      dcFields.style.display = hasDC ? 'block' : 'none';
+      dbFields.style.display = hasDB ? 'block' : 'none';
+      spFields.style.display = hasAnyPension ? 'block' : 'none';
+      
+      // Set default DB start age to partner's retirement age if available
+      const dbStartAgeInput = document.getElementById('input-partner-db-start-age');
+      if (dbStartAgeInput && personB?.retirementAge) {
+        dbStartAgeInput.value = personB.retirementAge;
+      }
+    }
+    
+    function savePartnerFollowupValues() {
+      const personB = state.onboardingState.personB;
+      if (!personB) return;
+      
+      const pensionTypes = personB.pensionTypes || [];
+      const hasDC = pensionTypes.includes('dc') || pensionTypes.includes('both');
+      const hasDB = pensionTypes.includes('db') || pensionTypes.includes('both');
+      
+      // Save DC values
+      if (hasDC) {
+        personB.dcPot = getValue('input-partner-dc-pot', 0);
+        personB.dcMonthlyContrib = getValue('input-partner-dc-contrib', 0);
+        personB.dcAnnualContrib = personB.dcMonthlyContrib * 12;
+      }
+      
+      // Save DB values
+      if (hasDB) {
+        personB.dbAnnualIncome = getValue('input-partner-db-amount', 0);
+        personB.dbStartAge = getValue('input-partner-db-start-age', 67);
+      }
+      
+      // Save State Pension values
+      const spUnknown = document.getElementById('partner-sp-unknown')?.checked;
+      if (spUnknown) {
+        personB.statePensionUnknown = true;
+        personB.expectedStatePension = 0;
+      } else {
+        personB.statePensionUnknown = false;
+        personB.statePensionAge = getValue('input-partner-sp-age', 67);
+        personB.expectedStatePension = getValue('input-partner-sp-amount', 11500);
+      }
+      
+      debugLog('ONBOARDING', 'Saved partner follow-up values', personB);
+    }
+    
+    // ═══════════════════════════════════════════════════════════════
+    // Calculate Button Validation and Gating
+    // ═══════════════════════════════════════════════════════════════
+    
+    /**
+     * Validate if we can calculate - returns { canCalculate, reason, isProvisional, provisionalReason }
+     */
+    function validateCanCalculate() {
+      const result = {
+        canCalculate: true,
+        reason: null,
+        isProvisional: false,
+        provisionalReason: null
+      };
+      
+      // Person A (main user) requirements
+      const personA = state.onboardingState?.personA;
+      const currentAge = getValue('input-current-age', 0);
+      const retirementAge = getValue('input-retirement-age', 0);
+      const targetIncome = getValue('input-target-income', 0);
+      const pensionPot = getValue('input-pension-pot', 0);
+      
+      // Check Person A basic fields
+      if (!currentAge || currentAge < 18 || currentAge > 100) {
+        result.canCalculate = false;
+        result.reason = "One more detail needed: your current age";
+        return result;
+      }
+      
+      if (!retirementAge || retirementAge <= currentAge) {
+        result.canCalculate = false;
+        result.reason = "One more detail needed: your target retirement age";
+        return result;
+      }
+      
+      if (!targetIncome || targetIncome <= 0) {
+        result.canCalculate = false;
+        result.reason = "One more detail needed: your target income";
+        return result;
+      }
+      
+      // Check pension type is selected for Person A
+      const personAPensionTypes = personA?.pensionTypes || [];
+      if (personAPensionTypes.length === 0) {
+        result.canCalculate = false;
+        result.reason = "One more detail needed: your pension type";
+        return result;
+      }
+      
+      // Check DC pot if Person A has DC
+      const personAHasDC = personAPensionTypes.includes('dc') || personAPensionTypes.includes('both');
+      if (personAHasDC && (pensionPot === undefined || pensionPot === null)) {
+        result.canCalculate = false;
+        result.reason = "One more detail needed: your pension pot value";
+        return result;
+      }
+      
+      // Check couples-specific requirements
+      if (state.onboardingState?.householdType === HOUSEHOLD_TYPES.COUPLE) {
+        const personB = state.onboardingState?.personB;
+        
+        // Partner age is required
+        if (!personB?.currentAge || personB.currentAge < 18) {
+          result.canCalculate = false;
+          result.reason = "One more detail needed: partner's current age";
+          return result;
+        }
+        
+        // Partner pension type is required
+        const personBPensionTypes = personB?.pensionTypes || [];
+        if (personBPensionTypes.length === 0) {
+          result.canCalculate = false;
+          result.reason = "One more detail needed: partner's pension type";
+          return result;
+        }
+        
+        // Check if partner income amounts are unknown -> provisional
+        const personBHasDC = personBPensionTypes.includes('dc') || personBPensionTypes.includes('both');
+        const personBHasDB = personBPensionTypes.includes('db') || personBPensionTypes.includes('both');
+        const personBNotSure = personBPensionTypes.includes('notSure');
+        
+        if (personBNotSure) {
+          result.isProvisional = true;
+          result.provisionalReason = "Provisional results — partner's pension type not specified.";
+        } else if (personBHasDB && (!personB.dbAnnualIncome || personB.dbAnnualIncome === 0)) {
+          result.isProvisional = true;
+          result.provisionalReason = "Provisional results — partner's DB pension amount not yet included.";
+        } else if (personBHasDC && (!personB.dcPot || personB.dcPot === 0) && (!personB.dcMonthlyContrib || personB.dcMonthlyContrib === 0)) {
+          result.isProvisional = true;
+          result.provisionalReason = "Provisional results — partner's DC pension details not yet included.";
+        }
+        
+        if (personB.statePensionUnknown) {
+          result.isProvisional = true;
+          result.provisionalReason = result.provisionalReason || "Provisional results — partner's State Pension not specified.";
+        }
+      }
+      
+      return result;
+    }
+    
+    /**
+     * Update Calculate button state based on validation
+     */
+    function updateCalculateButtonState() {
+      const calculateBtn = document.getElementById('calculate-btn');
+      const reasonEl = document.getElementById('calculate-disabled-reason');
+      
+      if (!calculateBtn) return;
+      
+      const validation = validateCanCalculate();
+      
+      // Update button state
+      calculateBtn.disabled = !validation.canCalculate;
+      
+      // Update reason message
+      if (reasonEl) {
+        if (!validation.canCalculate && validation.reason) {
+          reasonEl.textContent = validation.reason;
+          reasonEl.classList.add('visible');
+        } else {
+          reasonEl.textContent = '';
+          reasonEl.classList.remove('visible');
+        }
+      }
+      
+      // Store provisional state for use when showing results
+      state.isProvisionalPlan = validation.isProvisional;
+      state.provisionalReason = validation.provisionalReason;
+    }
+    
+    /**
+     * Show/hide provisional banner on results screen
+     */
+    function updateProvisionalBanner() {
+      const banner = document.getElementById('provisional-banner');
+      const message = document.getElementById('provisional-banner-message');
+      
+      if (!banner) return;
+      
+      if (state.isProvisionalPlan && state.provisionalReason) {
+        message.textContent = state.provisionalReason;
+        banner.style.display = 'flex';
+      } else {
+        banner.style.display = 'none';
       }
     }
     
@@ -2516,6 +2962,34 @@
       const data = collectFormData();
       state.formData = data;
       
+      // Bridge onboarding state to the form data
+      if (state.onboardingState?.personA) {
+        state.onboardingState.personA.currentAge = data.currentAge;
+        state.onboardingState.personA.retirementAge = data.retirementAge;
+        state.onboardingState.personA.dcPot = data.currentPension;
+        state.onboardingState.personA.dcMonthlyContrib = data.annualPensionContribution / 12;
+        state.onboardingState.personA.dcAnnualContrib = data.annualPensionContribution;
+        state.onboardingState.targetNetIncome = data.targetNetIncome;
+      }
+      
+      // Include couple info if applicable
+      let coupleHTML = '';
+      if (state.onboardingState?.householdType === HOUSEHOLD_TYPES.COUPLE && state.onboardingState.personB) {
+        const personB = state.onboardingState.personB;
+        coupleHTML = `
+          <div class="results-metrics" style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--color-border);">
+            <div class="metric">
+              <span class="metric-label">Partner Age</span>
+              <span class="metric-value">${personB.currentAge || '—'}</span>
+            </div>
+            <div class="metric">
+              <span class="metric-label">Partner Pension</span>
+              <span class="metric-value">${personB.pensionTypes?.join('+').toUpperCase() || '—'}</span>
+            </div>
+          </div>
+        `;
+      }
+      
       const html = `
         <div class="results-metrics" style="margin-bottom: 1rem;">
           <div class="metric">
@@ -2535,9 +3009,13 @@
             <span class="metric-value">£${data.currentPension.toLocaleString()}</span>
           </div>
         </div>
+        ${coupleHTML}
       `;
       
       document.getElementById('review-summary').innerHTML = html;
+      
+      // Update Calculate button state based on validation
+      updateCalculateButtonState();
     }
     
     // ═══════════════════════════════════════════════════════════════
@@ -3721,6 +4199,13 @@
       // Calculate button - Enhanced with all 20 modules
       document.getElementById('calculate-btn')?.addEventListener('click', () => {
         try {
+          // Validate before calculating
+          const validation = validateCanCalculate();
+          if (!validation.canCalculate) {
+            showError(validation.reason || 'Please complete all required fields');
+            return;
+          }
+          
           const data = collectFormData();
           state.formData = data;
           
@@ -3919,6 +4404,9 @@
           
           // Navigate to results
           nextScreen();
+          
+          // Update provisional banner if applicable
+          updateProvisionalBanner();
           
           // Render basic results first
           renderResults(basicProjection);

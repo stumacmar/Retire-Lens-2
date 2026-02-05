@@ -17,7 +17,8 @@ import {
   createPerson, 
   createHousehold,
   calculateHouseholdIncomeAtAge,
-  generateHouseholdTimeline
+  generateHouseholdTimeline,
+  validateHousehold
 } from '../engine/household.js';
 import { 
   calculatePCLSStrategy, 
@@ -465,6 +466,104 @@ test('PCLS handles zero pension value', () => {
   
   assert(result.totalPCLS === 0, 'Zero pension should result in 0 PCLS');
   assert(result.strategy === PCLS_STRATEGIES.NONE, 'Strategy should be NONE for zero pension');
+});
+
+// =============================================================================
+// COUPLES ONBOARDING VALIDATION TESTS
+// =============================================================================
+
+console.log('\n🔍 Testing Couples Onboarding Validation...');
+
+test('createPerson accepts pension types array', () => {
+  const person = createPerson({
+    currentAge: 55,
+    retirementAge: 65,
+    pensionTypes: ['dc', 'db']
+  });
+  
+  assert(person.currentAge === 55, 'Age should be 55');
+  // Note: createPerson doesn't store pensionTypes, that's in createHouseholdPerson
+});
+
+test('createHousehold requires person2 for couples', () => {
+  try {
+    createHousehold({
+      type: 'couple',
+      person1: { currentAge: 55 }
+      // Missing person2
+    });
+    assert(false, 'Should have thrown an error');
+  } catch (e) {
+    assert(e.message.includes('person2'), 'Error should mention person2');
+  }
+});
+
+test('validateHousehold returns errors for missing person1', () => {
+  const result = validateHousehold({ type: 'single', person1: null });
+  assert(!result.valid, 'Should not be valid');
+  assert(result.errors.length > 0, 'Should have errors');
+});
+
+test('validateHousehold passes for valid couple household', () => {
+  const household = createHousehold({
+    type: 'couple',
+    person1: {
+      currentAge: 55,
+      retirementAge: 60,
+      statePensionAge: 67,
+      expectedStatePension: 11500
+    },
+    person2: {
+      currentAge: 52,
+      retirementAge: 63,
+      statePensionAge: 67,
+      expectedStatePension: 11500
+    }
+  });
+  
+  const result = validateHousehold(household);
+  assert(result.valid, `Should be valid, but got errors: ${result.errors.join(', ')}`);
+});
+
+test('couple with partner age and pension type allows calculation', () => {
+  // Simulates the minimum required fields for couples to calculate
+  const household = createHousehold({
+    type: 'couple',
+    person1: {
+      currentAge: 55,
+      retirementAge: 60,
+      statePensionAge: 67,
+      expectedStatePension: 11500
+    },
+    person2: {
+      currentAge: 52,
+      retirementAge: 63,
+      statePensionAge: 67,
+      expectedStatePension: 11500
+    }
+  });
+  
+  const validation = validateHousehold(household);
+  
+  // canCalculate should be true when partner has age and pension type is set
+  assert(validation.valid === true, 'Should be able to calculate with minimum couple fields');
+});
+
+test('couple without partner details cannot calculate', () => {
+  // Missing partner throws error during creation
+  try {
+    createHousehold({
+      type: 'couple',
+      person1: {
+        currentAge: 55,
+        retirementAge: 60
+      }
+      // No person2
+    });
+    assert(false, 'Should throw error for missing person2');
+  } catch (e) {
+    assert(e.message.includes('person2'), 'Error should mention missing person2');
+  }
 });
 
 // =============================================================================

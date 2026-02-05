@@ -11,20 +11,13 @@
  * Uses Chart.js for rendering. Mobile-responsive design.
  */
 
+import { formatGBP } from '../utils/formatting.js';
+
 /**
- * Format currency for chart labels
+ * Format currency for chart labels - uses centralized formatter with compact mode
  */
 function formatCurrency(value) {
-  // Guard against null, undefined, NaN, and non-numbers
-  if (value === null || value === undefined || typeof value !== 'number' || isNaN(value)) {
-    return '—';
-  }
-  if (value >= 1000000) {
-    return '£' + (value / 1000000).toFixed(1) + 'M';
-  } else if (value >= 1000) {
-    return '£' + Math.round(value / 1000) + 'k';
-  }
-  return '£' + Math.round(value);
+  return formatGBP(value, { compact: true });
 }
 
 /**

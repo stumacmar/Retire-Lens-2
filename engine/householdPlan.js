@@ -17,6 +17,7 @@
 import { createPerson, validateHousehold, getSurvivorStatus } from './household.js';
 import { computeUKTax, calculateCouplesTax } from './tax.js';
 import { PENSION_CONFIG, TAX_CONFIG, PROJECTION_DEFAULTS } from '../config/defaults.js';
+import { safeNumber } from '../ui/utils/formatting.js';
 
 /**
  * Pension types that can be selected
@@ -122,15 +123,6 @@ export function createHouseholdPerson(options = {}) {
     // Life expectancy for planning
     lifeExpectancy: safeNumber(options.lifeExpectancy, PROJECTION_DEFAULTS.defaultLifeExpectancy)
   });
-}
-
-/**
- * Safe number parsing helper
- */
-function safeNumber(value, defaultVal = 0) {
-  if (value === null || value === undefined) return defaultVal;
-  const num = Number(value);
-  return isNaN(num) ? defaultVal : num;
 }
 
 /**

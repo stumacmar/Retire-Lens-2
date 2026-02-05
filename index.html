@@ -1361,7 +1361,25 @@
         
         <!-- Partner Follow-up Fields (shown when collecting partner pension types) -->
         <div id="partner-followup-fields" class="partner-followup-fields">
-          <h3 id="partner-followup-title">Partner's pension details</h3>
+          <h3 id="partner-followup-title">Partner's details</h3>
+          
+          <!-- Partner Age and Retirement Age (always shown for partner) -->
+          <div id="partner-basic-fields">
+            <div class="input-group">
+              <label for="input-partner-age">Partner's current age *</label>
+              <div class="input-wrapper">
+                <input type="number" id="input-partner-age" min="18" max="100" placeholder="45" inputmode="numeric" aria-required="true" />
+              </div>
+              <p class="help-text">Partner's age in years</p>
+            </div>
+            <div class="input-group">
+              <label for="input-partner-retirement-age">Partner's target retirement age *</label>
+              <div class="input-wrapper">
+                <input type="number" id="input-partner-retirement-age" min="50" max="100" placeholder="65" inputmode="numeric" aria-required="true" />
+              </div>
+              <p class="help-text">When partner plans to stop working</p>
+            </div>
+          </div>
           
           <!-- Partner DC Fields -->
           <div id="partner-dc-fields" style="display: none;">
@@ -1778,6 +1796,7 @@
       <div class="nav-buttons">
         <button type="button" class="btn btn-secondary" data-action="back">Edit</button>
         <button type="button" class="btn btn-primary" id="calculate-btn">Calculate →</button>
+        <button type="button" class="btn btn-primary" id="view-results-btn" style="display: none;">View Results →</button>
       </div>
       <p id="calculate-disabled-reason" class="calculate-disabled-reason"></p>
     </div>
@@ -2320,8 +2339,13 @@
         card.classList.toggle('selected', card.dataset.householdType === type);
       });
       
+      // Reset pension types flow to start with Person A
+      state.pensionTypesFor = 'personA';
+      
       // Auto-advance after short delay
       setTimeout(() => {
+        // Ensure we show pension-types screen next
+        updatePensionTypesScreen();
         nextScreen();
       }, 400);
     }
@@ -2444,6 +2468,10 @@
         return;
       }
       
+      // Always show partner followup fields when collecting personB info
+      followupContainer.classList.add('visible');
+      followupTitle.textContent = "Partner's details";
+      
       const personB = state.onboardingState.personB;
       const pensionTypes = personB?.pensionTypes || [];
       
@@ -2451,15 +2479,7 @@
       const hasDB = pensionTypes.includes('db') || pensionTypes.includes('both');
       const hasAnyPension = pensionTypes.length > 0 && !pensionTypes.includes('notSure');
       
-      // Show/hide follow-up container
-      if (hasAnyPension) {
-        followupContainer.classList.add('visible');
-        followupTitle.textContent = "Partner's pension details";
-      } else {
-        followupContainer.classList.remove('visible');
-      }
-      
-      // Show/hide specific field groups
+      // Show/hide specific pension field groups based on pension types selected
       dcFields.style.display = hasDC ? 'block' : 'none';
       dbFields.style.display = hasDB ? 'block' : 'none';
       spFields.style.display = hasAnyPension ? 'block' : 'none';
@@ -2474,6 +2494,10 @@
     function savePartnerFollowupValues() {
       const personB = state.onboardingState.personB;
       if (!personB) return;
+      
+      // Save partner's basic age info
+      personB.currentAge = getValue('input-partner-age', 0);
+      personB.retirementAge = getValue('input-partner-retirement-age', 0);
       
       const pensionTypes = personB.pensionTypes || [];
       const hasDC = pensionTypes.includes('dc') || pensionTypes.includes('both');
@@ -4418,14 +4442,18 @@
           
           debugLog('CALC', 'Enhanced projection complete with all modules', results);
           
-          // Navigate to results
-          nextScreen();
-          
           // Update provisional banner if applicable
           updateProvisionalBanner();
           
           // Render basic results first
           renderResults(basicProjection);
+          
+          // Hide Calculate button and show View Results button
+          document.getElementById('calculate-btn').style.display = 'none';
+          const viewResultsBtn = document.getElementById('view-results-btn');
+          if (viewResultsBtn) {
+            viewResultsBtn.style.display = 'inline-block';
+          }
           
           // Render new charts
           try {
@@ -4444,6 +4472,11 @@
           console.error(error);
           showError(error.message);
         }
+      });
+      
+      // View Results button - navigate to results screen after calculation
+      document.getElementById('view-results-btn')?.addEventListener('click', () => {
+        nextScreen();
       });
       
       // Compare button

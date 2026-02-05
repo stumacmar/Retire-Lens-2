@@ -768,6 +768,11 @@
     .ticker-message {
       white-space: nowrap;
       animation: scroll-left 20s linear infinite;
+      animation-play-state: paused; /* Paused by default */
+    }
+    
+    #bottom-ticker.active .ticker-message {
+      animation-play-state: running; /* Only run when ticker is active */
     }
     
     .ticker-message.complete {
@@ -2045,6 +2050,11 @@
       // Update ticker for onboarding screens
       updateTicker();
       
+      // Update pension types screen content when shown
+      if (screenId === 'pension-types') {
+        updatePensionTypesScreen();
+      }
+      
       // Hide advanced options for non-full modes
       if (screenId === 'review') {
         const advancedContainer = document.getElementById('advanced-options-container');
@@ -2156,11 +2166,6 @@
       const checkboxes = document.querySelectorAll('input[name="pension-type"]');
       const nextBtn = document.getElementById('pension-types-next-btn');
       
-      // Get selected types
-      const selectedTypes = Array.from(checkboxes)
-        .filter(cb => cb.checked)
-        .map(cb => cb.value);
-      
       // Handle "both" checkbox logic
       const bothCheckbox = document.getElementById('pension-both');
       const dcCheckbox = document.getElementById('pension-dc');
@@ -2170,13 +2175,13 @@
         // If "both" is checked, automatically check DC and DB
         dcCheckbox.checked = true;
         dbCheckbox.checked = true;
-        // Remove 'both' from selected types and add dc, db
-        const filtered = selectedTypes.filter(t => t !== 'both');
-        if (!filtered.includes('dc')) filtered.push('dc');
-        if (!filtered.includes('db')) filtered.push('db');
-        selectedTypes.length = 0;
-        selectedTypes.push(...filtered);
       }
+      
+      // Get selected types after handling "both" logic
+      const selectedTypes = Array.from(checkboxes)
+        .filter(cb => cb.checked)
+        .map(cb => cb.value)
+        .filter(t => t !== 'both'); // Exclude 'both' from final list, keep dc and db
       
       // Enable next button if at least one type is selected
       nextBtn.disabled = selectedTypes.length === 0;
@@ -3680,24 +3685,6 @@
       
       // Pension types next button
       document.getElementById('pension-types-next-btn')?.addEventListener('click', advancePensionTypesScreen);
-      
-      // Initialize pension types screen when shown
-      const pensionTypesObserver = new MutationObserver((mutations) => {
-        mutations.forEach((mutation) => {
-          if (mutation.target.id === 'screen-pension-types' && 
-              mutation.target.classList.contains('active')) {
-            updatePensionTypesScreen();
-          }
-        });
-      });
-      
-      const pensionTypesScreen = document.getElementById('screen-pension-types');
-      if (pensionTypesScreen) {
-        pensionTypesObserver.observe(pensionTypesScreen, { 
-          attributes: true, 
-          attributeFilter: ['class'] 
-        });
-      }
       
       // ═══════════════════════════════════════════════════════════════
       // Preview Card Event Handlers

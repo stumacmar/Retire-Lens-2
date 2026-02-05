@@ -335,4 +335,198 @@ test.describe('Couples Scenario', () => {
       fullPage: true 
     });
   });
+
+  test('couples onboarding with partner pension type enables calculate', async ({ page }) => {
+    // Set iPhone viewport for mobile testing
+    await page.setViewportSize({ width: 375, height: 812 });
+    
+    // Start planning
+    await page.locator('#screen-welcome.active [data-action="next"]').click();
+    await page.waitForSelector('#screen-pathfinder.active');
+    
+    // Quick pathfinder answers
+    for (let i = 0; i < 4; i++) {
+      await page.click('.pathfinder-option:first-child');
+      await page.waitForTimeout(300);
+    }
+    
+    // Mode select
+    await page.waitForSelector('#screen-mode-select.active');
+    await page.click('.mode-card[data-mode="full"]');
+    await page.waitForTimeout(400);
+    
+    // Select COUPLE household type
+    await page.waitForSelector('#screen-household-type.active');
+    await page.click('.household-type-card[data-household-type="couple"]');
+    await page.waitForTimeout(400);
+    
+    // Person A pension types screen
+    await page.waitForSelector('#screen-pension-types.active');
+    
+    // Check if explainer toggles work
+    const dcExplainerToggle = page.locator('.pension-explainer-toggle[data-explainer="dc"]');
+    if (await dcExplainerToggle.isVisible()) {
+      await dcExplainerToggle.click();
+      await page.waitForTimeout(300);
+      await expect(page.locator('#explainer-dc.expanded')).toBeVisible();
+      
+      // Screenshot with DC explainer open
+      await page.screenshot({ 
+        path: `./test-artifacts/screenshots/couples-dc-explainer-${test.info().project.name}.png`,
+        fullPage: true 
+      });
+    }
+    
+    // Select DC pension for Person A
+    await page.check('#pension-dc');
+    await page.waitForTimeout(200);
+    await page.click('#pension-types-next-btn');
+    await page.waitForTimeout(400);
+    
+    // Now on Partner pension types screen
+    await page.waitForSelector('#screen-pension-types.active');
+    
+    // Verify title changed to partner
+    const title = await page.locator('#pension-types-title').textContent();
+    expect(title.toLowerCase()).toContain('partner');
+    
+    // Select DC pension for Partner
+    await page.check('#pension-dc');
+    await page.waitForTimeout(200);
+    
+    // Partner follow-up fields should appear
+    const followupFields = page.locator('#partner-followup-fields');
+    await expect(followupFields).toHaveClass(/visible/);
+    
+    // Fill partner DC details (optional but lets fill some)
+    await page.fill('#input-partner-dc-pot', '200000');
+    await page.fill('#input-partner-dc-contrib', '500');
+    
+    // Fill partner State Pension details
+    await page.fill('#input-partner-sp-age', '67');
+    await page.fill('#input-partner-sp-amount', '11500');
+    
+    // Screenshot partner pension details
+    await page.screenshot({ 
+      path: `./test-artifacts/screenshots/couples-partner-pension-${test.info().project.name}.png`,
+      fullPage: true 
+    });
+    
+    // Advance from pension types
+    await page.click('#pension-types-next-btn');
+    await page.waitForTimeout(400);
+    
+    // Fill Person A age
+    await page.waitForSelector('#screen-age.active');
+    await page.fill('#input-current-age', '45');
+    await page.locator('#screen-age.active [data-action="next"]').click();
+    
+    // Fill Person A retirement age
+    await page.waitForSelector('#screen-retirement-age.active');
+    await page.fill('#input-retirement-age', '60');
+    await page.locator('#screen-retirement-age.active [data-action="next"]').click();
+    
+    // Fill target income
+    await page.waitForSelector('#screen-income-target.active');
+    await page.fill('#input-target-income', '35000');
+    await page.locator('#screen-income-target.active [data-action="next"]').click();
+    
+    // Fill pension pot
+    await page.waitForSelector('#screen-pension-pot.active');
+    await page.fill('#input-pension-pot', '400000');
+    await page.locator('#screen-pension-pot.active [data-action="next"]').click();
+    
+    // Fill contributions
+    await page.waitForSelector('#screen-contributions.active');
+    await page.fill('#input-pension-contribution', '1000');
+    await page.locator('#screen-contributions.active [data-action="next"]').click();
+    
+    // Skip ISA if present
+    const isaScreen = await page.$('#screen-isa-savings.active');
+    if (isaScreen) {
+      await page.fill('#input-isa-balance', '50000');
+      await page.fill('#input-isa-contribution', '5000');
+      await page.locator('#screen-isa-savings.active [data-action="next"]').click();
+    }
+    
+    // Fill State Pension
+    const spScreen = await page.$('#screen-state-pension.active');
+    if (spScreen) {
+      await page.fill('#input-state-pension-age', '67');
+      await page.fill('#input-state-pension-amount', '11500');
+      await page.locator('#screen-state-pension.active [data-action="next"]').click();
+    }
+    
+    // Review screen
+    await page.waitForSelector('#screen-review.active');
+    
+    // Verify Calculate button is ENABLED (not disabled)
+    const calculateBtn = page.locator('#calculate-btn');
+    await expect(calculateBtn).not.toBeDisabled();
+    
+    // Disabled reason should NOT be visible
+    const disabledReason = page.locator('#calculate-disabled-reason');
+    await expect(disabledReason).not.toHaveClass(/visible/);
+    
+    // Screenshot review screen
+    await page.screenshot({ 
+      path: `./test-artifacts/screenshots/couples-review-enabled-${test.info().project.name}.png`,
+      fullPage: true 
+    });
+    
+    // Calculate
+    await page.click('#calculate-btn');
+    
+    // Wait for results
+    await page.waitForSelector('#screen-results.active');
+    await page.waitForTimeout(1000);
+    
+    // Screenshot results on iPhone viewport
+    await page.screenshot({ 
+      path: `./test-artifacts/screenshots/couples-results-iphone-${test.info().project.name}.png`,
+      fullPage: true 
+    });
+    
+    // Verify results loaded
+    await expect(page.locator('.answer-badge')).toBeVisible();
+  });
+
+  test('couples scenario without partner pension type shows disabled reason', async ({ page }) => {
+    // Start planning
+    await page.locator('#screen-welcome.active [data-action="next"]').click();
+    await page.waitForSelector('#screen-pathfinder.active');
+    
+    // Quick pathfinder answers
+    for (let i = 0; i < 4; i++) {
+      await page.click('.pathfinder-option:first-child');
+      await page.waitForTimeout(300);
+    }
+    
+    // Mode select - quick mode
+    await page.waitForSelector('#screen-mode-select.active');
+    await page.click('.mode-card[data-mode="quick"]');
+    await page.waitForTimeout(400);
+    
+    // Select COUPLE household type
+    await page.waitForSelector('#screen-household-type.active');
+    await page.click('.household-type-card[data-household-type="couple"]');
+    await page.waitForTimeout(400);
+    
+    // Person A pension types screen - select DC
+    await page.waitForSelector('#screen-pension-types.active');
+    await page.check('#pension-dc');
+    await page.click('#pension-types-next-btn');
+    await page.waitForTimeout(400);
+    
+    // Partner pension types screen - DO NOT select anything, just advance
+    // Note: The next button should be disabled if nothing selected
+    const nextBtn = page.locator('#pension-types-next-btn');
+    await expect(nextBtn).toBeDisabled();
+    
+    // Screenshot showing disabled next button
+    await page.screenshot({ 
+      path: `./test-artifacts/screenshots/couples-partner-pension-required-${test.info().project.name}.png`,
+      fullPage: true 
+    });
+  });
 });

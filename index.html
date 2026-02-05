@@ -664,6 +664,125 @@
       color: var(--color-text-light);
     }
     
+    /* ═══════════════════════════════════════════════════════════════
+       Pension Type Selection Styles
+       ═══════════════════════════════════════════════════════════════ */
+    
+    .pension-type-options {
+      display: flex;
+      flex-direction: column;
+      gap: var(--spacing-md);
+    }
+    
+    .pension-type-option {
+      display: block;
+      padding: var(--spacing-lg);
+      background: var(--color-surface);
+      border: 2px solid var(--color-border);
+      border-radius: var(--radius-lg);
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    
+    .pension-type-option:hover {
+      border-color: var(--color-primary);
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-md);
+    }
+    
+    .pension-type-option input[type="checkbox"] {
+      position: absolute;
+      opacity: 0;
+      pointer-events: none;
+    }
+    
+    .pension-type-option input[type="checkbox"]:checked ~ .pension-type-content {
+      border-color: var(--color-primary);
+    }
+    
+    .pension-type-option:has(input:checked) {
+      border-color: var(--color-primary);
+      background: rgba(59, 130, 246, 0.05);
+    }
+    
+    .pension-type-option.warning-option:has(input:checked) {
+      border-color: var(--color-warning);
+      background: rgba(245, 158, 11, 0.05);
+    }
+    
+    .pension-type-content {
+      pointer-events: none;
+    }
+    
+    .pension-type-header {
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-sm);
+      margin-bottom: var(--spacing-xs);
+    }
+    
+    .pension-type-emoji {
+      font-size: var(--font-size-xl);
+    }
+    
+    .pension-type-title {
+      font-size: var(--font-size-lg);
+      font-weight: 600;
+    }
+    
+    .pension-type-description {
+      color: var(--color-text-light);
+      font-size: var(--font-size-sm);
+      margin-top: var(--spacing-xs);
+    }
+    
+    /* ═══════════════════════════════════════════════════════════════
+       Bottom Ticker Styles
+       ═══════════════════════════════════════════════════════════════ */
+    
+    #bottom-ticker {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: rgba(255, 255, 255, 0.95);
+      border-top: 1px solid var(--color-border);
+      box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.05);
+      z-index: 50;
+      padding: var(--spacing-sm) var(--spacing-md);
+      display: none; /* Hidden by default, shown during onboarding */
+    }
+    
+    #bottom-ticker.active {
+      display: block;
+    }
+    
+    .ticker-content {
+      max-width: 600px;
+      margin: 0 auto;
+      font-size: var(--font-size-sm);
+      color: var(--color-text-light);
+      overflow: hidden;
+    }
+    
+    .ticker-message {
+      white-space: nowrap;
+      animation: scroll-left 20s linear infinite;
+    }
+    
+    .ticker-message.complete {
+      color: var(--color-success);
+    }
+    
+    .ticker-message.waiting {
+      color: var(--color-warning);
+    }
+    
+    @keyframes scroll-left {
+      0% { transform: translateX(0); }
+      100% { transform: translateX(-50%); }
+    }
+    
     .journey-badge {
       display: inline-flex;
       align-items: center;
@@ -1030,6 +1149,110 @@
     </div>
     
     <!-- ═══════════════════════════════════════════════════════════════
+         Screen: Household Type Selection
+         ═══════════════════════════════════════════════════════════════ -->
+    <div id="screen-household-type" class="screen" aria-hidden="true">
+      <div class="screen-header">
+        <h2 class="screen-title">Who are you planning for?</h2>
+        <p class="screen-subtitle">Choose your household type</p>
+      </div>
+      
+      <div class="screen-content">
+        <div class="mode-cards">
+          <!-- Single -->
+          <div class="mode-card household-type-card" data-household-type="single">
+            <div class="mode-card-header">
+              <span class="mode-card-emoji">👤</span>
+              <span class="mode-card-title">Just me</span>
+            </div>
+            <p class="mode-card-description">Individual retirement planning</p>
+          </div>
+          
+          <!-- Couple -->
+          <div class="mode-card household-type-card" data-household-type="couple">
+            <div class="mode-card-header">
+              <span class="mode-card-emoji">👥</span>
+              <span class="mode-card-title">Me and my partner</span>
+            </div>
+            <p class="mode-card-description">Joint household retirement planning</p>
+          </div>
+        </div>
+      </div>
+      
+      <div class="nav-buttons">
+        <button type="button" class="btn btn-secondary" data-action="back">Back</button>
+        <button type="button" class="btn btn-primary" id="household-type-next-btn" disabled style="display: none;">Next</button>
+      </div>
+    </div>
+    
+    <!-- ═══════════════════════════════════════════════════════════════
+         Screen: Pension Types Selection
+         ═══════════════════════════════════════════════════════════════ -->
+    <div id="screen-pension-types" class="screen" aria-hidden="true">
+      <div class="screen-header">
+        <h2 class="screen-title" id="pension-types-title">What type of pension do you have?</h2>
+        <p class="screen-subtitle" id="pension-types-subtitle">Select all that apply</p>
+      </div>
+      
+      <div class="screen-content">
+        <div class="pension-type-options">
+          <!-- DC Pension -->
+          <label class="pension-type-option" for="pension-dc">
+            <input type="checkbox" id="pension-dc" name="pension-type" value="dc">
+            <div class="pension-type-content">
+              <div class="pension-type-header">
+                <span class="pension-type-emoji">💰</span>
+                <span class="pension-type-title">Defined Contribution (DC)</span>
+              </div>
+              <p class="pension-type-description">Pension pot that I or my employer pays into</p>
+            </div>
+          </label>
+          
+          <!-- DB Pension -->
+          <label class="pension-type-option" for="pension-db">
+            <input type="checkbox" id="pension-db" name="pension-type" value="db">
+            <div class="pension-type-content">
+              <div class="pension-type-header">
+                <span class="pension-type-emoji">🏛️</span>
+                <span class="pension-type-title">Defined Benefit (DB)</span>
+              </div>
+              <p class="pension-type-description">Guaranteed income for life from employer</p>
+            </div>
+          </label>
+          
+          <!-- Both -->
+          <label class="pension-type-option" for="pension-both">
+            <input type="checkbox" id="pension-both" name="pension-type" value="both">
+            <div class="pension-type-content">
+              <div class="pension-type-header">
+                <span class="pension-type-emoji">🔄</span>
+                <span class="pension-type-title">Both DC and DB</span>
+              </div>
+              <p class="pension-type-description">I have both types of pension</p>
+            </div>
+          </label>
+          
+          <!-- Not Sure -->
+          <label class="pension-type-option warning-option" for="pension-notsure">
+            <input type="checkbox" id="pension-notsure" name="pension-type" value="notSure">
+            <div class="pension-type-content">
+              <div class="pension-type-header">
+                <span class="pension-type-emoji">❓</span>
+                <span class="pension-type-title">Not sure</span>
+              </div>
+              <p class="pension-type-description">We'll use default assumptions</p>
+            </div>
+          </label>
+        </div>
+      </div>
+      
+      <div class="nav-buttons">
+        <button type="button" class="btn btn-secondary" data-action="back">Back</button>
+        <button type="button" class="btn btn-primary" id="pension-types-next-btn" disabled>Next</button>
+      </div>
+    </div>
+    
+    <!-- ═══════════════════════════════════════════════════════════════
          Screen: Current Age
          ═══════════════════════════════════════════════════════════════ -->
     <div id="screen-age" class="screen" aria-hidden="true">
@@ -1294,40 +1517,6 @@
                   <div class="accordion-option-content">
                     <label class="accordion-option-label" for="enable-tax-optimization">Optimize tax efficiency</label>
                     <p class="accordion-option-helper">Maximize after-tax retirement income</p>
-                  </div>
-                </div>
-                <div class="accordion-option">
-                  <input type="checkbox" id="is-couple">
-                  <div class="accordion-option-content">
-                    <label class="accordion-option-label" for="is-couple">Planning as a couple</label>
-                    <p class="accordion-option-helper">Joint retirement planning with partner</p>
-                  </div>
-                </div>
-                <div id="couple-inputs" style="display: none; margin-left: 1.5rem; margin-top: 0.5rem;">
-                  <h5 style="font-size: 0.875rem; color: #6b7280; margin-bottom: 0.75rem;">Partner Details</h5>
-                  <div class="input-group" style="margin-bottom: 0.5rem;">
-                    <label style="font-size: 0.75rem; color: #6b7280;">Partner's current age</label>
-                    <input type="number" id="partner-age" placeholder="62" min="18" max="100" style="width: 100%; padding: 0.5rem; border: 1px solid #e5e7eb; border-radius: 4px;">
-                  </div>
-                  <div class="input-group" style="margin-bottom: 0.5rem;">
-                    <label style="font-size: 0.75rem; color: #6b7280;">Partner's retirement age</label>
-                    <input type="number" id="partner-retirement-age" placeholder="67" min="50" max="100" style="width: 100%; padding: 0.5rem; border: 1px solid #e5e7eb; border-radius: 4px;">
-                  </div>
-                  <div class="input-group" style="margin-bottom: 0.5rem;">
-                    <label style="font-size: 0.75rem; color: #6b7280;">Partner's State Pension age</label>
-                    <input type="number" id="partner-sp-age" placeholder="67" min="60" max="75" value="67" style="width: 100%; padding: 0.5rem; border: 1px solid #e5e7eb; border-radius: 4px;">
-                  </div>
-                  <div class="input-group" style="margin-bottom: 0.5rem;">
-                    <label style="font-size: 0.75rem; color: #6b7280;">Partner's expected State Pension (£/year)</label>
-                    <input type="number" id="partner-sp-amount" placeholder="11500" min="0" value="11500" style="width: 100%; padding: 0.5rem; border: 1px solid #e5e7eb; border-radius: 4px;">
-                  </div>
-                  <div class="input-group" style="margin-bottom: 0.5rem;">
-                    <label style="font-size: 0.75rem; color: #6b7280;">Partner's DB pension (£/year, if any)</label>
-                    <input type="number" id="partner-db-amount" placeholder="0" min="0" style="width: 100%; padding: 0.5rem; border: 1px solid #e5e7eb; border-radius: 4px;">
-                  </div>
-                  <div class="input-group">
-                    <label style="font-size: 0.75rem; color: #6b7280;">Partner's DB pension start age</label>
-                    <input type="number" id="partner-db-start-age" placeholder="67" min="50" max="100" value="67" style="width: 100%; padding: 0.5rem; border: 1px solid #e5e7eb; border-radius: 4px;">
                   </div>
                 </div>
                 <div class="accordion-option">
@@ -1653,6 +1842,13 @@
     <span id="model-version">RetireLens Pro v0.9.3</span>
   </footer>
   
+  <!-- Bottom Ticker for Onboarding Progress -->
+  <div id="bottom-ticker">
+    <div class="ticker-content">
+      <div id="ticker-messages" class="ticker-message"></div>
+    </div>
+  </div>
+  
   <!-- Main application script -->
   <script type="module">
     // Core projection engine (existing)
@@ -1697,6 +1893,11 @@
     // Import enhanced tax engine with tests
     import { computeUKTax, runTaxTests } from './engine/tax.js';
     
+    // Import couples-first household engine
+    import { createInitialOnboardingState, validateOnboardingState, onboardingToHouseholdPlan, ONBOARDING_STEPS } from './src/ux/onboarding/flow.js';
+    import { createHouseholdPlan, validateHouseholdPlan, HOUSEHOLD_TYPES, PENSION_TYPES } from './engine/householdPlan.js';
+    import { generateTickerMessages, formatTickerDisplay } from './ui/components/bottomTicker.js';
+    
     // ═══════════════════════════════════════════════════════════════
     // Configuration Constants
     // ═══════════════════════════════════════════════════════════════
@@ -1720,8 +1921,15 @@
       pathfinderAnswers: {},
       pathfinderCurrentQuestion: 0,
       journey: null,
-      mode: null
+      mode: null,
+      // Couples-first onboarding state
+      onboardingState: null,
+      // Track which person we're collecting pension types for (for couples)
+      pensionTypesFor: 'personA' // 'personA' or 'personB'
     };
+    
+    // Initialize onboarding state on app start
+    state.onboardingState = createInitialOnboardingState();
     
     function debugLog(category, message, data = null) {
       if (!DEBUG) return;
@@ -1760,7 +1968,9 @@
     
     // Base screen order (will be filtered based on mode)
     const ALL_SCREENS = [
-      'welcome', 'pathfinder', 'mode-select', 'age', 'retirement-age', 'income-target', 
+      'welcome', 'pathfinder', 'mode-select', 
+      'household-type', 'pension-types',  // NEW onboarding screens
+      'age', 'retirement-age', 'income-target', 
       'pension-pot', 'contributions', 'isa-savings', 
       'state-pension', 'review', 'results', 'compare'
     ];
@@ -1779,8 +1989,11 @@
         screens.push('mode-select');
       }
       
+      // Add NEW onboarding screens (always present)
+      screens.push('household-type', 'pension-types');
+      
       // Get steps based on selected mode
-      const modeSteps = state.mode ? getModeSteps(state.mode) : ALL_SCREENS.slice(3, -2);
+      const modeSteps = state.mode ? getModeSteps(state.mode) : ALL_SCREENS.slice(5, -2);
       screens = screens.concat(modeSteps);
       
       // Always add review, results, compare
@@ -1829,6 +2042,9 @@
         appContainer?.classList.remove('has-preview');
       }
       
+      // Update ticker for onboarding screens
+      updateTicker();
+      
       // Hide advanced options for non-full modes
       if (screenId === 'review') {
         const advancedContainer = document.getElementById('advanced-options-container');
@@ -1862,6 +2078,128 @@
       const currentIndex = SCREEN_ORDER.indexOf(state.currentScreen);
       if (currentIndex > 0) {
         showScreen(SCREEN_ORDER[currentIndex - 1]);
+      }
+    }
+    
+    // ═══════════════════════════════════════════════════════════════
+    // Bottom Ticker Update Function
+    // ═══════════════════════════════════════════════════════════════
+    
+    function updateTicker() {
+      const ticker = document.getElementById('bottom-ticker');
+      const tickerMessages = document.getElementById('ticker-messages');
+      
+      if (!ticker || !tickerMessages) return;
+      
+      // Only show ticker during onboarding screens
+      const onboardingScreens = ['household-type', 'pension-types', 'age', 'retirement-age', 'income-target', 'pension-pot'];
+      const isOnboarding = onboardingScreens.includes(state.currentScreen);
+      
+      if (isOnboarding && state.onboardingState) {
+        const { messages } = generateTickerMessages(state.onboardingState);
+        const displayMessages = formatTickerDisplay(messages, 3);
+        
+        if (displayMessages.length > 0) {
+          tickerMessages.innerHTML = displayMessages.join(' • ');
+          ticker.classList.add('active');
+        } else {
+          ticker.classList.remove('active');
+        }
+      } else {
+        ticker.classList.remove('active');
+      }
+    }
+    
+    // ═══════════════════════════════════════════════════════════════
+    // Onboarding Handlers
+    // ═══════════════════════════════════════════════════════════════
+    
+    function selectHouseholdType(type) {
+      state.onboardingState.householdType = type;
+      debugLog('ONBOARDING', `Household type selected: ${type}`);
+      
+      // Update UI
+      document.querySelectorAll('.household-type-card').forEach(card => {
+        card.classList.toggle('selected', card.dataset.householdType === type);
+      });
+      
+      // Auto-advance after short delay
+      setTimeout(() => {
+        nextScreen();
+      }, 400);
+    }
+    
+    function updatePensionTypesScreen() {
+      const title = document.getElementById('pension-types-title');
+      const subtitle = document.getElementById('pension-types-subtitle');
+      
+      if (state.pensionTypesFor === 'personA') {
+        if (state.onboardingState.householdType === HOUSEHOLD_TYPES.COUPLE) {
+          title.textContent = 'Your pension type';
+          subtitle.textContent = 'Select all that apply';
+        } else {
+          title.textContent = 'What type of pension do you have?';
+          subtitle.textContent = 'Select all that apply';
+        }
+      } else if (state.pensionTypesFor === 'personB') {
+        title.textContent = "Your partner's pension type";
+        subtitle.textContent = 'Select all that apply';
+      }
+      
+      // Clear existing selections
+      document.querySelectorAll('input[name="pension-type"]').forEach(input => {
+        input.checked = false;
+      });
+    }
+    
+    function handlePensionTypeChange() {
+      const checkboxes = document.querySelectorAll('input[name="pension-type"]');
+      const nextBtn = document.getElementById('pension-types-next-btn');
+      
+      // Get selected types
+      const selectedTypes = Array.from(checkboxes)
+        .filter(cb => cb.checked)
+        .map(cb => cb.value);
+      
+      // Handle "both" checkbox logic
+      const bothCheckbox = document.getElementById('pension-both');
+      const dcCheckbox = document.getElementById('pension-dc');
+      const dbCheckbox = document.getElementById('pension-db');
+      
+      if (bothCheckbox.checked) {
+        // If "both" is checked, automatically check DC and DB
+        dcCheckbox.checked = true;
+        dbCheckbox.checked = true;
+        // Remove 'both' from selected types and add dc, db
+        const filtered = selectedTypes.filter(t => t !== 'both');
+        if (!filtered.includes('dc')) filtered.push('dc');
+        if (!filtered.includes('db')) filtered.push('db');
+        selectedTypes.length = 0;
+        selectedTypes.push(...filtered);
+      }
+      
+      // Enable next button if at least one type is selected
+      nextBtn.disabled = selectedTypes.length === 0;
+      
+      // Store selections
+      const person = state.pensionTypesFor === 'personA' ? 'personA' : 'personB';
+      state.onboardingState[person].pensionTypes = selectedTypes;
+      
+      debugLog('ONBOARDING', `Pension types for ${person}: ${selectedTypes.join(', ')}`);
+    }
+    
+    function advancePensionTypesScreen() {
+      // If couple and we just finished Person A, show screen again for Person B
+      if (state.onboardingState.householdType === HOUSEHOLD_TYPES.COUPLE && 
+          state.pensionTypesFor === 'personA') {
+        state.pensionTypesFor = 'personB';
+        updatePensionTypesScreen();
+        // Stay on same screen, just update content
+        showScreen('pension-types');
+      } else {
+        // Move to next screen (age)
+        state.pensionTypesFor = 'personA'; // Reset for next time
+        nextScreen();
       }
     }
     
@@ -2141,14 +2479,11 @@
         dbPensionAmount: getValue('db-pension-amount', 0),
         dbPensionStartAge: getValue('db-pension-start-age', 65),
         
-        // Couple mode
-        isCouple: getChecked('is-couple'),
-        partnerAge: getValue('partner-age', 0),
-        partnerRetirementAge: getValue('partner-retirement-age', 67),
-        partnerStatePensionAge: getValue('partner-sp-age', 67),
-        partnerStatePension: getValue('partner-sp-amount', 11500),
-        partnerDbPension: getValue('partner-db-amount', 0),
-        partnerDbStartAge: getValue('partner-db-start-age', 67),
+        // Couple mode - will be populated from onboarding state
+        isCouple: false,
+        householdType: null,
+        personA: null,
+        personB: null,
         
         // Phased retirement
         isPhasedRetirement: getChecked('is-phased-retirement'),
@@ -3328,6 +3663,43 @@
       });
       
       // ═══════════════════════════════════════════════════════════════
+      // Onboarding Event Handlers
+      // ═══════════════════════════════════════════════════════════════
+      
+      // Household type selection
+      document.querySelectorAll('.household-type-card').forEach(card => {
+        card.addEventListener('click', () => {
+          selectHouseholdType(card.dataset.householdType);
+        });
+      });
+      
+      // Pension type checkboxes
+      document.querySelectorAll('input[name="pension-type"]').forEach(checkbox => {
+        checkbox.addEventListener('change', handlePensionTypeChange);
+      });
+      
+      // Pension types next button
+      document.getElementById('pension-types-next-btn')?.addEventListener('click', advancePensionTypesScreen);
+      
+      // Initialize pension types screen when shown
+      const pensionTypesObserver = new MutationObserver((mutations) => {
+        mutations.forEach((mutation) => {
+          if (mutation.target.id === 'screen-pension-types' && 
+              mutation.target.classList.contains('active')) {
+            updatePensionTypesScreen();
+          }
+        });
+      });
+      
+      const pensionTypesScreen = document.getElementById('screen-pension-types');
+      if (pensionTypesScreen) {
+        pensionTypesObserver.observe(pensionTypesScreen, { 
+          attributes: true, 
+          attributeFilter: ['class'] 
+        });
+      }
+      
+      // ═══════════════════════════════════════════════════════════════
       // Preview Card Event Handlers
       // ═══════════════════════════════════════════════════════════════
       
@@ -3354,11 +3726,6 @@
         if (inputs) inputs.style.display = e.target.checked ? 'block' : 'none';
       });
       
-      document.getElementById('is-couple')?.addEventListener('change', (e) => {
-        const inputs = document.getElementById('couple-inputs');
-        if (inputs) inputs.style.display = e.target.checked ? 'block' : 'none';
-      });
-      
       document.getElementById('is-phased-retirement')?.addEventListener('change', (e) => {
         const inputs = document.getElementById('phased-inputs');
         if (inputs) inputs.style.display = e.target.checked ? 'block' : 'none';
@@ -3370,19 +3737,32 @@
           const data = collectFormData();
           state.formData = data;
           
+          // Bridge onboarding state to formData if not already done
+          if (state.onboardingState && state.onboardingState.householdType) {
+            data.householdType = state.onboardingState.householdType;
+            data.personA = state.onboardingState.personA;
+            data.personB = state.onboardingState.personB;
+            data.isCouple = state.onboardingState.householdType === HOUSEHOLD_TYPES.COUPLE;
+          }
+          
           // 1. Create assumptions from selected scenario
           const assumptions = createUserAssumptions(SCENARIO_PRESETS[data.scenario] || SCENARIO_PRESETS.moderate);
           
-          // 2. Create household (single or couple)
+          // 2. Create household using new engine for couples, existing for singles
           let household = null;
           try {
-            household = createHousehold({
-              person1: { age: data.currentAge, retirementAge: data.retirementAge },
-              person2: data.isCouple && data.partnerAge > 0 ? { 
-                age: data.partnerAge, 
-                retirementAge: data.partnerRetirementAge 
-              } : null
-            });
+            if (data.householdType === HOUSEHOLD_TYPES.COUPLE && state.onboardingState) {
+              // Use new couples-first household engine
+              const householdPlan = onboardingToHouseholdPlan(state.onboardingState);
+              household = createHouseholdPlan(householdPlan);
+              debugLog('HOUSEHOLD', 'Created couple household from onboarding', household);
+            } else {
+              // Use existing single person logic
+              household = createHousehold({
+                person1: { age: data.currentAge, retirementAge: data.retirementAge },
+                person2: null
+              });
+            }
           } catch (e) {
             console.warn('Household creation failed:', e);
             // Create default single household

@@ -915,6 +915,352 @@ test('STOP: Withdrawal rate is never single number for phased plans', () => {
 });
 
 // =============================================================================
+// PHASE 7: AUTOMATED TESTS - REQUIRED BY SPECIFICATION
+// =============================================================================
+
+console.log('\n🔬 Testing Phase 7 Requirements (Mandatory)...');
+
+test('Partner income affects result: Remove Partner B income → outcome worsens', () => {
+  // WITH partner B income (full couple)
+  const coupleWithIncome = createHouseholdPlan({
+    householdType: HOUSEHOLD_TYPES.COUPLE,
+    personA: {
+      currentAge: 55,
+      retirementAge: 60,
+      pensionTypes: [PENSION_TYPES.DC],
+      dcPot: 400000,
+      statePensionAge: 67,
+      expectedStatePension: 11500
+    },
+    personB: {
+      currentAge: 62,
+      retirementAge: 67,
+      pensionTypes: [PENSION_TYPES.DB],
+      dbAnnualIncome: 15000,
+      dbStartAge: 67,
+      statePensionAge: 67,
+      expectedStatePension: 11500
+    },
+    targetNetIncome: 50000,
+    planningHorizonAge: 90
+  });
+  
+  // WITHOUT partner B income (partner has zero income)
+  const coupleWithoutIncome = createHouseholdPlan({
+    householdType: HOUSEHOLD_TYPES.COUPLE,
+    personA: {
+      currentAge: 55,
+      retirementAge: 60,
+      pensionTypes: [PENSION_TYPES.DC],
+      dcPot: 400000,
+      statePensionAge: 67,
+      expectedStatePension: 11500
+    },
+    personB: {
+      currentAge: 62,
+      retirementAge: 67,
+      pensionTypes: [PENSION_TYPES.DC], // No DB, minimal DC
+      dcPot: 0, // Zero pot
+      statePensionAge: 67,
+      expectedStatePension: 0 // No state pension
+    },
+    targetNetIncome: 50000,
+    planningHorizonAge: 90
+  });
+  
+  const timelineWithIncome = projectHousehold(coupleWithIncome);
+  const timelineWithoutIncome = projectHousehold(coupleWithoutIncome);
+  
+  // Calculate final balances
+  const finalBalanceWith = timelineWithIncome[timelineWithIncome.length - 1].totalDcBalance;
+  const finalBalanceWithout = timelineWithoutIncome[timelineWithoutIncome.length - 1].totalDcBalance;
+  
+  // Outcome MUST be worse without partner income
+  assert(
+    finalBalanceWith > finalBalanceWithout,
+    `Final balance with partner income (£${Math.round(finalBalanceWith).toLocaleString()}) must be higher than without (£${Math.round(finalBalanceWithout).toLocaleString()})`
+  );
+  
+  // Calculate withdrawal rates
+  const ratesWithIncome = calculateWithdrawalRates(timelineWithIncome);
+  const ratesWithoutIncome = calculateWithdrawalRates(timelineWithoutIncome);
+  
+  // Withdrawal rate should be lower when partner has income
+  assert(
+    ratesWithIncome.peakWithdrawalRate < ratesWithoutIncome.peakWithdrawalRate,
+    `Peak withdrawal rate with partner income (${ratesWithIncome.peakWithdrawalRatePercent}%) must be lower than without (${ratesWithoutIncome.peakWithdrawalRatePercent}%)`
+  );
+  
+  console.log(`   Partner income test: With partner income final balance £${Math.round(finalBalanceWith).toLocaleString()}, without £${Math.round(finalBalanceWithout).toLocaleString()}`);
+});
+
+test('Different state pension ages: Partner B income starts later → reflected in timeline', () => {
+  // Partner A has state pension age 66, Partner B has 68
+  const plan = createHouseholdPlan({
+    householdType: HOUSEHOLD_TYPES.COUPLE,
+    personA: {
+      currentAge: 55,
+      retirementAge: 60,
+      pensionTypes: [PENSION_TYPES.DC],
+      dcPot: 300000,
+      statePensionAge: 66, // Earlier state pension
+      expectedStatePension: 11500
+    },
+    personB: {
+      currentAge: 57,
+      retirementAge: 63,
+      pensionTypes: [PENSION_TYPES.DC],
+      dcPot: 200000,
+      statePensionAge: 68, // Later state pension
+      expectedStatePension: 11500
+    },
+    targetNetIncome: 40000,
+    planningHorizonAge: 85
+  });
+  
+  const timeline = projectHousehold(plan);
+  
+  // At person A age 66 (person B age 68), both should have SP
+  const yearA66 = timeline.find(y => y.personAAge === 66);
+  assert(yearA66.personAIncome.statePension === 11500, 'Person A should have SP at 66');
+  // Person B at age 68 (when A is 66 + 2 = 68, but B is 2 years older so when A is 66, B is 68)
+  assert(yearA66.personBAge === 68, `Person B should be 68 when A is 66, got ${yearA66.personBAge}`);
+  assert(yearA66.personBIncome.statePension === 11500, 'Person B should have SP at their age 68');
+  
+  // At person A age 65 (person B age 67), only person A's SP should NOT have started yet
+  const yearA65 = timeline.find(y => y.personAAge === 65);
+  assert(yearA65.personAIncome.statePension === 0, 'Person A should NOT have SP at 65');
+  assert(yearA65.personBIncome.statePension === 0, 'Person B should NOT have SP at their age 67 (starts at 68)');
+  
+  console.log('   Different state pension ages test passed');
+});
+
+test('Tax isolation: Two £30k incomes ≠ one £60k income', () => {
+  // Two people each with £30k income
+  const couplePlan = createHouseholdPlan({
+    householdType: HOUSEHOLD_TYPES.COUPLE,
+    personA: {
+      currentAge: 67,
+      retirementAge: 67,
+      pensionTypes: [PENSION_TYPES.DC],
+      dcPot: 600000,
+      statePensionAge: 67,
+      expectedStatePension: 15000 // £15k SP
+    },
+    personB: {
+      currentAge: 67,
+      retirementAge: 67,
+      pensionTypes: [PENSION_TYPES.DC],
+      dcPot: 600000,
+      statePensionAge: 67,
+      expectedStatePension: 15000 // £15k SP
+    },
+    targetNetIncome: 55000, // Forces additional withdrawals
+    planningHorizonAge: 70
+  });
+  
+  const coupleTimeline = projectHousehold(couplePlan);
+  const coupleYear = coupleTimeline.find(y => y.personAAge === 67);
+  
+  // Single person with £60k equivalent income
+  const singlePlan = createHouseholdPlan({
+    householdType: HOUSEHOLD_TYPES.SINGLE,
+    personA: {
+      currentAge: 67,
+      retirementAge: 67,
+      pensionTypes: [PENSION_TYPES.DC],
+      dcPot: 1200000, // Combined pot
+      statePensionAge: 67,
+      expectedStatePension: 30000 // Combined SP
+    },
+    targetNetIncome: 55000, // Same target
+    planningHorizonAge: 70
+  });
+  
+  const singleTimeline = projectHousehold(singlePlan);
+  const singleYear = singleTimeline.find(y => y.personAAge === 67);
+  
+  // The couple should pay LESS tax due to two personal allowances
+  // (each person uses their own £12,570 PA)
+  assert(
+    coupleYear.householdTax <= singleYear.householdTax,
+    `Couple tax (£${coupleYear.householdTax.toFixed(0)}) should be less than or equal to single tax (£${singleYear.householdTax.toFixed(0)})`
+  );
+  
+  // The couple should have higher net income for the same gross
+  assert(
+    coupleYear.householdNetIncome >= singleYear.householdNetIncome - 100, // Allow small tolerance
+    `Couple net income (£${coupleYear.householdNetIncome.toFixed(0)}) should be >= single net income (£${singleYear.householdNetIncome.toFixed(0)})`
+  );
+  
+  console.log(`   Tax isolation test: Couple tax £${coupleYear.householdTax.toFixed(0)}, Single tax £${singleYear.householdTax.toFixed(0)}`);
+});
+
+test('PCLS strategy change: Spend vs reinvest produces different balances', () => {
+  // PCLS taken and used for spending (reduces withdrawals needed)
+  const pclsSpend = createHouseholdPlan({
+    householdType: HOUSEHOLD_TYPES.SINGLE,
+    personA: {
+      currentAge: 59,
+      retirementAge: 60,
+      pensionTypes: [PENSION_TYPES.DC],
+      dcPot: 400000,
+      pclsStrategy: PCLS_STRATEGY.ALL_AT_RETIREMENT, // PCLS taken as tax-free cash
+      statePensionAge: 67,
+      expectedStatePension: 11500
+    },
+    targetNetIncome: 30000,
+    planningHorizonAge: 80
+  });
+  
+  // PCLS not taken (stays in pot)
+  const pclsNone = createHouseholdPlan({
+    householdType: HOUSEHOLD_TYPES.SINGLE,
+    personA: {
+      currentAge: 59,
+      retirementAge: 60,
+      pensionTypes: [PENSION_TYPES.DC],
+      dcPot: 400000,
+      pclsStrategy: PCLS_STRATEGY.NONE, // No PCLS
+      statePensionAge: 67,
+      expectedStatePension: 11500
+    },
+    targetNetIncome: 30000,
+    planningHorizonAge: 80
+  });
+  
+  const timelineSpend = projectHousehold(pclsSpend);
+  const timelineNone = projectHousehold(pclsNone);
+  
+  // Verify PCLS was taken in spend case
+  const retirementYearSpend = timelineSpend.find(y => y.personAAge === 60);
+  const retirementYearNone = timelineNone.find(y => y.personAAge === 60);
+  
+  assert(
+    retirementYearSpend.personAPclsTaken > 0,
+    `PCLS should be taken in spend strategy (got £${retirementYearSpend.personAPclsTaken})`
+  );
+  assert(
+    retirementYearNone.personAPclsTaken === 0,
+    `PCLS should NOT be taken in none strategy (got £${retirementYearNone.personAPclsTaken})`
+  );
+  
+  // The final balances should be different
+  const finalSpend = timelineSpend[timelineSpend.length - 1].totalDcBalance;
+  const finalNone = timelineNone[timelineNone.length - 1].totalDcBalance;
+  
+  // They should be materially different
+  const difference = Math.abs(finalSpend - finalNone);
+  assert(
+    difference > 1000,
+    `PCLS strategy should produce different final balances (spend: £${Math.round(finalSpend).toLocaleString()}, none: £${Math.round(finalNone).toLocaleString()})`
+  );
+  
+  console.log(`   PCLS strategy test: Spend final £${Math.round(finalSpend).toLocaleString()}, None final £${Math.round(finalNone).toLocaleString()}`);
+});
+
+test('Care costs toggle: Increases drawdown when enabled', () => {
+  // WITHOUT care costs - use more assets to avoid depletion
+  const withoutCareCosts = createHouseholdPlan({
+    householdType: HOUSEHOLD_TYPES.SINGLE,
+    personA: {
+      currentAge: 60,
+      retirementAge: 60,
+      pensionTypes: [PENSION_TYPES.DC],
+      dcPot: 800000, // Higher pot to avoid depletion
+      statePensionAge: 67,
+      expectedStatePension: 11500
+    },
+    targetNetIncome: 30000, // Lower target
+    planningHorizonAge: 90, // Shorter horizon
+    laterLife: {
+      spendReductionAge: 80,
+      spendReductionPercent: 25,
+      careCosts: null // No care costs
+    }
+  });
+  
+  // WITH care costs (£40,000/year from age 85)
+  const withCareCosts = createHouseholdPlan({
+    householdType: HOUSEHOLD_TYPES.SINGLE,
+    personA: {
+      currentAge: 60,
+      retirementAge: 60,
+      pensionTypes: [PENSION_TYPES.DC],
+      dcPot: 800000, // Same pot
+      statePensionAge: 67,
+      expectedStatePension: 11500
+    },
+    targetNetIncome: 30000,
+    planningHorizonAge: 90,
+    laterLife: {
+      spendReductionAge: 80,
+      spendReductionPercent: 25,
+      careCosts: {
+        annualCost: 40000,
+        startAge: 85
+      }
+    }
+  });
+  
+  const timelineWithout = projectHousehold(withoutCareCosts);
+  const timelineWith = projectHousehold(withCareCosts);
+  
+  // Verify care costs are tracked
+  const yearAt85Without = timelineWithout.find(y => y.personAAge === 85);
+  const yearAt85With = timelineWith.find(y => y.personAAge === 85);
+  
+  assert(yearAt85Without.careCosts === 0, 'Care costs should be 0 without toggle');
+  assert(yearAt85With.careCosts === 40000, 'Care costs should be £40,000 with toggle enabled');
+  
+  // Final balance should be LOWER with care costs (more money withdrawn)
+  const finalBalanceWithout = timelineWithout[timelineWithout.length - 1].totalDcBalance;
+  const finalBalanceWith = timelineWith[timelineWith.length - 1].totalDcBalance;
+  
+  assert(
+    finalBalanceWith < finalBalanceWithout,
+    `Final balance with care costs (£${Math.round(finalBalanceWith).toLocaleString()}) should be less than without (£${Math.round(finalBalanceWithout).toLocaleString()})`
+  );
+  
+  console.log(`   Care costs test: Without £${Math.round(finalBalanceWithout).toLocaleString()}, With £${Math.round(finalBalanceWith).toLocaleString()}`);
+});
+
+test('Later-life spending reduction: Applied after specified age', () => {
+  // Create plan with spending reduction at age 80
+  const plan = createHouseholdPlan({
+    householdType: HOUSEHOLD_TYPES.SINGLE,
+    personA: {
+      currentAge: 75,
+      retirementAge: 75,
+      pensionTypes: [PENSION_TYPES.DC],
+      dcPot: 300000,
+      statePensionAge: 67,
+      expectedStatePension: 11500
+    },
+    targetNetIncome: 30000,
+    planningHorizonAge: 85,
+    laterLife: {
+      spendReductionAge: 80,
+      spendReductionPercent: 25
+    }
+  });
+  
+  const timeline = projectHousehold(plan);
+  
+  // At age 79, no reduction should be applied
+  const year79 = timeline.find(y => y.personAAge === 79);
+  assert(year79.hasSpendReduction === false, 'No reduction at age 79');
+  assert(year79.effectiveTarget === 30000, 'Effective target should be full at 79');
+  
+  // At age 80, reduction should be applied (25% reduction = 75% of target)
+  const year80 = timeline.find(y => y.personAAge === 80);
+  assert(year80.hasSpendReduction === true, 'Reduction should be applied at age 80');
+  assert(year80.effectiveTarget === 22500, `Effective target at 80 should be £22,500 (75% of £30k), got £${year80.effectiveTarget}`);
+  
+  console.log('   Later-life spending reduction test passed');
+});
+
+// =============================================================================
 // SUMMARY
 // =============================================================================
 

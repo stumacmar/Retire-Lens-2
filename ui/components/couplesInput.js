@@ -461,7 +461,7 @@ export function renderCouplesInputTabs(containerEl, onUpdate, initialData = {}) 
       errors.push('Retirement age must be after current age');
     }
     
-    if (person.lifeExpectancyAge && person.retirementAge && person.lifeExpectancyAge <= person.retirementAge) {
+    if (person.lifeExpectancy && person.retirementAge && person.lifeExpectancy <= person.retirementAge) {
       errors.push('Life expectancy must be after retirement age');
     }
     

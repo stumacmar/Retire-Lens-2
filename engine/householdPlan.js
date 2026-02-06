@@ -158,12 +158,31 @@ export function createHouseholdPlan(options = {}) {
   const targetNetIncome = safeNumber(options.targetNetIncome, 0);
   const planningHorizonAge = safeNumber(options.planningHorizonAge, 95);
 
+  // Later life settings (spending reductions and care costs)
+  const laterLifeOptions = options?.laterLife ?? {};
+  const laterLife = Object.freeze({
+    spendReductionAge: safeNumber(laterLifeOptions.spendReductionAge, 80),
+    spendReductionPercent: safeNumber(laterLifeOptions.spendReductionPercent, 25),
+    careCosts: laterLifeOptions.careCosts ? Object.freeze({
+      enabled: true,
+      annualCost: safeNumber(laterLifeOptions.careCosts.annualCost, 0),
+      startAge: safeNumber(laterLifeOptions.careCosts.startAge, 85)
+    }) : Object.freeze({
+      enabled: false,
+      annualCost: 0,
+      startAge: 85
+    })
+  });
+
   return Object.freeze({
     householdType,
     personA,
     personB,
     targetNetIncome,
     planningHorizonAge,
+    
+    // Later life settings
+    laterLife,
     
     // Assumptions
     assumptions: Object.freeze({
@@ -335,7 +354,14 @@ export function projectHousehold(plan) {
     throw new Error(`Cannot project: ${validation.errors.join(', ')}`);
   }
 
-  const { personA, personB, householdType, targetNetIncome, planningHorizonAge, assumptions } = plan;
+  const { personA, personB, householdType, targetNetIncome, planningHorizonAge, assumptions, laterLife } = plan;
+  
+  // Extract later-life settings with defaults
+  const spendReductionAge = laterLife?.spendReductionAge ?? 80;
+  const spendReductionPercent = laterLife?.spendReductionPercent ?? 25;
+  const careCostsEnabled = laterLife?.careCosts?.enabled ?? false;
+  const careCostsAnnual = laterLife?.careCosts?.annualCost ?? 0;
+  const careCostsStartAge = laterLife?.careCosts?.startAge ?? 85;
   
   // Determine start age (earliest current age)
   const startAge = householdType === HOUSEHOLD_TYPES.COUPLE && personB
@@ -434,6 +460,17 @@ export function projectHousehold(plan) {
     let personBPclsUsed = 0;
 
     if (anyRetired && targetNetIncome > 0) {
+      // ==== LATER-LIFE ADJUSTMENTS ====
+      // Use helper function for spending reduction and care costs
+      const laterLifeSettings = { 
+        spendReductionAge, spendReductionPercent, 
+        careCostsEnabled, careCostsAnnual, careCostsStartAge 
+      };
+      const laterLifeAdjust = calculateLaterLifeAdjustments(targetNetIncome, personAAge, laterLifeSettings);
+      
+      // Total spending need = adjusted target + care costs
+      const totalSpendingNeed = laterLifeAdjust.effectiveTarget + laterLifeAdjust.careCosts;
+      
       // Calculate gross needed for household net target
       // First, what net do we get from guaranteed income?
       const personAGuaranteedTax = computeUKTax({ 
@@ -446,7 +483,7 @@ export function projectHousehold(plan) {
       }) : { netIncome: 0 };
 
       const guaranteedNet = personAGuaranteedTax.netIncome + personBGuaranteedTax.netIncome;
-      const additionalNetNeeded = Math.max(0, targetNetIncome - guaranteedNet);
+      const additionalNetNeeded = Math.max(0, totalSpendingNeed - guaranteedNet);
 
       if (additionalNetNeeded > 0) {
         // First, try to use PCLS bucket (tax-free, so 1:1 with net)
@@ -526,6 +563,13 @@ export function projectHousehold(plan) {
       (personB && personBAge < personB.statePensionAge);
 
     // ==== RECORD YEAR ====
+    // Use helper function for later-life calculations (for tracking purposes)
+    const laterLifeSettingsForTracking = { 
+      spendReductionAge, spendReductionPercent, 
+      careCostsEnabled, careCostsAnnual, careCostsStartAge 
+    };
+    const yearLaterLife = calculateLaterLifeAdjustments(targetNetIncome, personAAge, laterLifeSettingsForTracking);
+    
     timeline.push({
       year,
       personAAge,
@@ -564,7 +608,12 @@ export function projectHousehold(plan) {
       
       // PCLS tracking
       personAPclsTaken: personAAge === personA.retirementAge ? personAPclsTaken : 0,
-      personBPclsTaken: personB && personBAge === personB.retirementAge ? personBPclsTaken : 0
+      personBPclsTaken: personB && personBAge === personB.retirementAge ? personBPclsTaken : 0,
+      
+      // Later-life tracking
+      careCosts: yearLaterLife.careCosts,
+      effectiveTarget: yearLaterLife.effectiveTarget,
+      hasSpendReduction: yearLaterLife.hasSpendReduction
     });
   }
 
@@ -588,6 +637,27 @@ function calculatePclsForPerson(person, dcPot) {
   }
   // Maximum is 25% of pot
   return dcPot * 0.25;
+}
+
+/**
+ * Calculate later-life adjustments (spending reduction and care costs)
+ * Helper function to avoid duplication
+ * @param {number} baseTarget - Base target income
+ * @param {number} age - Current age (person A)
+ * @param {object} laterLifeSettings - Later life settings object
+ * @returns {object} { effectiveTarget, careCosts, hasSpendReduction }
+ */
+function calculateLaterLifeAdjustments(baseTarget, age, laterLifeSettings) {
+  const { spendReductionAge, spendReductionPercent, careCostsEnabled, careCostsAnnual, careCostsStartAge } = laterLifeSettings;
+  
+  const hasSpendReduction = age >= spendReductionAge;
+  const effectiveTarget = hasSpendReduction 
+    ? baseTarget * (1 - spendReductionPercent / 100)
+    : baseTarget;
+  
+  const careCosts = (careCostsEnabled && age >= careCostsStartAge) ? careCostsAnnual : 0;
+  
+  return { effectiveTarget, careCosts, hasSpendReduction };
 }
 
 /**

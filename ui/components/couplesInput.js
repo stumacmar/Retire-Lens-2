@@ -134,8 +134,8 @@ export function renderCouplesInputTabs(containerEl, onUpdate, initialData = {}) 
           type="number" 
           class="couples-input"
           data-person="${personKey}"
-          data-field="lifeExpectancyAge"
-          value="${person.lifeExpectancyAge || 90}"
+          data-field="lifeExpectancy"
+          value="${person.lifeExpectancy || 90}"
           min="65"
           max="110"
           inputmode="numeric"
@@ -173,8 +173,8 @@ export function renderCouplesInputTabs(containerEl, onUpdate, initialData = {}) 
             type="number" 
             class="couples-input"
             data-person="${personKey}"
-            data-field="monthlyContribution"
-            value="${person.monthlyContribution || 0}"
+            data-field="dcMonthlyContrib"
+            value="${person.dcMonthlyContrib || 0}"
             min="0"
             step="50"
             inputmode="numeric"
@@ -191,8 +191,8 @@ export function renderCouplesInputTabs(containerEl, onUpdate, initialData = {}) 
             type="number" 
             class="couples-input"
             data-person="${personKey}"
-            data-field="annualInjection"
-            value="${person.annualInjection || 0}"
+            data-field="dcAnnualContrib"
+            value="${person.dcAnnualContrib || 0}"
             min="0"
             step="1000"
             inputmode="numeric"
@@ -258,12 +258,12 @@ export function renderCouplesInputTabs(containerEl, onUpdate, initialData = {}) 
         <select 
           class="couples-input"
           data-person="${personKey}"
-          data-field="escalationRate"
+          data-field="dbEscalation"
         >
-          <option value="cpi" ${person.escalationRate === 'cpi' ? 'selected' : ''}>CPI (2.5% assumed)</option>
-          <option value="fixed3" ${person.escalationRate === 'fixed3' ? 'selected' : ''}>Fixed 3%</option>
-          <option value="fixed5" ${person.escalationRate === 'fixed5' ? 'selected' : ''}>Fixed 5%</option>
-          <option value="none" ${person.escalationRate === 'none' ? 'selected' : ''}>No increase</option>
+          <option value="cpi" ${person.dbEscalation === 'cpi' ? 'selected' : ''}>CPI (2.5% assumed)</option>
+          <option value="fixed3" ${person.dbEscalation === 'fixed3' ? 'selected' : ''}>Fixed 3%</option>
+          <option value="fixed5" ${person.dbEscalation === 'fixed5' ? 'selected' : ''}>Fixed 5%</option>
+          <option value="none" ${person.dbEscalation === 'none' ? 'selected' : ''}>No increase</option>
         </select>
       </div>
       
@@ -297,8 +297,8 @@ export function renderCouplesInputTabs(containerEl, onUpdate, initialData = {}) 
             type="number" 
             class="couples-input"
             data-person="${personKey}"
-            data-field="isaMonthlyContribution"
-            value="${person.isaMonthlyContribution || 0}"
+            data-field="isaMonthlyContrib"
+            value="${person.isaMonthlyContrib || 0}"
             min="0"
             step="50"
             inputmode="numeric"
@@ -315,8 +315,8 @@ export function renderCouplesInputTabs(containerEl, onUpdate, initialData = {}) 
             type="number" 
             class="couples-input"
             data-person="${personKey}"
-            data-field="isaAnnualInjection"
-            value="${person.isaAnnualInjection || 0}"
+            data-field="isaAnnualContrib"
+            value="${person.isaAnnualContrib || 0}"
             min="0"
             step="1000"
             inputmode="numeric"
@@ -336,8 +336,8 @@ export function renderCouplesInputTabs(containerEl, onUpdate, initialData = {}) 
           type="number" 
           class="couples-input"
           data-person="${personKey}"
-          data-field="statePensionStartAge"
-          value="${person.statePensionStartAge || 67}"
+          data-field="statePensionAge"
+          value="${person.statePensionAge || 67}"
           min="66"
           max="68"
           inputmode="numeric"
@@ -352,8 +352,8 @@ export function renderCouplesInputTabs(containerEl, onUpdate, initialData = {}) 
             type="number" 
             class="couples-input"
             data-person="${personKey}"
-            data-field="statePensionAnnualIncome"
-            value="${person.statePensionAnnualIncome || 11500}"
+            data-field="expectedStatePension"
+            value="${person.expectedStatePension || 11500}"
             min="0"
             step="100"
             inputmode="numeric"
@@ -475,8 +475,8 @@ export function renderCouplesInputTabs(containerEl, onUpdate, initialData = {}) 
       errors.push('DB pension start age must be in the future');
     }
     
-    // State pension start age
-    if (person.statePensionStartAge && (person.statePensionStartAge < 66 || person.statePensionStartAge > 68)) {
+    // State pension age
+    if (person.statePensionAge && (person.statePensionAge < 66 || person.statePensionAge > 68)) {
       errors.push('State Pension age is typically between 66 and 68');
     }
     
@@ -529,28 +529,26 @@ function createDefaultPerson(data = {}) {
   return {
     currentAge: safeNumber(data.currentAge, null),
     retirementAge: safeNumber(data.retirementAge, null),
-    lifeExpectancyAge: safeNumber(data.lifeExpectancyAge, 90),
+    lifeExpectancy: safeNumber(data.lifeExpectancy, 90),
     
-    // DC Pension
+    // DC Pension (matching onboarding state structure)
     dcPot: safeNumber(data.dcPot, 0),
-    monthlyContribution: safeNumber(data.monthlyContribution, 0),
-    annualInjection: safeNumber(data.annualInjection, 0),
-    // Default to retirement age, or null if not set (will be auto-populated on retirement age change)
+    dcMonthlyContrib: safeNumber(data.dcMonthlyContrib, 0),
+    dcAnnualContrib: safeNumber(data.dcAnnualContrib, 0),
     contributionEndAge: safeNumber(data.contributionEndAge, data.retirementAge || null),
     
-    // DB Pension
+    // DB Pension (matching onboarding state structure)
     dbAnnualIncome: safeNumber(data.dbAnnualIncome, 0),
-    // Default to retirement age, or null if not set (will be auto-populated on retirement age change)
     dbStartAge: safeNumber(data.dbStartAge, data.retirementAge || null),
-    escalationRate: data.escalationRate || 'cpi',
+    dbEscalation: data.dbEscalation || 'cpi',
     
-    // ISA
+    // ISA (matching householdPlan.js structure)
     isaBalance: safeNumber(data.isaBalance, 0),
-    isaMonthlyContribution: safeNumber(data.isaMonthlyContribution, 0),
-    isaAnnualInjection: safeNumber(data.isaAnnualInjection, 0),
+    isaMonthlyContrib: safeNumber(data.isaMonthlyContrib, 0),
+    isaAnnualContrib: safeNumber(data.isaAnnualContrib, 0),
     
-    // State Pension
-    statePensionStartAge: safeNumber(data.statePensionStartAge, 67),
-    statePensionAnnualIncome: safeNumber(data.statePensionAnnualIncome, 11500)
+    // State Pension (matching onboarding state structure)
+    statePensionAge: safeNumber(data.statePensionAge, 67),
+    expectedStatePension: safeNumber(data.expectedStatePension, 11500)
   };
 }

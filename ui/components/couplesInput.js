@@ -535,10 +535,12 @@ function createDefaultPerson(data = {}) {
     dcPot: safeNumber(data.dcPot, 0),
     monthlyContribution: safeNumber(data.monthlyContribution, 0),
     annualInjection: safeNumber(data.annualInjection, 0),
+    // Default to retirement age, or null if not set (will be auto-populated on retirement age change)
     contributionEndAge: safeNumber(data.contributionEndAge, data.retirementAge || null),
     
     // DB Pension
     dbAnnualIncome: safeNumber(data.dbAnnualIncome, 0),
+    // Default to retirement age, or null if not set (will be auto-populated on retirement age change)
     dbStartAge: safeNumber(data.dbStartAge, data.retirementAge || null),
     escalationRate: data.escalationRate || 'cpi',
     

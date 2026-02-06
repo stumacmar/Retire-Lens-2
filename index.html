@@ -2391,7 +2391,8 @@
       
       // REFACTOR: Skip pension-types screen - now collected in household details
       // Add couples input screen if household type is couple
-      if (state.onboardingState?.householdType === HOUSEHOLD_TYPES.COUPLE) {
+      if (state.onboardingState?.householdType === HOUSEHOLD_TYPES.COUPLE || 
+          state.onboardingState?.householdType === 'couple') {
         screens.push('couples-input');
         // For couples, they've entered everything in couples-input
         // Go directly to review

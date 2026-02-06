@@ -1,0 +1,42 @@
+# Page snapshot
+
+```yaml
+- generic [active] [ref=e1]:
+  - progressbar [ref=e3]
+  - generic [ref=e5]:
+    - generic [ref=e6]:
+      - heading "Who are you planning for?" [level=2] [ref=e7]
+      - paragraph [ref=e8]: Choose your household type
+    - generic [ref=e10]:
+      - generic [ref=e11] [cursor=pointer]:
+        - generic [ref=e12]:
+          - generic [ref=e13]: 👤
+          - generic [ref=e14]: Just me
+        - paragraph [ref=e15]: Individual retirement planning
+      - generic [ref=e16] [cursor=pointer]:
+        - generic [ref=e17]:
+          - generic [ref=e18]: 👥
+          - generic [ref=e19]: Me and my partner
+        - paragraph [ref=e20]: Joint household retirement planning
+    - button "Back" [ref=e22] [cursor=pointer]
+  - generic [ref=e23]:
+    - generic [ref=e24]:
+      - generic [ref=e25]: 📊 Live Estimate
+      - button "More info" [ref=e26] [cursor=pointer]: ℹ️
+    - generic [ref=e27]:
+      - generic [ref=e28]:
+        - generic [ref=e29]: Retire at
+        - generic [ref=e30]: —
+      - generic [ref=e31]:
+        - generic [ref=e32]: Target net
+        - generic [ref=e33]: —
+      - generic [ref=e34]:
+        - generic [ref=e35]: Projected pot
+        - generic [ref=e36]: —
+      - generic [ref=e37]:
+        - generic [ref=e38]: Gap/Surplus
+        - generic [ref=e39]: —
+    - generic [ref=e40]: "Estimate basis: 4% rule + your inputs"
+  - contentinfo [ref=e42]: RetireLens Pro v0.9.3
+  - generic [ref=e45]: "Your pension type needed… • Planning for individual ✔ • State Pension: age 67 ✔"
+```

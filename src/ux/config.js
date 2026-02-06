@@ -6,13 +6,15 @@
 
 export const FEATURE_FLAGS = {
   // Enable the Pathfinder triage step at the start of the flow
-  PATHFINDER: true,
+  // DISABLED: These questions don't affect calculations and damage trust
+  PATHFINDER: false,
   
   // Enable the live Answer Preview sticky card during input
   PREVIEW_CARD: true,
   
   // Enable mode selection (Quick/Guided/Full)
-  MODE_SELECT: true
+  // DISABLED: Mode selection doesn't affect calculations and damages trust
+  MODE_SELECT: false
 };
 
 /**

@@ -229,13 +229,32 @@ test.describe('Single Household Full Flow', () => {
     });
     await page.click('#screen-contributions.active [data-action="next"]');
     
-    // 7. Should reach review
+    // 7. ISA savings (full mode includes this)
+    await page.waitForSelector('#screen-isa-savings.active', { timeout: 5000 });
+    await page.fill('#input-isa-balance', '50000');
+    await page.fill('#input-isa-contribution', '5000');
+    await page.screenshot({ 
+      path: './test-artifacts/screenshots/test07-step6-isa.png',
+      fullPage: true 
+    });
+    await page.click('#screen-isa-savings.active [data-action="next"]');
+    
+    // 8. State pension (full mode includes this)
+    await page.waitForSelector('#screen-state-pension.active', { timeout: 5000 });
+    // Use defaults, just click next
+    await page.screenshot({ 
+      path: './test-artifacts/screenshots/test07-step7-state-pension.png',
+      fullPage: true 
+    });
+    await page.click('#screen-state-pension.active [data-action="next"]');
+    
+    // 9. Should reach review
     await page.waitForSelector('#screen-review.active', { timeout: 5000 });
     const reviewScreen = page.locator('#screen-review.active');
     await expect(reviewScreen).toBeVisible();
     
     await page.screenshot({ 
-      path: './test-artifacts/screenshots/test07-step6-review.png',
+      path: './test-artifacts/screenshots/test07-step8-review.png',
       fullPage: true 
     });
     

@@ -40,7 +40,7 @@ export default defineConfig({
   webServer: {
     command: 'npx http-server -p 8080 -c-1',
     url: 'http://localhost:8080',
-    reuseExistingServer: !process.env.CI,
+    reuseExistingServer: true,  // Changed to true to allow existing server
     timeout: 120000,
   },
 

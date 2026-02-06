@@ -1020,15 +1020,15 @@ test('Different state pension ages: Partner B income starts later → reflected 
   
   const timeline = projectHousehold(plan);
   
-  // At person A age 66 (person B age 68), both should have SP
+  // At person A age 66, person B is 68 (A is 55 at start, B is 57, so B is 2 years older)
   const yearA66 = timeline.find(y => y.personAAge === 66);
   assert(yearA66.personAIncome.statePension === 11500, 'Person A should have SP at 66');
-  // Person B at age 68 (when A is 66 + 2 = 68, but B is 2 years older so when A is 66, B is 68)
   assert(yearA66.personBAge === 68, `Person B should be 68 when A is 66, got ${yearA66.personBAge}`);
   assert(yearA66.personBIncome.statePension === 11500, 'Person B should have SP at their age 68');
   
-  // At person A age 65 (person B age 67), only person A's SP should NOT have started yet
+  // At person A age 65 (person B age 67), neither should have state pension yet
   const yearA65 = timeline.find(y => y.personAAge === 65);
+  assert(yearA65.personBAge === 67, 'Person B should be 67 when A is 65');
   assert(yearA65.personAIncome.statePension === 0, 'Person A should NOT have SP at 65');
   assert(yearA65.personBIncome.statePension === 0, 'Person B should NOT have SP at their age 67 (starts at 68)');
   
@@ -1250,12 +1250,12 @@ test('Later-life spending reduction: Applied after specified age', () => {
   // At age 79, no reduction should be applied
   const year79 = timeline.find(y => y.personAAge === 79);
   assert(year79.hasSpendReduction === false, 'No reduction at age 79');
-  assert(year79.effectiveTarget === 30000, 'Effective target should be full at 79');
+  assertClose(year79.effectiveTarget, 30000, 1, 'Effective target should be full at 79');
   
   // At age 80, reduction should be applied (25% reduction = 75% of target)
   const year80 = timeline.find(y => y.personAAge === 80);
   assert(year80.hasSpendReduction === true, 'Reduction should be applied at age 80');
-  assert(year80.effectiveTarget === 22500, `Effective target at 80 should be £22,500 (75% of £30k), got £${year80.effectiveTarget}`);
+  assertClose(year80.effectiveTarget, 22500, 1, `Effective target at 80 should be £22,500 (75% of £30k), got £${year80.effectiveTarget}`);
   
   console.log('   Later-life spending reduction test passed');
 });

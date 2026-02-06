@@ -159,7 +159,7 @@ export function createHouseholdPlan(options = {}) {
   const planningHorizonAge = safeNumber(options.planningHorizonAge, 95);
 
   // Later life settings (spending reductions and care costs)
-  const laterLifeOptions = options.laterLife || {};
+  const laterLifeOptions = options?.laterLife ?? {};
   const laterLife = Object.freeze({
     spendReductionAge: safeNumber(laterLifeOptions.spendReductionAge, 80),
     spendReductionPercent: safeNumber(laterLifeOptions.spendReductionPercent, 25),
@@ -461,20 +461,15 @@ export function projectHousehold(plan) {
 
     if (anyRetired && targetNetIncome > 0) {
       // ==== LATER-LIFE ADJUSTMENTS ====
-      // 1. Apply spending reduction if person A is past spend reduction age
-      let effectiveTarget = targetNetIncome;
-      if (personAAge >= spendReductionAge) {
-        effectiveTarget = targetNetIncome * (1 - spendReductionPercent / 100);
-      }
-      
-      // 2. Add care costs if enabled and past care start age
-      let careCosts = 0;
-      if (careCostsEnabled && personAAge >= careCostsStartAge) {
-        careCosts = careCostsAnnual;
-      }
+      // Use helper function for spending reduction and care costs
+      const laterLifeSettings = { 
+        spendReductionAge, spendReductionPercent, 
+        careCostsEnabled, careCostsAnnual, careCostsStartAge 
+      };
+      const laterLifeAdjust = calculateLaterLifeAdjustments(targetNetIncome, personAAge, laterLifeSettings);
       
       // Total spending need = adjusted target + care costs
-      const totalSpendingNeed = effectiveTarget + careCosts;
+      const totalSpendingNeed = laterLifeAdjust.effectiveTarget + laterLifeAdjust.careCosts;
       
       // Calculate gross needed for household net target
       // First, what net do we get from guaranteed income?
@@ -568,13 +563,12 @@ export function projectHousehold(plan) {
       (personB && personBAge < personB.statePensionAge);
 
     // ==== RECORD YEAR ====
-    // Calculate care costs for this year (for tracking purposes)
-    const yearCareCosts = (careCostsEnabled && personAAge >= careCostsStartAge) ? careCostsAnnual : 0;
-    
-    // Calculate effective target (with spend reduction)
-    const effectiveTargetForYear = anyRetired && personAAge >= spendReductionAge 
-      ? targetNetIncome * (1 - spendReductionPercent / 100)
-      : targetNetIncome;
+    // Use helper function for later-life calculations (for tracking purposes)
+    const laterLifeSettingsForTracking = { 
+      spendReductionAge, spendReductionPercent, 
+      careCostsEnabled, careCostsAnnual, careCostsStartAge 
+    };
+    const yearLaterLife = calculateLaterLifeAdjustments(targetNetIncome, personAAge, laterLifeSettingsForTracking);
     
     timeline.push({
       year,
@@ -617,9 +611,9 @@ export function projectHousehold(plan) {
       personBPclsTaken: personB && personBAge === personB.retirementAge ? personBPclsTaken : 0,
       
       // Later-life tracking
-      careCosts: yearCareCosts,
-      effectiveTarget: effectiveTargetForYear,
-      hasSpendReduction: personAAge >= spendReductionAge
+      careCosts: yearLaterLife.careCosts,
+      effectiveTarget: yearLaterLife.effectiveTarget,
+      hasSpendReduction: yearLaterLife.hasSpendReduction
     });
   }
 
@@ -643,6 +637,27 @@ function calculatePclsForPerson(person, dcPot) {
   }
   // Maximum is 25% of pot
   return dcPot * 0.25;
+}
+
+/**
+ * Calculate later-life adjustments (spending reduction and care costs)
+ * Helper function to avoid duplication
+ * @param {number} baseTarget - Base target income
+ * @param {number} age - Current age (person A)
+ * @param {object} laterLifeSettings - Later life settings object
+ * @returns {object} { effectiveTarget, careCosts, hasSpendReduction }
+ */
+function calculateLaterLifeAdjustments(baseTarget, age, laterLifeSettings) {
+  const { spendReductionAge, spendReductionPercent, careCostsEnabled, careCostsAnnual, careCostsStartAge } = laterLifeSettings;
+  
+  const hasSpendReduction = age >= spendReductionAge;
+  const effectiveTarget = hasSpendReduction 
+    ? baseTarget * (1 - spendReductionPercent / 100)
+    : baseTarget;
+  
+  const careCosts = (careCostsEnabled && age >= careCostsStartAge) ? careCostsAnnual : 0;
+  
+  return { effectiveTarget, careCosts, hasSpendReduction };
 }
 
 /**

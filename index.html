@@ -1125,6 +1125,207 @@
       color: var(--color-text-light);
       margin-top: 2px;
     }
+    
+    /* ═══════════════════════════════════════════════════════════════
+       Couples Input Tab Component
+       ═══════════════════════════════════════════════════════════════ */
+    
+    .couples-input-container {
+      width: 100%;
+      max-width: 100%;
+    }
+    
+    /* Tab Headers */
+    .couples-tabs {
+      display: flex;
+      gap: var(--spacing-xs);
+      margin-bottom: var(--spacing-lg);
+      border-bottom: 2px solid var(--color-border);
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+    
+    .couples-tab {
+      flex: 1;
+      min-width: 120px;
+      padding: var(--spacing-md) var(--spacing-lg);
+      background: none;
+      border: none;
+      border-bottom: 3px solid transparent;
+      font-size: var(--font-size-base);
+      font-weight: 500;
+      color: var(--color-text-light);
+      cursor: pointer;
+      transition: all 0.2s ease;
+      white-space: nowrap;
+    }
+    
+    .couples-tab:hover {
+      color: var(--color-text);
+      background: var(--color-background);
+    }
+    
+    .couples-tab.tab-active {
+      color: var(--color-primary);
+      border-bottom-color: var(--color-primary);
+      font-weight: 600;
+    }
+    
+    /* Shared Section (Target Income) */
+    .couples-shared-section {
+      background: var(--color-surface);
+      padding: var(--spacing-lg);
+      border-radius: var(--radius-md);
+      margin-bottom: var(--spacing-lg);
+      box-shadow: var(--shadow-sm);
+    }
+    
+    /* Tab Content */
+    .couples-tab-content {
+      background: var(--color-surface);
+      padding: var(--spacing-lg);
+      border-radius: var(--radius-md);
+      box-shadow: var(--shadow-sm);
+      max-height: calc(100vh - 300px);
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+    
+    /* Section */
+    .couples-section {
+      margin-bottom: var(--spacing-xl);
+      padding-bottom: var(--spacing-xl);
+      border-bottom: 1px solid var(--color-border);
+    }
+    
+    .couples-section:last-of-type {
+      border-bottom: none;
+      padding-bottom: 0;
+    }
+    
+    .couples-section-title {
+      font-size: var(--font-size-lg);
+      font-weight: 600;
+      color: var(--color-text);
+      margin-bottom: var(--spacing-md);
+    }
+    
+    /* Labels and Inputs */
+    .couples-label {
+      display: block;
+      font-size: var(--font-size-base);
+      font-weight: 500;
+      color: var(--color-text);
+      margin-top: var(--spacing-md);
+      margin-bottom: var(--spacing-sm);
+    }
+    
+    .couples-label:first-of-type {
+      margin-top: 0;
+    }
+    
+    .couples-label .help-text {
+      display: block;
+      font-size: var(--font-size-sm);
+      font-weight: 400;
+      color: var(--color-text-light);
+      margin-top: var(--spacing-xs);
+    }
+    
+    .couples-input {
+      width: 100%;
+      padding: var(--spacing-md);
+      font-size: var(--font-size-base);
+      border: 2px solid var(--color-border);
+      border-radius: var(--radius-md);
+      transition: border-color 0.2s ease;
+      -webkit-appearance: none;
+      appearance: none;
+    }
+    
+    .couples-input:focus {
+      outline: none;
+      border-color: var(--color-primary);
+    }
+    
+    .couples-input:invalid {
+      border-color: var(--color-danger);
+    }
+    
+    /* Currency Input Wrapper */
+    .couples-shared-section .input-wrapper.currency-input,
+    .couples-section .input-wrapper.currency-input {
+      position: relative;
+      display: flex;
+      align-items: center;
+    }
+    
+    .couples-shared-section .currency-symbol,
+    .couples-section .currency-symbol {
+      position: absolute;
+      left: var(--spacing-md);
+      color: var(--color-text-light);
+      font-weight: 500;
+      pointer-events: none;
+    }
+    
+    .couples-shared-section .input-wrapper.currency-input input,
+    .couples-section .input-wrapper.currency-input input {
+      padding-left: calc(var(--spacing-md) + 1rem);
+    }
+    
+    /* Validation */
+    .couples-validation {
+      display: none;
+      margin-top: var(--spacing-md);
+    }
+    
+    .validation-error {
+      padding: var(--spacing-sm) var(--spacing-md);
+      background: rgba(239, 68, 68, 0.1);
+      color: var(--color-danger);
+      border-radius: var(--radius-sm);
+      font-size: var(--font-size-sm);
+      margin-bottom: var(--spacing-xs);
+    }
+    
+    .validation-error:last-child {
+      margin-bottom: 0;
+    }
+    
+    /* Mobile Optimizations */
+    @media (max-width: 600px) {
+      .couples-tab-content {
+        max-height: calc(100vh - 280px);
+        padding: var(--spacing-md);
+      }
+      
+      .couples-shared-section {
+        padding: var(--spacing-md);
+      }
+      
+      .couples-section {
+        margin-bottom: var(--spacing-lg);
+        padding-bottom: var(--spacing-lg);
+      }
+      
+      .couples-tabs {
+        gap: 0;
+      }
+      
+      .couples-tab {
+        min-width: 100px;
+        padding: var(--spacing-md);
+        font-size: var(--font-size-sm);
+      }
+    }
+    
+    /* Ensure inputs don't get hidden by mobile keyboard */
+    @media (max-height: 600px) {
+      .couples-tab-content {
+        max-height: calc(100vh - 250px);
+      }
+    }
   </style>
 </head>
 <body>
@@ -1449,6 +1650,26 @@
       <div class="nav-buttons">
         <button type="button" class="btn btn-secondary" data-action="back">Back</button>
         <button type="button" class="btn btn-primary" id="pension-types-next-btn" disabled>Next</button>
+      </div>
+    </div>
+    
+    <!-- ═══════════════════════════════════════════════════════════════
+         Screen: Couples Input (Tab-based)
+         ═══════════════════════════════════════════════════════════════ -->
+    <div id="screen-couples-input" class="screen" aria-hidden="true">
+      <div class="screen-header">
+        <h2 class="screen-title">Your household details</h2>
+        <p class="screen-subtitle">Complete both tabs to continue</p>
+      </div>
+      
+      <div class="screen-content">
+        <!-- Couples input component will be rendered here -->
+        <div id="couples-input-container"></div>
+      </div>
+      
+      <div class="nav-buttons">
+        <button type="button" class="btn btn-secondary" data-action="back">Back</button>
+        <button type="button" class="btn btn-primary" id="couples-input-next-btn">Next</button>
       </div>
     </div>
     
@@ -2106,6 +2327,9 @@
     import { createHouseholdPlan, validateHouseholdPlan, HOUSEHOLD_TYPES, PENSION_TYPES } from './engine/householdPlan.js';
     import { generateTickerMessages, formatTickerDisplay } from './ui/components/bottomTicker.js';
     
+    // Import couples input component
+    import { renderCouplesInputTabs } from './ui/components/couplesInput.js';
+    
     // ═══════════════════════════════════════════════════════════════
     // Configuration Constants
     // ═══════════════════════════════════════════════════════════════
@@ -2203,9 +2427,16 @@
       // Add NEW onboarding screens (always present)
       screens.push('household-type', 'pension-types');
       
-      // Get steps based on selected mode
-      const modeSteps = state.mode ? getModeSteps(state.mode) : ALL_SCREENS.slice(5, -2);
-      screens = screens.concat(modeSteps);
+      // Add couples input screen if household type is couple
+      if (state.onboardingState?.householdType === HOUSEHOLD_TYPES.COUPLE) {
+        screens.push('couples-input');
+        // For couples, skip the individual wizard screens
+        // They will go directly to review after couples-input
+      } else {
+        // For singles, add the normal wizard screens
+        const modeSteps = state.mode ? getModeSteps(state.mode) : ALL_SCREENS.slice(5, -2);
+        screens = screens.concat(modeSteps);
+      }
       
       // Always add review, results, compare
       screens.push('review', 'results', 'compare');
@@ -2259,6 +2490,11 @@
       // Update pension types screen content when shown
       if (screenId === 'pension-types') {
         updatePensionTypesScreen();
+      }
+      
+      // Initialize couples input component when shown
+      if (screenId === 'couples-input') {
+        initializeCouplesInput();
       }
       
       // Hide advanced options for non-full modes
@@ -2528,6 +2764,69 @@
       }
       
       debugLog('ONBOARDING', 'Saved partner follow-up values', personB);
+    }
+    
+    // ═══════════════════════════════════════════════════════════════
+    // Couples Input Tab Component Initialization
+    // ═══════════════════════════════════════════════════════════════
+    
+    let couplesInputComponent = null;
+    
+    function initializeCouplesInput() {
+      const container = document.getElementById('couples-input-container');
+      if (!container) {
+        console.error('Couples input container not found');
+        return;
+      }
+      
+      // Prepare initial data from onboarding state
+      const initialData = {
+        householdType: 'couple',
+        personA: state.onboardingState?.personA || {},
+        personB: state.onboardingState?.personB || {},
+        targetNetIncome: state.onboardingState?.targetNetIncome || 40000
+      };
+      
+      // Render the component
+      couplesInputComponent = renderCouplesInputTabs(
+        container,
+        handleCouplesInputUpdate,
+        initialData
+      );
+      
+      debugLog('COUPLES_INPUT', 'Couples input component initialized');
+    }
+    
+    function handleCouplesInputUpdate(householdData) {
+      debugLog('COUPLES_INPUT', 'Data updated', householdData);
+      
+      // Update onboarding state with new data
+      if (state.onboardingState) {
+        state.onboardingState.personA = { ...state.onboardingState.personA, ...householdData.personA };
+        state.onboardingState.personB = { ...state.onboardingState.personB, ...householdData.personB };
+        state.onboardingState.targetNetIncome = householdData.targetNetIncome;
+      }
+      
+      // Validate and enable/disable next button
+      updateCouplesInputNextButton();
+    }
+    
+    function updateCouplesInputNextButton() {
+      const nextBtn = document.getElementById('couples-input-next-btn');
+      if (!nextBtn) return;
+      
+      // Basic validation: check if both people have ages entered
+      const personA = state.onboardingState?.personA;
+      const personB = state.onboardingState?.personB;
+      
+      const isValid = 
+        personA?.currentAge >= 18 &&
+        personA?.retirementAge > personA.currentAge &&
+        personB?.currentAge >= 18 &&
+        personB?.retirementAge > personB.currentAge &&
+        state.onboardingState?.targetNetIncome > 0;
+      
+      nextBtn.disabled = !isValid;
     }
     
     // ═══════════════════════════════════════════════════════════════

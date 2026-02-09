@@ -163,6 +163,7 @@
     let SCREEN_ORDER = getActiveScreenOrder();
     
     function showScreen(screenId) {
+      console.log('[BOOT] showScreen called with:', screenId);
       debugLog('NAV', `Showing screen: ${screenId}`);
       
       document.querySelectorAll('.screen').forEach(el => {
@@ -177,11 +178,14 @@
         
         const input = screen.querySelector('input');
         if (input) input.focus();
+      } else {
+        console.error('[BOOT] Screen not found:', `screen-${screenId}`);
       }
       
       // Update progress
       const progress = ((SCREEN_ORDER.indexOf(screenId) + 1) / SCREEN_ORDER.length) * 100;
       document.getElementById('progress-bar').style.width = `${progress}%`;
+      console.log('[BOOT] Progress bar set to:', progress + '%');
       
       state.currentScreen = screenId;
       
@@ -235,8 +239,13 @@
     function nextScreen() {
       SCREEN_ORDER = getActiveScreenOrder();
       const currentIndex = SCREEN_ORDER.indexOf(state.currentScreen);
+      console.log('[BOOT] nextScreen called. Current:', state.currentScreen, 'Index:', currentIndex, 'Order:', SCREEN_ORDER);
       if (currentIndex < SCREEN_ORDER.length - 1) {
-        showScreen(SCREEN_ORDER[currentIndex + 1]);
+        const nextScreenId = SCREEN_ORDER[currentIndex + 1];
+        console.log('[BOOT] Navigating to:', nextScreenId);
+        showScreen(nextScreenId);
+      } else {
+        console.log('[BOOT] Already at last screen');
       }
     }
     
@@ -283,6 +292,7 @@
     
     function selectHouseholdType(type) {
       state.onboardingState.householdType = type;
+      console.log('[BOOT] Household type selected:', type);
       debugLog('ONBOARDING', `Household type selected: ${type}`);
       
       // Update UI
@@ -300,8 +310,11 @@
       
       // Auto-advance after short delay
       setTimeout(() => {
+        console.log('[BOOT] About to navigate, recalculating SCREEN_ORDER');
         // REFACTOR: Skip pension-types screen, go directly to appropriate next screen
         SCREEN_ORDER = getActiveScreenOrder();
+        console.log('[BOOT] SCREEN_ORDER:', SCREEN_ORDER);
+        console.log('[BOOT] Current screen:', state.currentScreen);
         nextScreen();
       }, 400);
     }
@@ -2598,6 +2611,10 @@
       }
       
       debugLog('INIT', 'App ready');
+      
+      // Initialize screen order and show first screen
+      SCREEN_ORDER = getActiveScreenOrder();
+      showScreen(state.currentScreen);
     });
     
     // Expose for debugging

@@ -34,10 +34,13 @@ test.describe('Smoke Test - App Initialization & Screen 1', () => {
     await page.waitForLoadState('domcontentloaded');
     await page.waitForTimeout(1000); // Allow time for initialization
     
-    // Verify no critical errors
+    // Verify no critical errors (allow external CDN/resource failures)
     const criticalErrors = [...consoleErrors, ...pageErrors].filter(err => 
       !err.includes('favicon') && // Ignore favicon errors
-      !err.includes('ResizeObserver') // Ignore ResizeObserver warnings
+      !err.includes('ResizeObserver') && // Ignore ResizeObserver warnings
+      !err.includes('cdn.jsdelivr.net') && // Ignore CDN failures
+      !err.includes('ERR_NAME_NOT_RESOLVED') && // Ignore network errors
+      !err.includes('ERR_BLOCKED_BY_CLIENT') // Ignore ad-blocker errors
     );
     
     expect(criticalErrors).toHaveLength(0);

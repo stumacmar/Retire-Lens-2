@@ -12,7 +12,8 @@
     "test:pathfinder": "node tests/pathfinder.test.js",
     "test:couples": "node tests/couples.test.js",
     "test:household": "node tests/householdPlan.test.js",
-    "test:all": "node tests/engine.test.js && node tests/newModules.test.js && node tests/phase4.test.js && node tests/pathfinder.test.js && node tests/couples.test.js && node tests/householdPlan.test.js",
+    "test:fixes": "node tests/fixes-validation.test.js",
+    "test:all": "node tests/engine.test.js && node tests/newModules.test.js && node tests/phase4.test.js && node tests/pathfinder.test.js && node tests/couples.test.js && node tests/householdPlan.test.js && node tests/fixes-validation.test.js",
     "test:e2e": "npx playwright test",
     "dev": "npx http-server -p 8080 -c-1",
     "lint": "echo 'No linter configured yet'"

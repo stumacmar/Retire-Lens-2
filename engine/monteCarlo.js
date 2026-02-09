@@ -548,3 +548,81 @@ export function runScenarioAnalysis(plan, scenarios) {
     };
   });
 }
+
+/**
+ * Sequence-of-returns illustration (Bug E fix)
+ * 
+ * Demonstrates the impact of return order on retirement outcomes.
+ * Uses the SAME set of annual returns but in different orders:
+ * - "Good start": High returns early in retirement (sorted descending)
+ * - "Bad start": Low/negative returns early in retirement (sorted ascending)
+ * - "Average": Returns as-is (deterministic)
+ * 
+ * For positive drift with withdrawals, "good start" ALWAYS produces a higher
+ * final balance than "bad start" because early gains compound on a larger base.
+ * 
+ * @param {object} plan - Plan state object
+ * @param {object} options - Options
+ * @returns {object} Three scenarios with yearly data
+ */
+export function illustrateSequenceOfReturns(plan, options = {}) {
+  const {
+    endAge = 90,
+    annualReturns = null
+  } = options;
+  
+  const { projection } = plan.assumptions;
+  const meanReturn = projection.defaultGrowthRate;
+  const accumulationYears = plan.retirementAge - plan.currentAge;
+  const decumulationYears = endAge - plan.retirementAge + 1;
+  
+  // Generate or use provided annual returns for decumulation only
+  let returns;
+  if (annualReturns) {
+    returns = [...annualReturns];
+  } else {
+    // Create a realistic varied return sequence around the mean
+    returns = [];
+    for (let i = 0; i < decumulationYears; i++) {
+      const deviation = 0.08 * Math.sin(i * 0.7) + 0.04 * Math.cos(i * 1.3);
+      returns.push(meanReturn + deviation);
+    }
+  }
+  
+  // "Good start" = highest returns first (descending)
+  const goodStartReturns = [...returns].sort((a, b) => b - a);
+  
+  // "Bad start" = lowest returns first (ascending)  
+  const badStartReturns = [...returns].sort((a, b) => a - b);
+  
+  // Run accumulation identically for all three
+  const accReturns = Array(accumulationYears).fill(meanReturn);
+  
+  // Run three simulations
+  const goodStart = runSingleSimulation(plan, accReturns, goodStartReturns, endAge, true);
+  const badStart = runSingleSimulation(plan, accReturns, badStartReturns, endAge, true);
+  const average = runSingleSimulation(plan, accReturns, Array(decumulationYears).fill(meanReturn), endAge, true);
+  
+  return {
+    goodStart: {
+      label: 'Good Start (high returns early)',
+      finalBalance: goodStart.finalBalance,
+      yearlyData: goodStart.yearlyData,
+      returns: goodStartReturns
+    },
+    badStart: {
+      label: 'Bad Start (low returns early)',
+      finalBalance: badStart.finalBalance,
+      yearlyData: badStart.yearlyData,
+      returns: badStartReturns
+    },
+    average: {
+      label: 'Average (constant returns)',
+      finalBalance: average.finalBalance,
+      yearlyData: average.yearlyData,
+      returns: Array(decumulationYears).fill(meanReturn)
+    },
+    // Invariant: for positive drift with withdrawals, good start > bad start
+    orderingCorrect: goodStart.finalBalance >= badStart.finalBalance
+  };
+}

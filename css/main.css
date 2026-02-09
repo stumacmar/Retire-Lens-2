@@ -56,6 +56,8 @@
     html {
       font-size: 16px;
       scroll-behavior: smooth;
+      /* Prevent iOS tap highlight blue box (Bug C fix) */
+      -webkit-tap-highlight-color: transparent;
     }
     
     body {
@@ -64,7 +66,9 @@
       line-height: 1.6;
       color: var(--color-text);
       background: var(--color-background);
+      /* Use min-height with -webkit-fill-available for iOS Safari */
       min-height: 100vh;
+      min-height: -webkit-fill-available;
     }
     
     /* Layout */
@@ -72,9 +76,12 @@
       max-width: 600px;
       margin: 0 auto;
       padding: var(--spacing-md);
+      padding-bottom: calc(var(--spacing-md) + env(safe-area-inset-bottom, 0));
       min-height: 100vh;
+      min-height: -webkit-fill-available;
       display: flex;
       flex-direction: column;
+      overflow-x: hidden;
     }
     
     /* Progress bar */
@@ -101,6 +108,9 @@
       flex-direction: column;
       flex: 1;
       animation: fadeIn 0.3s ease;
+      /* Allow vertical scrolling for long content (Bug A fix) */
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
     }
     
     .screen.active {
@@ -339,15 +349,35 @@
       border-radius: var(--radius-lg);
       padding: var(--spacing-md);
       box-shadow: var(--shadow-sm);
+      overflow: hidden;
     }
     
-    /* Comparison table */
+    /* Result cards */
+    .result-card {
+      background: var(--color-surface);
+      border-radius: var(--radius-lg);
+      padding: var(--spacing-lg);
+      margin-bottom: var(--spacing-lg);
+      box-shadow: var(--shadow-sm);
+      overflow: hidden;
+    }
+    
+    .result-card h3 {
+      font-size: var(--font-size-lg);
+      margin-bottom: var(--spacing-md);
+      color: var(--color-text);
+    }
+    
+    /* Comparison table - Bug B fix: ensure horizontal scroll works on iOS */
     .comparison-table {
       overflow-x: auto;
       -webkit-overflow-scrolling: touch;
+      overscroll-behavior-x: contain;
       margin: var(--spacing-lg) 0;
       width: 100%;
       max-width: 100%;
+      /* Ensure touch scrolling is not blocked */
+      touch-action: pan-x pan-y;
     }
     
     .comparison-table table {
@@ -379,7 +409,7 @@
       color: var(--color-danger);
     }
     
-    /* Scroll hint indicator */
+    /* Scroll hint indicator - only show when table actually overflows */
     .scroll-hint {
       text-align: center;
       font-size: var(--font-size-sm);
@@ -905,6 +935,8 @@
     
     .answer-preview-card.hidden {
       transform: translateY(100%);
+      pointer-events: none;
+      visibility: hidden;
     }
     
     .preview-header {
@@ -1025,6 +1057,8 @@
       
       .answer-preview-card.hidden {
         transform: translate(-50%, 100%);
+        pointer-events: none;
+        visibility: hidden;
       }
       
       .preview-content {

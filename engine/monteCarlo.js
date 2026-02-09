@@ -11,6 +11,7 @@
 
 import { runProjection, createPlan } from './projections.js';
 import { PROJECTION_DEFAULTS } from '../config/defaults.js';
+import { calculateOptimalWithdrawal } from './withdrawals.js';
 
 /**
  * Generate a random return using normal distribution
@@ -120,7 +121,8 @@ export function runSingleSimulation(plan, accumulationReturns, decumulationRetur
   let fundsDepleted = false;
   let depletionAge = null;
   let targetMetEveryYear = true; // Track if target income met each year
-  const decumulationYears = endAge - plan.retirementAge;
+  // Use inclusive range to match deterministic projection (retirementAge to endAge inclusive)
+  const decumulationYears = endAge - plan.retirementAge + 1;
   
   for (let i = 0; i < decumulationYears; i++) {
     const age = plan.retirementAge + i;
@@ -129,7 +131,7 @@ export function runSingleSimulation(plan, accumulationReturns, decumulationRetur
       targetMetEveryYear = false;
       if (trackYearlyBalances) {
         yearlyData.push({
-          age: age + 1,
+          age,
           phase: 'decumulation',
           balance: 0,
           pension: 0,
@@ -143,14 +145,21 @@ export function runSingleSimulation(plan, accumulationReturns, decumulationRetur
     
     const statePension = age >= plan.statePensionAge ? plan.expectedStatePension : 0;
     
-    // Simplified withdrawal - target net income minus state pension
-    const neededFromPortfolio = Math.max(0, plan.targetNetIncome - statePension);
+    // Use tax-aware optimal withdrawal matching deterministic projection
+    const balances = { pension: pensionBalance, isa: isaBalance };
+    const withdrawalResult = calculateOptimalWithdrawal(
+      plan.targetNetIncome,
+      balances,
+      { statePensionIncome: statePension, taxConfig: plan.assumptions.tax }
+    );
     
-    // Withdraw proportionally (simplified)
-    const totalBalance = pensionBalance + isaBalance;
     let targetMetThisYear = true;
     
-    if (totalBalance <= neededFromPortfolio) {
+    // Check if withdrawal exceeds available balances
+    const totalBalance = pensionBalance + isaBalance;
+    const totalWithdrawal = withdrawalResult.withdrawals.total;
+    
+    if (totalBalance <= 0 || (totalWithdrawal > totalBalance && totalBalance < plan.targetNetIncome * 0.1)) {
       pensionBalance = 0;
       isaBalance = 0;
       fundsDepleted = true;
@@ -158,9 +167,8 @@ export function runSingleSimulation(plan, accumulationReturns, decumulationRetur
       targetMetThisYear = false;
       targetMetEveryYear = false;
     } else {
-      const withdrawalRatio = neededFromPortfolio / totalBalance;
-      pensionBalance -= pensionBalance * withdrawalRatio;
-      isaBalance -= isaBalance * withdrawalRatio;
+      pensionBalance = Math.max(0, withdrawalResult.newBalances.pension);
+      isaBalance = Math.max(0, withdrawalResult.newBalances.isa);
     }
     
     // Apply return
@@ -172,7 +180,7 @@ export function runSingleSimulation(plan, accumulationReturns, decumulationRetur
     
     if (trackYearlyBalances) {
       yearlyData.push({
-        age: age + 1,
+        age,
         phase: 'decumulation',
         balance: pensionBalance + isaBalance,
         pension: pensionBalance,
@@ -219,7 +227,7 @@ export function runMonteCarlo(plan, options = {}) {
   } = options;
   
   const accumulationYears = plan.retirementAge - plan.currentAge;
-  const decumulationYears = endAge - plan.retirementAge;
+  const decumulationYears = endAge - plan.retirementAge + 1; // inclusive range to match deterministic
   
   const results = [];
   
@@ -287,7 +295,7 @@ export function runMonteCarloWithBands(plan, options = {}) {
   } = options;
   
   const accumulationYears = plan.retirementAge - plan.currentAge;
-  const decumulationYears = endAge - plan.retirementAge;
+  const decumulationYears = endAge - plan.retirementAge + 1; // inclusive range to match deterministic
   const totalYears = accumulationYears + decumulationYears;
   
   // Initialize yearly balance tracking

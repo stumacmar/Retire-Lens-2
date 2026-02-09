@@ -2845,11 +2845,19 @@
       }
       
       // Check pension type is selected for Person A
+      // When the pension-types screen is skipped (single flow), default to 'dc'
       const personAPensionTypes = personA?.pensionTypes || [];
       if (personAPensionTypes.length === 0) {
-        result.canCalculate = false;
-        result.reason = "One more detail needed: your pension type";
-        return result;
+        // Auto-assign 'dc' if pension pot was entered (pension-types screen was skipped)
+        if (personA && pensionPot > 0) {
+          personA.pensionTypes = ['dc'];
+        } else if (personA) {
+          personA.pensionTypes = ['dc'];
+        } else {
+          result.canCalculate = false;
+          result.reason = "One more detail needed: your pension type";
+          return result;
+        }
       }
       
       // Check DC pot if Person A has DC
@@ -4590,14 +4598,14 @@
             } else {
               // Use existing single person logic
               household = createHousehold({
-                person1: { age: data.currentAge, retirementAge: data.retirementAge },
+                person1: { currentAge: data.currentAge, retirementAge: data.retirementAge },
                 person2: null
               });
             }
           } catch (e) {
             console.warn('Household creation failed:', e);
             // Create default single household
-            household = { person1: { age: data.currentAge, retirementAge: data.retirementAge }, person2: null, isCouple: false };
+            household = { person1: { currentAge: data.currentAge, retirementAge: data.retirementAge }, person2: null, isCouple: false };
           }
           
           // 3. Run basic deterministic projection (existing)

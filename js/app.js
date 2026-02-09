@@ -594,10 +594,8 @@
       // When the pension-types screen is skipped (single flow), default to 'dc'
       const personAPensionTypes = personA?.pensionTypes || [];
       if (personAPensionTypes.length === 0) {
-        // Auto-assign 'dc' if pension pot was entered (pension-types screen was skipped)
-        if (personA && pensionPot > 0) {
-          personA.pensionTypes = ['dc'];
-        } else if (personA) {
+        if (personA) {
+          // Auto-assign 'dc' since pension-types screen was skipped
           personA.pensionTypes = ['dc'];
         } else {
           result.canCalculate = false;

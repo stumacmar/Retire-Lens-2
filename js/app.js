@@ -178,7 +178,8 @@
         const input = screen.querySelector('input');
         if (input) input.focus();
       } else {
-        console.error(`[ERROR] Screen not found: screen-${screenId}`);
+        console.error(`[ERROR] Screen not found: screen-${screenId}. Available screens:`, 
+          Array.from(document.querySelectorAll('.screen')).map(s => s.id));
       }
       
       // Update progress

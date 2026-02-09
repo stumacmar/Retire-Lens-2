@@ -1,52 +1,52 @@
     // Core projection engine (existing)
-    import { createPlan, runProjection, comparePlans, generateDebugOutput } from './engine/projections.js';
-    import { createAssumptions } from './config/defaults.js';
+    import { createPlan, runProjection, comparePlans, generateDebugOutput } from '../engine/projections.js';
+    import { createAssumptions } from '../config/defaults.js';
     
     // Import all engine modules with correct exports
-    import { createUserAssumptions, SCENARIO_PRESETS, DEFAULT_ASSUMPTIONS } from './engine/assumptions.js';
-    import { generateBenchmarkAnalysis } from './engine/benchmarking.js';
-    import { createDBPension, calculateDBIncomeAtAge } from './engine/dbPension.js';
-    import { createHealthcarePlan, projectHealthcareCosts } from './engine/healthcareCosts.js';
-    import { createHousehold, createPerson } from './engine/household.js';
-    import { calculateFutureIncome, calculatePresentIncome, calculateInflationSeries } from './engine/inflationAdjustment.js';
-    import { generateInsights } from './engine/insightsEngine.js';
-    import { createLegacyPlan, calculateInheritanceTax, projectEstateValue } from './engine/legacyPlanning.js';
-    import { createMilestone, integrateMilestonesIntoSpending, calculateMilestoneImpact } from './engine/milestones.js';
-    import { runMonteCarlo, runMonteCarloWithBands, generateConfidenceBands } from './engine/monteCarlo.js';
-    import { createPhasedRetirement, calculatePhasedRetirementImpact } from './engine/phasedRetirement.js';
-    import { calculateReadinessScore, generateActionPlan } from './engine/readinessScore.js';
-    import { generateRecommendations, formatRecommendationsForDisplay } from './engine/recommendations.js';
-    import { calculateRiskScore, generateRiskRecommendations } from './engine/riskScoring.js';
-    import { calculateSpendingAtAge, createSpendingRules } from './engine/spendingPolicy.js';
-    import { calculateIncomeTax, calculateTaxFromGross } from './engine/tax.js';
-    import { analyzePCLSTiming, analyzeWithdrawalSequencing, generateTaxEfficiencyReport } from './engine/taxOptimizer.js';
-    import { calculatePCLS, calculateOptimalWithdrawal, calculatePCLSStrategy, projectPCLSReinvestment, PCLS_STRATEGIES } from './engine/withdrawals.js';
+    import { createUserAssumptions, SCENARIO_PRESETS, DEFAULT_ASSUMPTIONS } from '../engine/assumptions.js';
+    import { generateBenchmarkAnalysis } from '../engine/benchmarking.js';
+    import { createDBPension, calculateDBIncomeAtAge } from '../engine/dbPension.js';
+    import { createHealthcarePlan, projectHealthcareCosts } from '../engine/healthcareCosts.js';
+    import { createHousehold, createPerson } from '../engine/household.js';
+    import { calculateFutureIncome, calculatePresentIncome, calculateInflationSeries } from '../engine/inflationAdjustment.js';
+    import { generateInsights } from '../engine/insightsEngine.js';
+    import { createLegacyPlan, calculateInheritanceTax, projectEstateValue } from '../engine/legacyPlanning.js';
+    import { createMilestone, integrateMilestonesIntoSpending, calculateMilestoneImpact } from '../engine/milestones.js';
+    import { runMonteCarlo, runMonteCarloWithBands, generateConfidenceBands } from '../engine/monteCarlo.js';
+    import { createPhasedRetirement, calculatePhasedRetirementImpact } from '../engine/phasedRetirement.js';
+    import { calculateReadinessScore, generateActionPlan } from '../engine/readinessScore.js';
+    import { generateRecommendations, formatRecommendationsForDisplay } from '../engine/recommendations.js';
+    import { calculateRiskScore, generateRiskRecommendations } from '../engine/riskScoring.js';
+    import { calculateSpendingAtAge, createSpendingRules } from '../engine/spendingPolicy.js';
+    import { calculateIncomeTax, calculateTaxFromGross } from '../engine/tax.js';
+    import { analyzePCLSTiming, analyzeWithdrawalSequencing, generateTaxEfficiencyReport } from '../engine/taxOptimizer.js';
+    import { calculatePCLS, calculateOptimalWithdrawal, calculatePCLSStrategy, projectPCLSReinvestment, PCLS_STRATEGIES } from '../engine/withdrawals.js';
     
     // Import config modules
-    import { SCENARIOS, getScenarioById } from './config/scenarios.js';
-    import { POT_SIZE_BENCHMARKS, INCOME_BENCHMARKS } from './config/benchmarkData.js';
+    import { SCENARIOS, getScenarioById } from '../config/scenarios.js';
+    import { POT_SIZE_BENCHMARKS, INCOME_BENCHMARKS } from '../config/benchmarkData.js';
     
     // Import UI components
     // Note: renderConfidenceExplainer is now in monteCarloCharts.js (consolidated from confidenceExplainer.js)
-    import { renderFanChart, renderDepletionHistogram, renderAllCharts, renderConfidenceExplainer } from './ui/components/monteCarloCharts.js';
+    import { renderFanChart, renderDepletionHistogram, renderAllCharts, renderConfidenceExplainer } from '../ui/components/monteCarloCharts.js';
     
     // Import new UX modules
-    import { FEATURE_FLAGS, isFeatureEnabled } from './src/ux/config.js';
-    import { PATHFINDER_QUESTIONS, JOURNEYS, MODES, scoreToJourney, scoreToMode, getRouting } from './src/ux/pathfinder/questions.js';
-    import { JOURNEY_CONFIG, getJourney, getJourneySteps } from './src/ux/journeys/journeys.js';
-    import { MODE_CONFIG, getMode, getModeSteps, isFieldHidden } from './src/ux/modes/modes.js';
-    import { estimatePreview, formatPreviewCurrency, formatGapSurplus } from './src/ux/preview/estimate.js';
+    import { FEATURE_FLAGS, isFeatureEnabled } from '../src/ux/config.js';
+    import { PATHFINDER_QUESTIONS, JOURNEYS, MODES, scoreToJourney, scoreToMode, getRouting } from '../src/ux/pathfinder/questions.js';
+    import { JOURNEY_CONFIG, getJourney, getJourneySteps } from '../src/ux/journeys/journeys.js';
+    import { MODE_CONFIG, getMode, getModeSteps, isFieldHidden } from '../src/ux/modes/modes.js';
+    import { estimatePreview, formatPreviewCurrency, formatGapSurplus } from '../src/ux/preview/estimate.js';
     
     // Import enhanced tax engine with tests
-    import { computeUKTax, runTaxTests } from './engine/tax.js';
+    import { computeUKTax, runTaxTests } from '../engine/tax.js';
     
     // Import couples-first household engine
-    import { createInitialOnboardingState, validateOnboardingState, onboardingToHouseholdPlan, ONBOARDING_STEPS } from './src/ux/onboarding/flow.js';
-    import { createHouseholdPlan, validateHouseholdPlan, HOUSEHOLD_TYPES, PENSION_TYPES } from './engine/householdPlan.js';
-    import { generateTickerMessages, formatTickerDisplay } from './ui/components/bottomTicker.js';
+    import { createInitialOnboardingState, validateOnboardingState, onboardingToHouseholdPlan, ONBOARDING_STEPS } from '../src/ux/onboarding/flow.js';
+    import { createHouseholdPlan, validateHouseholdPlan, HOUSEHOLD_TYPES, PENSION_TYPES } from '../engine/householdPlan.js';
+    import { generateTickerMessages, formatTickerDisplay } from '../ui/components/bottomTicker.js';
     
     // Import couples input component
-    import { renderCouplesInputTabs } from './ui/components/couplesInput.js';
+    import { renderCouplesInputTabs } from '../ui/components/couplesInput.js';
     
     // ═══════════════════════════════════════════════════════════════
     // Configuration Constants
@@ -177,6 +177,9 @@
         
         const input = screen.querySelector('input');
         if (input) input.focus();
+      } else {
+        console.error(`[ERROR] Screen not found: screen-${screenId}. Available screens:`, 
+          Array.from(document.querySelectorAll('.screen')).map(s => s.id));
       }
       
       // Update progress
@@ -2598,6 +2601,10 @@
       }
       
       debugLog('INIT', 'App ready');
+      
+      // Initialize screen order and show first screen
+      SCREEN_ORDER = getActiveScreenOrder();
+      showScreen(state.currentScreen);
     });
     
     // Expose for debugging

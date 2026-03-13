@@ -5,7 +5,7 @@
  * All functions are stateless and side-effect free.
  */
 
-import { calculateOptimalWithdrawal, calculatePCLS } from './withdrawals.js';
+import { calculateOptimalWithdrawal, calculatePCLS, calculatePCLSStrategy } from './withdrawals.js';
 import { calculateTaxFromGross } from './tax.js';
 import { createAssumptions, PENSION_CONFIG, TAX_CONFIG } from '../config/defaults.js';
 import { calculateSpendingAtAge, createSpendingRules } from './spendingPolicy.js';
@@ -32,7 +32,20 @@ export function createPlan(inputs) {
     assumptions = {},
     // New: optional spending rules
     spendingRules = null,
-    applyAgeBasedSpendingReductions = false
+    applyAgeBasedSpendingReductions = false,
+    // DB pension parameters
+    hasDBPension = false,
+    dbPensionAmount = 0,
+    dbPensionStartAge = 65,
+    dbPensionEscalation = 'cpi',
+    dbPensionEscalationRate = 0.02,
+    // State pension real growth (triple lock premium over CPI)
+    statePensionRealGrowth = 0.01,
+    // PCLS strategy
+    pclsStrategy = 'all_at_retirement',
+    pclsReinvest = true,
+    // Tax jurisdiction
+    taxJurisdiction = 'england'
   } = inputs;
 
   // Validate required fields
@@ -52,6 +65,12 @@ export function createPlan(inputs) {
     applyDefaultReductions: applyAgeBasedSpendingReductions
   });
 
+  // Build assumptions - apply Scottish tax bands if jurisdiction is Scotland
+  const effectiveAssumptions = createAssumptions(assumptions);
+  if (taxJurisdiction === 'scotland') {
+    effectiveAssumptions.tax.bands = TAX_CONFIG.scottishBands;
+  }
+
   return Object.freeze({
     name,
     currentAge,
@@ -63,7 +82,16 @@ export function createPlan(inputs) {
     annualIsaContribution,
     statePensionAge,
     expectedStatePension,
-    assumptions: createAssumptions(assumptions),
+    hasDBPension: Boolean(hasDBPension),
+    dbPensionAmount: hasDBPension ? (dbPensionAmount || 0) : 0,
+    dbPensionStartAge,
+    dbPensionEscalation,
+    dbPensionEscalationRate,
+    statePensionRealGrowth,
+    pclsStrategy,
+    pclsReinvest,
+    taxJurisdiction,
+    assumptions: effectiveAssumptions,
     spendingRules: effectiveSpendingRules,
     createdAt: new Date().toISOString()
   });
@@ -107,9 +135,10 @@ export function projectAccumulation(plan) {
     const pensionGrowth = pensionBalance * netGrowthRate;
     const isaGrowth = isaBalance * netGrowthRate;
 
-    // Add contributions (end of year)
-    pensionBalance = pensionBalance + pensionGrowth + annualPensionContribution;
-    isaBalance = isaBalance + isaGrowth + annualIsaContribution;
+    // Add contributions with mid-year approximation (contributions earn ~half a year of growth)
+    const contribGrowthFactor = 1 + (netGrowthRate / 2);
+    pensionBalance = pensionBalance + pensionGrowth + (annualPensionContribution * contribGrowthFactor);
+    isaBalance = isaBalance + isaGrowth + (annualIsaContribution * contribGrowthFactor);
 
     const yearEnd = {
       pension: pensionBalance,
@@ -162,6 +191,13 @@ export function projectDecumulation(plan, accumulationResult, endAge = 90) {
     targetNetIncome,
     statePensionAge,
     expectedStatePension,
+    hasDBPension,
+    dbPensionAmount,
+    dbPensionStartAge,
+    dbPensionEscalationRate,
+    statePensionRealGrowth,
+    pclsStrategy,
+    pclsReinvest,
     assumptions,
     spendingRules
   } = plan;
@@ -174,10 +210,34 @@ export function projectDecumulation(plan, accumulationResult, endAge = 90) {
   let pensionBalance = accumulationResult.finalBalances.pension;
   let isaBalance = accumulationResult.finalBalances.isa;
 
-  // Take PCLS at retirement
-  const pclsResult = calculatePCLS(pensionBalance);
-  pensionBalance = pclsResult.remainingPension;
-  const taxFreeCash = pclsResult.taxFreeCash;
+  // FIX 1.4: Use strategy-aware PCLS calculation
+  const pclsScheduleResult = calculatePCLSStrategy(pensionBalance, {
+    strategy: pclsStrategy || 'all_at_retirement',
+    retirementAge,
+    deferredAge: statePensionAge,
+    reinvest: pclsReinvest !== false,
+    phaseYears: 5
+  });
+
+  // For strategies that take PCLS immediately at retirement, deduct from pension balance now
+  // For deferred/phased, we'll deduct year by year
+  const pclsByAge = new Map();
+  pclsScheduleResult.schedule.forEach(entry => {
+    pclsByAge.set(entry.age, entry.amount);
+  });
+
+  // Handle immediate PCLS (all_at_retirement) upfront to keep backward compat
+  let taxFreeCash = pclsScheduleResult.totalPCLS;
+  if (pclsStrategy === 'all_at_retirement' || !pclsStrategy) {
+    // Deduct full PCLS immediately
+    pensionBalance -= taxFreeCash;
+    // Clear the schedule since we've handled it
+    pclsByAge.clear();
+  } else {
+    // For phased/deferred, PCLS will be deducted year-by-year
+    // Don't deduct upfront - taxFreeCash tracks total taken
+    taxFreeCash = 0;
+  }
 
   const years = [];
   let fundsDepleted = false;
@@ -185,7 +245,6 @@ export function projectDecumulation(plan, accumulationResult, endAge = 90) {
 
   for (let age = retirementAge; age <= endAge; age++) {
     // Calculate age-adjusted spending target
-    // If spendingRules exist, use them; otherwise fall back to flat targetNetIncome
     const ageAdjustedSpending = spendingRules 
       ? calculateSpendingAtAge(
           spendingRules.baseSpending,
@@ -197,17 +256,48 @@ export function projectDecumulation(plan, accumulationResult, endAge = 90) {
         )
       : targetNetIncome;
 
+    // FIX 1.4: Apply PCLS for non-immediate strategies
+    const pclsThisYear = pclsByAge.get(age) || 0;
+    if (pclsThisYear > 0) {
+      pensionBalance = Math.max(0, pensionBalance - pclsThisYear);
+      taxFreeCash += pclsThisYear;
+      // If reinvesting, add to ISA balance (respecting real ISA cap enforcement at higher level)
+      if (pclsReinvest !== false) {
+        isaBalance += pclsThisYear;
+      }
+    }
+
     if (fundsDepleted) {
+      // FIX 1.3: State pension grows in real terms (triple lock premium) after depletion
+      const spYearsFromStart = Math.max(0, age - statePensionAge);
+      const depletedStatePension = age >= statePensionAge
+        ? expectedStatePension * Math.pow(1 + (statePensionRealGrowth || 0.01), spYearsFromStart)
+        : 0;
+      // FIX 1.1: DB pension at depletion
+      const depletedDbPension = (hasDBPension && age >= dbPensionStartAge)
+        ? dbPensionAmount * Math.pow(1 + (dbPensionEscalationRate || 0.02), age - dbPensionStartAge)
+        : 0;
       years.push({
         age,
         fundsDepleted: true,
         targetSpending: ageAdjustedSpending,
-        netIncome: age >= statePensionAge ? expectedStatePension : 0
+        statePension: depletedStatePension,
+        dbPension: depletedDbPension,
+        netIncome: depletedStatePension + depletedDbPension
       });
       continue;
     }
 
-    const statePension = age >= statePensionAge ? expectedStatePension : 0;
+    // FIX 1.3: State pension grows at real growth rate (triple lock premium over CPI)
+    const spYearsFromStart = Math.max(0, age - statePensionAge);
+    const statePension = age >= statePensionAge
+      ? expectedStatePension * Math.pow(1 + (statePensionRealGrowth || 0.01), spYearsFromStart)
+      : 0;
+
+    // FIX 1.1: DB pension income (escalated by inflation assumption)
+    const dbPension = (hasDBPension && age >= dbPensionStartAge)
+      ? dbPensionAmount * Math.pow(1 + (dbPensionEscalationRate || 0.02), age - dbPensionStartAge)
+      : 0;
 
     const yearStart = {
       age,
@@ -216,11 +306,11 @@ export function projectDecumulation(plan, accumulationResult, endAge = 90) {
       total: pensionBalance + isaBalance
     };
 
-    // Calculate withdrawals needed for age-adjusted spending
+    // FIX 1.1: Pass combined guaranteed income (SP + DB) to withdrawal calculator
     const withdrawalResult = calculateOptimalWithdrawal(
       ageAdjustedSpending,
       { pension: pensionBalance, isa: isaBalance },
-      { statePensionIncome: statePension, taxConfig }
+      { statePensionIncome: statePension + dbPension, taxConfig }
     );
 
     // Update balances after withdrawal
@@ -249,6 +339,7 @@ export function projectDecumulation(plan, accumulationResult, endAge = 90) {
       age,
       startBalances: yearStart,
       statePension,
+      dbPension,
       targetSpending: ageAdjustedSpending,
       withdrawals: withdrawalResult.withdrawals,
       taxPaid: withdrawalResult.taxPaid,

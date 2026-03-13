@@ -506,9 +506,9 @@
           <label>Expected annual State Pension</label>
           <div class="input-wrapper">
             <span class="currency-symbol">£</span>
-            <input type="number" id="input-state-pension-amount" min="0" step="100" value="11500" inputmode="numeric" />
+            <input type="number" id="input-state-pension-amount" min="0" step="100" value="11973" inputmode="numeric" />
           </div>
-          <p class="help-text">Full new State Pension is ~£11,500/year (2024/25)</p>
+          <p class="help-text">Full new State Pension is ~£11,973/year (2025/26)</p>
         </div>
       </div>
       
@@ -544,11 +544,11 @@
           <div class="input-group">
             <label for="scenario-select">📊 Planning Scenario</label>
             <select id="scenario-select" class="form-control" style="width: 100%; padding: 0.5rem; border: 1px solid #e5e7eb; border-radius: 4px;">
-              <option value="conservative">🛡️ Conservative - Cautious assumptions</option>
-              <option value="moderate" selected>⚖️ Moderate - Balanced base case</option>
-              <option value="optimistic">🚀 Optimistic - Favorable assumptions</option>
+              <option value="conservative">🛡️ Conservative - 2% real growth (after inflation)</option>
+              <option value="moderate" selected>⚖️ Moderate - 4% real growth (after inflation)</option>
+              <option value="optimistic">🚀 Optimistic - 6% real growth (after inflation)</option>
             </select>
-            <p class="help-text">Select planning assumptions - affects growth rates, volatility, and inflation</p>
+            <p class="help-text">Growth rates are real (after inflation). All projected figures are in today's money.</p>
           </div>
           
           <!-- Advanced Options with Accordion (shown only in Full mode) -->
@@ -628,6 +628,17 @@
                         <p class="accordion-option-helper">If ON: grows at portfolio return. If OFF: cash reserve (0%)</p>
                       </div>
                     </div>
+                  </div>
+                </div>
+                
+                <!-- Tax Jurisdiction -->
+                <div class="accordion-option" style="margin-top: 0.5rem;">
+                  <div class="accordion-option-content" style="width: 100%;">
+                    <label class="accordion-option-label">🏴 Tax Jurisdiction</label>
+                    <select id="tax-jurisdiction" style="width: 100%; padding: 0.5rem; border: 1px solid #e5e7eb; border-radius: 4px;">
+                      <option value="england" selected>England, Wales &amp; Northern Ireland</option>
+                      <option value="scotland">Scotland</option>
+                    </select>
                   </div>
                 </div>
               </div>
@@ -923,7 +934,7 @@
   
   <!-- Version footer -->
   <footer id="version-footer" style="text-align: center; font-size: 0.7rem; color: var(--color-text-light); padding: 8px 0; background: var(--color-background);">
-    <span id="model-version">RetireLens Pro v0.9.3</span>
+    <span id="model-version">RetireLens Pro v1.0.0</span>
   </footer>
   
   <!-- Bottom Ticker for Onboarding Progress -->

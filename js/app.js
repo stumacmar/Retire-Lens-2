@@ -42,7 +42,7 @@
     
     // Import couples-first household engine
     import { createInitialOnboardingState, validateOnboardingState, onboardingToHouseholdPlan, ONBOARDING_STEPS } from '../src/ux/onboarding/flow.js';
-    import { createHouseholdPlan, validateHouseholdPlan, HOUSEHOLD_TYPES, PENSION_TYPES } from '../engine/householdPlan.js';
+    import { createHouseholdPlan, projectHousehold, validateHouseholdPlan, HOUSEHOLD_TYPES, PENSION_TYPES } from '../engine/householdPlan.js';
     import { generateTickerMessages, formatTickerDisplay } from '../ui/components/bottomTicker.js';
     
     // Import couples input component
@@ -52,7 +52,7 @@
     // Configuration Constants
     // ═══════════════════════════════════════════════════════════════
     
-    const MODEL_VERSION = 'v0.9.3';
+    const MODEL_VERSION = 'v1.0.0';
     
     // ═══════════════════════════════════════════════════════════════
     // State Management
@@ -968,7 +968,7 @@
         currentIsa: getValue('input-isa-balance', 0),
         annualIsaContribution: getValue('input-isa-contribution', 0),
         statePensionAge: getValue('input-state-pension-age', 67),
-        expectedStatePension: getValue('input-state-pension-amount', 11500),
+        expectedStatePension: getValue('input-state-pension-amount', 11973),
         
         // Advanced options
         scenario: getSelectedValue('scenario-select', 'moderate'),
@@ -995,7 +995,10 @@
         
         // PCLS Strategy
         pclsStrategy: getSelectedValue('pcls-strategy', 'all_at_retirement'),
-        pclsReinvest: getChecked('pcls-reinvest')
+        pclsReinvest: getChecked('pcls-reinvest'),
+        
+        // Tax jurisdiction
+        taxJurisdiction: getSelectedValue('tax-jurisdiction', 'england')
       };
     }
     
@@ -1082,7 +1085,7 @@
       return '£' + Math.round(amount).toLocaleString();
     }
     
-    function renderResults(projection) {
+    function renderResults(projection, results = null) {
       const { summary, plan } = projection;
       const withdrawalRate = (plan.targetNetIncome / summary.retirementPot) * 100;
       
@@ -1092,6 +1095,35 @@
       else if (withdrawalRate > 4) sustainability = { label: 'Moderate Risk', color: '#f59e0b', emoji: '⚠️' };
       
       const isSuccess = summary.successRate >= 1.0;
+      const inflationRate = plan.assumptions?.projection?.inflationRate || 0.02;
+      
+      // FIX 2.3: If household timeline exists, compute household success rate
+      let householdSummaryHtml = '';
+      if (results?.householdTimeline) {
+        const timeline = results.householdTimeline;
+        const retiredYears = timeline.filter(y => y.anyRetired);
+        const targetMetYears = retiredYears.filter(y => y.targetMet);
+        const householdSuccessRate = retiredYears.length > 0 ? targetMetYears.length / retiredYears.length : 0;
+        const lastYear = timeline[timeline.length - 1];
+        const householdFinalPot = (lastYear?.personADcPot || 0) + (lastYear?.personBDcPot || 0);
+        
+        householdSummaryHtml = `
+          <div class="results-metrics" style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid #e5e7eb;">
+            <div class="metric">
+              <span class="metric-label" style="color: #3b82f6;">👨‍👩‍ Household Success</span>
+              <span class="metric-value">${(householdSuccessRate * 100).toFixed(0)}%</span>
+            </div>
+            <div class="metric">
+              <span class="metric-label" style="color: #3b82f6;">Combined Final Pot</span>
+              <span class="metric-value">${formatCurrency(householdFinalPot)}</span>
+            </div>
+            <div class="metric">
+              <span class="metric-label" style="color: #3b82f6;">Years Modelled</span>
+              <span class="metric-value">${timeline.length}</span>
+            </div>
+          </div>
+        `;
+      }
       
       const html = `
         <div class="results-hero">
@@ -1111,6 +1143,11 @@
             ${sustainability.emoji} Withdrawal rate: ${withdrawalRate.toFixed(1)}% 
             <span class="sustainability-label">(${sustainability.label})</span>
           </div>
+          
+          <!-- FIX 3.1: Real terms labelling -->
+          <p style="font-size: 0.75rem; color: #6b7280; margin-top: 0.5rem;">
+            📊 All figures in today's money (real terms, after ${(inflationRate * 100).toFixed(0)}% assumed inflation)
+          </p>
         </div>
         
         <div class="results-metrics">
@@ -1131,6 +1168,8 @@
             <span class="metric-value">${formatCurrency(summary.finalBalance)}</span>
           </div>
         </div>
+        
+        ${householdSummaryHtml}
         
         ${!isSuccess && summary.depletionAge ? `
           <div class="results-suggestion">
@@ -1218,6 +1257,7 @@
     
     /**
      * Render the Annual Net Cashflow Chart (stacked bars by income source)
+     * FIX 1.2: Uses projection engine values directly - no independent tax recalculation
      */
     function renderCashflowChart(projection, data) {
       const canvas = document.getElementById('cashflow-chart');
@@ -1226,101 +1266,77 @@
       const existingChart = Chart.getChart(canvas);
       if (existingChart) existingChart.destroy();
       
+      // FIX 1.2: Read income sources directly from projection years (no recomputation)
       const decYears = projection.decumulation.years.filter(y => !y.fundsDepleted || y.netIncome > 0);
       const labels = decYears.map(y => y.age);
       
-      // Prepare data by income source (all NET amounts)
-      // Use comprehensive tax calculation for each year to handle progressive bands correctly
-      const datasets = [];
-      
-      const spAmount = data.expectedStatePension || 0;
-      const dbAmount = (data.hasDBPension && data.dbPensionAmount > 0) ? data.dbPensionAmount : 0;
-      const dbStartAge = data.dbPensionStartAge || 65;
-      
-      // Calculate net amounts for each year using full tax context
-      const yearlyNetAmounts = decYears.map(y => {
-        const age = y.age;
-        const hasStatePension = y.statePension > 0;
-        const hasDbPension = dbAmount > 0 && age >= dbStartAge;
+      // Build year-by-year data directly from projection results
+      const yearlyData = decYears.map(y => {
+        const statePension = y.statePension || 0;
+        const dbPension = y.dbPension || 0;
         const pensionWithdrawal = y.withdrawals?.pension || 0;
         const isaWithdrawal = y.withdrawals?.isa || 0;
+        const taxPaid = y.taxPaid || 0;
+        const netIncome = y.netIncome || 0;
         
-        // Calculate tax on all taxable income together (correct progressive calculation)
-        const taxResult = computeUKTax({
-          statePension: hasStatePension ? spAmount : 0,
-          dbPension: hasDbPension ? dbAmount : 0,
-          pensionWithdrawal: pensionWithdrawal,
-          isaWithdrawal: isaWithdrawal
-        });
-        
-        const totalTaxableGross = (hasStatePension ? spAmount : 0) + (hasDbPension ? dbAmount : 0) + pensionWithdrawal;
-        const totalTax = taxResult.incomeTax || 0;
-        
-        // Distribute tax proportionally across taxable sources
-        const effectiveRate = totalTaxableGross > 0 ? totalTax / totalTaxableGross : 0;
+        // Distribute tax proportionally across taxable sources for display
+        const totalTaxable = statePension + dbPension + pensionWithdrawal;
+        const effectiveRate = totalTaxable > 0 ? taxPaid / totalTaxable : 0;
         
         return {
-          age,
-          statePensionNet: hasStatePension ? Math.max(0, spAmount * (1 - effectiveRate)) : 0,
-          dbPensionNet: hasDbPension ? Math.max(0, dbAmount * (1 - effectiveRate)) : 0,
-          pensionWithdrawalNet: Math.max(0, pensionWithdrawal * (1 - effectiveRate)),
+          age: y.age,
+          statePensionNet: statePension > 0 ? Math.max(0, statePension * (1 - effectiveRate)) : 0,
+          dbPensionNet: dbPension > 0 ? Math.max(0, dbPension * (1 - effectiveRate)) : 0,
+          pensionWithdrawalNet: pensionWithdrawal > 0 ? Math.max(0, pensionWithdrawal * (1 - effectiveRate)) : 0,
           isaNet: isaWithdrawal, // Tax-free
-          totalTax
+          taxPaid,
+          netIncome
         };
       });
       
-      // State Pension (taxable but shown as net portion)
-      const statePensionData = yearlyNetAmounts.map(y => y.statePensionNet);
+      const datasets = [];
+      
+      // State Pension (net after proportional tax)
       datasets.push({
         label: 'State Pension',
-        data: statePensionData,
+        data: yearlyData.map(y => y.statePensionNet),
         backgroundColor: '#22c55e',
         stack: 'income'
       });
       
-      // DB Pension if present
-      if (dbAmount > 0) {
-        const dbData = yearlyNetAmounts.map(y => y.dbPensionNet);
+      // DB Pension if any year has it
+      const hasDbInProjection = yearlyData.some(y => y.dbPensionNet > 0);
+      if (hasDbInProjection) {
         datasets.push({
           label: 'DB Pension',
-          data: dbData,
+          data: yearlyData.map(y => y.dbPensionNet),
           backgroundColor: '#3b82f6',
           stack: 'income'
         });
       }
       
       // Pension Withdrawals (net)
-      const pensionWithdrawals = yearlyNetAmounts.map(y => y.pensionWithdrawalNet);
       datasets.push({
         label: 'Pension Withdrawal (net)',
-        data: pensionWithdrawals,
+        data: yearlyData.map(y => y.pensionWithdrawalNet),
         backgroundColor: '#f59e0b',
         stack: 'income'
       });
       
       // ISA Withdrawals (tax-free)
-      const isaWithdrawals = yearlyNetAmounts.map(y => y.isaNet);
       datasets.push({
         label: 'ISA (tax-free)',
-        data: isaWithdrawals,
+        data: yearlyData.map(y => y.isaNet),
         backgroundColor: '#8b5cf6',
         stack: 'income'
       });
       
-      // PCLS display: Do NOT show PCLS as income spike - it's a transfer, not income
-      // PCLS goes into ISA/cash bucket and is SPENT from there over time
-      // The income chart should show the spending from PCLS bucket if used for spending
-      // Otherwise, PCLS should not appear at all in the income chart (it's a balance transfer)
-      
-      // Only show PCLS spending if user selected 'spend_over_years' strategy (or legacy behavior)
-      // For now: spread any PCLS over 5 years as "PCLS Spending" instead of a spike
+      // PCLS: spread over first 5 years to avoid spike
       const pclsTaken = projection.decumulation.pclsTaken || 0;
       if (pclsTaken > 0) {
-        // Spread PCLS spending over 5 years to avoid spike
         const pclsSpreadYears = 5;
         const pclsAnnualSpend = pclsTaken / pclsSpreadYears;
-        const pclsData = decYears.map((y, i) => (i < pclsSpreadYears && pclsTaken > 0) ? pclsAnnualSpend : 0);
-        
+        const pclsData = decYears.map((y, i) => (i < pclsSpreadYears) ? pclsAnnualSpend : 0);
         datasets.push({
           label: 'PCLS Spending (tax-free)',
           data: pclsData,
@@ -2374,6 +2390,63 @@
             plan
           };
           
+          // 3b. FIX 2.3: Run household projection for couples and attach to results
+          if (data.isCouple && household && state.onboardingState) {
+            try {
+              const householdPlanInput = {
+                householdType: 'couple',
+                personA: {
+                  name: 'You',
+                  currentAge: data.currentAge,
+                  retirementAge: data.retirementAge,
+                  pensionTypes: state.onboardingState.personA?.pensionTypes || ['dc'],
+                  dcPot: data.currentPension,
+                  dcMonthlyContrib: data.annualPensionContribution / 12,
+                  isaBalance: data.currentIsa || 0,
+                  isaAnnualContrib: data.annualIsaContribution || 0,
+                  statePensionAge: data.statePensionAge,
+                  expectedStatePension: data.expectedStatePension,
+                  hasDB: data.hasDBPension,
+                  dbAnnualIncome: data.dbPensionAmount || 0,
+                  dbStartAge: data.dbPensionStartAge || 65
+                },
+                personB: {
+                  name: 'Partner',
+                  currentAge: state.onboardingState.personB.currentAge,
+                  retirementAge: state.onboardingState.personB.retirementAge,
+                  pensionTypes: state.onboardingState.personB.pensionTypes || ['dc'],
+                  dcPot: state.onboardingState.personB.dcPot || 0,
+                  dcMonthlyContrib: state.onboardingState.personB.dcMonthlyContrib || 0,
+                  isaBalance: 0,
+                  isaAnnualContrib: 0,
+                  statePensionAge: state.onboardingState.personB.statePensionAge || 67,
+                  expectedStatePension: state.onboardingState.personB.expectedStatePension || 11973,
+                  hasDB: (state.onboardingState.personB.pensionTypes || []).includes('db'),
+                  dbAnnualIncome: state.onboardingState.personB.dbAnnualIncome || 0,
+                  dbStartAge: state.onboardingState.personB.dbStartAge || 67
+                },
+                targetNetIncome: data.targetNetIncome,
+                planningHorizonAge: 95,
+                growthRate: assumptions.growthRate || 0.04,
+                feeRate: assumptions.feeRate || 0.005,
+                inflationRate: assumptions.inflationRate || 0.02
+              };
+              
+              const fullHouseholdPlan = createHouseholdPlan(householdPlanInput);
+              const householdTimeline = projectHousehold(fullHouseholdPlan);
+              results.householdTimeline = householdTimeline;
+              results.fullHouseholdPlan = fullHouseholdPlan;
+              
+              debugLog('HOUSEHOLD', 'Household projection complete', {
+                years: householdTimeline.length,
+                firstYear: householdTimeline[0],
+                lastYear: householdTimeline[householdTimeline.length - 1]
+              });
+            } catch (e) {
+              console.warn('Household projection failed, falling back to single-person:', e);
+            }
+          }
+          
           // 4. Run Monte Carlo simulation if enabled
           if (data.enableMonteCarlo) {
             try {
@@ -2520,7 +2593,7 @@
           updateProvisionalBanner();
           
           // Render basic results first
-          renderResults(basicProjection);
+          renderResults(basicProjection, results);
           
           // Hide Calculate button and show View Results button
           document.getElementById('calculate-btn').style.display = 'none';

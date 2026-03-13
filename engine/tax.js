@@ -393,9 +393,10 @@ export function runTaxTests() {
   assert(test7.netIncome === 100000, 'PCLS only → full net', `Net: ${test7.netIncome}`);
   
   // Test 8: Personal allowance taper at £110k
-  const test8 = computeUKTax({ pensionWithdrawal: 110000 });
+  const test8Income = 110000;
+  const test8 = computeUKTax({ pensionWithdrawal: test8Income });
   const taperThreshold = TAX_CONFIG.personalAllowanceTaperThreshold; // 100000
-  const expectedPA8 = Math.max(0, PA - Math.floor((110000 - taperThreshold) * 0.5));
+  const expectedPA8 = Math.max(0, PA - Math.floor((test8Income - taperThreshold) * 0.5));
   assert(Math.abs(test8.personalAllowance - expectedPA8) < 0.01, 'PA taper at £110k', `PA: ${test8.personalAllowance}, Expected: ${expectedPA8}`);
   
   // Test 9: PA fully tapered at £125,140+

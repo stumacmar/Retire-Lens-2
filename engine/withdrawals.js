@@ -567,7 +567,7 @@ export function projectPCLSReinvestment(pclsSchedule, endAge = 90) {
       // Transfer up to ISA cap, rest into cash bucket
       const totalAvailable = pclsTakenThisYear + cashBalance;
       const toIsa = Math.min(totalAvailable, isaAnnualCap);
-      const toCash = Math.max(0, pclsTakenThisYear - toIsa + cashBalance);
+      const toCash = Math.max(0, totalAvailable - toIsa); // FIX: clearer expression (same result)
       isaBalance += toIsa;
       cashBalance = toCash;
     } else if (cashBalance > 0) {

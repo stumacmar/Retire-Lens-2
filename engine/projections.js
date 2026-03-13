@@ -261,9 +261,13 @@ export function projectDecumulation(plan, accumulationResult, endAge = 90) {
     if (pclsThisYear > 0) {
       pensionBalance = Math.max(0, pensionBalance - pclsThisYear);
       taxFreeCash += pclsThisYear;
-      // If reinvesting, add to ISA balance (respecting real ISA cap enforcement at higher level)
+      // If reinvesting, add to ISA balance (capped at annual ISA limit £20k; excess held as cash)
       if (pclsReinvest !== false) {
-        isaBalance += pclsThisYear;
+        const isaAnnualCap = 20000;
+        const toIsa = Math.min(pclsThisYear, isaAnnualCap);
+        isaBalance += toIsa;
+        // Excess beyond ISA cap is not modelled separately in this projection
+        // (use projectPCLSReinvestment() for full ISA cap enforcement)
       }
     }
 

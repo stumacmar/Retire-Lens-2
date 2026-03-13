@@ -5,7 +5,7 @@
  * Implements UK-specific rules for PCLS, pension drawdown, and ISA withdrawals.
  */
 
-import { calculateTaxFromGross, calculateGrossFromNet } from './tax.js';
+import { calculateTaxFromGross, calculateGrossFromNet, getMarginalRate } from './tax.js';
 import { PENSION_CONFIG, ISA_CONFIG, TAX_CONFIG } from '../config/defaults.js';
 
 /**
@@ -85,17 +85,19 @@ export function calculateOptimalWithdrawal(targetNetIncome, balances, options = 
   }
   
   // Step 3: Draw additional pension if still needed (will be taxed)
+  // FIX 2.2: Use marginal rate at current income level to avoid double-counting
   if (stillNeeded > 0 && balances.pension > pensionWithdrawal) {
-    const totalTaxableAfterPensionPA = existingTaxableIncome + pensionWithdrawal;
+    // Income already taxable: existing taxable income + PA-filling pension
+    const currentTaxableIncome = existingTaxableIncome + pensionWithdrawal;
     
-    // Calculate how much gross pension needed to get remaining net
-    const grossNeeded = calculateGrossFromNet(
-      stillNeeded + calculateTaxFromGross(totalTaxableAfterPensionPA, taxConfig).netIncome,
-      taxConfig
-    );
+    // Get marginal rate at current income level
+    const marginalRate = getMarginalRate(currentTaxableIncome, taxConfig);
+    
+    // Gross pension needed to produce stillNeeded net at this marginal rate
+    const additionalGross = marginalRate < 1 ? stillNeeded / (1 - marginalRate) : stillNeeded;
     
     const additionalPension = Math.min(
-      grossNeeded.grossRequired - totalTaxableAfterPensionPA,
+      additionalGross,
       balances.pension - pensionWithdrawal
     );
     
@@ -535,17 +537,18 @@ export function calculatePCLSStrategy(pensionValue, options = {}) {
 
 /**
  * Project PCLS reinvestment growth over time
+ * Enforces ISA annual contribution cap (£20,000).
+ * Overflow from ISA cap is held in a cash bucket and transferred in subsequent years.
  * 
  * @param {object} pclsSchedule - Result from calculatePCLSStrategy
  * @param {number} endAge - Age to project until
  * @returns {object[]} Year-by-year PCLS balance (reinvested or cash)
  */
 export function projectPCLSReinvestment(pclsSchedule, endAge = 90) {
-  const { schedule, reinvestmentReturn, settings } = pclsSchedule;
+  const { schedule, reinvestmentReturn, settings, isaAnnualCap = 20000 } = pclsSchedule;
   const { retirementAge } = settings;
   
   // Create a map for O(1) lookup instead of relying on sequential index
-  // This handles unsorted schedules and gaps correctly
   const scheduleByAge = new Map();
   schedule.forEach(entry => {
     if (entry.amount > 0) {
@@ -554,24 +557,38 @@ export function projectPCLSReinvestment(pclsSchedule, endAge = 90) {
   });
   
   const projection = [];
-  let balance = 0;
+  let isaBalance = 0;
+  let cashBalance = 0; // Overflow beyond ISA cap
   
   for (let age = retirementAge; age <= endAge; age++) {
-    // Check if PCLS is taken this year using map lookup
     const pclsTakenThisYear = scheduleByAge.get(age) || 0;
+    
     if (pclsTakenThisYear > 0) {
-      balance += pclsTakenThisYear;
+      // Transfer up to ISA cap, rest into cash bucket
+      const totalAvailable = pclsTakenThisYear + cashBalance;
+      const toIsa = Math.min(totalAvailable, isaAnnualCap);
+      const toCash = Math.max(0, totalAvailable - toIsa); // FIX: clearer expression (same result)
+      isaBalance += toIsa;
+      cashBalance = toCash;
+    } else if (cashBalance > 0) {
+      // In subsequent years, transfer from cash to ISA up to annual cap
+      const transfer = Math.min(cashBalance, isaAnnualCap);
+      isaBalance += transfer;
+      cashBalance -= transfer;
     }
     
-    // Apply growth
-    const growth = balance * reinvestmentReturn;
-    balance += growth;
+    // Apply growth to ISA only (cash earns 0%)
+    const isaGrowth = isaBalance * reinvestmentReturn;
+    isaBalance += isaGrowth;
+    // Cash earns 0% (conservative assumption)
     
     projection.push({
       age,
       pclsTaken: pclsTakenThisYear,
-      balance: Math.max(0, balance),
-      growth
+      isaBalance: Math.max(0, isaBalance),
+      cashBalance: Math.max(0, cashBalance),
+      balance: Math.max(0, isaBalance + cashBalance),
+      growth: isaGrowth
     });
   }
   

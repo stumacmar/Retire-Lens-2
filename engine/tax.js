@@ -392,6 +392,42 @@ export function runTaxTests() {
   assert(test7.incomeTax === 0, 'PCLS only → no tax', `Tax: ${test7.incomeTax}`);
   assert(test7.netIncome === 100000, 'PCLS only → full net', `Net: ${test7.netIncome}`);
   
+  // Test 8: Personal allowance taper at £110k
+  const test8Income = 110000;
+  const test8 = computeUKTax({ pensionWithdrawal: test8Income });
+  const taperThreshold = TAX_CONFIG.personalAllowanceTaperThreshold; // 100000
+  const expectedPA8 = Math.max(0, PA - Math.floor((test8Income - taperThreshold) * 0.5));
+  assert(Math.abs(test8.personalAllowance - expectedPA8) < 0.01, 'PA taper at £110k', `PA: ${test8.personalAllowance}, Expected: ${expectedPA8}`);
+  
+  // Test 9: PA fully tapered at £125,140+
+  const test9 = computeUKTax({ pensionWithdrawal: 130000 });
+  assert(test9.personalAllowance === 0, 'PA fully tapered at £130k', `PA: ${test9.personalAllowance}`);
+  
+  // Test 10: DB + SP + DC withdrawal combined (2025/26: SP = £11,973)
+  const test10 = computeUKTax({
+    statePension: 11973,
+    dbPension: 5000,
+    pensionWithdrawal: 15000,
+    isaWithdrawal: 10000
+  });
+  const taxable10 = 11973 + 5000 + 15000; // 31,973
+  const taxableAfterPA10 = taxable10 - PA; // 31,973 - 12,570 = 19,403
+  const expectedTax10 = taxableAfterPA10 * BASIC_RATE; // 19,403 * 0.20 = 3,880.60
+  assert(Math.abs(test10.incomeTax - expectedTax10) < 0.01, 'SP+DB+DC mix (2025/26 rates)', `Expected: ${expectedTax10.toFixed(2)}, Got: ${test10.incomeTax.toFixed(2)}`);
+  // Net = 31,973 + 10,000 - 3,880.60 = 38,092.40
+  const expectedNet10 = taxable10 + 10000 - expectedTax10;
+  assert(Math.abs(test10.netIncome - expectedNet10) < 0.01, 'SP+DB+DC+ISA net income', `Expected: ${expectedNet10.toFixed(2)}, Got: ${test10.netIncome.toFixed(2)}`);
+  
+  // Test 11: Couples tax (two personal allowances)
+  const coupleTest = calculateCouplesTax(
+    { statePension: 11973, pensionWithdrawal: 10000 },
+    { statePension: 11973, dbPension: 5000 }
+  );
+  // Person 1: taxable 21,973, after PA 9,403, tax 1,880.60
+  // Person 2: taxable 16,973, after PA 4,403, tax 880.60
+  const expectedCoupleTax = ((21973 - PA) * BASIC_RATE) + ((16973 - PA) * BASIC_RATE);
+  assert(Math.abs(coupleTest.household.totalTax - expectedCoupleTax) < 0.01, 'Couples tax calculation (two PAs)', `Expected: ${expectedCoupleTax.toFixed(2)}, Got: ${coupleTest.household.totalTax.toFixed(2)}`);
+  
   // Summary
   const passed = tests.filter(t => t.passed).length;
   const failed = tests.filter(t => !t.passed).length;

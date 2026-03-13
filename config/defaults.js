@@ -1,10 +1,13 @@
 /**
  * RetireLens 2 - Default Configuration
- * UK Tax Year 2024/25 rates and thresholds
+ * UK Tax Year 2025/26 rates and thresholds
  * 
  * All monetary values in GBP
  * All rates as decimals (e.g., 0.20 = 20%)
  */
+// Last updated: March 2026 - UK Tax Year 2025/26 rates
+// Income tax bands frozen through 2027/28 (Autumn Statement 2022)
+// Review annually each April
 
 export const TAX_CONFIG = {
   // Personal Allowance
@@ -19,13 +22,14 @@ export const TAX_CONFIG = {
     { name: 'Additional Rate', threshold: Infinity, rate: 0.45 }
   ],
 
-  // Scotland has different rates (optional future extension)
+  // Scotland has different rates (2025/26)
   scottishBands: [
     { name: 'Starter Rate', threshold: 2306, rate: 0.19 },
     { name: 'Basic Rate', threshold: 13991, rate: 0.20 },
     { name: 'Intermediate Rate', threshold: 31092, rate: 0.21 },
     { name: 'Higher Rate', threshold: 62430, rate: 0.42 },
-    { name: 'Top Rate', threshold: Infinity, rate: 0.47 }
+    { name: 'Advanced Rate', threshold: 125140, rate: 0.45 },
+    { name: 'Top Rate', threshold: Infinity, rate: 0.48 }
   ]
 };
 
@@ -35,7 +39,7 @@ export const PENSION_CONFIG = {
 
   // State Pension
   statePensionAge: 67,
-  fullStatePensionWeekly: 221.20, // 2024/25 full new state pension
+  fullStatePensionWeekly: 230.25, // 2025/26 full new state pension (was £221.20 in 2024/25)
 
   // Lifetime Allowance abolished April 2024, but keeping for reference
   lifetimeAllowance: null, // No longer applicable

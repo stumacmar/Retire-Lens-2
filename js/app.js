@@ -1286,6 +1286,7 @@
         personB: isCouplesFlow ? (state.onboardingState?.personB || couplesLiveData?.personB || null) : null,
 
         // Partner pensions (passed to createPlan for couples projection)
+        partnerDCPot: isCouplesFlow ? cVal(state.onboardingState?.personB?.dcPot, couplesLiveData?.personB?.dcPot, 0) : 0,
         partnerCurrentAge: isCouplesFlow ? cVal(state.onboardingState?.personB?.currentAge, couplesLiveData?.personB?.currentAge, 0) : 0,
         partnerStatePensionAge: isCouplesFlow ? cVal(state.onboardingState?.personB?.statePensionAge, couplesLiveData?.personB?.statePensionAge, 0) : 0,
         partnerExpectedStatePension: isCouplesFlow ? cVal(state.onboardingState?.personB?.expectedStatePension, state.onboardingState?.personB?.statePensionAmount, 0) : 0,

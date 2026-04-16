@@ -42,6 +42,7 @@ export function createPlan(inputs) {
     // State pension real growth (triple lock premium over CPI)
     statePensionRealGrowth = 0.01,
     // Partner (for couples)
+    partnerDCPot = 0,
     partnerCurrentAge = 0,
     partnerStatePensionAge = 0,
     partnerExpectedStatePension = 0,
@@ -97,6 +98,7 @@ export function createPlan(inputs) {
     dbPensionEscalation,
     dbPensionEscalationRate,
     statePensionRealGrowth,
+    partnerDCPot: partnerDCPot || 0,
     partnerCurrentAge: partnerCurrentAge || 0,
     partnerStatePensionAge: partnerStatePensionAge || 0,
     partnerExpectedStatePension: partnerExpectedStatePension || 0,
@@ -238,8 +240,14 @@ export function projectDecumulation(plan, accumulationResult, endAge = 90) {
   let taxFreeCash = 0;
 
   if (pclsAlreadyTaken) {
-    // PCLS already crystallised — pension value entered is the post-PCLS drawdown pot
-    // No deduction needed, no PCLS to schedule
+    // User's PCLS already taken — but partner's DC pot may still be uncrystallised
+    // Apply PCLS only to the partner's portion of the combined pot
+    const partnerPot = plan.partnerDCPot || 0;
+    if (partnerPot > 0) {
+      const partnerPCLS = partnerPot * (plan.assumptions?.pension?.pclsRate || 0.25);
+      taxFreeCash = partnerPCLS;
+      pensionBalance -= partnerPCLS;
+    }
   } else {
     // FIX 1.4: Use strategy-aware PCLS calculation
     const pclsScheduleResult = calculatePCLSStrategy(pensionBalance, {

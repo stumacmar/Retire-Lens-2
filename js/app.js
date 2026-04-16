@@ -1252,10 +1252,18 @@
         currentAge: isCouplesFlow ? cVal(personA?.currentAge, cpA?.currentAge, 0) : getValue('input-current-age'),
         retirementAge: isCouplesFlow ? cVal(personA?.retirementAge, cpA?.retirementAge, 0) : getValue('input-retirement-age'),
         targetNetIncome: isCouplesFlow ? cVal(state.onboardingState?.targetNetIncome, cpTarget, 0) : getValue('input-target-income'),
-        currentPension: isCouplesFlow ? cVal(personA?.dcPot, cpA?.dcPot, 0) : getValue('input-pension-pot', 0),
-        annualPensionContribution: isCouplesFlow ? (cVal(personA?.dcMonthlyContrib, cpA?.dcMonthlyContrib, 0) * 12) : getValue('input-pension-contribution', 0) * 12,
-        currentIsa: isCouplesFlow ? cVal(personA?.isaBalance, cpA?.isaBalance, 0) : getValue('input-isa-balance', 0),
-        annualIsaContribution: isCouplesFlow ? cVal(personA?.isaAnnualContrib, cpA?.isaAnnualContrib, 0) : getValue('input-isa-contribution', 0),
+        currentPension: isCouplesFlow
+          ? (cVal(personA?.dcPot, cpA?.dcPot, 0) + cVal(state.onboardingState?.personB?.dcPot, couplesLiveData?.personB?.dcPot, 0))
+          : getValue('input-pension-pot', 0),
+        annualPensionContribution: isCouplesFlow
+          ? ((cVal(personA?.dcMonthlyContrib, cpA?.dcMonthlyContrib, 0) + cVal(state.onboardingState?.personB?.dcMonthlyContrib, couplesLiveData?.personB?.dcMonthlyContrib, 0)) * 12)
+          : getValue('input-pension-contribution', 0) * 12,
+        currentIsa: isCouplesFlow
+          ? (cVal(personA?.isaBalance, cpA?.isaBalance, 0) + cVal(state.onboardingState?.personB?.isaBalance, couplesLiveData?.personB?.isaBalance, 0))
+          : getValue('input-isa-balance', 0),
+        annualIsaContribution: isCouplesFlow
+          ? (cVal(personA?.isaAnnualContrib, cpA?.isaAnnualContrib, 0) + cVal(state.onboardingState?.personB?.isaAnnualContrib, couplesLiveData?.personB?.isaAnnualContrib, 0))
+          : getValue('input-isa-contribution', 0),
         statePensionAge: isCouplesFlow ? cVal(personA?.statePensionAge, cpA?.statePensionAge, 67) : getValue('input-state-pension-age', 67),
         expectedStatePension: isCouplesFlow ? cVal(personA?.expectedStatePension, cpA?.expectedStatePension, 11500) : getValue('input-state-pension-amount', 11973),
 

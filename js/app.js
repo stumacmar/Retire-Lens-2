@@ -134,32 +134,113 @@
     // Get active screen order based on feature flags and mode
     function getActiveScreenOrder() {
       let screens = [];
-      
-      // REFACTOR: Start with household-type (no splash/welcome screen)
+
       screens.push('household-type');
-      
-      // REFACTOR: Skip pension-types screen - now collected in household details
-      // Add couples input screen if household type is couple
-      if (state.onboardingState?.householdType === HOUSEHOLD_TYPES.COUPLE || 
-          state.onboardingState?.householdType === 'couple') {
-        screens.push('couples-input');
-        // For couples, they've entered everything in couples-input
-        // Go directly to review
-      } else {
-        // For singles, add the normal wizard screens
-        // Skip pathfinder and mode-select for now (can be re-enabled later)
-        screens.push('age', 'retirement-age', 'income-target', 'pension-pot', 'contributions');
-        
-        // Optionally add ISA and state pension screens
-        if (isFeatureEnabled('GUIDED_MODE') || state.mode === 'guided' || state.mode === 'full') {
-          screens.push('isa-savings', 'state-pension');
-        }
+
+      // Same wizard screens for BOTH singles and couples
+      // For couples, each screen shows doubled-up inputs (you + partner)
+      screens.push('age', 'retirement-age', 'income-target', 'pension-pot', 'contributions');
+
+      if (isFeatureEnabled('GUIDED_MODE') || state.mode === 'guided' || state.mode === 'full') {
+        screens.push('isa-savings', 'state-pension');
       }
-      
-      // Always add review, results, compare
+
       screens.push('review', 'results', 'compare');
-      
+
       return screens;
+    }
+
+    /**
+     * For couples mode: inject a partner input below each wizard input.
+     * Called by showScreen() when entering a wizard screen in couples mode.
+     */
+    function injectPartnerInputs(screenId) {
+      const isCouple = state.onboardingState?.householdType === HOUSEHOLD_TYPES.COUPLE;
+
+      // Map screen IDs to their partner input config
+      const partnerInputConfig = {
+        'age': { id: 'input-partner-current-age', label: "Partner's age", placeholder: '60', min: 18, max: 100 },
+        'retirement-age': { id: 'input-partner-retirement-age', label: "Partner's retirement age", placeholder: '65', min: 50, max: 100 },
+        'pension-pot': { id: 'input-partner-pension-pot', label: "Partner's pension pot", placeholder: '0', min: 0, step: 1000, currency: true },
+        'contributions': { id: 'input-partner-pension-contribution', label: "Partner's monthly contribution", placeholder: '0', min: 0, step: 50, currency: true },
+        'isa-savings': null, // Handled separately (2 inputs)
+        'state-pension': null // Handled separately (2 inputs)
+      };
+
+      const screen = document.getElementById(`screen-${screenId}`);
+      if (!screen) return;
+
+      // Remove any previously injected partner inputs
+      screen.querySelectorAll('.partner-input-group').forEach(el => el.remove());
+
+      if (!isCouple || !partnerInputConfig.hasOwnProperty(screenId)) return;
+
+      const content = screen.querySelector('.screen-content');
+      if (!content) return;
+
+      // Special handling for screens with multiple inputs
+      if (screenId === 'isa-savings') {
+        const html = `
+          <div class="partner-input-group" style="margin-top: 1.5rem; padding-top: 1.5rem; border-top: 2px solid var(--color-primary-light, #e0e7ff);">
+            <div style="font-weight: 600; color: var(--color-primary, #4f46e5); margin-bottom: 0.75rem; font-size: 0.9rem;">Partner's ISA</div>
+            <div class="input-group">
+              <label>Partner's ISA balance</label>
+              <div class="input-wrapper">
+                <span class="currency-symbol">£</span>
+                <input type="number" id="input-partner-isa-balance" min="0" step="1000" placeholder="0" inputmode="numeric" />
+              </div>
+            </div>
+            <div class="input-group">
+              <label>Partner's annual ISA contribution</label>
+              <div class="input-wrapper">
+                <span class="currency-symbol">£</span>
+                <input type="number" id="input-partner-isa-contribution" min="0" step="500" placeholder="0" inputmode="numeric" />
+              </div>
+            </div>
+          </div>`;
+        content.insertAdjacentHTML('beforeend', html);
+        return;
+      }
+
+      if (screenId === 'state-pension') {
+        const html = `
+          <div class="partner-input-group" style="margin-top: 1.5rem; padding-top: 1.5rem; border-top: 2px solid var(--color-primary-light, #e0e7ff);">
+            <div style="font-weight: 600; color: var(--color-primary, #4f46e5); margin-bottom: 0.75rem; font-size: 0.9rem;">Partner's State Pension</div>
+            <div class="input-group">
+              <label>Partner's State Pension age</label>
+              <div class="input-wrapper">
+                <input type="number" id="input-partner-state-pension-age" min="60" max="75" value="67" inputmode="numeric" />
+              </div>
+            </div>
+            <div class="input-group">
+              <label>Partner's expected annual State Pension</label>
+              <div class="input-wrapper">
+                <span class="currency-symbol">£</span>
+                <input type="number" id="input-partner-state-pension-amount" min="0" step="100" value="11973" inputmode="numeric" />
+              </div>
+            </div>
+          </div>`;
+        content.insertAdjacentHTML('beforeend', html);
+        return;
+      }
+
+      // Standard single-input partner field
+      const config = partnerInputConfig[screenId];
+      if (!config) return;
+
+      const currencyPrefix = config.currency ? '<span class="currency-symbol">£</span>' : '';
+      const html = `
+        <div class="partner-input-group" style="margin-top: 1.5rem; padding-top: 1.5rem; border-top: 2px solid var(--color-primary-light, #e0e7ff);">
+          <div style="font-weight: 600; color: var(--color-primary, #4f46e5); margin-bottom: 0.75rem; font-size: 0.9rem;">Partner</div>
+          <div class="input-group">
+            <label>${config.label}</label>
+            <div class="input-wrapper">
+              ${currencyPrefix}
+              <input type="number" id="${config.id}" min="${config.min || 0}" ${config.max ? 'max="' + config.max + '"' : ''} ${config.step ? 'step="' + config.step + '"' : ''} placeholder="${config.placeholder}" inputmode="numeric" />
+            </div>
+          </div>
+        </div>`;
+      content.insertAdjacentHTML('beforeend', html);
     }
     
     // For backward compatibility
@@ -185,7 +266,16 @@
           Array.from(document.querySelectorAll('.screen')).map(s => s.id));
       }
       
-      // Restore saved input values for this screen
+      // For couples: inject partner input fields on wizard screens
+      injectPartnerInputs(screenId);
+
+      // For couples: update income screen subtitle
+      if (screenId === 'income-target' && (state.onboardingState?.householdType === HOUSEHOLD_TYPES.COUPLE)) {
+        const sub = screen.querySelector('.screen-subtitle');
+        if (sub) sub.textContent = 'Combined household income after tax';
+      }
+
+      // Restore saved input values for this screen (including partner values)
       restoreScreenInputs(screenId);
 
       // Update progress
@@ -253,23 +343,8 @@
       const personA = state.onboardingState.personA;
       const screen = state.currentScreen;
 
-      // Map each wizard screen to the relevant state fields
+      // Save Person A (your) values
       switch (screen) {
-        case 'couples-input': {
-          // Capture live data from the couples component before navigating away
-          if (couplesInputComponent) {
-            try {
-              const liveData = couplesInputComponent.getData();
-              if (liveData) {
-                state.onboardingState.personA = { ...state.onboardingState.personA, ...liveData.personA };
-                state.onboardingState.personB = { ...state.onboardingState.personB, ...liveData.personB };
-                state.onboardingState.targetNetIncome = liveData.targetNetIncome;
-                debugLog('SAVE', 'Captured couples input data on transition', liveData);
-              }
-            } catch (e) { console.warn('Failed to capture couples data:', e); }
-          }
-          break;
-        }
         case 'age': {
           const v = getValue('input-current-age', 0);
           if (v) personA.currentAge = v;
@@ -286,8 +361,7 @@
           break;
         }
         case 'pension-pot': {
-          const v = getValue('input-pension-pot', 0);
-          personA.dcPot = v;
+          personA.dcPot = getValue('input-pension-pot', 0);
           break;
         }
         case 'contributions': {
@@ -304,15 +378,53 @@
         case 'state-pension': {
           personA.statePensionAge = getValue('input-state-pension-age', 67);
           personA.statePensionAmount = getValue('input-state-pension-amount', 11973);
+          personA.expectedStatePension = personA.statePensionAmount;
           break;
+        }
+      }
+
+      // Save Person B (partner) values from injected partner inputs
+      if (state.onboardingState?.householdType === HOUSEHOLD_TYPES.COUPLE) {
+        if (!state.onboardingState.personB) {
+          state.onboardingState.personB = { pensionTypes: ['dc'] };
+        }
+        const personB = state.onboardingState.personB;
+        switch (screen) {
+          case 'age': {
+            const v = getValue('input-partner-current-age', 0);
+            if (v) personB.currentAge = v;
+            break;
+          }
+          case 'retirement-age': {
+            const v = getValue('input-partner-retirement-age', 0);
+            if (v) personB.retirementAge = v;
+            break;
+          }
+          case 'pension-pot': {
+            personB.dcPot = getValue('input-partner-pension-pot', 0);
+            break;
+          }
+          case 'contributions': {
+            const v = getValue('input-partner-pension-contribution', 0);
+            personB.dcMonthlyContrib = v;
+            personB.dcAnnualContrib = v * 12;
+            break;
+          }
+          case 'isa-savings': {
+            personB.isaBalance = getValue('input-partner-isa-balance', 0);
+            personB.isaAnnualContrib = getValue('input-partner-isa-contribution', 0);
+            break;
+          }
+          case 'state-pension': {
+            personB.statePensionAge = getValue('input-partner-state-pension-age', 67);
+            personB.statePensionAmount = getValue('input-partner-state-pension-amount', 11973);
+            personB.expectedStatePension = personB.statePensionAmount;
+            break;
+          }
         }
       }
     }
 
-    /**
-     * Restore input values from onboardingState when revisiting a screen.
-     * Ensures Back button navigation shows previously entered data.
-     */
     function restoreScreenInputs(screenId) {
       if (!state.onboardingState?.personA) return;
       const personA = state.onboardingState.personA;
@@ -324,6 +436,7 @@
         }
       }
 
+      // Restore Person A values
       switch (screenId) {
         case 'age':
           setInput('input-current-age', personA.currentAge);
@@ -346,8 +459,35 @@
           break;
         case 'state-pension':
           setInput('input-state-pension-age', personA.statePensionAge);
-          setInput('input-state-pension-amount', personA.statePensionAmount);
+          setInput('input-state-pension-amount', personA.statePensionAmount || personA.expectedStatePension);
           break;
+      }
+
+      // Restore Person B values into injected partner inputs
+      if (state.onboardingState?.householdType === HOUSEHOLD_TYPES.COUPLE && state.onboardingState.personB) {
+        const personB = state.onboardingState.personB;
+        switch (screenId) {
+          case 'age':
+            setInput('input-partner-current-age', personB.currentAge);
+            break;
+          case 'retirement-age':
+            setInput('input-partner-retirement-age', personB.retirementAge);
+            break;
+          case 'pension-pot':
+            setInput('input-partner-pension-pot', personB.dcPot);
+            break;
+          case 'contributions':
+            setInput('input-partner-pension-contribution', personB.dcMonthlyContrib);
+            break;
+          case 'isa-savings':
+            setInput('input-partner-isa-balance', personB.isaBalance);
+            setInput('input-partner-isa-contribution', personB.isaAnnualContrib);
+            break;
+          case 'state-pension':
+            setInput('input-partner-state-pension-age', personB.statePensionAge);
+            setInput('input-partner-state-pension-amount', personB.statePensionAmount || personB.expectedStatePension);
+            break;
+        }
       }
     }
 
@@ -749,21 +889,20 @@
       // Check couples-specific requirements
       if (state.onboardingState?.householdType === HOUSEHOLD_TYPES.COUPLE) {
         const personB = state.onboardingState?.personB;
-        
+
+        // Auto-assign DC pension type for partner if not set (pension-types screen is skipped)
+        if (personB && (!personB.pensionTypes || personB.pensionTypes.length === 0)) {
+          personB.pensionTypes = ['dc'];
+        }
+
         // Partner age is required
         if (!personB?.currentAge || personB.currentAge < 18) {
           result.canCalculate = false;
           result.reason = "One more detail needed: partner's current age";
           return result;
         }
-        
-        // Partner pension type is required
-        const personBPensionTypes = personB?.pensionTypes || [];
-        if (personBPensionTypes.length === 0) {
-          result.canCalculate = false;
-          result.reason = "One more detail needed: partner's pension type";
-          return result;
-        }
+
+        const personBPensionTypes = personB?.pensionTypes || ['dc'];
         
         // Check if partner income amounts are unknown -> provisional
         const personBHasDC = personBPensionTypes.includes('dc') || personBPensionTypes.includes('both');

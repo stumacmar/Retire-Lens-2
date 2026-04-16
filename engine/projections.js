@@ -41,7 +41,8 @@ export function createPlan(inputs) {
     dbPensionEscalationRate = 0.02,
     // State pension real growth (triple lock premium over CPI)
     statePensionRealGrowth = 0.01,
-    // Partner state pension (for couples)
+    // Partner (for couples)
+    partnerCurrentAge = 0,
     partnerStatePensionAge = 0,
     partnerExpectedStatePension = 0,
     // Partner DB pension (for couples)
@@ -96,6 +97,7 @@ export function createPlan(inputs) {
     dbPensionEscalation,
     dbPensionEscalationRate,
     statePensionRealGrowth,
+    partnerCurrentAge: partnerCurrentAge || 0,
     partnerStatePensionAge: partnerStatePensionAge || 0,
     partnerExpectedStatePension: partnerExpectedStatePension || 0,
     partnerDBPensionAmount: partnerDBPensionAmount || 0,
@@ -201,6 +203,7 @@ export function projectAccumulation(plan) {
  */
 export function projectDecumulation(plan, accumulationResult, endAge = 90) {
   const {
+    currentAge,
     retirementAge,
     targetNetIncome,
     statePensionAge,
@@ -210,6 +213,7 @@ export function projectDecumulation(plan, accumulationResult, endAge = 90) {
     dbPensionStartAge,
     dbPensionEscalationRate,
     statePensionRealGrowth,
+    partnerCurrentAge,
     partnerStatePensionAge,
     partnerExpectedStatePension,
     partnerDBPensionAmount,
@@ -318,9 +322,14 @@ export function projectDecumulation(plan, accumulationResult, endAge = 90) {
       ? expectedStatePension * Math.pow(1 + (statePensionRealGrowth || 0.01), spYearsFromStart)
       : 0;
 
-    // Partner's state pension (different start age for couples)
-    const partnerSpYears = Math.max(0, age - (partnerStatePensionAge || 0));
-    const partnerStatePension = (partnerExpectedStatePension > 0 && age >= partnerStatePensionAge)
+    // Partner's age at this point in time
+    const ageDiff = partnerCurrentAge > 0 ? partnerCurrentAge - currentAge : 0;
+    const partnerAgeNow = age + ageDiff;
+
+    // Partner's state pension — starts when PARTNER reaches their SP age
+    const partnerSpStartUserAge = partnerCurrentAge > 0 ? partnerStatePensionAge - ageDiff : partnerStatePensionAge;
+    const partnerSpYears = Math.max(0, age - partnerSpStartUserAge);
+    const partnerStatePension = (partnerExpectedStatePension > 0 && age >= partnerSpStartUserAge)
       ? partnerExpectedStatePension * Math.pow(1 + (statePensionRealGrowth || 0.01), partnerSpYears)
       : 0;
 
@@ -329,9 +338,10 @@ export function projectDecumulation(plan, accumulationResult, endAge = 90) {
       ? dbPensionAmount * Math.pow(1 + (dbPensionEscalationRate || 0.02), age - dbPensionStartAge)
       : 0;
 
-    // Partner's DB pension
-    const partnerDbPension = (partnerDBPensionAmount > 0 && age >= (partnerDBPensionStartAge || 67))
-      ? partnerDBPensionAmount * Math.pow(1 + (partnerDBPensionEscalationRate || 0.02), age - (partnerDBPensionStartAge || 67))
+    // Partner's DB pension — starts when PARTNER reaches their DB start age
+    const partnerDbStartUserAge = partnerCurrentAge > 0 ? (partnerDBPensionStartAge || 67) - ageDiff : (partnerDBPensionStartAge || 67);
+    const partnerDbPension = (partnerDBPensionAmount > 0 && age >= partnerDbStartUserAge)
+      ? partnerDBPensionAmount * Math.pow(1 + (partnerDBPensionEscalationRate || 0.02), Math.max(0, age - partnerDbStartUserAge))
       : 0;
 
     // Total guaranteed income from all sources

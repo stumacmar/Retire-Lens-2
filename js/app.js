@@ -1278,6 +1278,7 @@
         personB: isCouplesFlow ? (state.onboardingState?.personB || couplesLiveData?.personB || null) : null,
 
         // Partner pensions (passed to createPlan for couples projection)
+        partnerCurrentAge: isCouplesFlow ? cVal(state.onboardingState?.personB?.currentAge, couplesLiveData?.personB?.currentAge, 0) : 0,
         partnerStatePensionAge: isCouplesFlow ? cVal(state.onboardingState?.personB?.statePensionAge, couplesLiveData?.personB?.statePensionAge, 0) : 0,
         partnerExpectedStatePension: isCouplesFlow ? cVal(state.onboardingState?.personB?.expectedStatePension, state.onboardingState?.personB?.statePensionAmount, 0) : 0,
         partnerDBPensionAmount: isCouplesFlow ? cVal(state.onboardingState?.personB?.dbAnnualIncome, couplesLiveData?.personB?.dbAnnualIncome, 0) : 0,
@@ -1692,8 +1693,8 @@
         stack: 'income'
       });
       
-      // PCLS: spread over first 5 years to avoid spike
-      const pclsTaken = projection.decumulation.pclsTaken || 0;
+      // PCLS: spread over first 5 years (skip if already taken)
+      const pclsTaken = data.pclsAlreadyTaken ? 0 : (projection.decumulation.pclsTaken || 0);
       if (pclsTaken > 0) {
         const pclsSpreadYears = 5;
         const pclsAnnualSpend = pclsTaken / pclsSpreadYears;
@@ -1917,10 +1918,9 @@
         sources.push({ name: 'DB Pension', amount: firstYear.dbPension || data.dbPensionAmount, taxable: true, color: '#3b82f6' });
       }
       
-      // Show PCLS as annual spending amount (spread over 5 years), not lump sum
-      // This prevents the "spike" issue in income tables
-      const pclsTaken = projection.decumulation.pclsTaken || 0;
-      if (pclsTaken > 0) {
+      // Show PCLS as annual spending amount (skip if already taken)
+      const pclsTaken2 = data.pclsAlreadyTaken ? 0 : (projection.decumulation.pclsTaken || 0);
+      if (pclsTaken2 > 0) {
         const pclsAnnualSpend = pclsTaken / 5; // Spread over 5 years
         sources.push({ 
           name: 'PCLS Spending (5yr)', 

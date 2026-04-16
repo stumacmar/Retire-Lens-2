@@ -47,6 +47,9 @@
     
     // Import couples input component
     import { renderCouplesInputTabs } from '../ui/components/couplesInput.js';
+
+    // Import persistence layer for auto-save
+    import { initPersistence, startAutoSave, loadAutoSave } from '../ui/persistence.js';
     
     // ═══════════════════════════════════════════════════════════════
     // Configuration Constants
@@ -182,10 +185,13 @@
           Array.from(document.querySelectorAll('.screen')).map(s => s.id));
       }
       
+      // Restore saved input values for this screen
+      restoreScreenInputs(screenId);
+
       // Update progress
       const progress = ((SCREEN_ORDER.indexOf(screenId) + 1) / SCREEN_ORDER.length) * 100;
       document.getElementById('progress-bar').style.width = `${progress}%`;
-      
+
       state.currentScreen = screenId;
       
       // Show/hide preview card based on screen
@@ -235,15 +241,112 @@
       }
     }
     
+    /**
+     * Save current screen's input values into onboardingState before navigating away.
+     * This ensures data survives screen transitions and can be restored on revisit.
+     */
+    function saveCurrentScreenInputs() {
+      if (!state.onboardingState) return;
+      if (!state.onboardingState.personA) {
+        state.onboardingState.personA = { pensionTypes: ['dc'] };
+      }
+      const personA = state.onboardingState.personA;
+      const screen = state.currentScreen;
+
+      // Map each wizard screen to the relevant state fields
+      switch (screen) {
+        case 'age': {
+          const v = getValue('input-current-age', 0);
+          if (v) personA.currentAge = v;
+          break;
+        }
+        case 'retirement-age': {
+          const v = getValue('input-retirement-age', 0);
+          if (v) personA.retirementAge = v;
+          break;
+        }
+        case 'income-target': {
+          const v = getValue('input-target-income', 0);
+          if (v) state.onboardingState.targetNetIncome = v;
+          break;
+        }
+        case 'pension-pot': {
+          const v = getValue('input-pension-pot', 0);
+          personA.dcPot = v;
+          break;
+        }
+        case 'contributions': {
+          const v = getValue('input-pension-contribution', 0);
+          personA.dcMonthlyContrib = v;
+          personA.dcAnnualContrib = v * 12;
+          break;
+        }
+        case 'isa-savings': {
+          personA.isaBalance = getValue('input-isa-balance', 0);
+          personA.isaAnnualContrib = getValue('input-isa-contribution', 0);
+          break;
+        }
+        case 'state-pension': {
+          personA.statePensionAge = getValue('input-state-pension-age', 67);
+          personA.statePensionAmount = getValue('input-state-pension-amount', 11973);
+          break;
+        }
+      }
+    }
+
+    /**
+     * Restore input values from onboardingState when revisiting a screen.
+     * Ensures Back button navigation shows previously entered data.
+     */
+    function restoreScreenInputs(screenId) {
+      if (!state.onboardingState?.personA) return;
+      const personA = state.onboardingState.personA;
+
+      function setInput(id, value) {
+        const el = document.getElementById(id);
+        if (el && value != null && value !== 0) {
+          el.value = value;
+        }
+      }
+
+      switch (screenId) {
+        case 'age':
+          setInput('input-current-age', personA.currentAge);
+          break;
+        case 'retirement-age':
+          setInput('input-retirement-age', personA.retirementAge);
+          break;
+        case 'income-target':
+          setInput('input-target-income', state.onboardingState.targetNetIncome);
+          break;
+        case 'pension-pot':
+          setInput('input-pension-pot', personA.dcPot);
+          break;
+        case 'contributions':
+          setInput('input-pension-contribution', personA.dcMonthlyContrib);
+          break;
+        case 'isa-savings':
+          setInput('input-isa-balance', personA.isaBalance);
+          setInput('input-isa-contribution', personA.isaAnnualContrib);
+          break;
+        case 'state-pension':
+          setInput('input-state-pension-age', personA.statePensionAge);
+          setInput('input-state-pension-amount', personA.statePensionAmount);
+          break;
+      }
+    }
+
     function nextScreen() {
+      saveCurrentScreenInputs();
       SCREEN_ORDER = getActiveScreenOrder();
       const currentIndex = SCREEN_ORDER.indexOf(state.currentScreen);
       if (currentIndex < SCREEN_ORDER.length - 1) {
         showScreen(SCREEN_ORDER[currentIndex + 1]);
       }
     }
-    
+
     function prevScreen() {
+      saveCurrentScreenInputs();
       SCREEN_ORDER = getActiveScreenOrder();
       const currentIndex = SCREEN_ORDER.indexOf(state.currentScreen);
       if (currentIndex > 0) {
@@ -2190,8 +2293,76 @@
       group.classList.toggle('open');
     };
     
-    document.addEventListener('DOMContentLoaded', () => {
+    document.addEventListener('DOMContentLoaded', async () => {
       debugLog('INIT', 'App initializing');
+
+      // Initialize persistence and restore auto-saved data
+      try {
+        await initPersistence();
+        debugLog('INIT', 'Persistence layer initialized');
+
+        // Try to restore auto-saved session
+        const autoSaved = await loadAutoSave();
+        if (autoSaved?.data) {
+          debugLog('INIT', 'Restoring auto-saved session', autoSaved.data);
+          // Restore onboarding state
+          if (autoSaved.data.onboardingState) {
+            state.onboardingState = autoSaved.data.onboardingState;
+          }
+          // Restore form input values to DOM
+          if (autoSaved.data.formInputs) {
+            const inputs = autoSaved.data.formInputs;
+            Object.keys(inputs).forEach(id => {
+              const el = document.getElementById(id);
+              if (el && inputs[id] != null) {
+                el.value = inputs[id];
+              }
+            });
+          }
+          // Restore screen position
+          if (autoSaved.data.currentScreen && autoSaved.data.currentScreen !== 'household-type') {
+            // Restore household type selection
+            if (autoSaved.data.onboardingState?.householdType) {
+              state.onboardingState.householdType = autoSaved.data.onboardingState.householdType;
+            }
+            showScreen(autoSaved.data.currentScreen);
+          }
+        }
+
+        // Start auto-save every 3 seconds
+        startAutoSave(() => {
+          // Collect all DOM input values for persistence
+          const formInputs = {};
+          const inputIds = [
+            'input-current-age', 'input-retirement-age', 'input-target-income',
+            'input-pension-pot', 'input-pension-contribution',
+            'input-isa-balance', 'input-isa-contribution',
+            'input-state-pension-age', 'input-state-pension-amount'
+          ];
+          inputIds.forEach(id => {
+            const el = document.getElementById(id);
+            if (el && el.value) {
+              formInputs[id] = el.value;
+            }
+          });
+
+          // Only save if there's meaningful data
+          const hasData = Object.keys(formInputs).length > 0 ||
+            state.onboardingState?.personA?.currentAge ||
+            state.onboardingState?.targetNetIncome;
+          if (!hasData) return null;
+
+          return {
+            onboardingState: state.onboardingState,
+            formInputs,
+            currentScreen: state.currentScreen,
+            timestamp: Date.now()
+          };
+        });
+        debugLog('INIT', 'Auto-save started');
+      } catch (e) {
+        console.warn('Persistence initialization failed, continuing without auto-save:', e);
+      }
       
       // Navigation buttons
       document.querySelectorAll('[data-action="next"]').forEach(btn => {

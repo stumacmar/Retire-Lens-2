@@ -95,8 +95,11 @@ export function runSingleSimulation(plan, accumulationReturns, decumulationRetur
   
   for (let i = 0; i < accumulationYears; i++) {
     const yearReturn = accumulationReturns[i] - feeRate;
-    pensionBalance = pensionBalance * (1 + yearReturn) + plan.annualPensionContribution;
-    isaBalance = isaBalance * (1 + yearReturn) + plan.annualIsaContribution;
+    // Mid-year contribution approximation: contributions earn ~half a year of growth
+    // This matches the deterministic projectAccumulation logic
+    const contribGrowthFactor = 1 + (yearReturn / 2);
+    pensionBalance = pensionBalance * (1 + yearReturn) + plan.annualPensionContribution * contribGrowthFactor;
+    isaBalance = isaBalance * (1 + yearReturn) + plan.annualIsaContribution * contribGrowthFactor;
     
     if (trackYearlyBalances) {
       yearlyData.push({
@@ -143,7 +146,13 @@ export function runSingleSimulation(plan, accumulationReturns, decumulationRetur
       continue;
     }
     
-    const statePension = age >= plan.statePensionAge ? plan.expectedStatePension : 0;
+    // State pension grows at real growth rate (triple lock premium over CPI)
+    // This matches the deterministic projectDecumulation logic
+    const spYearsFromStart = Math.max(0, age - plan.statePensionAge);
+    const statePensionRealGrowth = plan.statePensionRealGrowth || 0.01;
+    const statePension = age >= plan.statePensionAge
+      ? plan.expectedStatePension * Math.pow(1 + statePensionRealGrowth, spYearsFromStart)
+      : 0;
     
     // Use tax-aware optimal withdrawal matching deterministic projection
     const balances = { pension: pensionBalance, isa: isaBalance };

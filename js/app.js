@@ -567,12 +567,13 @@
         provisionalReason: null
       };
       
-      // Person A (main user) requirements
+      // Person A (main user) requirements — use onboarding state for couples, DOM inputs for singles
       const personA = state.onboardingState?.personA;
-      const currentAge = getValue('input-current-age', 0);
-      const retirementAge = getValue('input-retirement-age', 0);
-      const targetIncome = getValue('input-target-income', 0);
-      const pensionPot = getValue('input-pension-pot', 0);
+      const isCouplesFlow = state.onboardingState?.householdType === HOUSEHOLD_TYPES.COUPLE;
+      const currentAge = isCouplesFlow && personA?.currentAge ? personA.currentAge : getValue('input-current-age', 0);
+      const retirementAge = isCouplesFlow && personA?.retirementAge ? personA.retirementAge : getValue('input-retirement-age', 0);
+      const targetIncome = isCouplesFlow && state.onboardingState?.targetNetIncome ? state.onboardingState.targetNetIncome : getValue('input-target-income', 0);
+      const pensionPot = isCouplesFlow && personA?.dcPot != null ? personA.dcPot : getValue('input-pension-pot', 0);
       
       // Check Person A basic fields
       if (!currentAge || currentAge < 18 || currentAge > 100) {
@@ -958,45 +959,49 @@
     }
     
     function collectFormData() {
+      // For couples flow, pull core values from onboarding state (not empty DOM inputs)
+      const isCouplesFlow = state.onboardingState?.householdType === HOUSEHOLD_TYPES.COUPLE;
+      const personA = state.onboardingState?.personA;
+
       return {
-        // Basic inputs
-        currentAge: getValue('input-current-age'),
-        retirementAge: getValue('input-retirement-age'),
-        targetNetIncome: getValue('input-target-income'),
-        currentPension: getValue('input-pension-pot', 0),
-        annualPensionContribution: getValue('input-pension-contribution', 0) * 12,
-        currentIsa: getValue('input-isa-balance', 0),
-        annualIsaContribution: getValue('input-isa-contribution', 0),
-        statePensionAge: getValue('input-state-pension-age', 67),
-        expectedStatePension: getValue('input-state-pension-amount', 11973),
-        
+        // Basic inputs — use onboarding state for couples, DOM inputs for singles
+        currentAge: isCouplesFlow && personA?.currentAge ? personA.currentAge : getValue('input-current-age'),
+        retirementAge: isCouplesFlow && personA?.retirementAge ? personA.retirementAge : getValue('input-retirement-age'),
+        targetNetIncome: isCouplesFlow && state.onboardingState?.targetNetIncome ? state.onboardingState.targetNetIncome : getValue('input-target-income'),
+        currentPension: isCouplesFlow && personA?.dcPot != null ? personA.dcPot : getValue('input-pension-pot', 0),
+        annualPensionContribution: isCouplesFlow && personA?.dcMonthlyContrib ? personA.dcMonthlyContrib * 12 : getValue('input-pension-contribution', 0) * 12,
+        currentIsa: isCouplesFlow ? (personA?.isaBalance || 0) : getValue('input-isa-balance', 0),
+        annualIsaContribution: isCouplesFlow ? (personA?.isaAnnualContrib || 0) : getValue('input-isa-contribution', 0),
+        statePensionAge: isCouplesFlow && personA?.statePensionAge ? personA.statePensionAge : getValue('input-state-pension-age', 67),
+        expectedStatePension: isCouplesFlow && personA?.statePensionAmount != null ? personA.statePensionAmount : getValue('input-state-pension-amount', 11973),
+
         // Advanced options
         scenario: getSelectedValue('scenario-select', 'moderate'),
         enableMonteCarlo: getChecked('enable-monte-carlo'),
         enableBenchmarking: getChecked('enable-benchmarking'),
         enableTaxOptimization: getChecked('enable-tax-optimization'),
         modelCareCosts: getChecked('model-care-costs'),
-        
+
         // DB Pension
-        hasDBPension: getChecked('has-db-pension'),
-        dbPensionAmount: getValue('db-pension-amount', 0),
-        dbPensionStartAge: getValue('db-pension-start-age', 65),
-        
+        hasDBPension: isCouplesFlow ? (personA?.pensionTypes?.includes('db') || personA?.pensionTypes?.includes('both') || false) : getChecked('has-db-pension'),
+        dbPensionAmount: isCouplesFlow ? (personA?.dbAnnualIncome || 0) : getValue('db-pension-amount', 0),
+        dbPensionStartAge: isCouplesFlow ? (personA?.dbStartAge || 65) : getValue('db-pension-start-age', 65),
+
         // Couple mode - will be populated from onboarding state
-        isCouple: false,
-        householdType: null,
-        personA: null,
-        personB: null,
-        
+        isCouple: isCouplesFlow,
+        householdType: state.onboardingState?.householdType || null,
+        personA: isCouplesFlow ? personA : null,
+        personB: isCouplesFlow ? state.onboardingState?.personB : null,
+
         // Phased retirement
         isPhasedRetirement: getChecked('is-phased-retirement'),
         phaseStartAge: getValue('phase-start-age', 0),
         reducedHours: getValue('reduced-hours', 50),
-        
+
         // PCLS Strategy
         pclsStrategy: getSelectedValue('pcls-strategy', 'all_at_retirement'),
         pclsReinvest: getChecked('pcls-reinvest'),
-        
+
         // Tax jurisdiction
         taxJurisdiction: getSelectedValue('tax-jurisdiction', 'england')
       };
@@ -1016,9 +1021,10 @@
     function renderReviewSummary() {
       const data = collectFormData();
       state.formData = data;
-      
-      // Bridge onboarding state to the form data
-      if (state.onboardingState?.personA) {
+
+      // Bridge onboarding state from single-person DOM inputs (only if NOT couples flow)
+      const isCouplesFlow = state.onboardingState?.householdType === HOUSEHOLD_TYPES.COUPLE;
+      if (state.onboardingState?.personA && !isCouplesFlow) {
         state.onboardingState.personA.currentAge = data.currentAge;
         state.onboardingState.personA.retirementAge = data.retirementAge;
         state.onboardingState.personA.dcPot = data.currentPension;
@@ -1454,11 +1460,20 @@
       const labels = [];
       const spData = [];
       const dbData = [];
-      
+
+      // Use projection engine values (which include real-terms growth) to match the cashflow chart
+      const decYears = projection.decumulation?.years || [];
       for (let age = startAge; age <= endAge; age++) {
         labels.push(age);
-        spData.push(age >= data.statePensionAge ? data.expectedStatePension : 0);
-        dbData.push(data.hasDBPension && age >= data.dbPensionStartAge ? data.dbPensionAmount : 0);
+        const yearData = decYears.find(y => y.age === age);
+        if (yearData) {
+          spData.push(yearData.statePension || 0);
+          dbData.push(yearData.dbPension || 0);
+        } else {
+          // Fallback to form values if projection data not available
+          spData.push(age >= data.statePensionAge ? data.expectedStatePension : 0);
+          dbData.push(data.hasDBPension && age >= data.dbPensionStartAge ? data.dbPensionAmount : 0);
+        }
       }
       
       const datasets = [
@@ -1507,16 +1522,16 @@
         }
       });
       
-      // Populate details panel
+      // Populate details panel — show starting values with growth note
       const detailsEl = document.getElementById('guaranteed-income-details');
       if (detailsEl) {
         let html = '<div style="padding: 0.5rem;">';
-        html += `<p><strong>State Pension:</strong> ${formatCurrency(data.expectedStatePension)}/year from age ${data.statePensionAge}</p>`;
+        html += `<p><strong>State Pension:</strong> ${formatCurrency(data.expectedStatePension)}/year from age ${data.statePensionAge} <span style="font-size: 0.8em; color: var(--color-text-light);">(grows ~1%/year in real terms)</span></p>`;
         if (data.hasDBPension && data.dbPensionAmount > 0) {
-          html += `<p><strong>DB Pension:</strong> ${formatCurrency(data.dbPensionAmount)}/year from age ${data.dbPensionStartAge}</p>`;
+          html += `<p><strong>DB Pension:</strong> ${formatCurrency(data.dbPensionAmount)}/year from age ${data.dbPensionStartAge} <span style="font-size: 0.8em; color: var(--color-text-light);">(with inflation escalation)</span></p>`;
         }
         const totalGuaranteed = data.expectedStatePension + (data.hasDBPension ? data.dbPensionAmount : 0);
-        html += `<p style="margin-top: 0.5rem; font-weight: 600;">Total Guaranteed: ${formatCurrency(totalGuaranteed)}/year (when all sources active)</p>`;
+        html += `<p style="margin-top: 0.5rem; font-weight: 600;">Total Guaranteed: ${formatCurrency(totalGuaranteed)}/year at start (when all sources active)</p>`;
         html += '</div>';
         detailsEl.innerHTML = html;
       }
@@ -1543,7 +1558,8 @@
       ];
       
       if (data.hasDBPension && data.dbPensionAmount > 0 && firstYear.age >= data.dbPensionStartAge) {
-        sources.push({ name: 'DB Pension', amount: data.dbPensionAmount, taxable: true, color: '#3b82f6' });
+        // Use engine-computed value (includes escalation) to match the cashflow chart
+        sources.push({ name: 'DB Pension', amount: firstYear.dbPension || data.dbPensionAmount, taxable: true, color: '#3b82f6' });
       }
       
       // Show PCLS as annual spending amount (spread over 5 years), not lump sum

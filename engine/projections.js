@@ -344,16 +344,30 @@ export function projectDecumulation(plan, accumulationResult, endAge = 90) {
       total: pensionBalance + isaBalance
     };
 
+    // Pace ISA withdrawals: spread ISA across bridge years until state pension starts
+    // Without pacing, the greedy strategy drains ISA in 1-2 years
+    let isaAvailableThisYear = isaBalance;
+    if (isaBalance > 0 && totalGuaranteedIncome < ageAdjustedSpending) {
+      // Calculate years until full guaranteed income covers most of the target
+      const yearsUntilSP = Math.max(1, statePensionAge - age);
+      const yearsUntilPartnerSP = partnerStatePensionAge > 0 ? Math.max(1, partnerStatePensionAge - age) : yearsUntilSP;
+      const bridgeYears = Math.max(1, Math.min(yearsUntilSP, yearsUntilPartnerSP));
+      if (age < statePensionAge || (partnerExpectedStatePension > 0 && age < partnerStatePensionAge)) {
+        isaAvailableThisYear = Math.min(isaBalance, isaBalance / bridgeYears);
+      }
+    }
+
     // Pass combined guaranteed income to withdrawal calculator
     const withdrawalResult = calculateOptimalWithdrawal(
       ageAdjustedSpending,
-      { pension: pensionBalance, isa: isaBalance },
+      { pension: pensionBalance, isa: isaAvailableThisYear },
       { statePensionIncome: totalGuaranteedIncome, taxConfig }
     );
 
-    // Update balances after withdrawal
+    // Update balances after withdrawal — deduct actual ISA used from real balance
     pensionBalance = withdrawalResult.newBalances.pension;
-    isaBalance = withdrawalResult.newBalances.isa;
+    const isaUsed = isaAvailableThisYear - withdrawalResult.newBalances.isa;
+    isaBalance = isaBalance - isaUsed;
 
     // Apply growth to remaining balances
     const pensionGrowth = pensionBalance * netGrowthRate;

@@ -41,6 +41,13 @@ export function createPlan(inputs) {
     dbPensionEscalationRate = 0.02,
     // State pension real growth (triple lock premium over CPI)
     statePensionRealGrowth = 0.01,
+    // Partner state pension (for couples)
+    partnerStatePensionAge = 0,
+    partnerExpectedStatePension = 0,
+    // Partner DB pension (for couples)
+    partnerDBPensionAmount = 0,
+    partnerDBPensionStartAge = 67,
+    partnerDBPensionEscalationRate = 0.02,
     // PCLS strategy
     pclsStrategy = 'all_at_retirement',
     pclsReinvest = true,
@@ -89,6 +96,11 @@ export function createPlan(inputs) {
     dbPensionEscalation,
     dbPensionEscalationRate,
     statePensionRealGrowth,
+    partnerStatePensionAge: partnerStatePensionAge || 0,
+    partnerExpectedStatePension: partnerExpectedStatePension || 0,
+    partnerDBPensionAmount: partnerDBPensionAmount || 0,
+    partnerDBPensionStartAge,
+    partnerDBPensionEscalationRate,
     pclsStrategy,
     pclsReinvest,
     pclsAlreadyTaken: Boolean(pclsAlreadyTaken),
@@ -198,6 +210,11 @@ export function projectDecumulation(plan, accumulationResult, endAge = 90) {
     dbPensionStartAge,
     dbPensionEscalationRate,
     statePensionRealGrowth,
+    partnerStatePensionAge,
+    partnerExpectedStatePension,
+    partnerDBPensionAmount,
+    partnerDBPensionStartAge,
+    partnerDBPensionEscalationRate,
     pclsStrategy,
     pclsReinvest,
     pclsAlreadyTaken,
@@ -295,16 +312,30 @@ export function projectDecumulation(plan, accumulationResult, endAge = 90) {
       continue;
     }
 
-    // FIX 1.3: State pension grows at real growth rate (triple lock premium over CPI)
+    // State pension grows at real growth rate (triple lock premium over CPI)
     const spYearsFromStart = Math.max(0, age - statePensionAge);
     const statePension = age >= statePensionAge
       ? expectedStatePension * Math.pow(1 + (statePensionRealGrowth || 0.01), spYearsFromStart)
       : 0;
 
-    // FIX 1.1: DB pension income (escalated by inflation assumption)
+    // Partner's state pension (different start age for couples)
+    const partnerSpYears = Math.max(0, age - (partnerStatePensionAge || 0));
+    const partnerStatePension = (partnerExpectedStatePension > 0 && age >= partnerStatePensionAge)
+      ? partnerExpectedStatePension * Math.pow(1 + (statePensionRealGrowth || 0.01), partnerSpYears)
+      : 0;
+
+    // DB pension income (escalated by inflation assumption)
     const dbPension = (hasDBPension && age >= dbPensionStartAge)
       ? dbPensionAmount * Math.pow(1 + (dbPensionEscalationRate || 0.02), age - dbPensionStartAge)
       : 0;
+
+    // Partner's DB pension
+    const partnerDbPension = (partnerDBPensionAmount > 0 && age >= (partnerDBPensionStartAge || 67))
+      ? partnerDBPensionAmount * Math.pow(1 + (partnerDBPensionEscalationRate || 0.02), age - (partnerDBPensionStartAge || 67))
+      : 0;
+
+    // Total guaranteed income from all sources
+    const totalGuaranteedIncome = statePension + partnerStatePension + dbPension + partnerDbPension;
 
     const yearStart = {
       age,
@@ -313,11 +344,11 @@ export function projectDecumulation(plan, accumulationResult, endAge = 90) {
       total: pensionBalance + isaBalance
     };
 
-    // FIX 1.1: Pass combined guaranteed income (SP + DB) to withdrawal calculator
+    // Pass combined guaranteed income to withdrawal calculator
     const withdrawalResult = calculateOptimalWithdrawal(
       ageAdjustedSpending,
       { pension: pensionBalance, isa: isaBalance },
-      { statePensionIncome: statePension + dbPension, taxConfig }
+      { statePensionIncome: totalGuaranteedIncome, taxConfig }
     );
 
     // Update balances after withdrawal
@@ -345,8 +376,10 @@ export function projectDecumulation(plan, accumulationResult, endAge = 90) {
     years.push({
       age,
       startBalances: yearStart,
-      statePension,
-      dbPension,
+      statePension: statePension + partnerStatePension,
+      dbPension: dbPension + partnerDbPension,
+      partnerStatePension,
+      partnerDbPension,
       targetSpending: ageAdjustedSpending,
       withdrawals: withdrawalResult.withdrawals,
       taxPaid: withdrawalResult.taxPaid,

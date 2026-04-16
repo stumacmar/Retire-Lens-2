@@ -1277,6 +1277,12 @@
         personA: isCouplesFlow ? (personA || cpA || null) : null,
         personB: isCouplesFlow ? (state.onboardingState?.personB || couplesLiveData?.personB || null) : null,
 
+        // Partner pensions (passed to createPlan for couples projection)
+        partnerStatePensionAge: isCouplesFlow ? cVal(state.onboardingState?.personB?.statePensionAge, couplesLiveData?.personB?.statePensionAge, 0) : 0,
+        partnerExpectedStatePension: isCouplesFlow ? cVal(state.onboardingState?.personB?.expectedStatePension, state.onboardingState?.personB?.statePensionAmount, 0) : 0,
+        partnerDBPensionAmount: isCouplesFlow ? cVal(state.onboardingState?.personB?.dbAnnualIncome, couplesLiveData?.personB?.dbAnnualIncome, 0) : 0,
+        partnerDBPensionStartAge: isCouplesFlow ? cVal(state.onboardingState?.personB?.dbStartAge, couplesLiveData?.personB?.dbStartAge, 67) : 67,
+
         // Phased retirement
         isPhasedRetirement: getChecked('is-phased-retirement'),
         phaseStartAge: getValue('phase-start-age', 0),

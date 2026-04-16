@@ -1567,46 +1567,66 @@
     function renderCapitalChart(projection) {
       const canvas = document.getElementById('capital-chart');
       if (!canvas || typeof Chart === 'undefined') return;
-      
+
       const existingChart = Chart.getChart(canvas);
       if (existingChart) existingChart.destroy();
-      
-      const accData = projection.accumulation.years.map(y => ({ x: y.age, y: y.endBalances.total }));
-      const decData = projection.decumulation.years
-        .filter(y => y.endBalances)
-        .map(y => ({ x: y.age, y: y.endBalances.total }));
-      
-      const allData = [...accData, ...decData];
-      
+
+      // Build separate pension and ISA datasets
+      const allYears = [
+        ...projection.accumulation.years.map(y => ({ age: y.age, pension: y.endBalances.pension, isa: y.endBalances.isa })),
+        ...projection.decumulation.years.filter(y => y.endBalances).map(y => ({ age: y.age, pension: y.endBalances.pension, isa: y.endBalances.isa }))
+      ];
+
       new Chart(canvas, {
         type: 'line',
         data: {
-          labels: allData.map(d => d.x),
-          datasets: [{
-            label: 'Total Wealth',
-            data: allData.map(d => d.y),
-            borderColor: '#3b82f6',
-            backgroundColor: 'rgba(59, 130, 246, 0.1)',
-            fill: true,
-            tension: 0.3,
-            pointRadius: 0
-          }]
+          labels: allYears.map(d => d.age),
+          datasets: [
+            {
+              label: 'Pension',
+              data: allYears.map(d => d.pension),
+              borderColor: '#f59e0b',
+              backgroundColor: 'rgba(245, 158, 11, 0.15)',
+              fill: true,
+              tension: 0.3,
+              pointRadius: 0
+            },
+            {
+              label: 'ISA',
+              data: allYears.map(d => d.isa),
+              borderColor: '#8b5cf6',
+              backgroundColor: 'rgba(139, 92, 246, 0.15)',
+              fill: true,
+              tension: 0.3,
+              pointRadius: 0
+            },
+            {
+              label: 'Total Wealth',
+              data: allYears.map(d => d.pension + d.isa),
+              borderColor: '#4f46e5',
+              borderDash: [5, 5],
+              backgroundColor: 'transparent',
+              fill: false,
+              tension: 0.3,
+              pointRadius: 0
+            }
+          ]
         },
         options: {
           responsive: true,
           maintainAspectRatio: false,
           plugins: {
-            legend: { display: false },
+            legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 10 } } },
             tooltip: {
               callbacks: {
-                label: (ctx) => formatCurrency(ctx.parsed.y)
+                label: (ctx) => `${ctx.dataset.label}: ${formatCurrency(ctx.parsed.y)}`
               }
             }
           },
           scales: {
             x: { title: { display: true, text: 'Age' }},
-            y: { 
-              title: { display: true, text: 'Total Wealth (£)' },
+            y: {
+              title: { display: true, text: 'Balance (£)' },
               ticks: { callback: (v) => formatCurrency(v) }
             }
           }

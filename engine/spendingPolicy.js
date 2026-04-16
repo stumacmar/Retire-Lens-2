@@ -25,8 +25,8 @@
  * Note: These are cumulative reduction percentages from base spending
  */
 export const DEFAULT_AGE_ADJUSTMENTS = Object.freeze([
-  { fromAge: 80, reductionPercent: 15, label: 'Slower phase (80+)' },
-  { fromAge: 90, reductionPercent: 25, label: 'Final phase (90+)' }
+  { fromAge: 80, reductionPercent: 25, label: 'Reduced spending (80+)' },
+  { fromAge: 90, reductionPercent: 35, label: 'Minimal spending (90+)' }
 ]);
 
 /**

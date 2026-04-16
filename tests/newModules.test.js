@@ -189,14 +189,14 @@ test('calculateSpendingAtAge returns base spending before age 80', () => {
   expect(result).toBe(30000);
 });
 
-test('calculateSpendingAtAge applies -15% reduction at age 80+', () => {
+test('calculateSpendingAtAge applies -25% reduction at age 80+', () => {
   const result = calculateSpendingAtAge(30000, 82);
-  expect(result).toBeCloseTo(25500, 1); // 30000 * 0.85
+  expect(result).toBeCloseTo(22500, 1); // 30000 * 0.75
 });
 
-test('calculateSpendingAtAge applies -25% reduction at age 90+', () => {
+test('calculateSpendingAtAge applies -35% reduction at age 90+', () => {
   const result = calculateSpendingAtAge(30000, 92);
-  expect(result).toBeCloseTo(22500, 1); // 30000 * 0.75
+  expect(result).toBeCloseTo(19500, 1); // 30000 * 0.65
 });
 
 test('calculateSpendingAtAge uses custom adjustments when provided', () => {
@@ -445,11 +445,11 @@ test('runProjection applies age-based spending reductions', () => {
   const year82 = result.decumulation.years.find(y => y.age === 82);
   
   expect(year79.targetSpending).toBe(30000);
-  expect(year82.targetSpending).toBeCloseTo(25500, 1); // 30000 * 0.85
-  
+  expect(year82.targetSpending).toBeCloseTo(22500, 1); // 30000 * 0.75
+
   // Check that spending further reduces at age 90
   const year92 = result.decumulation.years.find(y => y.age === 92);
-  expect(year92.targetSpending).toBeCloseTo(22500, 1); // 30000 * 0.75
+  expect(year92.targetSpending).toBeCloseTo(19500, 1); // 30000 * 0.65
 });
 
 test('runProjection with custom spending rules', () => {

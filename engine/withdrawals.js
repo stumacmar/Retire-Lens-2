@@ -61,49 +61,48 @@ export function calculateOptimalWithdrawal(targetNetIncome, balances, options = 
   // Personal allowance available after existing income
   const paUsed = Math.min(existingTaxableIncome, taxConfig.personalAllowance);
   const paRemaining = taxConfig.personalAllowance - paUsed;
-  
-  // Strategy: Fill up PA with pension first (taxed at 0%), then use ISA
+
+  // Priority: SP + DB already counted. Now: DC pension first, ISA last (preserve ISA)
   let pensionWithdrawal = 0;
   let isaWithdrawal = 0;
   let netFromPension = 0;
   let netFromIsa = 0;
-  
-  // Step 1: Use pension to fill Personal Allowance (tax-free portion)
+
+  // Step 1: Use DC pension to fill Personal Allowance (tax-free band)
   if (paRemaining > 0 && balances.pension > 0) {
     const pensionToPA = Math.min(paRemaining, balances.pension, additionalNetNeeded);
     pensionWithdrawal = pensionToPA;
-    netFromPension = pensionToPA; // No tax within PA
+    netFromPension = pensionToPA;
   }
-  
+
   let stillNeeded = additionalNetNeeded - netFromPension;
-  
-  // Step 2: Draw from ISA (always tax-free)
-  if (stillNeeded > 0 && balances.isa > 0) {
-    isaWithdrawal = Math.min(stillNeeded, balances.isa);
-    netFromIsa = isaWithdrawal;
-    stillNeeded -= netFromIsa;
-  }
-  
-  // Step 3: Draw additional pension if still needed (will be taxed)
-  // FIX 2.2: Use marginal rate at current income level to avoid double-counting
+
+  // Step 2: Draw MORE DC pension (taxed at marginal rate) before touching ISA
   if (stillNeeded > 0 && balances.pension > pensionWithdrawal) {
-    // Income already taxable: existing taxable income + PA-filling pension
     const currentTaxableIncome = existingTaxableIncome + pensionWithdrawal;
-    
-    // Get marginal rate at current income level
     const marginalRate = getMarginalRate(currentTaxableIncome, taxConfig);
-    
-    // Gross pension needed to produce stillNeeded net at this marginal rate
     const additionalGross = marginalRate < 1 ? stillNeeded / (1 - marginalRate) : stillNeeded;
-    
+
     const additionalPension = Math.min(
       additionalGross,
       balances.pension - pensionWithdrawal
     );
-    
+
     if (additionalPension > 0) {
       pensionWithdrawal += additionalPension;
     }
+  }
+
+  // Recalculate how much net we got from pension
+  const pensionTaxResult = calculateTaxFromGross(existingTaxableIncome + pensionWithdrawal, taxConfig);
+  const netFromAllPension = pensionTaxResult.netIncome - existingNetIncome;
+  stillNeeded = Math.max(0, additionalNetNeeded - netFromAllPension);
+
+  // Step 3: ISA only for any remaining shortfall (tax-free, preserve capital)
+  if (stillNeeded > 0 && balances.isa > 0) {
+    isaWithdrawal = Math.min(stillNeeded, balances.isa);
+    netFromIsa = isaWithdrawal;
+    stillNeeded -= netFromIsa;
   }
   
   // Calculate actual tax on combined income

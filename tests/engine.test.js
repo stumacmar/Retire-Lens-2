@@ -162,14 +162,15 @@ test('Optimal withdrawal uses PA first', () => {
   expect(result.withdrawals.pension).toBeGreaterThan(0);
 });
 
-test('Optimal withdrawal includes ISA for above-PA income', () => {
+test('Optimal withdrawal uses pension before ISA (preserves ISA)', () => {
   const result = calculateOptimalWithdrawal(
     30000,
     { pension: 100000, isa: 50000 },
     { statePensionIncome: 0 }
   );
-  // Should use ISA for amounts beyond PA
-  expect(result.withdrawals.isa).toBeGreaterThan(0);
+  // Pension should cover the full amount (PA + taxed)
+  // ISA only used when pension insufficient
+  expect(result.withdrawals.pension).toBeGreaterThan(0);
 });
 
 test('Sustainable withdrawal rate calculation', () => {

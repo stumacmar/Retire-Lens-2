@@ -184,7 +184,7 @@ const pcls = calculatePCLS(400000);
 assert(pcls.taxFreeCash === 100000, 'PCLS is 25% of pension value');
 assert(pcls.remainingPension === 300000, 'Remaining pension is 75% after PCLS');
 
-// Optimal withdrawal uses PA first, then ISA
+// Optimal withdrawal uses pension before ISA (preserves ISA)
 const withdrawal = calculateOptimalWithdrawal(20000, { pension: 200000, isa: 100000 }, {
   statePensionIncome: 0
 });
@@ -193,8 +193,8 @@ assert(
   'Optimal withdrawal uses pension first to fill personal allowance'
 );
 assert(
-  withdrawal.taxPaid === 0 || withdrawal.withdrawals.pension <= 12570,
-  'No tax when pension withdrawal within personal allowance'
+  withdrawal.withdrawals.pension >= 12570,
+  'Pension covers at least the personal allowance before ISA is touched'
 );
 
 // ═══════════════════════════════════════════════════════════════

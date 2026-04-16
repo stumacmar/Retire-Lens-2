@@ -1164,60 +1164,124 @@
     // ═══════════════════════════════════════════════════════════════
     
     function renderReviewSummary() {
+      const isCouplesFlow = state.onboardingState?.householdType === HOUSEHOLD_TYPES.COUPLE;
+
+      // For couples: read directly from the live component + onboarding state (the source of truth)
+      // For singles: read directly from DOM inputs (the source of truth)
+      // This avoids the fragile collectFormData() pipeline for display purposes
+      let displayAge, displayRetire, displayIncome, displayPot;
+      let personALabel = 'You';
+
+      if (isCouplesFlow) {
+        // Get live data directly from the couples component
+        let liveA = state.onboardingState?.personA || {};
+        let liveTarget = state.onboardingState?.targetNetIncome || 0;
+        if (couplesInputComponent) {
+          try {
+            const live = couplesInputComponent.getData();
+            if (live?.personA) liveA = { ...liveA, ...live.personA };
+            if (live?.targetNetIncome) liveTarget = live.targetNetIncome;
+            // Sync back to onboarding state so collectFormData() is also correct
+            state.onboardingState.personA = { ...state.onboardingState.personA, ...live.personA };
+            state.onboardingState.personB = { ...state.onboardingState.personB, ...live.personB };
+            state.onboardingState.targetNetIncome = live.targetNetIncome;
+          } catch (e) { /* use existing state */ }
+        }
+        displayAge = liveA.currentAge || 0;
+        displayRetire = liveA.retirementAge || 0;
+        displayIncome = liveTarget;
+        displayPot = liveA.dcPot || 0;
+      } else {
+        displayAge = getValue('input-current-age', 0);
+        displayRetire = getValue('input-retirement-age', 0);
+        displayIncome = getValue('input-target-income', 0);
+        displayPot = getValue('input-pension-pot', 0);
+
+        // Bridge single-person DOM values into onboarding state
+        if (state.onboardingState?.personA) {
+          state.onboardingState.personA.currentAge = displayAge;
+          state.onboardingState.personA.retirementAge = displayRetire;
+          state.onboardingState.personA.dcPot = displayPot;
+          state.onboardingState.personA.dcMonthlyContrib = getValue('input-pension-contribution', 0);
+          state.onboardingState.personA.dcAnnualContrib = getValue('input-pension-contribution', 0) * 12;
+          state.onboardingState.targetNetIncome = displayIncome;
+        }
+      }
+
+      // Now also update formData via collectFormData for the calculate button
       const data = collectFormData();
       state.formData = data;
 
-      // Bridge onboarding state from single-person DOM inputs (only if NOT couples flow)
-      const isCouplesFlow = state.onboardingState?.householdType === HOUSEHOLD_TYPES.COUPLE;
-      if (state.onboardingState?.personA && !isCouplesFlow) {
-        state.onboardingState.personA.currentAge = data.currentAge;
-        state.onboardingState.personA.retirementAge = data.retirementAge;
-        state.onboardingState.personA.dcPot = data.currentPension;
-        state.onboardingState.personA.dcMonthlyContrib = data.annualPensionContribution / 12;
-        state.onboardingState.personA.dcAnnualContrib = data.annualPensionContribution;
-        state.onboardingState.targetNetIncome = data.targetNetIncome;
-      }
-      
-      // Include couple info if applicable
-      let coupleHTML = '';
-      if (state.onboardingState?.householdType === HOUSEHOLD_TYPES.COUPLE && state.onboardingState.personB) {
-        const personB = state.onboardingState.personB;
-        coupleHTML = `
-          <div class="results-metrics" style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--color-border);">
+      // Format display values — show dash instead of zero for unfilled fields
+      function showVal(v) { return (v && v > 0) ? v : '—'; }
+      function showMoney(v) { return (v && v > 0) ? '£' + Math.round(v).toLocaleString() : '—'; }
+
+      // Build the review HTML
+      let html = '';
+
+      if (isCouplesFlow) {
+        // Couples review: show both persons side by side
+        const pA = state.onboardingState?.personA || {};
+        const pB = state.onboardingState?.personB || {};
+
+        html = `
+          <div style="text-align: center; margin-bottom: 1rem;">
+            <div style="font-size: var(--font-size-lg); font-weight: 600; color: var(--color-text-secondary);">Household Income Target</div>
+            <div style="font-size: var(--font-size-2xl); font-weight: 700; color: var(--color-primary); margin-top: 0.25rem;">${showMoney(displayIncome)}<span style="font-size: var(--font-size-sm); font-weight: 400; color: var(--color-text-light);">/year</span></div>
+          </div>
+
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+            <!-- Person A (You) -->
+            <div style="background: var(--color-surface); border-radius: var(--radius-lg); padding: 1rem; border: 1px solid var(--color-border-light, #f1f5f9);">
+              <div style="font-weight: 600; margin-bottom: 0.75rem; color: var(--color-primary);">You</div>
+              <div style="font-size: 0.8rem; color: var(--color-text-light); margin-bottom: 0.25rem;">Age</div>
+              <div style="font-weight: 600; margin-bottom: 0.5rem;">${showVal(pA.currentAge)}</div>
+              <div style="font-size: 0.8rem; color: var(--color-text-light); margin-bottom: 0.25rem;">Retire at</div>
+              <div style="font-weight: 600; margin-bottom: 0.5rem;">${showVal(pA.retirementAge)}</div>
+              <div style="font-size: 0.8rem; color: var(--color-text-light); margin-bottom: 0.25rem;">DC Pension</div>
+              <div style="font-weight: 600; margin-bottom: 0.5rem;">${showMoney(pA.dcPot)}</div>
+              <div style="font-size: 0.8rem; color: var(--color-text-light); margin-bottom: 0.25rem;">Monthly contrib</div>
+              <div style="font-weight: 600;">${showMoney(pA.dcMonthlyContrib)}</div>
+            </div>
+
+            <!-- Person B (Partner) -->
+            <div style="background: var(--color-surface); border-radius: var(--radius-lg); padding: 1rem; border: 1px solid var(--color-border-light, #f1f5f9);">
+              <div style="font-weight: 600; margin-bottom: 0.75rem; color: var(--color-accent, #0d9488);">Partner</div>
+              <div style="font-size: 0.8rem; color: var(--color-text-light); margin-bottom: 0.25rem;">Age</div>
+              <div style="font-weight: 600; margin-bottom: 0.5rem;">${showVal(pB.currentAge)}</div>
+              <div style="font-size: 0.8rem; color: var(--color-text-light); margin-bottom: 0.25rem;">Retire at</div>
+              <div style="font-weight: 600; margin-bottom: 0.5rem;">${showVal(pB.retirementAge)}</div>
+              <div style="font-size: 0.8rem; color: var(--color-text-light); margin-bottom: 0.25rem;">DC Pension</div>
+              <div style="font-weight: 600; margin-bottom: 0.5rem;">${showMoney(pB.dcPot)}</div>
+              <div style="font-size: 0.8rem; color: var(--color-text-light); margin-bottom: 0.25rem;">Monthly contrib</div>
+              <div style="font-weight: 600;">${showMoney(pB.dcMonthlyContrib)}</div>
+            </div>
+          </div>
+        `;
+      } else {
+        // Single person review: clean grid
+        html = `
+          <div class="results-metrics" style="margin-bottom: 1rem;">
             <div class="metric">
-              <span class="metric-label">Partner Age</span>
-              <span class="metric-value">${personB.currentAge || '—'}</span>
+              <span class="metric-label">Current Age</span>
+              <span class="metric-value">${showVal(displayAge)}</span>
             </div>
             <div class="metric">
-              <span class="metric-label">Partner Pension</span>
-              <span class="metric-value">${personB.pensionTypes?.join('+').toUpperCase() || '—'}</span>
+              <span class="metric-label">Retire At</span>
+              <span class="metric-value">${showVal(displayRetire)}</span>
+            </div>
+            <div class="metric">
+              <span class="metric-label">Target Income</span>
+              <span class="metric-value">${showMoney(displayIncome)}</span>
+            </div>
+            <div class="metric">
+              <span class="metric-label">Pension Pot</span>
+              <span class="metric-value">${showMoney(displayPot)}</span>
             </div>
           </div>
         `;
       }
-      
-      const html = `
-        <div class="results-metrics" style="margin-bottom: 1rem;">
-          <div class="metric">
-            <span class="metric-label">Current Age</span>
-            <span class="metric-value">${data.currentAge}</span>
-          </div>
-          <div class="metric">
-            <span class="metric-label">Retire At</span>
-            <span class="metric-value">${data.retirementAge}</span>
-          </div>
-          <div class="metric">
-            <span class="metric-label">Target Income</span>
-            <span class="metric-value">£${data.targetNetIncome.toLocaleString()}</span>
-          </div>
-          <div class="metric">
-            <span class="metric-label">Pension Pot</span>
-            <span class="metric-value">£${data.currentPension.toLocaleString()}</span>
-          </div>
-        </div>
-        ${coupleHTML}
-      `;
-      
+
       document.getElementById('review-summary').innerHTML = html;
       
       // Update Calculate button state based on validation

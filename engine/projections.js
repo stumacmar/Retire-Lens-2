@@ -367,11 +367,21 @@ export function projectDecumulation(plan, accumulationResult, endAge = 90) {
       }
     }
 
-    // Pass combined guaranteed income to withdrawal calculator
+    // For couples: use doubled personal allowance (each person gets £12,570)
+    // and doubled basic rate band (each person gets £37,700)
+    const effectiveTaxConfig = (partnerCurrentAge > 0) ? {
+      ...taxConfig,
+      personalAllowance: taxConfig.personalAllowance * 2,
+      bands: taxConfig.bands.map(b => ({
+        ...b,
+        threshold: b.threshold === Infinity ? Infinity : b.threshold * 2
+      }))
+    } : taxConfig;
+
     const withdrawalResult = calculateOptimalWithdrawal(
       ageAdjustedSpending,
       { pension: pensionBalance, isa: isaAvailableThisYear },
-      { statePensionIncome: totalGuaranteedIncome, taxConfig }
+      { statePensionIncome: totalGuaranteedIncome, taxConfig: effectiveTaxConfig }
     );
 
     // Update balances after withdrawal — deduct actual ISA used from real balance

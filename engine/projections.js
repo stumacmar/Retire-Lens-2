@@ -44,6 +44,7 @@ export function createPlan(inputs) {
     // PCLS strategy
     pclsStrategy = 'all_at_retirement',
     pclsReinvest = true,
+    pclsAlreadyTaken = false,
     // Tax jurisdiction
     taxJurisdiction = 'england'
   } = inputs;
@@ -90,6 +91,7 @@ export function createPlan(inputs) {
     statePensionRealGrowth,
     pclsStrategy,
     pclsReinvest,
+    pclsAlreadyTaken: Boolean(pclsAlreadyTaken),
     taxJurisdiction,
     assumptions: effectiveAssumptions,
     spendingRules: effectiveSpendingRules,
@@ -198,6 +200,7 @@ export function projectDecumulation(plan, accumulationResult, endAge = 90) {
     statePensionRealGrowth,
     pclsStrategy,
     pclsReinvest,
+    pclsAlreadyTaken,
     assumptions,
     spendingRules
   } = plan;
@@ -210,33 +213,33 @@ export function projectDecumulation(plan, accumulationResult, endAge = 90) {
   let pensionBalance = accumulationResult.finalBalances.pension;
   let isaBalance = accumulationResult.finalBalances.isa;
 
-  // FIX 1.4: Use strategy-aware PCLS calculation
-  const pclsScheduleResult = calculatePCLSStrategy(pensionBalance, {
-    strategy: pclsStrategy || 'all_at_retirement',
-    retirementAge,
-    deferredAge: statePensionAge,
-    reinvest: pclsReinvest !== false,
-    phaseYears: 5
-  });
-
-  // For strategies that take PCLS immediately at retirement, deduct from pension balance now
-  // For deferred/phased, we'll deduct year by year
   const pclsByAge = new Map();
-  pclsScheduleResult.schedule.forEach(entry => {
-    pclsByAge.set(entry.age, entry.amount);
-  });
+  let taxFreeCash = 0;
 
-  // Handle immediate PCLS (all_at_retirement) upfront to keep backward compat
-  let taxFreeCash = pclsScheduleResult.totalPCLS;
-  if (pclsStrategy === 'all_at_retirement' || !pclsStrategy) {
-    // Deduct full PCLS immediately
-    pensionBalance -= taxFreeCash;
-    // Clear the schedule since we've handled it
-    pclsByAge.clear();
+  if (pclsAlreadyTaken) {
+    // PCLS already crystallised — pension value entered is the post-PCLS drawdown pot
+    // No deduction needed, no PCLS to schedule
   } else {
-    // For phased/deferred, PCLS will be deducted year-by-year
-    // Don't deduct upfront - taxFreeCash tracks total taken
-    taxFreeCash = 0;
+    // FIX 1.4: Use strategy-aware PCLS calculation
+    const pclsScheduleResult = calculatePCLSStrategy(pensionBalance, {
+      strategy: pclsStrategy || 'all_at_retirement',
+      retirementAge,
+      deferredAge: statePensionAge,
+      reinvest: pclsReinvest !== false,
+      phaseYears: 5
+    });
+
+    pclsScheduleResult.schedule.forEach(entry => {
+      pclsByAge.set(entry.age, entry.amount);
+    });
+
+    taxFreeCash = pclsScheduleResult.totalPCLS;
+    if (pclsStrategy === 'all_at_retirement' || !pclsStrategy) {
+      pensionBalance -= taxFreeCash;
+      pclsByAge.clear();
+    } else {
+      taxFreeCash = 0;
+    }
   }
 
   const years = [];

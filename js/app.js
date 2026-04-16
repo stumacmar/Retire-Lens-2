@@ -1302,6 +1302,7 @@
         pclsStrategy: getSelectedValue('pcls-strategy', 'all_at_retirement'),
         pclsReinvest: getChecked('pcls-reinvest'),
         pclsAlreadyTaken: getChecked('pcls-already-taken'),
+        pclsAmountTaken: getValue('pcls-amount-taken', 0),
 
         // Tax jurisdiction
         taxJurisdiction: getSelectedValue('tax-jurisdiction', 'england')
@@ -1702,8 +1703,8 @@
         stack: 'income'
       });
       
-      // PCLS: spread over first 5 years (skip if already taken)
-      const pclsTaken = data.pclsAlreadyTaken ? 0 : (projection.decumulation.pclsTaken || 0);
+      // PCLS: show marginal PCLS from engine (includes partner + uncrystallised)
+      const pclsTaken = projection.decumulation.pclsTaken || 0;
       if (pclsTaken > 0) {
         const pclsSpreadYears = 5;
         const pclsAnnualSpend = pclsTaken / pclsSpreadYears;
@@ -1927,8 +1928,8 @@
         sources.push({ name: 'DB Pension', amount: firstYear.dbPension || data.dbPensionAmount, taxable: true, color: '#3b82f6' });
       }
       
-      // Show PCLS as annual spending amount (skip if already taken)
-      const pclsTaken2 = data.pclsAlreadyTaken ? 0 : (projection.decumulation.pclsTaken || 0);
+      // Show PCLS as annual spending (includes marginal PCLS + partner PCLS)
+      const pclsTaken2 = projection.decumulation.pclsTaken || 0;
       if (pclsTaken2 > 0) {
         const pclsAnnualSpend = pclsTaken / 5; // Spread over 5 years
         sources.push({ 
@@ -2723,6 +2724,11 @@
         if (inputs) inputs.style.display = e.target.checked ? 'block' : 'none';
       });
       
+      document.getElementById('pcls-already-taken')?.addEventListener('change', (e) => {
+        const inputs = document.getElementById('pcls-amount-taken-input');
+        if (inputs) inputs.style.display = e.target.checked ? 'block' : 'none';
+      });
+
       document.getElementById('is-phased-retirement')?.addEventListener('change', (e) => {
         const inputs = document.getElementById('phased-inputs');
         if (inputs) inputs.style.display = e.target.checked ? 'block' : 'none';

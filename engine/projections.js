@@ -54,6 +54,7 @@ export function createPlan(inputs) {
     pclsStrategy = 'all_at_retirement',
     pclsReinvest = true,
     pclsAlreadyTaken = false,
+    pclsAmountTaken = 0,
     // Tax jurisdiction
     taxJurisdiction = 'england'
   } = inputs;
@@ -108,6 +109,7 @@ export function createPlan(inputs) {
     pclsStrategy,
     pclsReinvest,
     pclsAlreadyTaken: Boolean(pclsAlreadyTaken),
+    pclsAmountTaken: pclsAmountTaken || 0,
     taxJurisdiction,
     assumptions: effectiveAssumptions,
     spendingRules: effectiveSpendingRules,
@@ -141,6 +143,21 @@ export function projectAccumulation(plan) {
   let pensionBalance = currentPension;
   let isaBalance = currentIsa;
 
+  // Track crystallised vs uncrystallised pension separately for PCLS calculation
+  // If PCLS already taken: crystallised = total - uncrystallised
+  // Uncrystallised = total pot - (PCLS taken / 0.25 * 0.75) = new contributions since crystallisation
+  const pclsAlreadyTaken = plan.pclsAlreadyTaken;
+  const pclsAmountTaken = plan.pclsAmountTaken || 0;
+  let crystallisedPension = 0;
+  let uncrystallisedPension = 0;
+  if (pclsAlreadyTaken && pclsAmountTaken > 0) {
+    const originalSippAtCrystallisation = pclsAmountTaken / 0.25;
+    const crystallisedAfterPCLS = originalSippAtCrystallisation * 0.75;
+    // Everything above the crystallised amount is uncrystallised
+    uncrystallisedPension = Math.max(0, currentPension - crystallisedAfterPCLS);
+    crystallisedPension = currentPension - uncrystallisedPension;
+  }
+
   for (let age = currentAge; age < retirementAge; age++) {
     const yearStart = {
       age,
@@ -153,10 +170,18 @@ export function projectAccumulation(plan) {
     const pensionGrowth = pensionBalance * netGrowthRate;
     const isaGrowth = isaBalance * netGrowthRate;
 
-    // Add contributions with mid-year approximation (contributions earn ~half a year of growth)
+    // Add contributions with mid-year approximation
     const contribGrowthFactor = 1 + (netGrowthRate / 2);
     pensionBalance = pensionBalance + pensionGrowth + (annualPensionContribution * contribGrowthFactor);
     isaBalance = isaBalance + isaGrowth + (annualIsaContribution * contribGrowthFactor);
+
+    // Track crystallised/uncrystallised growth
+    if (pclsAlreadyTaken && pclsAmountTaken > 0) {
+      const crystGrowth = crystallisedPension * netGrowthRate;
+      crystallisedPension += crystGrowth;
+      // Uncrystallised gets growth + ALL new contributions
+      uncrystallisedPension = pensionBalance - crystallisedPension;
+    }
 
     const yearEnd = {
       pension: pensionBalance,
@@ -191,7 +216,8 @@ export function projectAccumulation(plan) {
     totalContributions: {
       pension: annualPensionContribution * (retirementAge - currentAge),
       isa: annualIsaContribution * (retirementAge - currentAge)
-    }
+    },
+    uncrystallisedPension: (pclsAlreadyTaken && pclsAmountTaken > 0) ? uncrystallisedPension : 0
   };
 }
 
@@ -240,14 +266,17 @@ export function projectDecumulation(plan, accumulationResult, endAge = 90) {
   let taxFreeCash = 0;
 
   if (pclsAlreadyTaken) {
-    // User's PCLS already taken — but partner's DC pot may still be uncrystallised
-    // Apply PCLS only to the partner's portion of the combined pot
+    // User's main pot is crystallised, but there may be:
+    // 1. Uncrystallised portion (new contributions since crystallisation) — eligible for PCLS
+    // 2. Partner's DC pot — also eligible for PCLS
+    const uncrystallised = accumulationResult.uncrystallisedPension || 0;
     const partnerPot = plan.partnerDCPot || 0;
-    if (partnerPot > 0) {
-      const partnerPCLS = partnerPot * (plan.assumptions?.pension?.pclsRate || 0.25);
-      taxFreeCash = partnerPCLS;
-      pensionBalance -= partnerPCLS;
-    }
+    const pclsRate = plan.assumptions?.pension?.pclsRate || 0.25;
+
+    const marginalPCLS = uncrystallised * pclsRate;
+    const partnerPCLS = partnerPot * pclsRate;
+    taxFreeCash = marginalPCLS + partnerPCLS;
+    pensionBalance -= taxFreeCash;
   } else {
     // FIX 1.4: Use strategy-aware PCLS calculation
     const pclsScheduleResult = calculatePCLSStrategy(pensionBalance, {

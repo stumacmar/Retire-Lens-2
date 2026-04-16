@@ -65,26 +65,24 @@ export function calculateOptimalWithdrawal(targetNetIncome, balances, options = 
   // Priority: SP + DB already counted. Now: DC pension first, ISA last (preserve ISA)
   let pensionWithdrawal = 0;
   let isaWithdrawal = 0;
-  let netFromPension = 0;
-  let netFromIsa = 0;
 
   // Step 1: Use DC pension to fill Personal Allowance (tax-free band)
   if (paRemaining > 0 && balances.pension > 0) {
     const pensionToPA = Math.min(paRemaining, balances.pension, additionalNetNeeded);
     pensionWithdrawal = pensionToPA;
-    netFromPension = pensionToPA;
   }
 
-  let stillNeeded = additionalNetNeeded - netFromPension;
+  let netFromPensionPA = Math.min(pensionWithdrawal, additionalNetNeeded);
+  let stillNeeded = additionalNetNeeded - netFromPensionPA;
 
-  // Step 2: Draw MORE DC pension (taxed at marginal rate) before touching ISA
+  // Step 2: Draw MORE DC pension — use calculateGrossFromNet for accurate
+  // cross-band tax calculation (not single marginal rate)
   if (stillNeeded > 0 && balances.pension > pensionWithdrawal) {
-    const currentTaxableIncome = existingTaxableIncome + pensionWithdrawal;
-    const marginalRate = getMarginalRate(currentTaxableIncome, taxConfig);
-    const additionalGross = marginalRate < 1 ? stillNeeded / (1 - marginalRate) : stillNeeded;
-
+    const totalNetTarget = existingNetIncome + additionalNetNeeded;
+    const grossResult = calculateGrossFromNet(totalNetTarget, taxConfig);
+    const totalGrossNeeded = grossResult.grossRequired;
     const additionalPension = Math.min(
-      additionalGross,
+      Math.max(0, totalGrossNeeded - existingTaxableIncome - pensionWithdrawal),
       balances.pension - pensionWithdrawal
     );
 
@@ -101,8 +99,7 @@ export function calculateOptimalWithdrawal(targetNetIncome, balances, options = 
   // Step 3: ISA only for any remaining shortfall (tax-free, preserve capital)
   if (stillNeeded > 0 && balances.isa > 0) {
     isaWithdrawal = Math.min(stillNeeded, balances.isa);
-    netFromIsa = isaWithdrawal;
-    stillNeeded -= netFromIsa;
+    stillNeeded -= isaWithdrawal;
   }
   
   // Calculate actual tax on combined income

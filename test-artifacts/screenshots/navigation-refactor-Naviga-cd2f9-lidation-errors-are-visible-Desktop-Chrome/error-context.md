@@ -1,0 +1,98 @@
+# Page snapshot
+
+```yaml
+- generic [active] [ref=e1]:
+  - progressbar [ref=e3]
+  - generic [ref=e5]:
+    - generic [ref=e6]:
+      - heading "Your household details" [level=2] [ref=e7]
+      - paragraph [ref=e8]: Complete both tabs to continue
+    - generic [ref=e11]:
+      - generic [ref=e12]:
+        - button "👤 You" [ref=e13] [cursor=pointer]
+        - button "👥 Partner" [ref=e14] [cursor=pointer]
+      - generic [ref=e15]:
+        - generic [ref=e16]:
+          - text: Combined household income target
+          - generic [ref=e17]: After-tax income you both need in retirement (annually)
+        - generic [ref=e18]:
+          - generic: £
+          - spinbutton [ref=e19]: "40000"
+      - generic [ref=e20]:
+        - generic [ref=e21]:
+          - heading "Ages" [level=3] [ref=e22]
+          - generic [ref=e23]: Current age
+          - spinbutton [ref=e24]
+          - generic [ref=e25]: Target retirement age
+          - spinbutton [ref=e26]
+          - generic [ref=e27]: Life expectancy age
+          - spinbutton [ref=e28]: "90"
+        - generic [ref=e29]:
+          - heading "DC Pension (pot-based)" [level=3] [ref=e30]
+          - paragraph [ref=e31]: Workplace pension, SIPP, or personal pension
+          - generic [ref=e32]: Current pot value
+          - generic [ref=e33]:
+            - generic: £
+            - spinbutton [ref=e34]: "0"
+          - generic [ref=e35]: Monthly contribution
+          - generic [ref=e36]:
+            - generic: £
+            - spinbutton [ref=e37]: "0"
+          - generic [ref=e38]:
+            - text: Annual lump sum injection
+            - generic [ref=e39]: One-off or regular annual top-up (optional)
+          - generic [ref=e40]:
+            - generic: £
+            - spinbutton [ref=e41]: "0"
+          - generic [ref=e42]:
+            - text: Contributions end at age
+            - generic [ref=e43]: Usually your retirement age
+          - spinbutton [ref=e44]
+        - generic [ref=e45]:
+          - heading "DB Pension (guaranteed income)" [level=3] [ref=e46]
+          - paragraph [ref=e47]: Final salary or career-average pension
+          - generic [ref=e48]: Annual income (before tax)
+          - generic [ref=e49]:
+            - generic: £
+            - spinbutton [ref=e50]: "0"
+          - generic [ref=e51]:
+            - text: Start age
+            - generic [ref=e52]: When your DB pension begins
+          - spinbutton [ref=e53]
+          - generic [ref=e54]: Annual increase rate
+          - combobox [ref=e55]:
+            - option "CPI (2.5% assumed)" [selected]
+            - option "Fixed 3%"
+            - option "Fixed 5%"
+            - option "No increase"
+        - generic [ref=e56]:
+          - heading "ISA Savings" [level=3] [ref=e57]
+          - generic [ref=e58]: Current ISA balance
+          - generic [ref=e59]:
+            - generic: £
+            - spinbutton [ref=e60]: "0"
+          - generic [ref=e61]: Monthly contribution
+          - generic [ref=e62]:
+            - generic: £
+            - spinbutton [ref=e63]: "0"
+          - generic [ref=e64]:
+            - text: Annual lump sum injection
+            - generic [ref=e65]: One-off or regular annual top-up (optional)
+          - generic [ref=e66]:
+            - generic: £
+            - spinbutton [ref=e67]: "0"
+        - generic [ref=e68]:
+          - heading "State Pension" [level=3] [ref=e69]
+          - generic [ref=e70]:
+            - text: Start age
+            - generic [ref=e71]: When your State Pension begins (usually 67)
+          - spinbutton [ref=e72]: "67"
+          - generic [ref=e73]: Annual amount (before tax)
+          - generic [ref=e74]:
+            - generic: £
+            - spinbutton [ref=e75]: "11500"
+    - generic [ref=e76]:
+      - button "Back" [ref=e77] [cursor=pointer]
+      - button "Next" [ref=e78] [cursor=pointer]
+  - contentinfo [ref=e80]: RetireLens Pro v1.0.0 · Your data never leaves this device
+```

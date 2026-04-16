@@ -47,6 +47,9 @@
     
     // Import couples input component
     import { renderCouplesInputTabs } from '../ui/components/couplesInput.js';
+
+    // Import persistence layer for auto-save
+    import { initPersistence, startAutoSave, loadAutoSave } from '../ui/persistence.js';
     
     // ═══════════════════════════════════════════════════════════════
     // Configuration Constants
@@ -182,10 +185,13 @@
           Array.from(document.querySelectorAll('.screen')).map(s => s.id));
       }
       
+      // Restore saved input values for this screen
+      restoreScreenInputs(screenId);
+
       // Update progress
       const progress = ((SCREEN_ORDER.indexOf(screenId) + 1) / SCREEN_ORDER.length) * 100;
       document.getElementById('progress-bar').style.width = `${progress}%`;
-      
+
       state.currentScreen = screenId;
       
       // Show/hide preview card based on screen
@@ -235,15 +241,127 @@
       }
     }
     
+    /**
+     * Save current screen's input values into onboardingState before navigating away.
+     * This ensures data survives screen transitions and can be restored on revisit.
+     */
+    function saveCurrentScreenInputs() {
+      if (!state.onboardingState) return;
+      if (!state.onboardingState.personA) {
+        state.onboardingState.personA = { pensionTypes: ['dc'] };
+      }
+      const personA = state.onboardingState.personA;
+      const screen = state.currentScreen;
+
+      // Map each wizard screen to the relevant state fields
+      switch (screen) {
+        case 'couples-input': {
+          // Capture live data from the couples component before navigating away
+          if (couplesInputComponent) {
+            try {
+              const liveData = couplesInputComponent.getData();
+              if (liveData) {
+                state.onboardingState.personA = { ...state.onboardingState.personA, ...liveData.personA };
+                state.onboardingState.personB = { ...state.onboardingState.personB, ...liveData.personB };
+                state.onboardingState.targetNetIncome = liveData.targetNetIncome;
+                debugLog('SAVE', 'Captured couples input data on transition', liveData);
+              }
+            } catch (e) { console.warn('Failed to capture couples data:', e); }
+          }
+          break;
+        }
+        case 'age': {
+          const v = getValue('input-current-age', 0);
+          if (v) personA.currentAge = v;
+          break;
+        }
+        case 'retirement-age': {
+          const v = getValue('input-retirement-age', 0);
+          if (v) personA.retirementAge = v;
+          break;
+        }
+        case 'income-target': {
+          const v = getValue('input-target-income', 0);
+          if (v) state.onboardingState.targetNetIncome = v;
+          break;
+        }
+        case 'pension-pot': {
+          const v = getValue('input-pension-pot', 0);
+          personA.dcPot = v;
+          break;
+        }
+        case 'contributions': {
+          const v = getValue('input-pension-contribution', 0);
+          personA.dcMonthlyContrib = v;
+          personA.dcAnnualContrib = v * 12;
+          break;
+        }
+        case 'isa-savings': {
+          personA.isaBalance = getValue('input-isa-balance', 0);
+          personA.isaAnnualContrib = getValue('input-isa-contribution', 0);
+          break;
+        }
+        case 'state-pension': {
+          personA.statePensionAge = getValue('input-state-pension-age', 67);
+          personA.statePensionAmount = getValue('input-state-pension-amount', 11973);
+          break;
+        }
+      }
+    }
+
+    /**
+     * Restore input values from onboardingState when revisiting a screen.
+     * Ensures Back button navigation shows previously entered data.
+     */
+    function restoreScreenInputs(screenId) {
+      if (!state.onboardingState?.personA) return;
+      const personA = state.onboardingState.personA;
+
+      function setInput(id, value) {
+        const el = document.getElementById(id);
+        if (el && value != null && value !== 0) {
+          el.value = value;
+        }
+      }
+
+      switch (screenId) {
+        case 'age':
+          setInput('input-current-age', personA.currentAge);
+          break;
+        case 'retirement-age':
+          setInput('input-retirement-age', personA.retirementAge);
+          break;
+        case 'income-target':
+          setInput('input-target-income', state.onboardingState.targetNetIncome);
+          break;
+        case 'pension-pot':
+          setInput('input-pension-pot', personA.dcPot);
+          break;
+        case 'contributions':
+          setInput('input-pension-contribution', personA.dcMonthlyContrib);
+          break;
+        case 'isa-savings':
+          setInput('input-isa-balance', personA.isaBalance);
+          setInput('input-isa-contribution', personA.isaAnnualContrib);
+          break;
+        case 'state-pension':
+          setInput('input-state-pension-age', personA.statePensionAge);
+          setInput('input-state-pension-amount', personA.statePensionAmount);
+          break;
+      }
+    }
+
     function nextScreen() {
+      saveCurrentScreenInputs();
       SCREEN_ORDER = getActiveScreenOrder();
       const currentIndex = SCREEN_ORDER.indexOf(state.currentScreen);
       if (currentIndex < SCREEN_ORDER.length - 1) {
         showScreen(SCREEN_ORDER[currentIndex + 1]);
       }
     }
-    
+
     function prevScreen() {
+      saveCurrentScreenInputs();
       SCREEN_ORDER = getActiveScreenOrder();
       const currentIndex = SCREEN_ORDER.indexOf(state.currentScreen);
       if (currentIndex > 0) {
@@ -567,12 +685,25 @@
         provisionalReason: null
       };
       
-      // Person A (main user) requirements
+      // Person A (main user) requirements — use onboarding state + live component for couples
       const personA = state.onboardingState?.personA;
-      const currentAge = getValue('input-current-age', 0);
-      const retirementAge = getValue('input-retirement-age', 0);
-      const targetIncome = getValue('input-target-income', 0);
-      const pensionPot = getValue('input-pension-pot', 0);
+      const isCouplesFlow = state.onboardingState?.householdType === HOUSEHOLD_TYPES.COUPLE;
+
+      // For couples, also try live component data as fallback
+      let cpA = null;
+      let cpTarget = null;
+      if (isCouplesFlow && couplesInputComponent) {
+        try {
+          const live = couplesInputComponent.getData();
+          cpA = live?.personA;
+          cpTarget = live?.targetNetIncome;
+        } catch (e) { /* ignore */ }
+      }
+
+      const currentAge = isCouplesFlow ? (personA?.currentAge || cpA?.currentAge || 0) : getValue('input-current-age', 0);
+      const retirementAge = isCouplesFlow ? (personA?.retirementAge || cpA?.retirementAge || 0) : getValue('input-retirement-age', 0);
+      const targetIncome = isCouplesFlow ? (state.onboardingState?.targetNetIncome || cpTarget || 0) : getValue('input-target-income', 0);
+      const pensionPot = isCouplesFlow ? (personA?.dcPot ?? cpA?.dcPot ?? 0) : getValue('input-pension-pot', 0);
       
       // Check Person A basic fields
       if (!currentAge || currentAge < 18 || currentAge > 100) {
@@ -958,45 +1089,64 @@
     }
     
     function collectFormData() {
+      // For couples flow, pull core values from onboarding state (not empty DOM inputs)
+      const isCouplesFlow = state.onboardingState?.householdType === HOUSEHOLD_TYPES.COUPLE;
+      const personA = isCouplesFlow ? state.onboardingState?.personA : null;
+
+      // For couples, also check the live component data as fallback
+      let couplesLiveData = null;
+      if (isCouplesFlow && couplesInputComponent) {
+        try { couplesLiveData = couplesInputComponent.getData(); } catch (e) { /* ignore */ }
+      }
+      const cpA = couplesLiveData?.personA;
+      const cpTarget = couplesLiveData?.targetNetIncome;
+
+      // Helper: get couples value with multiple fallback sources
+      function cVal(stateVal, liveVal, fallback) {
+        if (stateVal != null && stateVal !== 0 && stateVal !== '') return stateVal;
+        if (liveVal != null && liveVal !== 0 && liveVal !== '') return liveVal;
+        return fallback;
+      }
+
       return {
-        // Basic inputs
-        currentAge: getValue('input-current-age'),
-        retirementAge: getValue('input-retirement-age'),
-        targetNetIncome: getValue('input-target-income'),
-        currentPension: getValue('input-pension-pot', 0),
-        annualPensionContribution: getValue('input-pension-contribution', 0) * 12,
-        currentIsa: getValue('input-isa-balance', 0),
-        annualIsaContribution: getValue('input-isa-contribution', 0),
-        statePensionAge: getValue('input-state-pension-age', 67),
-        expectedStatePension: getValue('input-state-pension-amount', 11973),
-        
+        // Basic inputs — use onboarding state + live component for couples, DOM inputs for singles
+        currentAge: isCouplesFlow ? cVal(personA?.currentAge, cpA?.currentAge, 0) : getValue('input-current-age'),
+        retirementAge: isCouplesFlow ? cVal(personA?.retirementAge, cpA?.retirementAge, 0) : getValue('input-retirement-age'),
+        targetNetIncome: isCouplesFlow ? cVal(state.onboardingState?.targetNetIncome, cpTarget, 0) : getValue('input-target-income'),
+        currentPension: isCouplesFlow ? cVal(personA?.dcPot, cpA?.dcPot, 0) : getValue('input-pension-pot', 0),
+        annualPensionContribution: isCouplesFlow ? (cVal(personA?.dcMonthlyContrib, cpA?.dcMonthlyContrib, 0) * 12) : getValue('input-pension-contribution', 0) * 12,
+        currentIsa: isCouplesFlow ? cVal(personA?.isaBalance, cpA?.isaBalance, 0) : getValue('input-isa-balance', 0),
+        annualIsaContribution: isCouplesFlow ? cVal(personA?.isaAnnualContrib, cpA?.isaAnnualContrib, 0) : getValue('input-isa-contribution', 0),
+        statePensionAge: isCouplesFlow ? cVal(personA?.statePensionAge, cpA?.statePensionAge, 67) : getValue('input-state-pension-age', 67),
+        expectedStatePension: isCouplesFlow ? cVal(personA?.expectedStatePension, cpA?.expectedStatePension, 11500) : getValue('input-state-pension-amount', 11973),
+
         // Advanced options
         scenario: getSelectedValue('scenario-select', 'moderate'),
         enableMonteCarlo: getChecked('enable-monte-carlo'),
         enableBenchmarking: getChecked('enable-benchmarking'),
         enableTaxOptimization: getChecked('enable-tax-optimization'),
         modelCareCosts: getChecked('model-care-costs'),
-        
+
         // DB Pension
-        hasDBPension: getChecked('has-db-pension'),
-        dbPensionAmount: getValue('db-pension-amount', 0),
-        dbPensionStartAge: getValue('db-pension-start-age', 65),
-        
-        // Couple mode - will be populated from onboarding state
-        isCouple: false,
-        householdType: null,
-        personA: null,
-        personB: null,
-        
+        hasDBPension: isCouplesFlow ? (personA?.pensionTypes?.includes('db') || personA?.pensionTypes?.includes('both') || (cpA?.dbAnnualIncome > 0) || false) : getChecked('has-db-pension'),
+        dbPensionAmount: isCouplesFlow ? cVal(personA?.dbAnnualIncome, cpA?.dbAnnualIncome, 0) : getValue('db-pension-amount', 0),
+        dbPensionStartAge: isCouplesFlow ? cVal(personA?.dbStartAge, cpA?.dbStartAge, 65) : getValue('db-pension-start-age', 65),
+
+        // Couple mode
+        isCouple: isCouplesFlow,
+        householdType: state.onboardingState?.householdType || null,
+        personA: isCouplesFlow ? (personA || cpA || null) : null,
+        personB: isCouplesFlow ? (state.onboardingState?.personB || couplesLiveData?.personB || null) : null,
+
         // Phased retirement
         isPhasedRetirement: getChecked('is-phased-retirement'),
         phaseStartAge: getValue('phase-start-age', 0),
         reducedHours: getValue('reduced-hours', 50),
-        
+
         // PCLS Strategy
         pclsStrategy: getSelectedValue('pcls-strategy', 'all_at_retirement'),
         pclsReinvest: getChecked('pcls-reinvest'),
-        
+
         // Tax jurisdiction
         taxJurisdiction: getSelectedValue('tax-jurisdiction', 'england')
       };
@@ -1014,59 +1164,124 @@
     // ═══════════════════════════════════════════════════════════════
     
     function renderReviewSummary() {
+      const isCouplesFlow = state.onboardingState?.householdType === HOUSEHOLD_TYPES.COUPLE;
+
+      // For couples: read directly from the live component + onboarding state (the source of truth)
+      // For singles: read directly from DOM inputs (the source of truth)
+      // This avoids the fragile collectFormData() pipeline for display purposes
+      let displayAge, displayRetire, displayIncome, displayPot;
+      let personALabel = 'You';
+
+      if (isCouplesFlow) {
+        // Get live data directly from the couples component
+        let liveA = state.onboardingState?.personA || {};
+        let liveTarget = state.onboardingState?.targetNetIncome || 0;
+        if (couplesInputComponent) {
+          try {
+            const live = couplesInputComponent.getData();
+            if (live?.personA) liveA = { ...liveA, ...live.personA };
+            if (live?.targetNetIncome) liveTarget = live.targetNetIncome;
+            // Sync back to onboarding state so collectFormData() is also correct
+            state.onboardingState.personA = { ...state.onboardingState.personA, ...live.personA };
+            state.onboardingState.personB = { ...state.onboardingState.personB, ...live.personB };
+            state.onboardingState.targetNetIncome = live.targetNetIncome;
+          } catch (e) { /* use existing state */ }
+        }
+        displayAge = liveA.currentAge || 0;
+        displayRetire = liveA.retirementAge || 0;
+        displayIncome = liveTarget;
+        displayPot = liveA.dcPot || 0;
+      } else {
+        displayAge = getValue('input-current-age', 0);
+        displayRetire = getValue('input-retirement-age', 0);
+        displayIncome = getValue('input-target-income', 0);
+        displayPot = getValue('input-pension-pot', 0);
+
+        // Bridge single-person DOM values into onboarding state
+        if (state.onboardingState?.personA) {
+          state.onboardingState.personA.currentAge = displayAge;
+          state.onboardingState.personA.retirementAge = displayRetire;
+          state.onboardingState.personA.dcPot = displayPot;
+          state.onboardingState.personA.dcMonthlyContrib = getValue('input-pension-contribution', 0);
+          state.onboardingState.personA.dcAnnualContrib = getValue('input-pension-contribution', 0) * 12;
+          state.onboardingState.targetNetIncome = displayIncome;
+        }
+      }
+
+      // Now also update formData via collectFormData for the calculate button
       const data = collectFormData();
       state.formData = data;
-      
-      // Bridge onboarding state to the form data
-      if (state.onboardingState?.personA) {
-        state.onboardingState.personA.currentAge = data.currentAge;
-        state.onboardingState.personA.retirementAge = data.retirementAge;
-        state.onboardingState.personA.dcPot = data.currentPension;
-        state.onboardingState.personA.dcMonthlyContrib = data.annualPensionContribution / 12;
-        state.onboardingState.personA.dcAnnualContrib = data.annualPensionContribution;
-        state.onboardingState.targetNetIncome = data.targetNetIncome;
-      }
-      
-      // Include couple info if applicable
-      let coupleHTML = '';
-      if (state.onboardingState?.householdType === HOUSEHOLD_TYPES.COUPLE && state.onboardingState.personB) {
-        const personB = state.onboardingState.personB;
-        coupleHTML = `
-          <div class="results-metrics" style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--color-border);">
+
+      // Format display values — show dash instead of zero for unfilled fields
+      function showVal(v) { return (v && v > 0) ? v : '—'; }
+      function showMoney(v) { return (v && v > 0) ? '£' + Math.round(v).toLocaleString() : '—'; }
+
+      // Build the review HTML
+      let html = '';
+
+      if (isCouplesFlow) {
+        // Couples review: show both persons side by side
+        const pA = state.onboardingState?.personA || {};
+        const pB = state.onboardingState?.personB || {};
+
+        html = `
+          <div style="text-align: center; margin-bottom: 1rem;">
+            <div style="font-size: var(--font-size-lg); font-weight: 600; color: var(--color-text-secondary);">Household Income Target</div>
+            <div style="font-size: var(--font-size-2xl); font-weight: 700; color: var(--color-primary); margin-top: 0.25rem;">${showMoney(displayIncome)}<span style="font-size: var(--font-size-sm); font-weight: 400; color: var(--color-text-light);">/year</span></div>
+          </div>
+
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+            <!-- Person A (You) -->
+            <div style="background: var(--color-surface); border-radius: var(--radius-lg); padding: 1rem; border: 1px solid var(--color-border-light, #f1f5f9);">
+              <div style="font-weight: 600; margin-bottom: 0.75rem; color: var(--color-primary);">You</div>
+              <div style="font-size: 0.8rem; color: var(--color-text-light); margin-bottom: 0.25rem;">Age</div>
+              <div style="font-weight: 600; margin-bottom: 0.5rem;">${showVal(pA.currentAge)}</div>
+              <div style="font-size: 0.8rem; color: var(--color-text-light); margin-bottom: 0.25rem;">Retire at</div>
+              <div style="font-weight: 600; margin-bottom: 0.5rem;">${showVal(pA.retirementAge)}</div>
+              <div style="font-size: 0.8rem; color: var(--color-text-light); margin-bottom: 0.25rem;">DC Pension</div>
+              <div style="font-weight: 600; margin-bottom: 0.5rem;">${showMoney(pA.dcPot)}</div>
+              <div style="font-size: 0.8rem; color: var(--color-text-light); margin-bottom: 0.25rem;">Monthly contrib</div>
+              <div style="font-weight: 600;">${showMoney(pA.dcMonthlyContrib)}</div>
+            </div>
+
+            <!-- Person B (Partner) -->
+            <div style="background: var(--color-surface); border-radius: var(--radius-lg); padding: 1rem; border: 1px solid var(--color-border-light, #f1f5f9);">
+              <div style="font-weight: 600; margin-bottom: 0.75rem; color: var(--color-accent, #0d9488);">Partner</div>
+              <div style="font-size: 0.8rem; color: var(--color-text-light); margin-bottom: 0.25rem;">Age</div>
+              <div style="font-weight: 600; margin-bottom: 0.5rem;">${showVal(pB.currentAge)}</div>
+              <div style="font-size: 0.8rem; color: var(--color-text-light); margin-bottom: 0.25rem;">Retire at</div>
+              <div style="font-weight: 600; margin-bottom: 0.5rem;">${showVal(pB.retirementAge)}</div>
+              <div style="font-size: 0.8rem; color: var(--color-text-light); margin-bottom: 0.25rem;">DC Pension</div>
+              <div style="font-weight: 600; margin-bottom: 0.5rem;">${showMoney(pB.dcPot)}</div>
+              <div style="font-size: 0.8rem; color: var(--color-text-light); margin-bottom: 0.25rem;">Monthly contrib</div>
+              <div style="font-weight: 600;">${showMoney(pB.dcMonthlyContrib)}</div>
+            </div>
+          </div>
+        `;
+      } else {
+        // Single person review: clean grid
+        html = `
+          <div class="results-metrics" style="margin-bottom: 1rem;">
             <div class="metric">
-              <span class="metric-label">Partner Age</span>
-              <span class="metric-value">${personB.currentAge || '—'}</span>
+              <span class="metric-label">Current Age</span>
+              <span class="metric-value">${showVal(displayAge)}</span>
             </div>
             <div class="metric">
-              <span class="metric-label">Partner Pension</span>
-              <span class="metric-value">${personB.pensionTypes?.join('+').toUpperCase() || '—'}</span>
+              <span class="metric-label">Retire At</span>
+              <span class="metric-value">${showVal(displayRetire)}</span>
+            </div>
+            <div class="metric">
+              <span class="metric-label">Target Income</span>
+              <span class="metric-value">${showMoney(displayIncome)}</span>
+            </div>
+            <div class="metric">
+              <span class="metric-label">Pension Pot</span>
+              <span class="metric-value">${showMoney(displayPot)}</span>
             </div>
           </div>
         `;
       }
-      
-      const html = `
-        <div class="results-metrics" style="margin-bottom: 1rem;">
-          <div class="metric">
-            <span class="metric-label">Current Age</span>
-            <span class="metric-value">${data.currentAge}</span>
-          </div>
-          <div class="metric">
-            <span class="metric-label">Retire At</span>
-            <span class="metric-value">${data.retirementAge}</span>
-          </div>
-          <div class="metric">
-            <span class="metric-label">Target Income</span>
-            <span class="metric-value">£${data.targetNetIncome.toLocaleString()}</span>
-          </div>
-          <div class="metric">
-            <span class="metric-label">Pension Pot</span>
-            <span class="metric-value">£${data.currentPension.toLocaleString()}</span>
-          </div>
-        </div>
-        ${coupleHTML}
-      `;
-      
+
       document.getElementById('review-summary').innerHTML = html;
       
       // Update Calculate button state based on validation
@@ -1454,11 +1669,20 @@
       const labels = [];
       const spData = [];
       const dbData = [];
-      
+
+      // Use projection engine values (which include real-terms growth) to match the cashflow chart
+      const decYears = projection.decumulation?.years || [];
       for (let age = startAge; age <= endAge; age++) {
         labels.push(age);
-        spData.push(age >= data.statePensionAge ? data.expectedStatePension : 0);
-        dbData.push(data.hasDBPension && age >= data.dbPensionStartAge ? data.dbPensionAmount : 0);
+        const yearData = decYears.find(y => y.age === age);
+        if (yearData) {
+          spData.push(yearData.statePension || 0);
+          dbData.push(yearData.dbPension || 0);
+        } else {
+          // Fallback to form values if projection data not available
+          spData.push(age >= data.statePensionAge ? data.expectedStatePension : 0);
+          dbData.push(data.hasDBPension && age >= data.dbPensionStartAge ? data.dbPensionAmount : 0);
+        }
       }
       
       const datasets = [
@@ -1507,16 +1731,16 @@
         }
       });
       
-      // Populate details panel
+      // Populate details panel — show starting values with growth note
       const detailsEl = document.getElementById('guaranteed-income-details');
       if (detailsEl) {
         let html = '<div style="padding: 0.5rem;">';
-        html += `<p><strong>State Pension:</strong> ${formatCurrency(data.expectedStatePension)}/year from age ${data.statePensionAge}</p>`;
+        html += `<p><strong>State Pension:</strong> ${formatCurrency(data.expectedStatePension)}/year from age ${data.statePensionAge} <span style="font-size: 0.8em; color: var(--color-text-light);">(grows ~1%/year in real terms)</span></p>`;
         if (data.hasDBPension && data.dbPensionAmount > 0) {
-          html += `<p><strong>DB Pension:</strong> ${formatCurrency(data.dbPensionAmount)}/year from age ${data.dbPensionStartAge}</p>`;
+          html += `<p><strong>DB Pension:</strong> ${formatCurrency(data.dbPensionAmount)}/year from age ${data.dbPensionStartAge} <span style="font-size: 0.8em; color: var(--color-text-light);">(with inflation escalation)</span></p>`;
         }
         const totalGuaranteed = data.expectedStatePension + (data.hasDBPension ? data.dbPensionAmount : 0);
-        html += `<p style="margin-top: 0.5rem; font-weight: 600;">Total Guaranteed: ${formatCurrency(totalGuaranteed)}/year (when all sources active)</p>`;
+        html += `<p style="margin-top: 0.5rem; font-weight: 600;">Total Guaranteed: ${formatCurrency(totalGuaranteed)}/year at start (when all sources active)</p>`;
         html += '</div>';
         detailsEl.innerHTML = html;
       }
@@ -1543,7 +1767,8 @@
       ];
       
       if (data.hasDBPension && data.dbPensionAmount > 0 && firstYear.age >= data.dbPensionStartAge) {
-        sources.push({ name: 'DB Pension', amount: data.dbPensionAmount, taxable: true, color: '#3b82f6' });
+        // Use engine-computed value (includes escalation) to match the cashflow chart
+        sources.push({ name: 'DB Pension', amount: firstYear.dbPension || data.dbPensionAmount, taxable: true, color: '#3b82f6' });
       }
       
       // Show PCLS as annual spending amount (spread over 5 years), not lump sum
@@ -2174,8 +2399,76 @@
       group.classList.toggle('open');
     };
     
-    document.addEventListener('DOMContentLoaded', () => {
+    document.addEventListener('DOMContentLoaded', async () => {
       debugLog('INIT', 'App initializing');
+
+      // Initialize persistence and restore auto-saved data
+      try {
+        await initPersistence();
+        debugLog('INIT', 'Persistence layer initialized');
+
+        // Try to restore auto-saved session
+        const autoSaved = await loadAutoSave();
+        if (autoSaved?.data) {
+          debugLog('INIT', 'Restoring auto-saved session', autoSaved.data);
+          // Restore onboarding state
+          if (autoSaved.data.onboardingState) {
+            state.onboardingState = autoSaved.data.onboardingState;
+          }
+          // Restore form input values to DOM
+          if (autoSaved.data.formInputs) {
+            const inputs = autoSaved.data.formInputs;
+            Object.keys(inputs).forEach(id => {
+              const el = document.getElementById(id);
+              if (el && inputs[id] != null) {
+                el.value = inputs[id];
+              }
+            });
+          }
+          // Restore screen position
+          if (autoSaved.data.currentScreen && autoSaved.data.currentScreen !== 'household-type') {
+            // Restore household type selection
+            if (autoSaved.data.onboardingState?.householdType) {
+              state.onboardingState.householdType = autoSaved.data.onboardingState.householdType;
+            }
+            showScreen(autoSaved.data.currentScreen);
+          }
+        }
+
+        // Start auto-save every 3 seconds
+        startAutoSave(() => {
+          // Collect all DOM input values for persistence
+          const formInputs = {};
+          const inputIds = [
+            'input-current-age', 'input-retirement-age', 'input-target-income',
+            'input-pension-pot', 'input-pension-contribution',
+            'input-isa-balance', 'input-isa-contribution',
+            'input-state-pension-age', 'input-state-pension-amount'
+          ];
+          inputIds.forEach(id => {
+            const el = document.getElementById(id);
+            if (el && el.value) {
+              formInputs[id] = el.value;
+            }
+          });
+
+          // Only save if there's meaningful data
+          const hasData = Object.keys(formInputs).length > 0 ||
+            state.onboardingState?.personA?.currentAge ||
+            state.onboardingState?.targetNetIncome;
+          if (!hasData) return null;
+
+          return {
+            onboardingState: state.onboardingState,
+            formInputs,
+            currentScreen: state.currentScreen,
+            timestamp: Date.now()
+          };
+        });
+        debugLog('INIT', 'Auto-save started');
+      } catch (e) {
+        console.warn('Persistence initialization failed, continuing without auto-save:', e);
+      }
       
       // Navigation buttons
       document.querySelectorAll('[data-action="next"]').forEach(btn => {

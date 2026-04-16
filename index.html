@@ -6,9 +6,14 @@
   <meta name="description" content="RetireLens 2 - Income-first retirement planning for UK pensions">
   <title>RetireLens 2 | Retirement Planning</title>
   
+  <!-- Inter font — premium fintech typography (weights 400, 500, 600, 700) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
   <!-- Chart.js from CDN -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-  
+
   <link rel="stylesheet" href="css/main.css">
 </head>
 <body>
@@ -110,11 +115,15 @@
          Screen: Household Type Selection (ENTRY POINT)
          ═══════════════════════════════════════════════════════════════ -->
     <div id="screen-household-type" class="screen active" aria-hidden="false">
-      <div class="screen-header">
+      <div class="screen-header" style="padding-top: 3rem;">
+        <div class="brand-mark" style="margin-bottom: 1.5rem;">
+          <span style="font-size: 2.25rem; font-weight: 700; color: var(--color-text); letter-spacing: -0.03em;">Retire<span style="color: var(--color-primary);">Lens</span></span>
+          <span style="display: block; font-size: 0.75rem; font-weight: 500; color: var(--color-text-light); letter-spacing: 0.08em; text-transform: uppercase; margin-top: 2px;">UK Retirement Planner</span>
+        </div>
         <h2 class="screen-title">Who are you planning for?</h2>
-        <p class="screen-subtitle">Choose your household type</p>
+        <p class="screen-subtitle">Get a clear picture of your retirement in minutes</p>
       </div>
-      
+
       <div class="screen-content">
         <div class="mode-cards">
           <!-- Single -->
@@ -125,7 +134,7 @@
             </div>
             <p class="mode-card-description">Individual retirement planning</p>
           </div>
-          
+
           <!-- Couple -->
           <div class="mode-card household-type-card" data-household-type="couple">
             <div class="mode-card-header">
@@ -135,8 +144,24 @@
             <p class="mode-card-description">Joint household retirement planning</p>
           </div>
         </div>
+
+        <!-- Trust signals — research shows these are critical for financial tools -->
+        <div class="trust-strip" style="display: flex; justify-content: center; gap: 1.5rem; margin-top: 2rem; padding: 1rem; color: var(--color-text-light); font-size: 0.8rem;">
+          <span style="display: flex; align-items: center; gap: 0.35rem;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+            100% private
+          </span>
+          <span style="display: flex; align-items: center; gap: 0.35rem;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+            No data sent
+          </span>
+          <span style="display: flex; align-items: center; gap: 0.35rem;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            ~2 min
+          </span>
+        </div>
       </div>
-      
+
       <div class="nav-buttons">
         <button type="button" class="btn btn-secondary" data-action="back">Back</button>
         <button type="button" class="btn btn-primary" id="household-type-next-btn" disabled style="display: none;">Next</button>
@@ -336,13 +361,16 @@
         <h2 class="screen-title">How old are you?</h2>
         <p class="screen-subtitle">Your current age</p>
       </div>
-      
+
       <div class="screen-content">
         <div class="input-group">
           <div class="input-wrapper">
-            <input type="number" id="input-current-age" min="18" max="100" placeholder="45" inputmode="numeric" />
+            <input type="number" id="input-current-age" min="18" max="100" placeholder="45" inputmode="numeric" aria-label="Current age" />
           </div>
           <p class="help-text">Enter your age in years</p>
+        </div>
+        <div class="context-hint" style="margin-top: 1.5rem; padding: 0.875rem 1rem; background: var(--color-primary-subtle); border-radius: var(--radius-md); font-size: 0.8125rem; color: var(--color-text-secondary); line-height: 1.5;">
+          Your age determines how long your savings have to grow before retirement. Even a few extra years of contributions can make a significant difference.
         </div>
       </div>
       
@@ -360,13 +388,16 @@
         <h2 class="screen-title">When do you want to retire?</h2>
         <p class="screen-subtitle">Target retirement age</p>
       </div>
-      
+
       <div class="screen-content">
         <div class="input-group">
           <div class="input-wrapper">
-            <input type="number" id="input-retirement-age" min="50" max="100" placeholder="65" inputmode="numeric" />
+            <input type="number" id="input-retirement-age" min="50" max="100" placeholder="65" inputmode="numeric" aria-label="Retirement age" />
           </div>
           <p class="help-text">The age you plan to stop working</p>
+        </div>
+        <div class="context-hint" style="margin-top: 1.5rem; padding: 0.875rem 1rem; background: var(--color-primary-subtle); border-radius: var(--radius-md); font-size: 0.8125rem; color: var(--color-text-secondary); line-height: 1.5;">
+          UK State Pension starts at 67. Each year you work beyond 55 adds roughly 8-12% more to your retirement income.
         </div>
       </div>
       
@@ -389,9 +420,12 @@
         <div class="input-group">
           <div class="input-wrapper">
             <span class="currency-symbol">£</span>
-            <input type="number" id="input-target-income" min="0" step="1000" placeholder="30000" inputmode="numeric" />
+            <input type="number" id="input-target-income" min="0" step="1000" placeholder="30000" inputmode="numeric" aria-label="Target annual income" />
           </div>
           <p class="help-text">Your target annual spending in today's money</p>
+        </div>
+        <div class="context-hint" style="margin-top: 1.5rem; padding: 0.875rem 1rem; background: var(--color-primary-subtle); border-radius: var(--radius-md); font-size: 0.8125rem; color: var(--color-text-secondary); line-height: 1.5;">
+          The PLSA Retirement Living Standards suggest: <strong>£14,400</strong> minimum, <strong>£31,300</strong> moderate, or <strong>£43,100</strong> comfortable for a single person.
         </div>
       </div>
       
@@ -414,9 +448,12 @@
         <div class="input-group">
           <div class="input-wrapper">
             <span class="currency-symbol">£</span>
-            <input type="number" id="input-pension-pot" min="0" step="1000" placeholder="100000" inputmode="numeric" />
+            <input type="number" id="input-pension-pot" min="0" step="1000" placeholder="100000" inputmode="numeric" aria-label="Pension pot value" />
           </div>
           <p class="help-text">Your defined contribution pension pot</p>
+        </div>
+        <div class="context-hint" style="margin-top: 1.5rem; padding: 0.875rem 1rem; background: var(--color-primary-subtle); border-radius: var(--radius-md); font-size: 0.8125rem; color: var(--color-text-secondary); line-height: 1.5;">
+          Check your latest pension statement or log in to your provider's website. Include all DC pots you plan to combine.
         </div>
       </div>
       
@@ -523,8 +560,8 @@
          ═══════════════════════════════════════════════════════════════ -->
     <div id="screen-review" class="screen" aria-hidden="true">
       <div class="screen-header">
-        <h2 class="screen-title">Ready to calculate?</h2>
-        <p class="screen-subtitle">Review your inputs</p>
+        <h2 class="screen-title">Here's your plan</h2>
+        <p class="screen-subtitle">Review your details, then let's see if it works</p>
       </div>
       
       <div class="screen-content">
@@ -537,23 +574,23 @@
         </div>
         
         <!-- Advanced Planning Options -->
-        <div style="margin-top: 2rem; padding: 1rem; background: #f8f9fa; border-radius: 8px;">
-          <h3 style="margin-bottom: 1rem; font-size: 1.125rem;">⚙️ Planning Options</h3>
+        <div style="margin-top: 2rem; padding: 1.25rem; background: var(--color-background); border-radius: var(--radius-lg); border: 1px solid var(--color-border-light);">
+          <h3 style="margin-bottom: 1rem; font-size: 1rem; font-weight: 600; color: var(--color-text-secondary);">Planning Options</h3>
           
           <!-- Scenario Selector -->
           <div class="input-group">
-            <label for="scenario-select">📊 Planning Scenario</label>
-            <select id="scenario-select" class="form-control" style="width: 100%; padding: 0.5rem; border: 1px solid #e5e7eb; border-radius: 4px;">
-              <option value="conservative">🛡️ Conservative - 2% real growth (after inflation)</option>
-              <option value="moderate" selected>⚖️ Moderate - 4% real growth (after inflation)</option>
-              <option value="optimistic">🚀 Optimistic - 6% real growth (after inflation)</option>
+            <label for="scenario-select" style="font-weight: 500; color: var(--color-text-secondary);">Planning Scenario</label>
+            <select id="scenario-select" class="form-control" style="width: 100%; padding: 0.625rem; border: 2px solid var(--color-border); border-radius: var(--radius-md); font-size: 0.875rem; background: var(--color-surface); color: var(--color-text); cursor: pointer;">
+              <option value="conservative">Conservative - 2% real growth</option>
+              <option value="moderate" selected>Moderate - Balanced base case</option>
+              <option value="optimistic">Optimistic - 6% real growth</option>
             </select>
-            <p class="help-text">Growth rates are real (after inflation). All projected figures are in today's money.</p>
+            <p class="help-text">Select planning assumptions - affects growth rates, volatility, and inflation</p>
           </div>
           
           <!-- Advanced Options with Accordion (shown only in Full mode) -->
           <div id="advanced-options-container" class="advanced-accordion" style="margin-top: 1.5rem;">
-            <h4 style="font-size: 1rem; margin-bottom: 0.75rem;">Advanced Analysis</h4>
+            <h4 style="font-size: 0.8125rem; font-weight: 600; margin-bottom: 0.75rem; color: var(--color-text-light); text-transform: uppercase; letter-spacing: 0.05em;">Advanced Analysis</h4>
             
             <!-- Risk & Uncertainty Group -->
             <div class="accordion-group">
@@ -682,8 +719,8 @@
       
       <div class="nav-buttons">
         <button type="button" class="btn btn-secondary" data-action="back">Edit</button>
-        <button type="button" class="btn btn-primary" id="calculate-btn">Calculate →</button>
-        <button type="button" class="btn btn-primary" id="view-results-btn" style="display: none;">View Results →</button>
+        <button type="button" class="btn btn-primary btn-cta" id="calculate-btn">Calculate my retirement</button>
+        <button type="button" class="btn btn-primary" id="view-results-btn" style="display: none;">View Results</button>
       </div>
       <p id="calculate-disabled-reason" class="calculate-disabled-reason"></p>
     </div>
@@ -901,31 +938,31 @@
     </div>
     <div class="preview-header">
       <span class="preview-title">
-        📊 Live Estimate
+        Live Estimate
       </span>
-      <button type="button" class="preview-info-btn" id="preview-info-btn" aria-label="More info">ℹ️</button>
+      <button type="button" class="preview-info-btn" id="preview-info-btn" aria-label="More info" style="color: var(--color-text-light); font-size: 0.875rem; border: 1px solid var(--color-border); border-radius: 50%; width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; padding: 0; cursor: pointer; background: none;">?</button>
     </div>
     <div class="preview-content" id="preview-content">
       <div class="preview-item">
         <div class="preview-label">Retire at</div>
-        <div class="preview-value" id="preview-retire-age">—</div>
+        <div class="preview-value" id="preview-retire-age" style="color: var(--color-text-light);">...</div>
       </div>
       <div class="preview-item">
         <div class="preview-label">Target net</div>
-        <div class="preview-value" id="preview-target">—</div>
+        <div class="preview-value" id="preview-target" style="color: var(--color-text-light);">...</div>
       </div>
       <div class="preview-item">
         <div class="preview-label">Projected pot</div>
-        <div class="preview-value" id="preview-pot">—</div>
+        <div class="preview-value" id="preview-pot" style="color: var(--color-text-light);">...</div>
       </div>
       <div class="preview-item">
-        <div class="preview-label">Gap/Surplus</div>
-        <div class="preview-value neutral" id="preview-gap">—</div>
+        <div class="preview-label">Gap / Surplus</div>
+        <div class="preview-value neutral" id="preview-gap" style="color: var(--color-text-light);">...</div>
       </div>
-      <div class="preview-hint" id="preview-hint" style="display: none;">Enter pension pot to see estimate</div>
+      <div class="preview-hint" id="preview-hint" style="display: none;">Enter age and retirement age to see estimate</div>
     </div>
-    <div style="text-align: center; font-size: 0.7rem; color: var(--color-text-light); margin-top: 4px;">
-      Estimate basis: 4% rule + your inputs
+    <div style="text-align: center; font-size: 0.6875rem; color: var(--color-text-light); margin-top: 4px; letter-spacing: 0.02em;">
+      Quick estimate based on the 4% withdrawal rule
     </div>
   </div>
   
@@ -933,8 +970,8 @@
   <div id="error-message"></div>
   
   <!-- Version footer -->
-  <footer id="version-footer" style="text-align: center; font-size: 0.7rem; color: var(--color-text-light); padding: 8px 0; background: var(--color-background);">
-    <span id="model-version">RetireLens Pro v1.0.0</span>
+  <footer id="version-footer" style="text-align: center; font-size: 0.6875rem; color: var(--color-text-light); padding: 12px 0; background: var(--color-background); letter-spacing: 0.02em;">
+    <span id="model-version">RetireLens Pro v1.0.0</span> &middot; Your data never leaves this device
   </footer>
   
   <!-- Bottom Ticker for Onboarding Progress -->

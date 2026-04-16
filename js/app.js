@@ -255,6 +255,21 @@
 
       // Map each wizard screen to the relevant state fields
       switch (screen) {
+        case 'couples-input': {
+          // Capture live data from the couples component before navigating away
+          if (couplesInputComponent) {
+            try {
+              const liveData = couplesInputComponent.getData();
+              if (liveData) {
+                state.onboardingState.personA = { ...state.onboardingState.personA, ...liveData.personA };
+                state.onboardingState.personB = { ...state.onboardingState.personB, ...liveData.personB };
+                state.onboardingState.targetNetIncome = liveData.targetNetIncome;
+                debugLog('SAVE', 'Captured couples input data on transition', liveData);
+              }
+            } catch (e) { console.warn('Failed to capture couples data:', e); }
+          }
+          break;
+        }
         case 'age': {
           const v = getValue('input-current-age', 0);
           if (v) personA.currentAge = v;
@@ -670,13 +685,25 @@
         provisionalReason: null
       };
       
-      // Person A (main user) requirements — use onboarding state for couples, DOM inputs for singles
+      // Person A (main user) requirements — use onboarding state + live component for couples
       const personA = state.onboardingState?.personA;
       const isCouplesFlow = state.onboardingState?.householdType === HOUSEHOLD_TYPES.COUPLE;
-      const currentAge = isCouplesFlow && personA?.currentAge ? personA.currentAge : getValue('input-current-age', 0);
-      const retirementAge = isCouplesFlow && personA?.retirementAge ? personA.retirementAge : getValue('input-retirement-age', 0);
-      const targetIncome = isCouplesFlow && state.onboardingState?.targetNetIncome ? state.onboardingState.targetNetIncome : getValue('input-target-income', 0);
-      const pensionPot = isCouplesFlow && personA?.dcPot != null ? personA.dcPot : getValue('input-pension-pot', 0);
+
+      // For couples, also try live component data as fallback
+      let cpA = null;
+      let cpTarget = null;
+      if (isCouplesFlow && couplesInputComponent) {
+        try {
+          const live = couplesInputComponent.getData();
+          cpA = live?.personA;
+          cpTarget = live?.targetNetIncome;
+        } catch (e) { /* ignore */ }
+      }
+
+      const currentAge = isCouplesFlow ? (personA?.currentAge || cpA?.currentAge || 0) : getValue('input-current-age', 0);
+      const retirementAge = isCouplesFlow ? (personA?.retirementAge || cpA?.retirementAge || 0) : getValue('input-retirement-age', 0);
+      const targetIncome = isCouplesFlow ? (state.onboardingState?.targetNetIncome || cpTarget || 0) : getValue('input-target-income', 0);
+      const pensionPot = isCouplesFlow ? (personA?.dcPot ?? cpA?.dcPot ?? 0) : getValue('input-pension-pot', 0);
       
       // Check Person A basic fields
       if (!currentAge || currentAge < 18 || currentAge > 100) {
@@ -1064,19 +1091,34 @@
     function collectFormData() {
       // For couples flow, pull core values from onboarding state (not empty DOM inputs)
       const isCouplesFlow = state.onboardingState?.householdType === HOUSEHOLD_TYPES.COUPLE;
-      const personA = state.onboardingState?.personA;
+      const personA = isCouplesFlow ? state.onboardingState?.personA : null;
+
+      // For couples, also check the live component data as fallback
+      let couplesLiveData = null;
+      if (isCouplesFlow && couplesInputComponent) {
+        try { couplesLiveData = couplesInputComponent.getData(); } catch (e) { /* ignore */ }
+      }
+      const cpA = couplesLiveData?.personA;
+      const cpTarget = couplesLiveData?.targetNetIncome;
+
+      // Helper: get couples value with multiple fallback sources
+      function cVal(stateVal, liveVal, fallback) {
+        if (stateVal != null && stateVal !== 0 && stateVal !== '') return stateVal;
+        if (liveVal != null && liveVal !== 0 && liveVal !== '') return liveVal;
+        return fallback;
+      }
 
       return {
-        // Basic inputs — use onboarding state for couples, DOM inputs for singles
-        currentAge: isCouplesFlow && personA?.currentAge ? personA.currentAge : getValue('input-current-age'),
-        retirementAge: isCouplesFlow && personA?.retirementAge ? personA.retirementAge : getValue('input-retirement-age'),
-        targetNetIncome: isCouplesFlow && state.onboardingState?.targetNetIncome ? state.onboardingState.targetNetIncome : getValue('input-target-income'),
-        currentPension: isCouplesFlow && personA?.dcPot != null ? personA.dcPot : getValue('input-pension-pot', 0),
-        annualPensionContribution: isCouplesFlow && personA?.dcMonthlyContrib ? personA.dcMonthlyContrib * 12 : getValue('input-pension-contribution', 0) * 12,
-        currentIsa: isCouplesFlow ? (personA?.isaBalance || 0) : getValue('input-isa-balance', 0),
-        annualIsaContribution: isCouplesFlow ? (personA?.isaAnnualContrib || 0) : getValue('input-isa-contribution', 0),
-        statePensionAge: isCouplesFlow && personA?.statePensionAge ? personA.statePensionAge : getValue('input-state-pension-age', 67),
-        expectedStatePension: isCouplesFlow && personA?.statePensionAmount != null ? personA.statePensionAmount : getValue('input-state-pension-amount', 11973),
+        // Basic inputs — use onboarding state + live component for couples, DOM inputs for singles
+        currentAge: isCouplesFlow ? cVal(personA?.currentAge, cpA?.currentAge, 0) : getValue('input-current-age'),
+        retirementAge: isCouplesFlow ? cVal(personA?.retirementAge, cpA?.retirementAge, 0) : getValue('input-retirement-age'),
+        targetNetIncome: isCouplesFlow ? cVal(state.onboardingState?.targetNetIncome, cpTarget, 0) : getValue('input-target-income'),
+        currentPension: isCouplesFlow ? cVal(personA?.dcPot, cpA?.dcPot, 0) : getValue('input-pension-pot', 0),
+        annualPensionContribution: isCouplesFlow ? (cVal(personA?.dcMonthlyContrib, cpA?.dcMonthlyContrib, 0) * 12) : getValue('input-pension-contribution', 0) * 12,
+        currentIsa: isCouplesFlow ? cVal(personA?.isaBalance, cpA?.isaBalance, 0) : getValue('input-isa-balance', 0),
+        annualIsaContribution: isCouplesFlow ? cVal(personA?.isaAnnualContrib, cpA?.isaAnnualContrib, 0) : getValue('input-isa-contribution', 0),
+        statePensionAge: isCouplesFlow ? cVal(personA?.statePensionAge, cpA?.statePensionAge, 67) : getValue('input-state-pension-age', 67),
+        expectedStatePension: isCouplesFlow ? cVal(personA?.expectedStatePension, cpA?.expectedStatePension, 11500) : getValue('input-state-pension-amount', 11973),
 
         // Advanced options
         scenario: getSelectedValue('scenario-select', 'moderate'),
@@ -1086,15 +1128,15 @@
         modelCareCosts: getChecked('model-care-costs'),
 
         // DB Pension
-        hasDBPension: isCouplesFlow ? (personA?.pensionTypes?.includes('db') || personA?.pensionTypes?.includes('both') || false) : getChecked('has-db-pension'),
-        dbPensionAmount: isCouplesFlow ? (personA?.dbAnnualIncome || 0) : getValue('db-pension-amount', 0),
-        dbPensionStartAge: isCouplesFlow ? (personA?.dbStartAge || 65) : getValue('db-pension-start-age', 65),
+        hasDBPension: isCouplesFlow ? (personA?.pensionTypes?.includes('db') || personA?.pensionTypes?.includes('both') || (cpA?.dbAnnualIncome > 0) || false) : getChecked('has-db-pension'),
+        dbPensionAmount: isCouplesFlow ? cVal(personA?.dbAnnualIncome, cpA?.dbAnnualIncome, 0) : getValue('db-pension-amount', 0),
+        dbPensionStartAge: isCouplesFlow ? cVal(personA?.dbStartAge, cpA?.dbStartAge, 65) : getValue('db-pension-start-age', 65),
 
-        // Couple mode - will be populated from onboarding state
+        // Couple mode
         isCouple: isCouplesFlow,
         householdType: state.onboardingState?.householdType || null,
-        personA: isCouplesFlow ? personA : null,
-        personB: isCouplesFlow ? state.onboardingState?.personB : null,
+        personA: isCouplesFlow ? (personA || cpA || null) : null,
+        personB: isCouplesFlow ? (state.onboardingState?.personB || couplesLiveData?.personB || null) : null,
 
         // Phased retirement
         isPhasedRetirement: getChecked('is-phased-retirement'),

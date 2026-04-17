@@ -795,88 +795,25 @@
         </div>
       </div>
       
-      <!-- Readiness Score -->
-      <div class="result-card" id="readiness-section" style="display: none;">
-        <h3>🎯 Retirement Readiness Score</h3>
-        <div id="readiness-gauge"></div>
-        <div id="readiness-factors"></div>
-      </div>
-      
-      <!-- Insights & Recommendations -->
-      <div class="result-card" id="insights-section" style="display: none;">
-        <h3>💡 Personalized Insights</h3>
-        <div id="insights-list"></div>
-        <div id="recommendations-list"></div>
-      </div>
-      
-      <!-- Benchmarking -->
-      <div class="result-card" id="benchmarking-section" style="display: none;">
-        <h3>📈 How You Compare</h3>
-        <div id="benchmark-chart"></div>
-        <div id="benchmark-details"></div>
-      </div>
-      
-      <!-- Tax Optimization -->
-      <div class="result-card" id="tax-optimization-section" style="display: none;">
-        <h3>💷 Tax-Efficient Drawdown</h3>
-        <div id="tax-optimization-results"></div>
-        <div id="withdrawal-strategy"></div>
-      </div>
-      
-      <!-- Risk Assessment -->
-      <div class="result-card" id="risk-section" style="display: none;">
-        <h3>⚠️ Risk Assessment</h3>
-        <div id="risk-profile"></div>
-        <div id="portfolio-risk-score"></div>
-      </div>
-      
-      <!-- Spending Policy -->
-      <div class="result-card" id="spending-policy-section" style="display: none;">
-        <h3>💸 Age-Based Spending</h3>
-        <div id="spending-policy-chart"></div>
-        <div id="spending-adjustments"></div>
-      </div>
-      
-      <!-- Milestones -->
-      <div class="result-card" id="milestones-section" style="display: none;">
-        <h3>🎖️ Retirement Milestones</h3>
-        <div id="milestones-timeline"></div>
-      </div>
-      
-      <!-- Legacy Planning -->
-      <div class="result-card" id="legacy-section" style="display: none;">
-        <h3>🏛️ Estate Planning</h3>
-        <div id="legacy-projection"></div>
-        <div id="iht-estimate"></div>
-      </div>
-      
-      <!-- Household & Survivor Analysis -->
-      <div class="result-card" id="household-section" style="display: none;">
-        <h3>👥 Household Analysis</h3>
-        <div id="household-details"></div>
-        <div id="survivor-projection"></div>
-      </div>
-      
-      <!-- DB Pension Projection -->
-      <div class="result-card" id="db-pension-section" style="display: none;">
-        <h3>💼 DB Pension Income</h3>
-        <div id="db-pension-chart"></div>
-        <div id="db-pension-details"></div>
-      </div>
-      
-      <!-- Care Costs Planning -->
-      <div class="result-card" id="care-costs-section" style="display: none;">
-        <h3>🏥 Care Cost Planning</h3>
-        <div id="care-cost-scenarios"></div>
-        <div id="care-cost-impact"></div>
-      </div>
-      
-      <!-- Phased Retirement -->
-      <div class="result-card" id="phased-retirement-section" style="display: none;">
-        <h3>⏰ Phased Retirement</h3>
-        <div id="phased-retirement-chart"></div>
-        <div id="phased-retirement-details"></div>
-      </div>
+      <!-- Monte Carlo kept but other sections removed to eliminate inconsistencies.
+           Readiness score, insights, benchmarking, risk, spending policy, milestones,
+           legacy, household, DB pension, care costs, phased retirement sections were
+           producing conflicting metrics. They can be re-added once recalibrated for
+           couples scenarios. -->
+
+      <!-- Hidden placeholder divs to prevent JS errors from missing elements -->
+      <div id="readiness-section" style="display:none;"></div>
+      <div id="insights-section" style="display:none;"></div>
+      <div id="benchmarking-section" style="display:none;"></div>
+      <div id="tax-optimization-section" style="display:none;"></div>
+      <div id="risk-section" style="display:none;"></div>
+      <div id="spending-policy-section" style="display:none;"></div>
+      <div id="milestones-section" style="display:none;"></div>
+      <div id="legacy-section" style="display:none;"></div>
+      <div id="household-section" style="display:none;"></div>
+      <div id="db-pension-section" style="display:none;"></div>
+      <div id="care-costs-section" style="display:none;"></div>
+      <div id="phased-retirement-section" style="display:none;"></div>
       
       <div class="nav-buttons">
         <button type="button" class="btn btn-secondary" data-action="back">Edit Inputs</button>

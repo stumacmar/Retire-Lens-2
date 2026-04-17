@@ -1293,6 +1293,9 @@
         partnerDBPensionAmount: isCouplesFlow ? cVal(state.onboardingState?.personB?.dbAnnualIncome, couplesLiveData?.personB?.dbAnnualIncome, 0) : 0,
         partnerDBPensionStartAge: isCouplesFlow ? cVal(state.onboardingState?.personB?.dbStartAge, couplesLiveData?.personB?.dbStartAge, 67) : 67,
 
+        // Spending reductions in later life (always enabled)
+        applyAgeBasedSpendingReductions: true,
+
         // Phased retirement
         isPhasedRetirement: getChecked('is-phased-retirement'),
         phaseStartAge: getValue('phase-start-age', 0),
@@ -1469,33 +1472,8 @@
       const isSuccess = summary.successRate >= 1.0;
       const inflationRate = plan.assumptions?.projection?.inflationRate || 0.02;
       
-      // FIX 2.3: If household timeline exists, compute household success rate
+      // Household summary removed — used separate calculation that conflicted with main projection
       let householdSummaryHtml = '';
-      if (results?.householdTimeline) {
-        const timeline = results.householdTimeline;
-        const retiredYears = timeline.filter(y => y.anyRetired);
-        const targetMetYears = retiredYears.filter(y => y.targetMet);
-        const householdSuccessRate = retiredYears.length > 0 ? targetMetYears.length / retiredYears.length : 0;
-        const lastYear = timeline[timeline.length - 1];
-        const householdFinalPot = (lastYear?.personADcPot || 0) + (lastYear?.personBDcPot || 0);
-        
-        householdSummaryHtml = `
-          <div class="results-metrics" style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid #e5e7eb;">
-            <div class="metric">
-              <span class="metric-label" style="color: #3b82f6;">👨‍👩‍ Household Success</span>
-              <span class="metric-value">${(householdSuccessRate * 100).toFixed(0)}%</span>
-            </div>
-            <div class="metric">
-              <span class="metric-label" style="color: #3b82f6;">Combined Final Pot</span>
-              <span class="metric-value">${formatCurrency(householdFinalPot)}</span>
-            </div>
-            <div class="metric">
-              <span class="metric-label" style="color: #3b82f6;">Years Modelled</span>
-              <span class="metric-value">${timeline.length}</span>
-            </div>
-          </div>
-        `;
-      }
       
       const html = `
         <div class="results-hero">
@@ -1926,15 +1904,28 @@
         return;
       }
       
+      // Build sources from engine data (not from form checkboxes)
+      const yourSP = (firstYear.statePension || 0) - (firstYear.partnerStatePension || 0);
+      const partnerSP = firstYear.partnerStatePension || 0;
+      const partnerDB = firstYear.partnerDbPension || 0;
+      const yourDB = (firstYear.dbPension || 0) - partnerDB;
+
       const sources = [
         { name: 'Pension Withdrawal', amount: firstYear.withdrawals?.pension || 0, taxable: true, color: '#f59e0b' },
-        { name: 'ISA Withdrawal', amount: firstYear.withdrawals?.isa || 0, taxable: false, color: '#8b5cf6' },
-        { name: 'State Pension', amount: firstYear.statePension || 0, taxable: true, color: '#22c55e' }
+        { name: 'ISA Withdrawal', amount: firstYear.withdrawals?.isa || 0, taxable: false, color: '#8b5cf6' }
       ];
-      
-      if (data.hasDBPension && data.dbPensionAmount > 0 && firstYear.age >= data.dbPensionStartAge) {
-        // Use engine-computed value (includes escalation) to match the cashflow chart
-        sources.push({ name: 'DB Pension', amount: firstYear.dbPension || data.dbPensionAmount, taxable: true, color: '#3b82f6' });
+
+      if (yourSP > 0) {
+        sources.push({ name: 'Your State Pension', amount: yourSP, taxable: true, color: '#22c55e' });
+      }
+      if (partnerSP > 0) {
+        sources.push({ name: 'Partner State Pension', amount: partnerSP, taxable: true, color: '#16a34a' });
+      }
+      if (yourDB > 0) {
+        sources.push({ name: 'Your DB Pension', amount: yourDB, taxable: true, color: '#3b82f6' });
+      }
+      if (partnerDB > 0) {
+        sources.push({ name: 'Partner DB Pension', amount: partnerDB, taxable: true, color: '#2563eb' });
       }
       
       // PCLS is shown separately in the summary metrics, not as annual income
@@ -2122,13 +2113,10 @@
               taxOptimization, spendingRules, riskScore, riskRecommendations,
               legacyPlan, estateValue, ihtEstimate, phasedRetirement, household, data } = results;
       
-      // Hide all sections by default except cashflow and income sources
+      // Only show validated sections — hide everything else to prevent conflicting metrics
+      const showIds = ['cashflow-section', 'income-sources-section', 'guaranteed-income-section', 'monte-carlo-section'];
       document.querySelectorAll('.result-card').forEach(card => {
-        // Keep cashflow, income sources, and guaranteed income visible always
-        const alwaysShowIds = ['cashflow-section', 'income-sources-section', 'guaranteed-income-section'];
-        if (!alwaysShowIds.includes(card.id)) {
-          card.style.display = 'none';
-        }
+        card.style.display = showIds.includes(card.id) ? 'block' : 'none';
       });
       
       // Show income breakdown sections (always visible)
@@ -2181,8 +2169,8 @@
         }
       }
       
-      // === Readiness Score ===
-      if (readiness) {
+      // === Readiness Score — DISABLED (produces conflicting metrics for couples) ===
+      if (false && readiness) {
         const section = document.getElementById('readiness-section');
         if (section) {
           section.style.display = 'block';
@@ -2225,7 +2213,8 @@
         }
       }
       
-      // === Insights & Recommendations ===
+      // === DISABLED: Insights & Recommendations ===
+      if (false) { // DISABLED
       if (insights || recommendations) {
         const section = document.getElementById('insights-section');
         if (section) {

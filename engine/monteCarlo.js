@@ -113,11 +113,22 @@ export function runSingleSimulation(plan, accumulationReturns, decumulationRetur
     }
   }
   
-  // Take PCLS
+  // Take PCLS — match deterministic logic
   const pclsRate = plan.assumptions.pension?.pclsRate || 0.25;
-  const taxFreeCash = pensionBalance * pclsRate;
+  let taxFreeCash = 0;
+  if (plan.pclsAlreadyTaken) {
+    // Only take PCLS on uncrystallised portion
+    const pclsAmountTaken = plan.pclsAmountTaken || 0;
+    if (pclsAmountTaken > 0) {
+      const origSipp = pclsAmountTaken / 0.25;
+      const crystallised = origSipp * 0.75;
+      const uncrystallised = Math.max(0, pensionBalance - crystallised);
+      taxFreeCash = uncrystallised * pclsRate;
+    }
+  } else {
+    taxFreeCash = pensionBalance * pclsRate;
+  }
   pensionBalance = pensionBalance - taxFreeCash;
-  // Total retirement assets = pension after PCLS + ISA + tax-free cash taken
   const totalRetirementAssets = pensionBalance + isaBalance + taxFreeCash;
   
   // Decumulation phase
@@ -146,20 +157,44 @@ export function runSingleSimulation(plan, accumulationReturns, decumulationRetur
       continue;
     }
     
-    // State pension grows at real growth rate (triple lock premium over CPI)
-    // This matches the deterministic projectDecumulation logic
-    const spYearsFromStart = Math.max(0, age - plan.statePensionAge);
+    // State pension + partner pensions — match deterministic logic
     const statePensionRealGrowth = plan.statePensionRealGrowth || 0.01;
+    const spYearsFromStart = Math.max(0, age - plan.statePensionAge);
     const statePension = age >= plan.statePensionAge
       ? plan.expectedStatePension * Math.pow(1 + statePensionRealGrowth, spYearsFromStart)
       : 0;
-    
-    // Use tax-aware optimal withdrawal matching deterministic projection
+
+    // Partner pensions — convert partner ages to user's timeline
+    const ageDiff = (plan.partnerCurrentAge || 0) > 0 ? plan.partnerCurrentAge - plan.currentAge : 0;
+    const partnerSpStartUserAge = (plan.partnerCurrentAge || 0) > 0 ? (plan.partnerStatePensionAge || 0) - ageDiff : (plan.partnerStatePensionAge || 0);
+    const partnerSpYears = Math.max(0, age - partnerSpStartUserAge);
+    const partnerSP = ((plan.partnerExpectedStatePension || 0) > 0 && age >= partnerSpStartUserAge)
+      ? plan.partnerExpectedStatePension * Math.pow(1 + statePensionRealGrowth, partnerSpYears) : 0;
+
+    const partnerDbStartUserAge = (plan.partnerCurrentAge || 0) > 0 ? ((plan.partnerDBPensionStartAge || 67) - ageDiff) : (plan.partnerDBPensionStartAge || 67);
+    const partnerDB = ((plan.partnerDBPensionAmount || 0) > 0 && age >= partnerDbStartUserAge)
+      ? plan.partnerDBPensionAmount * Math.pow(1 + 0.02, Math.max(0, age - partnerDbStartUserAge)) : 0;
+
+    const totalGuaranteed = statePension + partnerSP + partnerDB;
+
+    // For couples: doubled personal allowance and tax bands
+    let effectiveTaxConfig = plan.assumptions.tax;
+    if ((plan.partnerCurrentAge || 0) > 0) {
+      effectiveTaxConfig = {
+        ...plan.assumptions.tax,
+        personalAllowance: plan.assumptions.tax.personalAllowance * 2,
+        bands: plan.assumptions.tax.bands.map(b => ({
+          ...b,
+          threshold: b.threshold === Infinity ? Infinity : b.threshold * 2
+        }))
+      };
+    }
+
     const balances = { pension: pensionBalance, isa: isaBalance };
     const withdrawalResult = calculateOptimalWithdrawal(
       plan.targetNetIncome,
       balances,
-      { statePensionIncome: statePension, taxConfig: plan.assumptions.tax }
+      { statePensionIncome: totalGuaranteed, taxConfig: effectiveTaxConfig }
     );
     
     let targetMetThisYear = true;

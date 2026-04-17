@@ -266,16 +266,11 @@ export function projectDecumulation(plan, accumulationResult, endAge = 90) {
   let taxFreeCash = 0;
 
   if (pclsAlreadyTaken) {
-    // User's main pot is crystallised, but there may be:
-    // 1. Uncrystallised portion (new contributions since crystallisation) — eligible for PCLS
-    // 2. Partner's DC pot — also eligible for PCLS
+    // Uncrystallised portion already includes partner's DC (both tracked together)
+    // PCLS = 25% of the total uncrystallised amount (no separate partner calc needed)
     const uncrystallised = accumulationResult.uncrystallisedPension || 0;
-    const partnerPot = plan.partnerDCPot || 0;
     const pclsRate = plan.assumptions?.pension?.pclsRate || 0.25;
-
-    const marginalPCLS = uncrystallised * pclsRate;
-    const partnerPCLS = partnerPot * pclsRate;
-    taxFreeCash = marginalPCLS + partnerPCLS;
+    taxFreeCash = uncrystallised * pclsRate;
     pensionBalance -= taxFreeCash;
   } else {
     // FIX 1.4: Use strategy-aware PCLS calculation

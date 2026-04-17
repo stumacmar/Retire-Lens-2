@@ -1723,20 +1723,9 @@
         stack: 'income'
       });
       
-      // PCLS: show marginal PCLS from engine (includes partner + uncrystallised)
-      const pclsTaken = projection.decumulation.pclsTaken || 0;
-      if (pclsTaken > 0) {
-        const pclsSpreadYears = 5;
-        const pclsAnnualSpend = pclsTaken / pclsSpreadYears;
-        const pclsData = decYears.map((y, i) => (i < pclsSpreadYears) ? pclsAnnualSpend : 0);
-        datasets.push({
-          label: 'PCLS Spending (tax-free)',
-          data: pclsData,
-          backgroundColor: '#10b981',
-          stack: 'income'
-        });
-      }
-      
+      // PCLS is a balance sheet event, NOT annual income — do not stack in income chart
+      // It's already reflected in the reduced pension balance on the capital chart
+
       // Target income line
       const targetLine = decYears.map(() => data.targetNetIncome);
       datasets.push({
@@ -1948,18 +1937,7 @@
         sources.push({ name: 'DB Pension', amount: firstYear.dbPension || data.dbPensionAmount, taxable: true, color: '#3b82f6' });
       }
       
-      // Show PCLS as annual spending (includes marginal PCLS + partner PCLS)
-      const pclsTaken2 = projection.decumulation.pclsTaken || 0;
-      if (pclsTaken2 > 0) {
-        const pclsAnnualSpend = pclsTaken / 5; // Spread over 5 years
-        sources.push({ 
-          name: 'PCLS Spending (5yr)', 
-          amount: pclsAnnualSpend, 
-          taxable: false, 
-          color: '#10b981',
-          note: `(from ${formatCurrency(pclsTaken)} total)`
-        });
-      }
+      // PCLS is shown separately in the summary metrics, not as annual income
       
       let html = '<div style="padding: 0.5rem;">';
       html += '<table style="width: 100%; border-collapse: collapse;">';

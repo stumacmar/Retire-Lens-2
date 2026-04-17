@@ -161,7 +161,7 @@
       const partnerInputConfig = {
         'age': { id: 'input-partner-current-age', label: "Partner's age", placeholder: '60', min: 18, max: 100 },
         'retirement-age': { id: 'input-partner-retirement-age', label: "Partner's retirement age", placeholder: '65', min: 50, max: 100 },
-        'pension-pot': { id: 'input-partner-pension-pot', label: "Partner's pension pot", placeholder: '0', min: 0, step: 1000, currency: true },
+        'pension-pot': null, // Handled separately (DC + DB)
         'contributions': { id: 'input-partner-pension-contribution', label: "Partner's monthly contribution", placeholder: '0', min: 0, step: 50, currency: true },
         'isa-savings': null, // Handled separately (2 inputs)
         'state-pension': null // Handled separately (2 inputs)
@@ -195,6 +195,37 @@
               <div class="input-wrapper">
                 <span class="currency-symbol">£</span>
                 <input type="number" id="input-partner-isa-contribution" min="0" step="500" placeholder="0" inputmode="numeric" />
+              </div>
+            </div>
+          </div>`;
+        content.insertAdjacentHTML('beforeend', html);
+        return;
+      }
+
+      if (screenId === 'pension-pot') {
+        const html = `
+          <div class="partner-input-group" style="margin-top: 1.5rem; padding-top: 1.5rem; border-top: 2px solid var(--color-primary-light, #e0e7ff);">
+            <div style="font-weight: 600; color: var(--color-primary, #4f46e5); margin-bottom: 0.75rem; font-size: 0.9rem;">Partner's Pensions</div>
+            <div class="input-group">
+              <label>Partner's DC pension pot</label>
+              <div class="input-wrapper">
+                <span class="currency-symbol">£</span>
+                <input type="number" id="input-partner-pension-pot" min="0" step="1000" placeholder="0" inputmode="numeric" />
+              </div>
+              <p class="help-text">Defined contribution / SIPP / workplace pension</p>
+            </div>
+            <div class="input-group" style="margin-top: 0.75rem;">
+              <label>Partner's DB pension (annual income)</label>
+              <div class="input-wrapper">
+                <span class="currency-symbol">£</span>
+                <input type="number" id="input-partner-db-amount" min="0" step="500" placeholder="0" inputmode="numeric" />
+              </div>
+              <p class="help-text">Guaranteed annual income from final salary / career average scheme</p>
+            </div>
+            <div class="input-group" style="margin-top: 0.75rem;">
+              <label>Partner's DB start age</label>
+              <div class="input-wrapper">
+                <input type="number" id="input-partner-db-start-age" min="50" max="75" value="67" inputmode="numeric" />
               </div>
             </div>
           </div>`;
@@ -345,25 +376,18 @@
 
       // Save Person A (your) values
       switch (screen) {
-        case 'age': {
-          const v = getValue('input-current-age', 0);
-          if (v) personA.currentAge = v;
+        case 'age':
+          personA.currentAge = getValue('input-current-age', 0);
           break;
-        }
-        case 'retirement-age': {
-          const v = getValue('input-retirement-age', 0);
-          if (v) personA.retirementAge = v;
+        case 'retirement-age':
+          personA.retirementAge = getValue('input-retirement-age', 0);
           break;
-        }
-        case 'income-target': {
-          const v = getValue('input-target-income', 0);
-          if (v) state.onboardingState.targetNetIncome = v;
+        case 'income-target':
+          state.onboardingState.targetNetIncome = getValue('input-target-income', 0);
           break;
-        }
-        case 'pension-pot': {
+        case 'pension-pot':
           personA.dcPot = getValue('input-pension-pot', 0);
           break;
-        }
         case 'contributions': {
           const v = getValue('input-pension-contribution', 0);
           personA.dcMonthlyContrib = v;
@@ -390,37 +414,32 @@
         }
         const personB = state.onboardingState.personB;
         switch (screen) {
-          case 'age': {
-            const v = getValue('input-partner-current-age', 0);
-            if (v) personB.currentAge = v;
+          case 'age':
+            personB.currentAge = getValue('input-partner-current-age', 0);
             break;
-          }
-          case 'retirement-age': {
-            const v = getValue('input-partner-retirement-age', 0);
-            if (v) personB.retirementAge = v;
+          case 'retirement-age':
+            personB.retirementAge = getValue('input-partner-retirement-age', 0);
             break;
-          }
-          case 'pension-pot': {
+          case 'pension-pot':
             personB.dcPot = getValue('input-partner-pension-pot', 0);
+            personB.dbAnnualIncome = getValue('input-partner-db-amount', 0);
+            personB.dbStartAge = getValue('input-partner-db-start-age', 67);
             break;
-          }
           case 'contributions': {
             const v = getValue('input-partner-pension-contribution', 0);
             personB.dcMonthlyContrib = v;
             personB.dcAnnualContrib = v * 12;
             break;
           }
-          case 'isa-savings': {
+          case 'isa-savings':
             personB.isaBalance = getValue('input-partner-isa-balance', 0);
             personB.isaAnnualContrib = getValue('input-partner-isa-contribution', 0);
             break;
-          }
-          case 'state-pension': {
+          case 'state-pension':
             personB.statePensionAge = getValue('input-partner-state-pension-age', 67);
             personB.statePensionAmount = getValue('input-partner-state-pension-amount', 11973);
             personB.expectedStatePension = personB.statePensionAmount;
             break;
-          }
         }
       }
     }
@@ -475,6 +494,8 @@
             break;
           case 'pension-pot':
             setInput('input-partner-pension-pot', personB.dcPot);
+            setInput('input-partner-db-amount', personB.dbAnnualIncome);
+            setInput('input-partner-db-start-age', personB.dbStartAge);
             break;
           case 'contributions':
             setInput('input-partner-pension-contribution', personB.dcMonthlyContrib);

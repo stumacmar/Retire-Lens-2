@@ -2213,9 +2213,8 @@
         }
       }
       
-      // === DISABLED: Insights & Recommendations ===
-      if (false) { // DISABLED
-      if (insights || recommendations) {
+      // === Insights & Recommendations — DISABLED (broken for couples) ===
+      if (false && (insights || recommendations)) {
         const section = document.getElementById('insights-section');
         if (section) {
           section.style.display = 'block';

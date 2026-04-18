@@ -1791,7 +1791,9 @@
           else { lo = mid; }
         }
         if (minPot < data.currentPension * 0.95) {
-          events.push({ age: '', desc: `<span style="color: var(--color-text-light);">Minimum pot needed: <strong>${formatCurrency(minPot)}</strong>. You have ${formatCurrency(data.currentPension - minPot)} more than required.</span>` });
+          events.push({ age: '', desc: `<span style="color: var(--color-success, #059669);">Minimum pot needed: <strong>${formatCurrency(minPot)}</strong>. You have ${formatCurrency(data.currentPension - minPot)} more than required.</span>` });
+        } else if (minPot > data.currentPension * 1.05) {
+          events.push({ age: '', desc: `<span style="color: var(--color-warning, #d97706);">Minimum pot for full success: <strong>${formatCurrency(minPot)}</strong>. You need ${formatCurrency(minPot - data.currentPension)} more.</span>` });
         }
       } catch (e) { /* min pot calc failed */ }
 

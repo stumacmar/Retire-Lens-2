@@ -1593,73 +1593,72 @@
       const partnerDB = data.partnerDBPensionAmount || 0;
       const partnerSP = data.partnerExpectedStatePension || 0;
       const yourSP = plan.expectedStatePension || 0;
-
-      // Build the narrative
+      const yourDB = plan.dbPensionAmount || 0;
       const retireAge = plan.retirementAge;
-      const target = formatCurrency(plan.targetNetIncome);
-      const pot = formatCurrency(summary.retirementPot);
-      const final = formatCurrency(summary.finalBalance);
-      const guaranteedTotal = yourSP + partnerSP + partnerDB;
-      const pensionNeeded = plan.targetNetIncome - guaranteedTotal;
 
-      let narrative = '';
+      // Build event-based timeline
+      const events = [];
+      const evStyle = 'display: flex; gap: 0.75rem; margin-bottom: 0.75rem; font-size: 0.8125rem; line-height: 1.5;';
+      const ageStyle = 'min-width: 2.5rem; font-weight: 700; color: var(--color-primary, #4f46e5); flex-shrink: 0;';
+      const descStyle = 'flex: 1;';
 
+      // Event: Retirement
+      let retireDesc = `You retire on <strong>${formatCurrency(plan.targetNetIncome)}/year</strong>.`;
       if (isCouple) {
-        const partnerAge = data.partnerCurrentAge || 0;
-        const ageDiff = partnerAge - plan.currentAge;
+        const ageDiff = (data.partnerCurrentAge || 0) - plan.currentAge;
         const partnerAgeAtRetire = retireAge + ageDiff;
-
-        narrative += `<p style="margin-bottom: 0.75rem;">You plan to retire at <strong>${retireAge}</strong> with a household income of <strong>${target}/year</strong>. `;
+        const partnerSpStart = (data.partnerStatePensionAge || 67) - ageDiff;
         if (partnerAgeAtRetire >= (data.partnerStatePensionAge || 67)) {
-          narrative += `Your partner will be ${partnerAgeAtRetire} at that point, so their State Pension`;
-          if (partnerDB > 0) narrative += ` and DB pension (${formatCurrency(partnerDB)}/yr)`;
-          narrative += ` start immediately.</p>`;
-        } else {
-          narrative += `Your partner will be ${partnerAgeAtRetire}, with their pensions starting later.</p>`;
-        }
-      } else {
-        narrative += `<p style="margin-bottom: 0.75rem;">You plan to retire at <strong>${retireAge}</strong> on <strong>${target}/year</strong>.</p>`;
-      }
-
-      if (guaranteedTotal > 0) {
-        narrative += `<p style="margin-bottom: 0.75rem;">Guaranteed income (State Pensions${partnerDB > 0 ? ' + DB pension' : ''}) covers <strong>${formatCurrency(guaranteedTotal)}/year</strong> when fully active. `;
-        if (pensionNeeded > 0) {
-          narrative += `You need to draw <strong>${formatCurrency(pensionNeeded)}/year</strong> from your pension to reach your target.</p>`;
-        } else {
-          narrative += `This alone exceeds your target — your pension pot is essentially preserved.</p>`;
+          let partnerIncome = [];
+          if (partnerSP > 0) partnerIncome.push(`State Pension ${formatCurrency(partnerSP)}`);
+          if (partnerDB > 0) partnerIncome.push(`DB pension ${formatCurrency(partnerDB)}`);
+          retireDesc += ` Partner is ${partnerAgeAtRetire} -- ${partnerIncome.join(' and ')} start${partnerIncome.length > 0 ? '' : 's'} immediately.`;
         }
       }
+      events.push({ age: retireAge, desc: retireDesc });
 
+      // Event: Your DB starts (if applicable and after retirement)
+      if (yourDB > 0 && plan.dbPensionStartAge > retireAge) {
+        events.push({ age: plan.dbPensionStartAge, desc: `Your DB pension starts: <strong>${formatCurrency(yourDB)}/year</strong>. Pension withdrawal reduces.` });
+      }
+
+      // Event: Your SP starts
+      if (plan.statePensionAge > retireAge) {
+        events.push({ age: plan.statePensionAge, desc: `Your State Pension starts: <strong>${formatCurrency(yourSP)}/year</strong>. Pension withdrawal drops significantly.` });
+      }
+
+      // Event: Spending reduction at 80
+      events.push({ age: 80, desc: `Spending reduces to <strong>${formatCurrency(plan.targetNetIncome * 0.75)}/year</strong> (-25%). Less pressure on your pot.` });
+
+      // Event: Outcome
       if (summary.successRate >= 1.0) {
-        narrative += `<p style="margin-bottom: 0.75rem; color: var(--color-success, #059669);"><strong>Your money lasts to age 90</strong> with ${final} remaining. `;
-        narrative += `Spending reduces to ${formatCurrency(plan.targetNetIncome * 0.75)} at 80 as modelled.</p>`;
+        events.push({ age: 90, desc: `<strong style="color: var(--color-success, #059669);">Plan succeeds.</strong> Final balance: <strong>${formatCurrency(summary.finalBalance)}</strong>.` });
       } else {
-        narrative += `<p style="margin-bottom: 0.75rem; color: var(--color-warning, #d97706);"><strong>Funds may run short at age ${summary.depletionAge}</strong>. `;
-        narrative += `Consider increasing contributions or reducing your target.</p>`;
+        events.push({ age: summary.depletionAge || 85, desc: `<strong style="color: var(--color-danger, #dc2626);">Funds may run out.</strong> Consider increasing contributions or reducing target.` });
       }
 
-      // What should I do
-      narrative += `<div style="margin-top: 1rem; padding: 0.75rem; background: var(--color-primary-subtle, #eef2ff); border-radius: var(--radius-md, 0.5rem); border-left: 3px solid var(--color-primary, #4f46e5);">`;
-      narrative += `<div style="font-weight: 600; margin-bottom: 0.5rem; font-size: 0.875rem;">Consider</div>`;
-      narrative += `<ul style="margin: 0; padding-left: 1.25rem; font-size: 0.8125rem; line-height: 1.6;">`;
+      let html = '<div style="font-size: 0.875rem; font-weight: 600; margin-bottom: 0.75rem;">Your retirement timeline</div>';
+      for (const e of events) {
+        html += `<div style="${evStyle}"><span style="${ageStyle}">${e.age}</span><span style="${descStyle}">${e.desc}</span></div>`;
+      }
 
+      // Consider section
+      html += `<div style="margin-top: 1rem; padding: 0.75rem; background: var(--color-primary-subtle, #eef2ff); border-radius: var(--radius-md, 0.5rem); border-left: 3px solid var(--color-primary, #4f46e5);">`;
+      html += `<div style="font-weight: 600; margin-bottom: 0.5rem; font-size: 0.8125rem;">Consider</div>`;
+      html += `<ul style="margin: 0; padding-left: 1.25rem; font-size: 0.8125rem; line-height: 1.6;">`;
       if (summary.successRate >= 1.0 && summary.finalBalance > plan.targetNetIncome * 5) {
-        narrative += `<li>Your ISA grows untouched — consider drawing some after 80 to reduce inheritance tax exposure</li>`;
+        html += `<li>Your ISA grows untouched. Consider drawing some after 80 to reduce inheritance tax exposure</li>`;
       }
       if (data.pclsAlreadyTaken && summary.pclsTaken > 0) {
-        narrative += `<li>You have ${formatCurrency(summary.pclsTaken)} additional tax-free cash from new contributions</li>`;
-      }
-      if (plan.statePensionAge > retireAge) {
-        narrative += `<li>Your State Pension starts at ${plan.statePensionAge} — pension withdrawals drop significantly then</li>`;
+        html += `<li>You have ${formatCurrency(summary.pclsTaken)} additional tax-free cash from new contributions</li>`;
       }
       if (summary.successRate < 1.0) {
-        const extraNeeded = Math.round((plan.targetNetIncome - summary.averageNetIncome) / 12);
-        narrative += `<li>An extra ${formatCurrency(extraNeeded)}/month in contributions could close the gap</li>`;
+        html += `<li>Increase contributions or reduce target to improve your outcome</li>`;
       }
-      narrative += `<li>Review your plan annually — market conditions and personal circumstances change</li>`;
-      narrative += `</ul></div>`;
+      html += `<li>Review annually. Market conditions and personal circumstances change</li>`;
+      html += `</ul></div>`;
 
-      el.innerHTML = narrative;
+      el.innerHTML = html;
     }
 
     // Tab switching for results page
@@ -1753,7 +1752,7 @@
             x: { title: { display: true, text: 'Age' }},
             y: {
               title: { display: true, text: 'Balance (£)' },
-              ticks: { callback: (v) => formatCurrency(v) }
+              ticks: { callback: (v) => formatCompactCurrency(v) }
             }
           }
         }
@@ -1853,9 +1852,15 @@
       // It's already reflected in the reduced pension balance on the capital chart
 
       // Target income line
-      const targetLine = decYears.map(() => data.targetNetIncome);
+      // Step the target line down at spending reduction ages
+      const targetLine = decYears.map(y => {
+        const age = y.age;
+        if (age >= 90) return data.targetNetIncome * 0.65;
+        if (age >= 80) return data.targetNetIncome * 0.75;
+        return data.targetNetIncome;
+      });
       datasets.push({
-        label: 'Target Net Income',
+        label: 'Target',
         data: targetLine,
         type: 'line',
         borderColor: '#ef4444',
@@ -2338,7 +2343,7 @@
             x: { title: { display: true, text: 'Age' }},
             y: { 
               title: { display: true, text: 'Total Wealth (£)' },
-              ticks: { callback: (v) => formatCurrency(v) }
+              ticks: { callback: (v) => formatCompactCurrency(v) }
             }
           }
         }

@@ -1,5 +1,15 @@
 # Changelog
 
+## Round 3: Output Model (2026-04-18)
+
+### Changed
+- Income chart target line now steps down at 80 (-25%) and 90 (-35%) to match spending reductions
+- Narrative summary replaced with event-based timeline showing key ages and what happens at each
+- All chart Y-axes use compact format (500k, 1.0m) instead of raw numbers
+
+### What a user of the previous version would notice
+The income chart's red dashed target line now steps down at age 80 and 90, so you can see your income matches the reduced target instead of looking like a shortfall. The narrative summary is now a timeline: "60: You retire. 67: State Pension starts. 80: Spending reduces. 90: Plan succeeds." Chart labels show 500k instead of 500,000, making them readable on mobile.
+
 ## Round 2: Input Model (2026-04-18)
 
 ### Changed

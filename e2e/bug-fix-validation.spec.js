@@ -74,18 +74,21 @@ test.describe('Critical Bug Fix - Navigation', () => {
     await page.waitForSelector('#screen-age.active', { timeout: 5000 });
     await expect(page.locator('#input-partner-current-age')).toBeVisible();
 
-    // Fill both ages and advance
+    // Fill ages and retirement ages, then advance
     await page.fill('#input-current-age', '55');
-    await page.locator('#screen-age .partner-input-group input').fill('52');
+    await page.fill('#input-retirement-age', '65');
+    // Partner inputs
+    const partnerInputs = page.locator('#screen-age .partner-input-group input');
+    await partnerInputs.nth(0).fill('52');
+    await partnerInputs.nth(1).fill('63');
     await page.click('#screen-age.active [data-action="next"]');
 
-    // Retirement age screen — partner input should exist
-    await page.waitForSelector('#screen-retirement-age.active', { timeout: 5000 });
-    const partnerRetireInput = page.locator('#screen-retirement-age .partner-input-group input');
-    await expect(partnerRetireInput).toBeVisible();
+    // Income screen should be next (retirement-age screen no longer exists)
+    await page.waitForSelector('#screen-income-target.active', { timeout: 5000 });
+    await expect(page.locator('#screen-income-target.active')).toBeVisible();
 
     await page.screenshot({
-      path: './test-artifacts/screenshots/test04-couple-retirement-screen.png',
+      path: './test-artifacts/screenshots/test04-couple-income-screen.png',
       fullPage: true
     });
 
@@ -113,9 +116,9 @@ test.describe('Critical Bug Fix - Navigation', () => {
     await page.waitForSelector('#screen-age.active', { timeout: 5000 });
     await page.click('#screen-age.active [data-action="next"]');
 
-    // Should still advance (validation happens at review)
-    await page.waitForSelector('#screen-retirement-age.active', { timeout: 5000 });
-    await expect(page.locator('#screen-retirement-age.active')).toBeVisible();
+    // Should advance to income (retirement-age is now on the same screen)
+    await page.waitForSelector('#screen-income-target.active', { timeout: 5000 });
+    await expect(page.locator('#screen-income-target.active')).toBeVisible();
 
     console.log('✓ TEST 6 PASSED: Navigation works even with empty inputs');
   });
@@ -130,40 +133,27 @@ test.describe('Single Household Full Flow', () => {
     await page.click('.household-type-card[data-household-type="single"]');
     await page.waitForTimeout(600);
 
-    // Age
+    // Age + Retirement (combined screen)
     await page.waitForSelector('#screen-age.active');
     await page.fill('#input-current-age', '45');
-    await page.click('#screen-age.active [data-action="next"]');
-
-    // Retirement age
-    await page.waitForSelector('#screen-retirement-age.active');
     await page.fill('#input-retirement-age', '65');
-    await page.click('#screen-retirement-age.active [data-action="next"]');
+    await page.click('#screen-age.active [data-action="next"]');
 
     // Income
     await page.waitForSelector('#screen-income-target.active');
     await page.fill('#input-target-income', '30000');
     await page.click('#screen-income-target.active [data-action="next"]');
 
-    // Pension pot
+    // Pension pot + contributions (combined screen)
     await page.waitForSelector('#screen-pension-pot.active');
     await page.fill('#input-pension-pot', '200000');
+    await page.fill('#input-pension-contribution', '500');
     await page.click('#screen-pension-pot.active [data-action="next"]');
 
-    // Contributions
-    await page.waitForSelector('#screen-contributions.active');
-    await page.fill('#input-pension-contribution', '500');
-    await page.click('#screen-contributions.active [data-action="next"]');
-
-    // ISA
+    // ISA + State Pension (combined screen)
     await page.waitForSelector('#screen-isa-savings.active', { timeout: 5000 });
     await page.fill('#input-isa-balance', '50000');
-    await page.fill('#input-isa-contribution', '5000');
     await page.click('#screen-isa-savings.active [data-action="next"]');
-
-    // State pension
-    await page.waitForSelector('#screen-state-pension.active', { timeout: 5000 });
-    await page.click('#screen-state-pension.active [data-action="next"]');
 
     // Review
     await page.waitForSelector('#screen-review.active', { timeout: 5000 });
@@ -188,45 +178,34 @@ test.describe('Couple Household Full Flow', () => {
     await page.click('.household-type-card[data-household-type="couple"]');
     await page.waitForTimeout(600);
 
-    // 2. Age screen with partner input
+    // 2. Age + Retirement (combined) with partner inputs
     await page.waitForSelector('#screen-age.active', { timeout: 5000 });
     await page.fill('#input-current-age', '55');
-    await page.fill('#input-partner-current-age', '52');
+    await page.fill('#input-retirement-age', '65');
+    // Partner inputs are dynamically injected
+    const partnerAgeInputs = page.locator('#screen-age .partner-input-group input');
+    await partnerAgeInputs.nth(0).fill('52');
+    await partnerAgeInputs.nth(1).fill('63');
     await page.click('#screen-age.active [data-action="next"]');
 
-    // 3. Retirement age with partner input
-    await page.waitForSelector('#screen-retirement-age.active');
-    await page.fill('#input-retirement-age', '65');
-    await page.locator('#screen-retirement-age .partner-input-group input').fill('63');
-    await page.click('#screen-retirement-age.active [data-action="next"]');
-
-    // 4. Income (shared household income, no partner duplicate)
+    // 3. Income
     await page.waitForSelector('#screen-income-target.active');
     await page.fill('#input-target-income', '50000');
     await page.click('#screen-income-target.active [data-action="next"]');
 
-    // 5. Pension pot with partner input
+    // 4. Pension + Contributions + Partner DC (combined)
     await page.waitForSelector('#screen-pension-pot.active');
     await page.fill('#input-pension-pot', '300000');
+    await page.fill('#input-pension-contribution', '800');
     await page.fill('#input-partner-pension-pot', '150000');
     await page.click('#screen-pension-pot.active [data-action="next"]');
 
-    // 6. Contributions with partner input
-    await page.waitForSelector('#screen-contributions.active');
-    await page.fill('#input-pension-contribution', '800');
-    await page.locator('#screen-contributions .partner-input-group input').fill('400');
-    await page.click('#screen-contributions.active [data-action="next"]');
-
-    // 7. ISA with partner inputs
+    // 5. ISA + State Pension (combined)
     await page.waitForSelector('#screen-isa-savings.active', { timeout: 5000 });
     await page.fill('#input-isa-balance', '30000');
     await page.click('#screen-isa-savings.active [data-action="next"]');
 
-    // 8. State pension with partner inputs
-    await page.waitForSelector('#screen-state-pension.active', { timeout: 5000 });
-    await page.click('#screen-state-pension.active [data-action="next"]');
-
-    // 9. Review
+    // 6. Review
     await page.waitForSelector('#screen-review.active', { timeout: 5000 });
     await expect(page.locator('#screen-review.active')).toBeVisible();
 

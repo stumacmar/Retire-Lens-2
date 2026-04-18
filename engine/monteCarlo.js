@@ -190,9 +190,19 @@ export function runSingleSimulation(plan, accumulationReturns, decumulationRetur
       };
     }
 
+    // Apply age-based spending reductions only when explicitly enabled
+    let targetThisYear = plan.targetNetIncome;
+    if (plan.spendingRules?.applyDefaultReductions === true) {
+      if (age >= 90) {
+        targetThisYear = plan.targetNetIncome * 0.65;
+      } else if (age >= 80) {
+        targetThisYear = plan.targetNetIncome * 0.75;
+      }
+    }
+
     const balances = { pension: pensionBalance, isa: isaBalance };
     const withdrawalResult = calculateOptimalWithdrawal(
-      plan.targetNetIncome,
+      targetThisYear,
       balances,
       { statePensionIncome: totalGuaranteed, taxConfig: effectiveTaxConfig }
     );

@@ -2220,7 +2220,7 @@
               legacyPlan, estateValue, ihtEstimate, phasedRetirement, household, data } = results;
       
       // Only show validated sections — hide everything else to prevent conflicting metrics
-      const showIds = ['cashflow-section', 'income-sources-section', 'guaranteed-income-section', 'monte-carlo-section'];
+      const showIds = ['cashflow-section', 'income-sources-section', 'guaranteed-income-section', 'monte-carlo-section', 'data-table-section'];
       document.querySelectorAll('.result-card').forEach(card => {
         card.style.display = showIds.includes(card.id) ? 'block' : 'none';
       });

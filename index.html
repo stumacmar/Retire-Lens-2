@@ -587,7 +587,23 @@
             </select>
             <p class="help-text">Select planning assumptions - affects growth rates, volatility, and inflation</p>
           </div>
-          
+
+          <!-- PCLS — visible by default, not hidden in accordion -->
+          <div style="margin-top: 1rem; padding: 1rem; background: var(--color-surface); border-radius: var(--radius-md); border: 1px solid var(--color-border-light);">
+            <div style="display: flex; align-items: flex-start; gap: 0.5rem; margin-bottom: 0.5rem;">
+              <input type="checkbox" id="pcls-already-taken" style="margin-top: 3px;">
+              <div>
+                <label for="pcls-already-taken" style="font-weight: 600; cursor: pointer;">I've already taken my tax-free cash (PCLS)</label>
+                <p class="help-text" style="margin-top: 2px;">Your pension pot entered is the post-PCLS drawdown value</p>
+              </div>
+            </div>
+            <div id="pcls-amount-taken-input" style="display: none; margin-left: 1.5rem; margin-top: 0.5rem;">
+              <label style="font-size: 0.875rem; font-weight: 500;">PCLS amount received (£)</label>
+              <input type="number" id="pcls-amount-taken" placeholder="167000" min="0" step="1000" style="width: 100%; padding: 0.625rem; border: 2px solid var(--color-border); border-radius: var(--radius-md); margin-top: 0.25rem;" inputmode="numeric">
+              <p class="help-text">We'll calculate remaining PCLS capacity from new contributions.</p>
+            </div>
+          </div>
+
           <!-- Advanced Options with Accordion (shown only in Full mode) -->
           <div id="advanced-options-container" class="advanced-accordion" style="margin-top: 1.5rem;">
             <h4 style="font-size: 0.8125rem; font-weight: 600; margin-bottom: 0.75rem; color: var(--color-text-light); text-transform: uppercase; letter-spacing: 0.05em;">Advanced Analysis</h4>
@@ -633,39 +649,7 @@
                   </div>
                 </div>
 
-                <!-- PCLS Strategy -->
-                <div class="accordion-option" style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid #e5e7eb;">
-                  <div class="accordion-option-content" style="width: 100%;">
-                    <label class="accordion-option-label">💰 Tax-Free Cash (PCLS) Strategy</label>
-                    <p class="accordion-option-helper" style="margin-bottom: 0.5rem;">When to take your 25% pension tax-free cash</p>
-                    <select id="pcls-strategy" style="width: 100%; padding: 0.5rem; border: 1px solid #e5e7eb; border-radius: 4px; margin-bottom: 0.5rem;">
-                      <option value="all_at_retirement">Take all at retirement</option>
-                      <option value="phased">Phase over 5 years</option>
-                      <option value="deferred">Defer until State Pension age</option>
-                    </select>
-                    <div class="accordion-option" style="margin-top: 0.5rem;">
-                      <input type="checkbox" id="pcls-already-taken">
-                      <div class="accordion-option-content">
-                        <label class="accordion-option-label" for="pcls-already-taken">I've already taken my PCLS</label>
-                        <p class="accordion-option-helper">Tick if you've already crystallised. New contributions still qualify for marginal PCLS.</p>
-                      </div>
-                    </div>
-                    <div id="pcls-amount-taken-input" style="display: none; margin-left: 1.5rem; margin-top: 0.5rem;">
-                      <div class="input-group" style="margin-bottom: 0;">
-                        <label style="font-size: 0.875rem;">PCLS amount taken (£)</label>
-                        <input type="number" id="pcls-amount-taken" placeholder="167000" min="0" step="1000" style="width: 100%; padding: 0.5rem; border: 2px solid var(--color-border); border-radius: var(--radius-md);" inputmode="numeric">
-                        <p class="help-text">The lump sum you received. We'll calculate remaining capacity from new contributions.</p>
-                      </div>
-                    </div>
-                    <div class="accordion-option" style="margin-top: 0.5rem;">
-                      <input type="checkbox" id="pcls-reinvest" checked>
-                      <div class="accordion-option-content">
-                        <label class="accordion-option-label" for="pcls-reinvest">Reinvest PCLS into ISA/GIA</label>
-                        <p class="accordion-option-helper">If ON: grows at portfolio return. If OFF: cash reserve (0%)</p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
+                <!-- PCLS moved above accordion for visibility -->
                 
                 <!-- Tax Jurisdiction -->
                 <div class="accordion-option" style="margin-top: 0.5rem;">

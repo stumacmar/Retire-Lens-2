@@ -1737,6 +1737,23 @@
         html += `<div style="${evStyle}"><span style="${ageStyle}">${e.age}</span><span style="${descStyle}">${e.desc}</span></div>`;
       }
 
+      // Calculate minimum pot needed (binary search)
+      try {
+        const scenarioPreset = SCENARIO_PRESETS[data.scenario] || SCENARIO_PRESETS.moderate;
+        let lo = 0, hi = data.currentPension * 2, minPot = data.currentPension;
+        for (let i = 0; i < 15; i++) {
+          const mid = Math.round((lo + hi) / 2);
+          const testPlan = createPlan({ ...data, currentPension: mid,
+            assumptions: { projection: { defaultGrowthRate: scenarioPreset.growthRate || 0.04, defaultFeeRate: scenarioPreset.feeRate || 0.005 } } });
+          const testResult = runProjection(testPlan, { endAge: 90 });
+          if (testResult.summary.successRate >= 1.0) { hi = mid; minPot = mid; }
+          else { lo = mid; }
+        }
+        if (minPot < data.currentPension * 0.95) {
+          events.push({ age: '', desc: `<span style="color: var(--color-text-light);">Minimum pot needed: <strong>${formatCurrency(minPot)}</strong>. You have ${formatCurrency(data.currentPension - minPot)} more than required.</span>` });
+        }
+      } catch (e) { /* min pot calc failed */ }
+
       // Consider section
       html += `<div style="margin-top: 1rem; padding: 0.75rem; background: var(--color-primary-subtle, #eef2ff); border-radius: var(--radius-md, 0.5rem); border-left: 3px solid var(--color-primary, #4f46e5);">`;
       // Calculate best single action by testing levers

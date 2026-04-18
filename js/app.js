@@ -1565,12 +1565,40 @@
             <span class="metric-value">${formatCurrency(summary.pclsTaken)}</span>
           </div>
         </div>
+
+        <p style="text-align: center; font-size: 0.65rem; color: var(--color-text-light); margin-top: 0.75rem;">
+          For planning purposes only. Not regulated financial advice. Tax year 2025/26 rates.
+        </p>
       `;
 
       document.getElementById('results-container').innerHTML = html;
 
       // Render narrative summary
       renderNarrativeSummary(projection, results);
+
+      // Populate assumptions detail
+      const assumptionsEl = document.getElementById('assumptions-detail');
+      if (assumptionsEl) {
+        const growthRate = (plan.assumptions?.projection?.defaultGrowthRate * 100 || 4).toFixed(1);
+        const feeRate = (plan.assumptions?.projection?.defaultFeeRate * 100 || 0.5).toFixed(1);
+        const inflation = (plan.assumptions?.projection?.inflationRate * 100 || 2).toFixed(1);
+        assumptionsEl.innerHTML = `
+          <table style="width: 100%; border-collapse: collapse;">
+            <tr><td>Growth rate (real)</td><td style="text-align: right;">${growthRate}%</td></tr>
+            <tr><td>Fee rate</td><td style="text-align: right;">${feeRate}%</td></tr>
+            <tr><td>Inflation</td><td style="text-align: right;">${inflation}%</td></tr>
+            <tr><td>Tax year</td><td style="text-align: right;">2025/26</td></tr>
+            <tr><td>Personal Allowance</td><td style="text-align: right;">12,570${plan.partnerCurrentAge > 0 ? ' x 2' : ''}</td></tr>
+            <tr><td>State Pension growth</td><td style="text-align: right;">1%/yr real (triple lock)</td></tr>
+            <tr><td>DB escalation</td><td style="text-align: right;">2%/yr</td></tr>
+            <tr><td>Spending at 80+</td><td style="text-align: right;">-25%</td></tr>
+            <tr><td>Spending at 90+</td><td style="text-align: right;">-35%</td></tr>
+            <tr><td>Withdrawal order</td><td style="text-align: right;">SP+DB, then pension, then ISA</td></tr>
+            <tr><td>Monte Carlo</td><td style="text-align: right;">1,000 scenarios</td></tr>
+            <tr><td>Planning horizon</td><td style="text-align: right;">Age 90</td></tr>
+            <tr><td>LSA cap (tax-free lump sum)</td><td style="text-align: right;">268,275</td></tr>
+          </table>`;
+      }
       
       // Render chart
       renderCapitalChart(projection);
@@ -3055,6 +3083,12 @@
       
       // Calculate button - Enhanced with all 20 modules
       document.getElementById('calculate-btn')?.addEventListener('click', () => {
+        // Show loading overlay
+        const overlay = document.getElementById('loading-overlay');
+        if (overlay) overlay.style.display = 'flex';
+
+        // Use setTimeout to let the overlay render before heavy calculation
+        setTimeout(() => {
         try {
           // Validate before calculating
           const validation = validateCanCalculate();
@@ -3357,11 +3391,15 @@
           
           // Then render all advanced visualizations
           renderAllVisualizations(results);
-          
+
         } catch (error) {
           console.error(error);
           showError(error.message);
+        } finally {
+          const overlay = document.getElementById('loading-overlay');
+          if (overlay) overlay.style.display = 'none';
         }
+        }, 50); // end setTimeout for loading overlay
       });
       
       // View Results button - navigate to results screen after calculation

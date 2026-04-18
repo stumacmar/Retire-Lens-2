@@ -1,5 +1,16 @@
 # Changelog
 
+## Round 5: Trust and Compliance (2026-04-18)
+
+### Added
+- Collapsible assumptions section showing all parameters used (growth rate, fees, tax year, PA, withdrawal order, MC iterations, LSA cap)
+- Inline disclaimer below hero answer ("Not regulated financial advice. Tax year 2025/26.")
+- Loading spinner during Monte Carlo ("Running 1,000 market scenarios...")
+- Round 5 competition document
+
+### What a user of the previous version would notice
+A brief disclaimer now appears directly below the YES/NO answer. An expandable "Assumptions used in this projection" section at the bottom of results lists every parameter. When you click Calculate, a spinner shows while the Monte Carlo runs instead of the page freezing.
+
 ## Round 4: Decision Support (2026-04-18)
 
 ### Added

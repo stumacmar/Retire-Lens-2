@@ -12,7 +12,7 @@
     import { generateInsights } from '../engine/insightsEngine.js';
     import { createLegacyPlan, calculateInheritanceTax, projectEstateValue } from '../engine/legacyPlanning.js';
     import { createMilestone, integrateMilestonesIntoSpending, calculateMilestoneImpact } from '../engine/milestones.js';
-    import { runMonteCarlo, runMonteCarloWithBands, generateConfidenceBands } from '../engine/monteCarlo.js';
+    import { runMonteCarlo, runMonteCarloWithBands, generateConfidenceBands, illustrateSequenceOfReturns } from '../engine/monteCarlo.js';
     import { createPhasedRetirement, calculatePhasedRetirementImpact } from '../engine/phasedRetirement.js';
     import { calculateReadinessScore, generateActionPlan } from '../engine/readinessScore.js';
     import { generateRecommendations, formatRecommendationsForDisplay } from '../engine/recommendations.js';
@@ -1697,6 +1697,17 @@
         }
       }
 
+      // Sequence-of-returns risk
+      try {
+        const sor = illustrateSequenceOfReturns(projection.plan || state.planA);
+        if (sor && sor.badStart && sor.goodStart) {
+          const diff = Math.round(sor.goodStart.finalBalance - sor.badStart.finalBalance);
+          if (diff > 10000) {
+            events.push({ age: '!', desc: `<span style="color: var(--color-text-light);">Return timing matters: good early markets leave ${formatCurrency(sor.goodStart.finalBalance)}, poor early markets leave ${formatCurrency(sor.badStart.finalBalance)} (${formatCurrency(diff)} difference).</span>` });
+          }
+        }
+      } catch (e) { /* sequence illustration failed */ }
+
       // Survivor scenario for couples
       if (isCouple) {
         const ageDiff = (data.partnerCurrentAge || 0) - plan.currentAge;
@@ -1859,14 +1870,34 @@
             legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 10 } } },
             tooltip: {
               callbacks: {
-                label: (ctx) => `${ctx.dataset.label}: ${formatCurrency(ctx.parsed.y)}`
+                label: (ctx) => `${ctx.dataset.label}: ${formatCompactCurrency(ctx.parsed.y)}`
               }
             }
           },
           scales: {
-            x: { title: { display: true, text: 'Age' }},
+            x: {
+              title: { display: true, text: 'Age' },
+              ticks: {
+                callback: function(val, index) {
+                  const age = allYears[index]?.age;
+                  const plan = projection.plan;
+                  if (age === plan.retirementAge) return age + ' Retire';
+                  if (age === plan.statePensionAge) return age + ' SP';
+                  if (age === 80) return '80 -25%';
+                  return age;
+                },
+                font: function(ctx) {
+                  const age = allYears[ctx.index]?.age;
+                  const plan = projection.plan;
+                  if (age === plan.retirementAge || age === plan.statePensionAge || age === 80) {
+                    return { weight: 'bold', size: 10 };
+                  }
+                  return { size: 9 };
+                }
+              }
+            },
             y: {
-              title: { display: true, text: 'Balance (£)' },
+              title: { display: true, text: 'Balance' },
               ticks: { callback: (v) => formatCompactCurrency(v) }
             }
           }

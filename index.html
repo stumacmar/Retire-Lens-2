@@ -709,188 +709,106 @@
     </div>
     
     <!-- ═══════════════════════════════════════════════════════════════
-         Screen: Results
+         Screen: Results — Tabbed Layout
          ═══════════════════════════════════════════════════════════════ -->
     <div id="screen-results" class="screen" aria-hidden="true">
-      <!-- Provisional Results Banner (hidden by default) -->
       <div id="provisional-banner" class="provisional-banner" style="display: none;">
         <span class="banner-icon">⚠️</span>
-        <span id="provisional-banner-message">Provisional results — partner pension amounts not yet included.</span>
+        <span id="provisional-banner-message">Provisional results.</span>
       </div>
-      
-      <div id="results-container">
-        <!-- Populated by JavaScript -->
+
+      <!-- Hero Answer -->
+      <div id="results-container"></div>
+
+      <!-- Narrative Summary -->
+      <div id="narrative-summary" class="result-card" style="margin-bottom: 1rem;"></div>
+
+      <!-- Result Tabs -->
+      <div class="results-tabs" style="display: flex; border-bottom: 2px solid var(--color-border, #e2e8f0); margin-bottom: 1rem;">
+        <button class="results-tab active" data-results-tab="income" style="flex: 1; padding: 0.75rem; border: none; background: none; font-weight: 600; font-size: 0.8125rem; color: var(--color-primary, #4f46e5); border-bottom: 3px solid var(--color-primary, #4f46e5); cursor: pointer;">Income</button>
+        <button class="results-tab" data-results-tab="wealth" style="flex: 1; padding: 0.75rem; border: none; background: none; font-weight: 500; font-size: 0.8125rem; color: var(--color-text-light, #6b7280); border-bottom: 3px solid transparent; cursor: pointer;">Wealth</button>
+        <button class="results-tab" data-results-tab="risk" style="flex: 1; padding: 0.75rem; border: none; background: none; font-weight: 500; font-size: 0.8125rem; color: var(--color-text-light, #6b7280); border-bottom: 3px solid transparent; cursor: pointer;">Risk</button>
+        <button class="results-tab" data-results-tab="detail" style="flex: 1; padding: 0.75rem; border: none; background: none; font-weight: 500; font-size: 0.8125rem; color: var(--color-text-light, #6b7280); border-bottom: 3px solid transparent; cursor: pointer;">Detail</button>
       </div>
-      
-      <div class="chart-container">
-        <canvas id="capital-chart"></canvas>
-      </div>
-      
-      <!-- Annual Net Cashflow Chart -->
-      <div class="result-card" id="cashflow-section" style="margin-top: 1.5rem;">
-        <h3>📊 Annual Net Income (by source)</h3>
-        <div class="chart-container" style="height: 320px;">
-          <canvas id="cashflow-chart"></canvas>
+
+      <!-- Tab: Income -->
+      <div class="results-tab-content active" id="tab-income">
+        <div class="result-card" id="cashflow-section">
+          <h3 style="font-size: 1rem; margin-bottom: 0.75rem;">Annual Income by Source</h3>
+          <div class="chart-container" style="height: 280px;">
+            <canvas id="cashflow-chart"></canvas>
+          </div>
         </div>
-        <div id="tax-overlay-container" style="margin-top: 1rem;">
-          <h4 style="font-size: 0.9rem; color: #6b7280; margin-bottom: 0.5rem;">Tax Paid Per Year</h4>
-          <div class="chart-container" style="height: 150px;">
-            <canvas id="tax-chart"></canvas>
+        <div class="result-card" id="income-sources-section" style="margin-top: 1rem;">
+          <h3 style="font-size: 1rem; margin-bottom: 0.75rem;">Income Breakdown (Year 1)</h3>
+          <div id="income-sources-breakdown"></div>
+        </div>
+      </div>
+
+      <!-- Tab: Wealth -->
+      <div class="results-tab-content" id="tab-wealth" style="display: none;">
+        <div class="result-card">
+          <h3 style="font-size: 1rem; margin-bottom: 0.75rem;">Pension & ISA Balances</h3>
+          <div class="chart-container" style="height: 280px;">
+            <canvas id="capital-chart"></canvas>
           </div>
         </div>
       </div>
-      
-      <!-- Income Sources Breakdown Panel -->
-      <div class="result-card" id="income-sources-section" style="margin-top: 1.5rem;">
-        <h3>💰 Income Sources Breakdown</h3>
-        <div id="income-sources-breakdown">
-          <!-- Populated by JavaScript -->
-        </div>
-      </div>
-      
-      <!-- Guaranteed Income Timeline -->
-      <div class="result-card" id="guaranteed-income-section" style="margin-top: 1.5rem;">
-        <h3>📅 Guaranteed Income Timeline</h3>
-        <div class="chart-container" style="height: 200px;">
-          <canvas id="guaranteed-income-chart"></canvas>
-        </div>
-        <div id="guaranteed-income-details">
-          <!-- Populated by JavaScript -->
-        </div>
-      </div>
-      
-      <div id="assumptions-results-panel">
-        <!-- Populated by JavaScript -->
-      </div>
-      
-      <!-- ═══════════════════════════════════════════════════════════════
-           Advanced Analysis Sections
-           ═══════════════════════════════════════════════════════════════ -->
-      
-      <!-- Monte Carlo Visualization Section -->
-      <div class="result-card" id="monte-carlo-section" style="display: none;">
-        <h3>Monte Carlo Simulation</h3>
-        <div id="confidence-explainer-container"></div>
-        <div id="fan-chart-container" style="position: relative; height: 300px;">
-          <canvas id="fan-chart"></canvas>
-        </div>
-        <div id="depletion-histogram-container" style="position: relative; height: 200px; margin-top: 1.5rem;">
-          <canvas id="depletion-histogram"></canvas>
+
+      <!-- Tab: Risk -->
+      <div class="results-tab-content" id="tab-risk" style="display: none;">
+        <div class="result-card" id="monte-carlo-section">
+          <div id="confidence-explainer-container"></div>
+          <div id="fan-chart-container" style="position: relative; height: 280px;">
+            <canvas id="fan-chart"></canvas>
+          </div>
+          <div id="depletion-histogram-container" style="position: relative; height: 180px; margin-top: 1rem;">
+            <canvas id="depletion-histogram"></canvas>
+          </div>
         </div>
       </div>
 
-      <!-- Year-by-Year Data Table -->
-      <div class="result-card" id="data-table-section">
-        <h3>Year-by-Year Projection</h3>
-        <div id="data-table-container" style="overflow-x: auto; -webkit-overflow-scrolling: touch;"></div>
+      <!-- Tab: Detail -->
+      <div class="results-tab-content" id="tab-detail" style="display: none;">
+        <div class="result-card" id="data-table-section">
+          <h3 style="font-size: 1rem; margin-bottom: 0.75rem;">Year-by-Year Projection</h3>
+          <div id="data-table-container" style="overflow-x: auto; -webkit-overflow-scrolling: touch;"></div>
+        </div>
       </div>
-      
-      <!-- Monte Carlo kept but other sections removed to eliminate inconsistencies.
-           Readiness score, insights, benchmarking, risk, spending policy, milestones,
-           legacy, household, DB pension, care costs, phased retirement sections were
-           producing conflicting metrics. They can be re-added once recalibrated for
-           couples scenarios. -->
 
-      <!-- Hidden placeholder divs to prevent JS errors from missing elements -->
-      <div id="readiness-section" style="display:none;"></div>
-      <div id="insights-section" style="display:none;"></div>
-      <div id="benchmarking-section" style="display:none;"></div>
-      <div id="tax-optimization-section" style="display:none;"></div>
-      <div id="risk-section" style="display:none;"></div>
-      <div id="spending-policy-section" style="display:none;"></div>
-      <div id="milestones-section" style="display:none;"></div>
-      <div id="legacy-section" style="display:none;"></div>
-      <div id="household-section" style="display:none;"></div>
-      <div id="db-pension-section" style="display:none;"></div>
-      <div id="care-costs-section" style="display:none;"></div>
-      <div id="phased-retirement-section" style="display:none;"></div>
-      
-      <div class="nav-buttons">
+      <!-- Hidden elements for JS compatibility -->
+      <div style="display:none;">
+        <canvas id="tax-chart"></canvas>
+        <canvas id="guaranteed-income-chart"></canvas>
+        <div id="guaranteed-income-details"></div>
+        <div id="assumptions-results-panel"></div>
+        <div id="readiness-section"></div>
+        <div id="insights-section"></div>
+        <div id="benchmarking-section"></div>
+        <div id="tax-optimization-section"></div>
+        <div id="risk-section"></div>
+        <div id="spending-policy-section"></div>
+        <div id="milestones-section"></div>
+        <div id="legacy-section"></div>
+        <div id="household-section"></div>
+        <div id="db-pension-section"></div>
+        <div id="care-costs-section"></div>
+        <div id="phased-retirement-section"></div>
+      </div>
+
+      <div class="nav-buttons" style="margin-top: 1.5rem;">
         <button type="button" class="btn btn-secondary" data-action="back">Edit Inputs</button>
-        <button type="button" class="btn btn-primary" data-action="next">Compare Plans</button>
       </div>
-      
-      <!-- Debug output (visible with ?debug=1) -->
+
       <div id="debug-output" style="display: none;"></div>
     </div>
     
-    <!-- ═══════════════════════════════════════════════════════════════
-         Screen: Compare (Plan A vs Plan B)
-         ═══════════════════════════════════════════════════════════════ -->
-    <div id="screen-compare" class="screen" aria-hidden="true">
-      <div class="screen-header">
-        <h2 class="screen-title">Compare Plans</h2>
-        <p class="screen-subtitle">What if you changed one thing?</p>
-      </div>
-      
-      <div class="screen-content">
-        <div class="input-group">
-          <label>Plan B: Retire at different age</label>
-          <div class="input-wrapper">
-            <input type="number" id="input-planb-retirement-age" min="50" max="100" placeholder="67" inputmode="numeric" />
-          </div>
-          <p class="help-text">Change the retirement age for Plan B</p>
-        </div>
-        
-        <button type="button" class="btn btn-primary" id="compare-btn" style="margin-top: 1rem;">
-          Compare Plans
-        </button>
-        
-        <div id="comparison-container">
-          <!-- Populated by JavaScript -->
-        </div>
-        
-        <div class="chart-container">
-          <canvas id="comparison-chart"></canvas>
-        </div>
-      </div>
-      
-      <div class="nav-buttons">
-        <button type="button" class="btn btn-secondary" data-action="back">Back to Results</button>
-        <button type="button" class="btn btn-secondary" onclick="location.reload()">Start Over</button>
-      </div>
-    </div>
+    <!-- Compare Plans removed — can be re-added later -->
+    <div id="screen-compare" class="screen" aria-hidden="true" style="display:none;"></div>
     
   </div>
   
-  <!-- Answer Preview Card (Sticky) -->
-  <div id="answer-preview-card" class="answer-preview-card hidden">
-    <div class="preview-info-tooltip" id="preview-tooltip">
-      <ul>
-        <li>Estimate only (no full tax sequencing yet)</li>
-        <li>Results can change with market returns</li>
-        <li>Full plan uses detailed modeling on Calculate</li>
-      </ul>
-    </div>
-    <div class="preview-header">
-      <span class="preview-title">
-        Live Estimate
-      </span>
-      <button type="button" class="preview-info-btn" id="preview-info-btn" aria-label="More info" style="color: var(--color-text-light); font-size: 0.875rem; border: 1px solid var(--color-border); border-radius: 50%; width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; padding: 0; cursor: pointer; background: none;">?</button>
-    </div>
-    <div class="preview-content" id="preview-content">
-      <div class="preview-item">
-        <div class="preview-label">Retire at</div>
-        <div class="preview-value" id="preview-retire-age" style="color: var(--color-text-light);">...</div>
-      </div>
-      <div class="preview-item">
-        <div class="preview-label">Target net</div>
-        <div class="preview-value" id="preview-target" style="color: var(--color-text-light);">...</div>
-      </div>
-      <div class="preview-item">
-        <div class="preview-label">Projected pot</div>
-        <div class="preview-value" id="preview-pot" style="color: var(--color-text-light);">...</div>
-      </div>
-      <div class="preview-item">
-        <div class="preview-label">Gap / Surplus</div>
-        <div class="preview-value neutral" id="preview-gap" style="color: var(--color-text-light);">...</div>
-      </div>
-      <div class="preview-hint" id="preview-hint" style="display: none;">Enter age and retirement age to see estimate</div>
-    </div>
-    <div style="text-align: center; font-size: 0.6875rem; color: var(--color-text-light); margin-top: 4px; letter-spacing: 0.02em;">
-      Quick estimate based on the 4% withdrawal rule
-    </div>
-  </div>
+  <!-- Live Estimate removed — created anxiety during data entry -->
   
   <!-- Error message toast -->
   <div id="error-message"></div>

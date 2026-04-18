@@ -145,7 +145,7 @@
         screens.push('isa-savings', 'state-pension');
       }
 
-      screens.push('review', 'results', 'compare');
+      screens.push('review', 'results');
 
       return screens;
     }
@@ -315,19 +315,7 @@
 
       state.currentScreen = screenId;
       
-      // Show/hide preview card based on screen
-      const previewCard = document.getElementById('answer-preview-card');
-      const appContainer = document.querySelector('.app-container');
-      const inputScreens = ['age', 'retirement-age', 'income-target', 'pension-pot', 'contributions', 'isa-savings', 'state-pension'];
-      
-      if (isFeatureEnabled('PREVIEW_CARD') && inputScreens.includes(screenId)) {
-        previewCard?.classList.remove('hidden');
-        appContainer?.classList.add('has-preview');
-        updatePreviewCard();
-      } else {
-        previewCard?.classList.add('hidden');
-        appContainer?.classList.remove('has-preview');
-      }
+      // Preview card removed
       
       // Update ticker for onboarding screens
       updateTicker();
@@ -1494,52 +1482,39 @@
     
     function renderResults(projection, results = null) {
       const { summary, plan } = projection;
-      const withdrawalRate = (plan.targetNetIncome / summary.retirementPot) * 100;
-      
-      let sustainability = { label: 'Sustainable', color: '#22c55e', emoji: '✅' };
-      if (withdrawalRate > 6) sustainability = { label: 'High Risk', color: '#ef4444', emoji: '❌' };
-      else if (withdrawalRate > 5) sustainability = { label: 'Higher Risk', color: '#f97316', emoji: '⚠️' };
-      else if (withdrawalRate > 4) sustainability = { label: 'Moderate Risk', color: '#f59e0b', emoji: '⚠️' };
-      
       const isSuccess = summary.successRate >= 1.0;
-      const inflationRate = plan.assumptions?.projection?.inflationRate || 0.02;
-      
-      // Household summary removed — used separate calculation that conflicted with main projection
-      let householdSummaryHtml = '';
-      
+
+      // Get MC success for the single confidence number
+      const mcSuccess = results?.mcResult?.statistics?.successRate;
+      const confidenceNum = mcSuccess != null ? Math.round(mcSuccess * 100) : Math.round(summary.successRate * 100);
+      let confidenceColor = '#059669';
+      let confidenceLabel = 'High confidence';
+      if (confidenceNum < 60) { confidenceColor = '#dc2626'; confidenceLabel = 'Needs attention'; }
+      else if (confidenceNum < 85) { confidenceColor = '#d97706'; confidenceLabel = 'Moderate confidence'; }
+
       const html = `
-        <div class="results-hero">
-          <div class="answer-badge ${isSuccess ? 'success' : 'partial'}">
-            ${isSuccess ? '✅ YES' : '⚠️ MAYBE'}
+        <div class="results-hero" style="padding-bottom: 1rem;">
+          <div class="answer-badge ${isSuccess ? 'success' : confidenceNum >= 60 ? 'partial' : 'danger'}">
+            ${isSuccess ? 'YES' : confidenceNum >= 60 ? 'LIKELY' : 'AT RISK'}
           </div>
-          
-          <h2 class="results-question">
-            Can I retire at age ${plan.retirementAge} with ${formatCurrency(plan.targetNetIncome)} net income?
+
+          <h2 class="results-question" style="margin-top: 0.5rem;">
+            Can I retire at ${plan.retirementAge} on ${formatCurrency(plan.targetNetIncome)}/year?
           </h2>
-          
-          <p class="results-confidence">
-            Confidence: <strong>${(summary.successRate * 100).toFixed(0)}%</strong>
-          </p>
-          
-          <div class="sustainability-indicator" style="color: ${sustainability.color}">
-            ${sustainability.emoji} Withdrawal rate: ${withdrawalRate.toFixed(1)}% 
-            <span class="sustainability-label">(${sustainability.label})</span>
+
+          <div style="margin-top: 1rem;">
+            <span style="font-size: 2rem; font-weight: 700; color: ${confidenceColor};">${confidenceNum}</span>
+            <span style="font-size: 1rem; color: ${confidenceColor};"> out of 100</span>
+            <div style="font-size: 0.8125rem; color: var(--color-text-light); margin-top: 0.25rem;">
+              market scenarios support your plan to age 90
+            </div>
           </div>
-          
-          <!-- FIX 3.1: Real terms labelling -->
-          <p style="font-size: 0.75rem; color: #6b7280; margin-top: 0.5rem;">
-            📊 All figures in today's money (real terms, after ${(inflationRate * 100).toFixed(0)}% assumed inflation)
-          </p>
         </div>
-        
-        <div class="results-metrics">
+
+        <div class="results-metrics" style="margin-bottom: 0.5rem;">
           <div class="metric">
-            <span class="metric-label">Retirement Pot</span>
+            <span class="metric-label">Retirement Fund</span>
             <span class="metric-value">${formatCurrency(summary.retirementPot)}</span>
-          </div>
-          <div class="metric">
-            <span class="metric-label">Tax-Free Cash</span>
-            <span class="metric-value">${formatCurrency(summary.pclsTaken)}</span>
           </div>
           <div class="metric">
             <span class="metric-label">Years Supported</span>
@@ -1549,19 +1524,17 @@
             <span class="metric-label">Final Balance</span>
             <span class="metric-value">${formatCurrency(summary.finalBalance)}</span>
           </div>
-        </div>
-        
-        ${householdSummaryHtml}
-        
-        ${!isSuccess && summary.depletionAge ? `
-          <div class="results-suggestion">
-            <strong>💡 Suggestion:</strong> Funds may run out at age ${summary.depletionAge}. 
-            Consider increasing contributions or reducing target income.
+          <div class="metric">
+            <span class="metric-label">Tax-Free Cash</span>
+            <span class="metric-value">${formatCurrency(summary.pclsTaken)}</span>
           </div>
-        ` : ''}
+        </div>
       `;
-      
+
       document.getElementById('results-container').innerHTML = html;
+
+      // Render narrative summary
+      renderNarrativeSummary(projection, results);
       
       // Render chart
       renderCapitalChart(projection);
@@ -1574,6 +1547,113 @@
       }
     }
     
+    function renderNarrativeSummary(projection, results) {
+      const el = document.getElementById('narrative-summary');
+      if (!el) return;
+
+      const { summary, plan } = projection;
+      const data = state.formData || {};
+      const isCouple = data.isCouple || (plan.partnerCurrentAge > 0);
+      const partnerDB = data.partnerDBPensionAmount || 0;
+      const partnerSP = data.partnerExpectedStatePension || 0;
+      const yourSP = plan.expectedStatePension || 0;
+
+      // Build the narrative
+      const retireAge = plan.retirementAge;
+      const target = formatCurrency(plan.targetNetIncome);
+      const pot = formatCurrency(summary.retirementPot);
+      const final = formatCurrency(summary.finalBalance);
+      const guaranteedTotal = yourSP + partnerSP + partnerDB;
+      const pensionNeeded = plan.targetNetIncome - guaranteedTotal;
+
+      let narrative = '';
+
+      if (isCouple) {
+        const partnerAge = data.partnerCurrentAge || 0;
+        const ageDiff = partnerAge - plan.currentAge;
+        const partnerAgeAtRetire = retireAge + ageDiff;
+
+        narrative += `<p style="margin-bottom: 0.75rem;">You plan to retire at <strong>${retireAge}</strong> with a household income of <strong>${target}/year</strong>. `;
+        if (partnerAgeAtRetire >= (data.partnerStatePensionAge || 67)) {
+          narrative += `Your partner will be ${partnerAgeAtRetire} at that point, so their State Pension`;
+          if (partnerDB > 0) narrative += ` and DB pension (${formatCurrency(partnerDB)}/yr)`;
+          narrative += ` start immediately.</p>`;
+        } else {
+          narrative += `Your partner will be ${partnerAgeAtRetire}, with their pensions starting later.</p>`;
+        }
+      } else {
+        narrative += `<p style="margin-bottom: 0.75rem;">You plan to retire at <strong>${retireAge}</strong> on <strong>${target}/year</strong>.</p>`;
+      }
+
+      if (guaranteedTotal > 0) {
+        narrative += `<p style="margin-bottom: 0.75rem;">Guaranteed income (State Pensions${partnerDB > 0 ? ' + DB pension' : ''}) covers <strong>${formatCurrency(guaranteedTotal)}/year</strong> when fully active. `;
+        if (pensionNeeded > 0) {
+          narrative += `You need to draw <strong>${formatCurrency(pensionNeeded)}/year</strong> from your pension to reach your target.</p>`;
+        } else {
+          narrative += `This alone exceeds your target — your pension pot is essentially preserved.</p>`;
+        }
+      }
+
+      if (summary.successRate >= 1.0) {
+        narrative += `<p style="margin-bottom: 0.75rem; color: var(--color-success, #059669);"><strong>Your money lasts to age 90</strong> with ${final} remaining. `;
+        narrative += `Spending reduces to ${formatCurrency(plan.targetNetIncome * 0.75)} at 80 as modelled.</p>`;
+      } else {
+        narrative += `<p style="margin-bottom: 0.75rem; color: var(--color-warning, #d97706);"><strong>Funds may run short at age ${summary.depletionAge}</strong>. `;
+        narrative += `Consider increasing contributions or reducing your target.</p>`;
+      }
+
+      // What should I do
+      narrative += `<div style="margin-top: 1rem; padding: 0.75rem; background: var(--color-primary-subtle, #eef2ff); border-radius: var(--radius-md, 0.5rem); border-left: 3px solid var(--color-primary, #4f46e5);">`;
+      narrative += `<div style="font-weight: 600; margin-bottom: 0.5rem; font-size: 0.875rem;">Consider</div>`;
+      narrative += `<ul style="margin: 0; padding-left: 1.25rem; font-size: 0.8125rem; line-height: 1.6;">`;
+
+      if (summary.successRate >= 1.0 && summary.finalBalance > plan.targetNetIncome * 5) {
+        narrative += `<li>Your ISA grows untouched — consider drawing some after 80 to reduce inheritance tax exposure</li>`;
+      }
+      if (data.pclsAlreadyTaken && summary.pclsTaken > 0) {
+        narrative += `<li>You have ${formatCurrency(summary.pclsTaken)} additional tax-free cash from new contributions</li>`;
+      }
+      if (plan.statePensionAge > retireAge) {
+        narrative += `<li>Your State Pension starts at ${plan.statePensionAge} — pension withdrawals drop significantly then</li>`;
+      }
+      if (summary.successRate < 1.0) {
+        const extraNeeded = Math.round((plan.targetNetIncome - summary.averageNetIncome) / 12);
+        narrative += `<li>An extra ${formatCurrency(extraNeeded)}/month in contributions could close the gap</li>`;
+      }
+      narrative += `<li>Review your plan annually — market conditions and personal circumstances change</li>`;
+      narrative += `</ul></div>`;
+
+      el.innerHTML = narrative;
+    }
+
+    // Tab switching for results page
+    function initResultsTabs() {
+      document.querySelectorAll('.results-tab').forEach(tab => {
+        tab.addEventListener('click', () => {
+          const targetTab = tab.dataset.resultsTab;
+
+          // Update tab styles
+          document.querySelectorAll('.results-tab').forEach(t => {
+            t.classList.remove('active');
+            t.style.color = 'var(--color-text-light, #6b7280)';
+            t.style.borderBottomColor = 'transparent';
+            t.style.fontWeight = '500';
+          });
+          tab.classList.add('active');
+          tab.style.color = 'var(--color-primary, #4f46e5)';
+          tab.style.borderBottomColor = 'var(--color-primary, #4f46e5)';
+          tab.style.fontWeight = '600';
+
+          // Show/hide tab content
+          document.querySelectorAll('.results-tab-content').forEach(content => {
+            content.style.display = 'none';
+          });
+          const target = document.getElementById('tab-' + targetTab);
+          if (target) target.style.display = 'block';
+        });
+      });
+    }
+
     function renderCapitalChart(projection) {
       const canvas = document.getElementById('capital-chart');
       if (!canvas || typeof Chart === 'undefined') return;
@@ -2231,24 +2311,13 @@
               legacyPlan, estateValue, ihtEstimate, phasedRetirement, household, data } = results;
       
       // Only show validated sections — hide everything else to prevent conflicting metrics
-      const showIds = ['cashflow-section', 'income-sources-section', 'guaranteed-income-section', 'monte-carlo-section', 'data-table-section'];
-      document.querySelectorAll('.result-card').forEach(card => {
-        card.style.display = showIds.includes(card.id) ? 'block' : 'none';
-      });
-      
-      // Show income breakdown sections (always visible)
-      const cashflowSection = document.getElementById('cashflow-section');
-      if (cashflowSection) cashflowSection.style.display = 'block';
-      const incomeSourcesSection = document.getElementById('income-sources-section');
-      if (incomeSourcesSection) incomeSourcesSection.style.display = 'block';
-      const guaranteedIncomeSection = document.getElementById('guaranteed-income-section');
-      if (guaranteedIncomeSection) guaranteedIncomeSection.style.display = 'block';
+      // Tabs handle section visibility — init tab switching
+      initResultsTabs();
       
       // === Monte Carlo Visualization ===
       if (mcResult) {
         const section = document.getElementById('monte-carlo-section');
         if (section) {
-          section.style.display = 'block';
           
           // Render confidence explainer with provisional state support
           const explainerContainer = document.getElementById('confidence-explainer-container');

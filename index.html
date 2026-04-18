@@ -807,6 +807,7 @@
 
       <div class="nav-buttons" style="margin-top: 1.5rem;">
         <button type="button" class="btn btn-secondary" data-action="back">Edit Inputs</button>
+        <button type="button" class="btn btn-secondary" onclick="if(confirm('Clear all data and start fresh?')){localStorage.clear();indexedDB.deleteDatabase('RetireLensDB');location.reload();}">Start Over</button>
       </div>
 
       <div id="debug-output" style="display: none;"></div>
@@ -825,6 +826,8 @@
   <!-- Version footer -->
   <footer id="version-footer" style="text-align: center; font-size: 0.6875rem; color: var(--color-text-light); padding: 12px 0; background: var(--color-background); letter-spacing: 0.02em;">
     <span id="model-version">RetireLens Pro v1.0.0</span> &middot; Your data never leaves this device
+    <br>
+    <button onclick="if(confirm('Clear all saved data and start fresh?')){localStorage.clear();indexedDB.deleteDatabase('RetireLensDB');location.reload();}" style="margin-top: 6px; background: none; border: 1px solid var(--color-border); border-radius: var(--radius-sm, 4px); padding: 4px 12px; font-size: 0.6875rem; color: var(--color-text-light); cursor: pointer;">Reset &amp; Start Over</button>
   </footer>
   
   <!-- Bottom Ticker removed -->

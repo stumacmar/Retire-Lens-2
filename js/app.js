@@ -215,12 +215,12 @@
               <p class="help-text">Defined contribution / SIPP / workplace pension</p>
             </div>
             <div class="input-group" style="margin-top: 0.75rem;">
-              <label>Partner's DB pension (annual income)</label>
+              <label style="font-weight: 600;">Partner's DB pension (annual income)</label>
               <div class="input-wrapper">
                 <span class="currency-symbol">£</span>
-                <input type="number" id="input-partner-db-amount" min="0" step="500" placeholder="0" inputmode="numeric" />
+                <input type="number" id="input-partner-db-amount" min="0" step="500" placeholder="e.g. 4500" inputmode="numeric" />
               </div>
-              <p class="help-text">Guaranteed annual income from final salary / career average scheme</p>
+              <p class="help-text">Guaranteed annual income from final salary / career average scheme. Enter 0 if none.</p>
             </div>
             <div class="input-group" style="margin-top: 0.75rem;">
               <label>Partner's DB start age</label>

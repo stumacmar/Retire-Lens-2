@@ -1305,8 +1305,14 @@
         partnerCurrentAge: isCouplesFlow ? cVal(state.onboardingState?.personB?.currentAge, couplesLiveData?.personB?.currentAge, 0) : 0,
         partnerStatePensionAge: isCouplesFlow ? cVal(state.onboardingState?.personB?.statePensionAge, couplesLiveData?.personB?.statePensionAge, 0) : 0,
         partnerExpectedStatePension: isCouplesFlow ? cVal(state.onboardingState?.personB?.expectedStatePension, state.onboardingState?.personB?.statePensionAmount, 0) : 0,
-        partnerDBPensionAmount: isCouplesFlow ? cVal(state.onboardingState?.personB?.dbAnnualIncome, couplesLiveData?.personB?.dbAnnualIncome, 0) : 0,
-        partnerDBPensionStartAge: isCouplesFlow ? cVal(state.onboardingState?.personB?.dbStartAge, couplesLiveData?.personB?.dbStartAge, 67) : 67,
+        partnerDBPensionAmount: isCouplesFlow ? (
+          cVal(state.onboardingState?.personB?.dbAnnualIncome, couplesLiveData?.personB?.dbAnnualIncome, 0)
+          || getValue('input-partner-db-amount', 0)
+        ) : 0,
+        partnerDBPensionStartAge: isCouplesFlow ? (
+          cVal(state.onboardingState?.personB?.dbStartAge, couplesLiveData?.personB?.dbStartAge, 67)
+          || getValue('input-partner-db-start-age', 67)
+        ) : 67,
 
         // Spending reductions in later life (always enabled)
         applyAgeBasedSpendingReductions: true,
@@ -3000,6 +3006,11 @@
           // 3. Run basic deterministic projection
           // Pass scenario-based assumptions to createPlan so growth rate actually changes
           const scenarioPreset = SCENARIO_PRESETS[data.scenario] || SCENARIO_PRESETS.moderate;
+          // Force-read partner DB from state (belt-and-braces — collectFormData should have it)
+          if (data.isCouple && state.onboardingState?.personB?.dbAnnualIncome > 0 && !data.partnerDBPensionAmount) {
+            data.partnerDBPensionAmount = state.onboardingState.personB.dbAnnualIncome;
+            data.partnerDBPensionStartAge = state.onboardingState.personB.dbStartAge || 67;
+          }
           const plan = createPlan({
             name: 'Plan A',
             ...data,

@@ -921,9 +921,12 @@
 
       <div class="nav-buttons" style="margin-top: 0.75rem;">
         <button type="button" class="btn btn-secondary" data-action="back">Edit Inputs</button>
-        <button type="button" class="btn btn-primary" onclick="window.print()" style="font-size: 0.8rem;">Print / Save PDF</button>
-        <button type="button" class="btn btn-secondary" onclick="if(confirm('Clear all data and start fresh?')){localStorage.clear();indexedDB.deleteDatabase('RetireLensDB');location.reload();}">Start Over</button>
+        <button type="button" class="btn btn-primary" onclick="window.print()" style="font-size: 0.8rem;">Print</button>
+        <button type="button" class="btn btn-secondary" id="save-scenario-btn" style="font-size: 0.8rem;">Save Scenario</button>
+        <button type="button" class="btn btn-secondary" onclick="if(confirm('Clear all data and start fresh?')){localStorage.clear();indexedDB.deleteDatabase('RetireLensDB');location.reload();}">Reset</button>
       </div>
+      <!-- Saved scenarios list -->
+      <div id="saved-scenarios" style="margin-top: 0.75rem; font-size: 0.75rem;"></div>
 
       <div id="debug-output" style="display: none;"></div>
     </div>

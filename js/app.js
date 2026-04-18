@@ -1735,6 +1735,16 @@
         }
       }
 
+      // Annuity comparison estimate (rough, based on typical rates)
+      // Standard annuity rate at 60: ~5.0%, at 65: ~5.8%, at 67: ~6.2%
+      const annuityRate = retireAge >= 67 ? 0.062 : retireAge >= 65 ? 0.058 : 0.050;
+      const potAfterPCLS = summary.retirementPot - summary.pclsTaken;
+      const annuityIncome = Math.round(potAfterPCLS * annuityRate);
+      if (annuityIncome > 0) {
+        const totalWithAnnuity = annuityIncome + (yourSP + partnerSP + partnerDB);
+        events.push({ age: '', desc: `<span style="color: var(--color-text-light);">Annuity alternative: buying a level annuity at ${retireAge} would provide ~${formatCurrency(annuityIncome)}/yr guaranteed for life (${(annuityRate*100).toFixed(1)}% rate). Drawdown offers flexibility but no guarantee.</span>` });
+      }
+
       // Sequence-of-returns risk
       try {
         const sor = illustrateSequenceOfReturns(projection.plan || state.planA);
@@ -3556,6 +3566,43 @@
       }
       document.getElementById('whatif-earlier')?.addEventListener('click', () => runWhatIf(-1));
       document.getElementById('whatif-later')?.addEventListener('click', () => runWhatIf(1));
+
+      // Save/load scenarios
+      document.getElementById('save-scenario-btn')?.addEventListener('click', () => {
+        const name = prompt('Name this scenario:', 'Scenario ' + new Date().toLocaleDateString());
+        if (!name) return;
+        const scenarios = JSON.parse(localStorage.getItem('rl_scenarios') || '[]');
+        scenarios.push({
+          name,
+          date: new Date().toISOString(),
+          data: state.formData,
+          summary: state.projectionA?.summary
+        });
+        localStorage.setItem('rl_scenarios', JSON.stringify(scenarios));
+        renderSavedScenarios();
+      });
+
+      function renderSavedScenarios() {
+        const el = document.getElementById('saved-scenarios');
+        if (!el) return;
+        const scenarios = JSON.parse(localStorage.getItem('rl_scenarios') || '[]');
+        if (scenarios.length === 0) { el.innerHTML = ''; return; }
+        let html = '<div style="font-weight: 600; margin-bottom: 0.5rem;">Saved Scenarios</div>';
+        html += '<table style="width: 100%; border-collapse: collapse; font-size: 0.75rem;">';
+        html += '<tr style="border-bottom: 1px solid #e5e7eb;"><th style="text-align: left; padding: 0.25rem;">Name</th><th style="text-align: right; padding: 0.25rem;">Retire</th><th style="text-align: right; padding: 0.25rem;">Target</th><th style="text-align: right; padding: 0.25rem;">Final</th></tr>';
+        for (const s of scenarios) {
+          html += `<tr style="border-bottom: 1px solid #f1f5f9;">`;
+          html += `<td style="padding: 0.25rem;">${s.name}</td>`;
+          html += `<td style="text-align: right; padding: 0.25rem;">${s.data?.retirementAge || '-'}</td>`;
+          html += `<td style="text-align: right; padding: 0.25rem;">${formatCurrency(s.data?.targetNetIncome || 0)}</td>`;
+          html += `<td style="text-align: right; padding: 0.25rem;">${formatCurrency(s.summary?.finalBalance || 0)}</td>`;
+          html += `</tr>`;
+        }
+        html += '</table>';
+        html += '<button onclick="localStorage.removeItem(\'rl_scenarios\');document.getElementById(\'saved-scenarios\').innerHTML=\'\';" style="margin-top: 0.5rem; font-size: 0.7rem; background: none; border: 1px solid #e5e7eb; border-radius: 4px; padding: 2px 8px; cursor: pointer;">Clear saved</button>';
+        el.innerHTML = html;
+      }
+      renderSavedScenarios();
 
       // Compare button
       document.getElementById('compare-btn')?.addEventListener('click', () => {

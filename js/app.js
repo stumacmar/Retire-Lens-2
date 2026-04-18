@@ -139,7 +139,8 @@
 
       // Same wizard screens for BOTH singles and couples
       // For couples, each screen shows doubled-up inputs (you + partner)
-      screens.push('age', 'retirement-age', 'income-target', 'pension-pot', 'contributions');
+      // age screen now includes retirement age (combined)
+      screens.push('age', 'income-target', 'pension-pot', 'contributions');
 
       if (isFeatureEnabled('GUIDED_MODE') || state.mode === 'guided' || state.mode === 'full') {
         screens.push('isa-savings', 'state-pension');
@@ -159,8 +160,7 @@
 
       // Map screen IDs to their partner input config
       const partnerInputConfig = {
-        'age': { id: 'input-partner-current-age', label: "Partner's age", placeholder: '60', min: 18, max: 100 },
-        'retirement-age': { id: 'input-partner-retirement-age', label: "Partner's retirement age", placeholder: '65', min: 50, max: 100 },
+        'age': null, // Custom handler: age + retirement age together
         'pension-pot': null, // Handled separately (DC + DB)
         'contributions': { id: 'input-partner-pension-contribution', label: "Partner's monthly contribution", placeholder: '0', min: 0, step: 50, currency: true },
         'isa-savings': null, // Handled separately (2 inputs)
@@ -179,6 +179,27 @@
       if (!content) return;
 
       // Special handling for screens with multiple inputs
+      if (screenId === 'age') {
+        const html = `
+          <div class="partner-input-group" style="margin-top: 1.5rem; padding-top: 1.5rem; border-top: 2px solid var(--color-primary-light, #e0e7ff);">
+            <div style="font-weight: 600; color: var(--color-primary, #4f46e5); margin-bottom: 0.75rem; font-size: 0.9rem;">Partner</div>
+            <div class="input-group">
+              <label style="font-weight: 500;">Partner's current age</label>
+              <div class="input-wrapper">
+                <input type="number" id="input-partner-current-age" min="18" max="100" placeholder="63" inputmode="numeric" />
+              </div>
+            </div>
+            <div class="input-group" style="margin-top: 0.75rem;">
+              <label style="font-weight: 500;">Partner's retirement age</label>
+              <div class="input-wrapper">
+                <input type="number" id="input-partner-retirement-age" min="50" max="100" placeholder="67" inputmode="numeric" />
+              </div>
+            </div>
+          </div>`;
+        content.insertAdjacentHTML('beforeend', html);
+        return;
+      }
+
       if (screenId === 'isa-savings') {
         const html = `
           <div class="partner-input-group" style="margin-top: 1.5rem; padding-top: 1.5rem; border-top: 2px solid var(--color-primary-light, #e0e7ff);">
@@ -342,7 +363,8 @@
           advancedContainer?.style && (advancedContainer.style.display = 'none');
           scenarioSelect?.style && (scenarioSelect.style.display = 'block');
         } else {
-          advancedContainer?.style && (advancedContainer.style.display = 'block');
+          // Full mode: show scenario selector, collapse advanced by default
+          advancedContainer?.style && (advancedContainer.style.display = 'none');
           scenarioSelect?.style && (scenarioSelect.style.display = 'block');
         }
         
@@ -366,8 +388,6 @@
       switch (screen) {
         case 'age':
           personA.currentAge = getValue('input-current-age', 0);
-          break;
-        case 'retirement-age':
           personA.retirementAge = getValue('input-retirement-age', 0);
           break;
         case 'income-target':
@@ -377,6 +397,8 @@
           personA.dcPot = getValue('input-pension-pot', 0);
           personA.dbAnnualIncome = getValue('input-your-db-income', 0);
           personA.dbStartAge = getValue('input-your-db-start', 65);
+          personA.pclsTaken = document.getElementById('input-pcls-taken')?.checked || false;
+          personA.pclsAmount = getValue('input-pcls-amount', 0);
           break;
         case 'contributions': {
           const v = getValue('input-pension-contribution', 0);
@@ -406,8 +428,6 @@
         switch (screen) {
           case 'age':
             personB.currentAge = getValue('input-partner-current-age', 0);
-            break;
-          case 'retirement-age':
             personB.retirementAge = getValue('input-partner-retirement-age', 0);
             break;
           case 'pension-pot':
@@ -450,8 +470,6 @@
       switch (screenId) {
         case 'age':
           setInput('input-current-age', personA.currentAge);
-          break;
-        case 'retirement-age':
           setInput('input-retirement-age', personA.retirementAge);
           break;
         case 'income-target':
@@ -461,6 +479,14 @@
           setInput('input-pension-pot', personA.dcPot);
           setInput('input-your-db-income', personA.dbAnnualIncome);
           setInput('input-your-db-start', personA.dbStartAge);
+          // Restore PCLS state
+          const pclsCheckbox = document.getElementById('input-pcls-taken');
+          if (pclsCheckbox && personA.pclsTaken) {
+            pclsCheckbox.checked = true;
+            const pclsSection = document.getElementById('pcls-amount-section');
+            if (pclsSection) pclsSection.style.display = 'block';
+          }
+          setInput('input-pcls-amount', personA.pclsAmount);
           break;
         case 'contributions':
           setInput('input-pension-contribution', personA.dcMonthlyContrib);
@@ -481,8 +507,6 @@
         switch (screenId) {
           case 'age':
             setInput('input-partner-current-age', personB.currentAge);
-            break;
-          case 'retirement-age':
             setInput('input-partner-retirement-age', personB.retirementAge);
             break;
           case 'pension-pot':
@@ -1331,8 +1355,8 @@
         // PCLS Strategy
         pclsStrategy: getSelectedValue('pcls-strategy', 'all_at_retirement'),
         pclsReinvest: getChecked('pcls-reinvest'),
-        pclsAlreadyTaken: getChecked('pcls-already-taken'),
-        pclsAmountTaken: getValue('pcls-amount-taken', 0),
+        pclsAlreadyTaken: getChecked('input-pcls-taken') || getChecked('pcls-already-taken'),
+        pclsAmountTaken: getValue('input-pcls-amount', 0) || getValue('pcls-amount-taken', 0),
 
         // Tax jurisdiction
         taxJurisdiction: getSelectedValue('tax-jurisdiction', 'england')
@@ -2917,6 +2941,12 @@
         if (inputs) inputs.style.display = e.target.checked ? 'block' : 'none';
       });
       
+      // PCLS toggle on pension pot screen
+      document.getElementById('input-pcls-taken')?.addEventListener('change', (e) => {
+        const section = document.getElementById('pcls-amount-section');
+        if (section) section.style.display = e.target.checked ? 'block' : 'none';
+      });
+      // Legacy PCLS toggle (review screen, if still present)
       document.getElementById('pcls-already-taken')?.addEventListener('change', (e) => {
         const inputs = document.getElementById('pcls-amount-taken-input');
         if (inputs) inputs.style.display = e.target.checked ? 'block' : 'none';

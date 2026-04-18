@@ -358,19 +358,23 @@
          ═══════════════════════════════════════════════════════════════ -->
     <div id="screen-age" class="screen" aria-hidden="true">
       <div class="screen-header">
-        <h2 class="screen-title">How old are you?</h2>
-        <p class="screen-subtitle">Your current age</p>
+        <h2 class="screen-title">Your age and retirement</h2>
+        <p class="screen-subtitle">When do you want to stop working?</p>
       </div>
 
       <div class="screen-content">
         <div class="input-group">
+          <label style="font-weight: 500;">Your current age</label>
           <div class="input-wrapper">
-            <input type="number" id="input-current-age" min="18" max="100" placeholder="45" inputmode="numeric" aria-label="Current age" />
+            <input type="number" id="input-current-age" min="18" max="100" placeholder="56" inputmode="numeric" aria-label="Current age" />
           </div>
-          <p class="help-text">Enter your age in years</p>
         </div>
-        <div class="context-hint" style="margin-top: 1.5rem; padding: 0.875rem 1rem; background: var(--color-primary-subtle); border-radius: var(--radius-md); font-size: 0.8125rem; color: var(--color-text-secondary); line-height: 1.5;">
-          This determines how long your savings have to grow. For couples, enter your partner's age on the same screen — their pensions may start at a different time to yours.
+        <div class="input-group" style="margin-top: 1rem;">
+          <label style="font-weight: 500;">Target retirement age</label>
+          <div class="input-wrapper">
+            <input type="number" id="input-retirement-age" min="50" max="100" placeholder="60" inputmode="numeric" aria-label="Retirement age" />
+          </div>
+          <p class="help-text">UK State Pension starts at 67. Each extra year of work adds 8-12% to your retirement income.</p>
         </div>
       </div>
       
@@ -493,14 +497,33 @@
             </div>
           </div>
         </div>
+
+        <!-- PCLS question -- in plain English on the pension screen where it belongs -->
+        <div style="margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px solid var(--color-border, #e2e8f0);">
+          <div style="display: flex; align-items: flex-start; gap: 0.5rem;">
+            <input type="checkbox" id="input-pcls-taken" style="margin-top: 3px;">
+            <div>
+              <label for="input-pcls-taken" style="font-weight: 600; cursor: pointer;">I have already taken my 25% tax-free cash</label>
+              <p class="help-text" style="margin-top: 2px;">If you have crystallised your pension and received a lump sum</p>
+            </div>
+          </div>
+          <div id="pcls-amount-section" style="display: none; margin-top: 0.75rem; margin-left: 1.5rem;">
+            <label style="font-size: 0.875rem; font-weight: 500;">How much did you receive?</label>
+            <div class="input-wrapper" style="margin-top: 0.25rem;">
+              <span class="currency-symbol">£</span>
+              <input type="number" id="input-pcls-amount" min="0" step="1000" placeholder="e.g. 167000" inputmode="numeric" />
+            </div>
+            <p class="help-text">We will calculate any remaining tax-free cash entitlement from new contributions.</p>
+          </div>
+        </div>
       </div>
-      
+
       <div class="nav-buttons">
         <button type="button" class="btn btn-secondary" data-action="back">Back</button>
         <button type="button" class="btn btn-primary" data-action="next">Next</button>
       </div>
     </div>
-    
+
     <!-- ═══════════════════════════════════════════════════════════════
          Screen: Contributions
          ═══════════════════════════════════════════════════════════════ -->
@@ -635,21 +658,7 @@
             <p class="help-text">Select planning assumptions - affects growth rates, volatility, and inflation</p>
           </div>
 
-          <!-- PCLS — visible by default, not hidden in accordion -->
-          <div style="margin-top: 1rem; padding: 1rem; background: var(--color-surface); border-radius: var(--radius-md); border: 1px solid var(--color-border-light);">
-            <div style="display: flex; align-items: flex-start; gap: 0.5rem; margin-bottom: 0.5rem;">
-              <input type="checkbox" id="pcls-already-taken" style="margin-top: 3px;">
-              <div>
-                <label for="pcls-already-taken" style="font-weight: 600; cursor: pointer;">I've already taken my tax-free cash (PCLS)</label>
-                <p class="help-text" style="margin-top: 2px;">Your pension pot entered is the post-PCLS drawdown value</p>
-              </div>
-            </div>
-            <div id="pcls-amount-taken-input" style="display: none; margin-left: 1.5rem; margin-top: 0.5rem;">
-              <label style="font-size: 0.875rem; font-weight: 500;">PCLS amount received (£)</label>
-              <input type="number" id="pcls-amount-taken" placeholder="167000" min="0" step="1000" style="width: 100%; padding: 0.625rem; border: 2px solid var(--color-border); border-radius: var(--radius-md); margin-top: 0.25rem;" inputmode="numeric">
-              <p class="help-text">We'll calculate remaining PCLS capacity from new contributions.</p>
-            </div>
-          </div>
+          <!-- PCLS moved to pension pot screen -->
 
           <!-- Advanced Options with Accordion (shown only in Full mode) -->
           <div id="advanced-options-container" class="advanced-accordion" style="margin-top: 1.5rem;">

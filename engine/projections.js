@@ -6,7 +6,7 @@
  */
 
 import { calculateOptimalWithdrawal, calculatePCLS, calculatePCLSStrategy } from './withdrawals.js';
-import { calculateTaxFromGross } from './tax.js';
+import { calculateTaxFromGross, calculateGrossFromNet } from './tax.js';
 import { createAssumptions, PENSION_CONFIG, TAX_CONFIG } from '../config/defaults.js';
 import { calculateSpendingAtAge, createSpendingRules } from './spendingPolicy.js';
 
@@ -402,22 +402,38 @@ export function projectDecumulation(plan, accumulationResult, endAge = 90) {
       }
     }
 
-    // For couples: use doubled personal allowance (each person gets £12,570)
-    // and doubled basic rate band (each person gets £37,700)
-    const effectiveTaxConfig = (partnerCurrentAge > 0) ? {
-      ...taxConfig,
-      personalAllowance: taxConfig.personalAllowance * 2,
-      bands: taxConfig.bands.map(b => ({
-        ...b,
-        threshold: b.threshold === Infinity ? Infinity : b.threshold * 2
-      }))
-    } : taxConfig;
+    // Per-person tax for couples: Person B's income is taxed separately
+    // Person A draws from combined pot to cover the household shortfall
+    let withdrawalResult;
+    if (partnerCurrentAge > 0) {
+      // Person B's own income (taxed independently)
+      const personBIncome = partnerStatePension + partnerDbPension;
+      const personBTax = calculateTaxFromGross(personBIncome, taxConfig);
+      const personBNet = personBTax.netIncome;
 
-    const withdrawalResult = calculateOptimalWithdrawal(
-      ageAdjustedSpending,
-      { pension: pensionBalance, isa: isaAvailableThisYear },
-      { statePensionIncome: totalGuaranteedIncome, taxConfig: effectiveTaxConfig }
-    );
+      // Person A's guaranteed income (their own SP + their own DB)
+      const personAGuaranteed = statePension + dbPension;
+
+      // Household needs from Person A = target - what Person B already covers
+      const personATargetNet = Math.max(0, ageAdjustedSpending - personBNet);
+
+      // Person A withdraws from pension using their own PA and bands
+      withdrawalResult = calculateOptimalWithdrawal(
+        personATargetNet,
+        { pension: pensionBalance, isa: isaAvailableThisYear },
+        { statePensionIncome: personAGuaranteed, taxConfig }
+      );
+
+      // Report combined household tax and net income
+      withdrawalResult.taxPaid = (withdrawalResult.taxPaid || 0) + personBTax.total;
+      withdrawalResult.netIncome = (withdrawalResult.netIncome || 0) + personBNet;
+    } else {
+      withdrawalResult = calculateOptimalWithdrawal(
+        ageAdjustedSpending,
+        { pension: pensionBalance, isa: isaAvailableThisYear },
+        { statePensionIncome: totalGuaranteedIncome, taxConfig }
+      );
+    }
 
     // Update balances after withdrawal — deduct actual ISA used from real balance
     pensionBalance = withdrawalResult.newBalances.pension;

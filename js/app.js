@@ -1997,6 +1997,91 @@
     }
     
     // ═══════════════════════════════════════════════════════════════
+    // Year-by-Year Data Table
+    // ═══════════════════════════════════════════════════════════════
+
+    function renderDataTable(projection, data) {
+      const el = document.getElementById('data-table-container');
+      if (!el) return;
+
+      const partnerAgeDiff = (data.partnerCurrentAge || 0) > 0 ? data.partnerCurrentAge - data.currentAge : 0;
+
+      let html = '<table style="width: 100%; border-collapse: collapse; font-size: 0.75rem; min-width: 700px;">';
+      html += '<thead><tr style="background: var(--color-background, #f8fafc); border-bottom: 2px solid #e5e7eb; position: sticky; top: 0;">';
+      html += '<th style="padding: 0.4rem; text-align: center; white-space: nowrap;">Your Age</th>';
+      if (partnerAgeDiff) html += '<th style="padding: 0.4rem; text-align: center; white-space: nowrap;">Partner Age</th>';
+      html += '<th style="padding: 0.4rem; text-align: right;">Pension</th>';
+      html += '<th style="padding: 0.4rem; text-align: right;">ISA</th>';
+      html += '<th style="padding: 0.4rem; text-align: right;">Total</th>';
+      html += '<th style="padding: 0.4rem; text-align: right;">Contribs</th>';
+      html += '<th style="padding: 0.4rem; text-align: right;">Growth</th>';
+      html += '<th style="padding: 0.4rem; text-align: right;">Withdrawal</th>';
+      html += '<th style="padding: 0.4rem; text-align: right;">SP+DB</th>';
+      html += '<th style="padding: 0.4rem; text-align: right;">Tax</th>';
+      html += '<th style="padding: 0.4rem; text-align: right;">Net Income</th>';
+      html += '</tr></thead><tbody>';
+
+      // Accumulation years
+      for (const y of projection.accumulation.years) {
+        const age = y.age;
+        const partnerAge = partnerAgeDiff ? age + partnerAgeDiff : '';
+        const growth = (y.growth?.pension || 0) + (y.growth?.isa || 0);
+        const contribs = (y.contributions?.pension || 0) + (y.contributions?.isa || 0);
+        html += '<tr style="border-bottom: 1px solid #f1f5f9;">';
+        html += '<td style="padding: 0.4rem; text-align: center; font-weight: 500;">' + age + '</td>';
+        if (partnerAgeDiff) html += '<td style="padding: 0.4rem; text-align: center;">' + partnerAge + '</td>';
+        html += '<td style="padding: 0.4rem; text-align: right;">' + formatCurrency(y.endBalances.pension) + '</td>';
+        html += '<td style="padding: 0.4rem; text-align: right;">' + formatCurrency(y.endBalances.isa) + '</td>';
+        html += '<td style="padding: 0.4rem; text-align: right; font-weight: 600;">' + formatCurrency(y.endBalances.total) + '</td>';
+        html += '<td style="padding: 0.4rem; text-align: right; color: #059669;">' + formatCurrency(contribs) + '</td>';
+        html += '<td style="padding: 0.4rem; text-align: right; color: #059669;">' + formatCurrency(growth) + '</td>';
+        html += '<td style="padding: 0.4rem; text-align: right;">—</td>';
+        html += '<td style="padding: 0.4rem; text-align: right;">—</td>';
+        html += '<td style="padding: 0.4rem; text-align: right;">—</td>';
+        html += '<td style="padding: 0.4rem; text-align: right;">—</td>';
+        html += '</tr>';
+      }
+
+      // Retirement transition row
+      html += '<tr style="border-top: 3px solid var(--color-primary, #4f46e5); border-bottom: 3px solid var(--color-primary, #4f46e5); background: var(--color-primary-subtle, #eef2ff);">';
+      html += '<td colspan="' + (partnerAgeDiff ? 11 : 10) + '" style="padding: 0.5rem; text-align: center; font-weight: 700; color: var(--color-primary, #4f46e5);">RETIREMENT (Age ' + data.retirementAge + ') — PCLS: ' + formatCurrency(projection.decumulation.pclsTaken) + '</td>';
+      html += '</tr>';
+
+      // Decumulation years
+      for (const y of projection.decumulation.years) {
+        if (!y.endBalances) continue;
+        const age = y.age;
+        const partnerAge = partnerAgeDiff ? age + partnerAgeDiff : '';
+        const growth = (y.growth?.pension || 0) + (y.growth?.isa || 0);
+        const totalEnd = (y.endBalances?.pension || 0) + (y.endBalances?.isa || 0);
+        const spDb = (y.statePension || 0) + (y.dbPension || 0);
+        const withdrawal = (y.withdrawals?.pension || 0) + (y.withdrawals?.isa || 0);
+        const isReduced = (y.targetSpending || 60000) < 60000;
+
+        html += '<tr style="border-bottom: 1px solid #f1f5f9;' + (isReduced ? ' background: #fffbeb;' : '') + '">';
+        html += '<td style="padding: 0.4rem; text-align: center; font-weight: 500;">' + age + '</td>';
+        if (partnerAgeDiff) html += '<td style="padding: 0.4rem; text-align: center;">' + partnerAge + '</td>';
+        html += '<td style="padding: 0.4rem; text-align: right;">' + formatCurrency(y.endBalances.pension) + '</td>';
+        html += '<td style="padding: 0.4rem; text-align: right;">' + formatCurrency(y.endBalances.isa) + '</td>';
+        html += '<td style="padding: 0.4rem; text-align: right; font-weight: 600;">' + formatCurrency(totalEnd) + '</td>';
+        html += '<td style="padding: 0.4rem; text-align: right;">—</td>';
+        html += '<td style="padding: 0.4rem; text-align: right; color: #059669;">' + formatCurrency(growth) + '</td>';
+        html += '<td style="padding: 0.4rem; text-align: right; color: #dc2626;">-' + formatCurrency(withdrawal) + '</td>';
+        html += '<td style="padding: 0.4rem; text-align: right; color: #059669;">' + formatCurrency(spDb) + '</td>';
+        html += '<td style="padding: 0.4rem; text-align: right; color: #dc2626;">-' + formatCurrency(y.taxPaid || 0) + '</td>';
+        html += '<td style="padding: 0.4rem; text-align: right; font-weight: 600; color: ' + (isReduced ? '#d97706' : '#111827') + ';">' + formatCurrency(y.netIncome || 0) + '</td>';
+        html += '</tr>';
+      }
+
+      html += '</tbody></table>';
+
+      // Add scroll hint for mobile
+      html += '<p style="text-align: center; font-size: 0.7rem; color: var(--color-text-light); margin-top: 0.5rem;">Scroll horizontally to see all columns</p>';
+
+      el.innerHTML = html;
+    }
+
+    // ═══════════════════════════════════════════════════════════════
     // Comparison
     // ═══════════════════════════════════════════════════════════════
     
@@ -3069,6 +3154,7 @@
             renderTaxChart(basicProjection);
             renderGuaranteedIncomeChart(basicProjection, data);
             renderIncomeSourcesBreakdown(basicProjection, data);
+            renderDataTable(basicProjection, data);
           } catch (e) {
             console.warn('Chart rendering failed:', e);
           }

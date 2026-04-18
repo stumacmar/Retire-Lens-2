@@ -785,14 +785,20 @@
       
       <!-- Monte Carlo Visualization Section -->
       <div class="result-card" id="monte-carlo-section" style="display: none;">
-        <h3>📊 Monte Carlo Simulation</h3>
+        <h3>Monte Carlo Simulation</h3>
         <div id="confidence-explainer-container"></div>
-        <div id="fan-chart-container">
+        <div id="fan-chart-container" style="position: relative; height: 300px;">
           <canvas id="fan-chart"></canvas>
         </div>
-        <div id="depletion-histogram-container">
+        <div id="depletion-histogram-container" style="position: relative; height: 200px; margin-top: 1.5rem;">
           <canvas id="depletion-histogram"></canvas>
         </div>
+      </div>
+
+      <!-- Year-by-Year Data Table -->
+      <div class="result-card" id="data-table-section">
+        <h3>Year-by-Year Projection</h3>
+        <div id="data-table-container" style="overflow-x: auto; -webkit-overflow-scrolling: touch;"></div>
       </div>
       
       <!-- Monte Carlo kept but other sections removed to eliminate inconsistencies.

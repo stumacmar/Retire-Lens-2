@@ -139,11 +139,12 @@
 
       // Same wizard screens for BOTH singles and couples
       // For couples, each screen shows doubled-up inputs (you + partner)
-      // age screen now includes retirement age (combined)
-      screens.push('age', 'income-target', 'pension-pot', 'contributions');
+      // Consolidated: age+retirement, income, pension+contributions, isa+state-pension
+      screens.push('age', 'income-target', 'pension-pot');
 
+      // ISA and state pension on one screen
       if (isFeatureEnabled('GUIDED_MODE') || state.mode === 'guided' || state.mode === 'full') {
-        screens.push('isa-savings', 'state-pension');
+        screens.push('isa-savings');
       }
 
       screens.push('review', 'results');
@@ -393,25 +394,20 @@
         case 'income-target':
           state.onboardingState.targetNetIncome = getValue('input-target-income', 0);
           break;
-        case 'pension-pot':
+        case 'pension-pot': {
           personA.dcPot = getValue('input-pension-pot', 0);
           personA.dbAnnualIncome = getValue('input-your-db-income', 0);
           personA.dbStartAge = getValue('input-your-db-start', 65);
+          const contribVal = getValue('input-pension-contribution', 0);
+          personA.dcMonthlyContrib = contribVal;
+          personA.dcAnnualContrib = contribVal * 12;
           personA.pclsTaken = document.getElementById('input-pcls-taken')?.checked || false;
           personA.pclsAmount = getValue('input-pcls-amount', 0);
-          break;
-        case 'contributions': {
-          const v = getValue('input-pension-contribution', 0);
-          personA.dcMonthlyContrib = v;
-          personA.dcAnnualContrib = v * 12;
           break;
         }
         case 'isa-savings': {
           personA.isaBalance = getValue('input-isa-balance', 0);
           personA.isaAnnualContrib = getValue('input-isa-contribution', 0);
-          break;
-        }
-        case 'state-pension': {
           personA.statePensionAge = getValue('input-state-pension-age', 67);
           personA.statePensionAmount = getValue('input-state-pension-amount', 11973);
           personA.expectedStatePension = personA.statePensionAmount;
@@ -479,6 +475,7 @@
           setInput('input-pension-pot', personA.dcPot);
           setInput('input-your-db-income', personA.dbAnnualIncome);
           setInput('input-your-db-start', personA.dbStartAge);
+          setInput('input-pension-contribution', personA.dcMonthlyContrib);
           // Restore PCLS state
           const pclsCheckbox = document.getElementById('input-pcls-taken');
           if (pclsCheckbox && personA.pclsTaken) {
@@ -494,8 +491,6 @@
         case 'isa-savings':
           setInput('input-isa-balance', personA.isaBalance);
           setInput('input-isa-contribution', personA.isaAnnualContrib);
-          break;
-        case 'state-pension':
           setInput('input-state-pension-age', personA.statePensionAge);
           setInput('input-state-pension-amount', personA.statePensionAmount || personA.expectedStatePension);
           break;
@@ -1670,6 +1665,23 @@
       if (mcStats) {
         if (mcStats.depletionAge?.earliest) {
           events.push({ age: '!', desc: `<span style="color: var(--color-warning, #d97706);">In the worst 10% of market scenarios, funds could run out by age ${mcStats.depletionAge.earliest}.</span>` });
+        }
+      }
+
+      // Survivor scenario for couples
+      if (isCouple) {
+        const ageDiff = (data.partnerCurrentAge || 0) - plan.currentAge;
+        // What does partner have if you die at 75?
+        const deathAge = 75;
+        const yearAtDeath = projection.decumulation.years.find(y => y.age === deathAge);
+        if (yearAtDeath) {
+          const survivorPension = (yearAtDeath.endBalances?.pension || 0) + (yearAtDeath.endBalances?.isa || 0);
+          const partnerOwnSP = partnerSP > 0 ? partnerSP : 0;
+          const partnerOwnDB = partnerDB > 0 ? partnerDB : 0;
+          const survivorGuaranteed = partnerOwnSP + partnerOwnDB;
+          events.push({ age: '?',
+            desc: `<span style="color: var(--color-text-secondary);">If you were to die at ${deathAge}: partner inherits pension pot (${formatCurrency(survivorPension)}) via beneficiary drawdown, plus their own SP (${formatCurrency(partnerOwnSP)}) and DB (${formatCurrency(partnerOwnDB)}). ISA passes to spouse tax-free.</span>`
+          });
         }
       }
 
@@ -3407,6 +3419,28 @@
         nextScreen();
       });
       
+      // What-if retirement age buttons
+      function runWhatIf(ageOffset) {
+        if (!state.formData || !state.planA) return;
+        const data = state.formData;
+        const newAge = (data.retirementAge || 60) + ageOffset;
+        if (newAge < 50 || newAge > 75) return;
+        try {
+          const scenarioPreset = SCENARIO_PRESETS[data.scenario] || SCENARIO_PRESETS.moderate;
+          const altPlan = createPlan({ ...data, retirementAge: newAge,
+            assumptions: { projection: { defaultGrowthRate: scenarioPreset.growthRate || 0.04, defaultFeeRate: scenarioPreset.feeRate || 0.005 } } });
+          const altResult = runProjection(altPlan, { endAge: 90 });
+          const delta = altResult.summary.finalBalance - state.projectionA.summary.finalBalance;
+          const resultEl = document.getElementById('what-if-result');
+          if (resultEl) {
+            resultEl.style.display = 'block';
+            resultEl.innerHTML = `Retiring at <strong>${newAge}</strong> instead of ${data.retirementAge}: final balance ${delta >= 0 ? '+' : ''}${formatCurrency(delta)} (${formatCurrency(altResult.summary.finalBalance)} total)`;
+          }
+        } catch (e) { console.warn('What-if failed:', e); }
+      }
+      document.getElementById('whatif-earlier')?.addEventListener('click', () => runWhatIf(-1));
+      document.getElementById('whatif-later')?.addEventListener('click', () => runWhatIf(1));
+
       // Compare button
       document.getElementById('compare-btn')?.addEventListener('click', () => {
         try {

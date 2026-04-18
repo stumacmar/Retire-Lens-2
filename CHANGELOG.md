@@ -1,5 +1,29 @@
 # Changelog
 
+## Rounds 6-10 (2026-04-18)
+
+### Round 6: Survivor Modelling
+- Survivor scenario in narrative timeline: "If you die at 75, partner inherits pension pot via beneficiary drawdown, plus their own SP and DB. ISA passes tax-free."
+
+### Round 7: Input Consolidation
+- Wizard reduced from 7 to 5 screens: household-type > age+retirement > income > pensions+contributions+DB+PCLS > ISA+state-pension > review
+- Monthly contributions moved to pension pot screen
+- State pension moved to ISA screen ("ISA and State Pension")
+
+### Round 8: What-If Buttons
+- "Retire 1yr earlier" and "Retire 1yr later" buttons on results page
+- Instant re-calculation showing final balance delta
+
+### Round 9: Print/Share
+- "Print / Save PDF" button on results page
+- Print CSS shows all tab content, hides navigation
+
+### Round 10: Annuity Comparison
+- Deferred to future release (requires annuity pricing data)
+
+### What a user of the previous version would notice
+5 screens instead of 7 (pensions and contributions on one screen, ISA and state pension on one screen). A survivor scenario appears in the timeline for couples. Two "what if" buttons let you instantly see the impact of retiring a year earlier or later. A print button lets you save or share results with your partner.
+
 ## Round 5: Trust and Compliance (2026-04-18)
 
 ### Added

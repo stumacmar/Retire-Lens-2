@@ -1470,3 +1470,14 @@
         max-height: calc(100vh - 250px);
       }
     }
+
+    /* Print styles */
+    @media print {
+      .progress-container, .nav-buttons, .results-tabs, #what-if-section, #what-if-result,
+      footer, #loading-overlay, .btn { display: none !important; }
+      .results-tab-content { display: block !important; }
+      .screen { display: block !important; overflow: visible !important; }
+      .screen:not(.active) { display: none !important; }
+      .result-card { break-inside: avoid; }
+      body { font-size: 12px; }
+    }

@@ -498,6 +498,16 @@
           </div>
         </div>
 
+        <!-- Monthly contributions (moved from separate screen) -->
+        <div class="input-group" style="margin-top: 1rem;">
+          <label style="font-weight: 500;">Monthly pension contribution</label>
+          <div class="input-wrapper">
+            <span class="currency-symbol">£</span>
+            <input type="number" id="input-pension-contribution" min="0" step="50" placeholder="500" inputmode="numeric" />
+          </div>
+          <p class="help-text">Total monthly contribution including employer match</p>
+        </div>
+
         <!-- PCLS question -- in plain English on the pension screen where it belongs -->
         <div style="margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px solid var(--color-border, #e2e8f0);">
           <div style="display: flex; align-items: flex-start; gap: 0.5rem;">
@@ -557,11 +567,12 @@
          ═══════════════════════════════════════════════════════════════ -->
     <div id="screen-isa-savings" class="screen" aria-hidden="true">
       <div class="screen-header">
-        <h2 class="screen-title">Any ISA savings?</h2>
-        <p class="screen-subtitle">Tax-free ISA investments</p>
+        <h2 class="screen-title">ISA and State Pension</h2>
+        <p class="screen-subtitle">Other savings and guaranteed income</p>
       </div>
-      
+
       <div class="screen-content">
+        <div style="font-weight: 600; margin-bottom: 0.5rem; font-size: 0.9rem;">ISA Savings</div>
         <div class="input-group">
           <label>Current ISA balance</label>
           <div class="input-wrapper">
@@ -569,17 +580,31 @@
             <input type="number" id="input-isa-balance" min="0" step="1000" placeholder="0" inputmode="numeric" />
           </div>
         </div>
-        
+
         <div class="input-group">
           <label>Annual ISA contribution</label>
           <div class="input-wrapper">
             <span class="currency-symbol">£</span>
             <input type="number" id="input-isa-contribution" min="0" step="500" placeholder="0" inputmode="numeric" />
           </div>
-          <p class="help-text">How much you add to ISA each year</p>
+          <p class="help-text">ISA withdrawals are tax-free and pass to your spouse without IHT</p>
         </div>
-        <div class="context-hint" style="margin-top: 1.5rem; padding: 0.875rem 1rem; background: var(--color-primary-subtle); border-radius: var(--radius-md); font-size: 0.8125rem; color: var(--color-text-secondary); line-height: 1.5;">
-          ISA withdrawals are completely tax-free. Your ISA acts as a safety net and inheritance vehicle — it passes to your spouse without inheritance tax.
+
+        <div style="font-weight: 600; margin-top: 1.5rem; margin-bottom: 0.5rem; font-size: 0.9rem; padding-top: 1rem; border-top: 1px solid var(--color-border, #e2e8f0);">State Pension</div>
+        <div class="input-group">
+          <label>Your State Pension age</label>
+          <div class="input-wrapper">
+            <input type="number" id="input-state-pension-age" min="60" max="75" value="67" inputmode="numeric" />
+          </div>
+        </div>
+
+        <div class="input-group">
+          <label>Expected annual State Pension</label>
+          <div class="input-wrapper">
+            <span class="currency-symbol">£</span>
+            <input type="number" id="input-state-pension-amount" min="0" step="100" value="11973" inputmode="numeric" />
+          </div>
+          <p class="help-text">Full new State Pension is ~11,973/year (2025/26). Check yours at gov.uk/check-state-pension</p>
         </div>
       </div>
 
@@ -780,6 +805,13 @@
       <div id="narrative-summary" class="result-card" style="margin-bottom: 1rem;"></div>
 
       <!-- Result Tabs -->
+      <!-- What-if buttons -->
+      <div id="what-if-section" style="display: flex; gap: 0.5rem; margin-bottom: 1rem; justify-content: center;">
+        <button id="whatif-earlier" style="padding: 0.5rem 1rem; border: 1px solid var(--color-border); border-radius: var(--radius-md, 0.5rem); background: var(--color-surface); cursor: pointer; font-size: 0.8rem;">Retire 1yr earlier</button>
+        <button id="whatif-later" style="padding: 0.5rem 1rem; border: 1px solid var(--color-border); border-radius: var(--radius-md, 0.5rem); background: var(--color-surface); cursor: pointer; font-size: 0.8rem;">Retire 1yr later</button>
+      </div>
+      <div id="what-if-result" style="display: none; text-align: center; font-size: 0.8rem; margin-bottom: 1rem; padding: 0.5rem; background: var(--color-primary-subtle, #eef2ff); border-radius: var(--radius-md, 0.5rem);"></div>
+
       <div class="results-tabs" style="display: flex; border-bottom: 2px solid var(--color-border, #e2e8f0); margin-bottom: 1rem;">
         <button class="results-tab active" data-results-tab="income" style="flex: 1; padding: 0.75rem; border: none; background: none; font-weight: 600; font-size: 0.8125rem; color: var(--color-primary, #4f46e5); border-bottom: 3px solid var(--color-primary, #4f46e5); cursor: pointer;">Income</button>
         <button class="results-tab" data-results-tab="wealth" style="flex: 1; padding: 0.75rem; border: none; background: none; font-weight: 500; font-size: 0.8125rem; color: var(--color-text-light, #6b7280); border-bottom: 3px solid transparent; cursor: pointer;">Wealth</button>
@@ -865,6 +897,7 @@
 
       <div class="nav-buttons" style="margin-top: 0.75rem;">
         <button type="button" class="btn btn-secondary" data-action="back">Edit Inputs</button>
+        <button type="button" class="btn btn-primary" onclick="window.print()" style="font-size: 0.8rem;">Print / Save PDF</button>
         <button type="button" class="btn btn-secondary" onclick="if(confirm('Clear all data and start fresh?')){localStorage.clear();indexedDB.deleteDatabase('RetireLensDB');location.reload();}">Start Over</button>
       </div>
 

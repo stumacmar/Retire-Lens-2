@@ -2100,7 +2100,7 @@
 
       let html = '<table style="width: 100%; border-collapse: collapse; font-size: 0.75rem; min-width: 700px;">';
       html += '<thead><tr style="background: var(--color-background, #f8fafc); border-bottom: 2px solid #e5e7eb; position: sticky; top: 0;">';
-      html += '<th style="padding: 0.4rem; text-align: center; white-space: nowrap;">Your Age</th>';
+      html += '<th style="padding: 0.4rem; text-align: center; white-space: nowrap; position: sticky; left: 0; background: var(--color-background, #f8fafc); z-index: 1;">Age</th>';
       if (partnerAgeDiff) html += '<th style="padding: 0.4rem; text-align: center; white-space: nowrap;">Partner Age</th>';
       html += '<th style="padding: 0.4rem; text-align: right;">Pension</th>';
       html += '<th style="padding: 0.4rem; text-align: right;">ISA</th>';
@@ -2112,6 +2112,20 @@
       html += '<th style="padding: 0.4rem; text-align: right;">Tax</th>';
       html += '<th style="padding: 0.4rem; text-align: right;">Net Income</th>';
       html += '</tr></thead><tbody>';
+
+      // Starting position row
+      const startAge = data.currentAge;
+      const startPartnerAge = partnerAgeDiff ? startAge + partnerAgeDiff : '';
+      const startPension = data.currentPension || 0;
+      const startIsa = data.currentIsa || 0;
+      html += '<tr style="border-bottom: 2px solid var(--color-primary, #4f46e5); background: var(--color-primary-subtle, #eef2ff);">';
+      html += '<td style="padding: 0.4rem; text-align: center; font-weight: 700;">' + startAge + '</td>';
+      if (partnerAgeDiff) html += '<td style="padding: 0.4rem; text-align: center; font-weight: 700;">' + startPartnerAge + '</td>';
+      html += '<td style="padding: 0.4rem; text-align: right; font-weight: 700;">' + formatCurrency(startPension) + '</td>';
+      html += '<td style="padding: 0.4rem; text-align: right; font-weight: 700;">' + formatCurrency(startIsa) + '</td>';
+      html += '<td style="padding: 0.4rem; text-align: right; font-weight: 700;">' + formatCurrency(startPension + startIsa) + '</td>';
+      html += '<td colspan="6" style="padding: 0.4rem; text-align: center; font-size: 0.7rem; color: var(--color-text-light);">Starting position</td>';
+      html += '</tr>';
 
       // Accumulation years
       for (const y of projection.accumulation.years) {

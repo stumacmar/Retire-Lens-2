@@ -1357,6 +1357,11 @@
         taxJurisdiction: getSelectedValue('tax-jurisdiction', 'england')
       };
 
+      // Salary sacrifice: employer saves 13.8% NI and often passes it on
+      if (getChecked('input-salary-sacrifice')) {
+        result.annualPensionContribution = Math.round(result.annualPensionContribution * 1.138);
+      }
+
       // MPAA enforcement: if user has flexibly accessed pension, cap contributions at 10,000/year
       if (getChecked('input-flexi-accessed') && result.annualPensionContribution > 10000) {
         result.annualPensionContribution = 10000;

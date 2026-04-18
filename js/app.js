@@ -1637,6 +1637,14 @@
         events.push({ age: summary.depletionAge || 85, desc: `<strong style="color: var(--color-danger, #dc2626);">Funds may run out.</strong> Consider increasing contributions or reducing target.` });
       }
 
+      // Add risk context from MC results
+      const mcStats = results?.mcResult?.statistics;
+      if (mcStats) {
+        if (mcStats.depletionAge?.earliest) {
+          events.push({ age: '!', desc: `<span style="color: var(--color-warning, #d97706);">In the worst 10% of market scenarios, funds could run out by age ${mcStats.depletionAge.earliest}.</span>` });
+        }
+      }
+
       let html = '<div style="font-size: 0.875rem; font-weight: 600; margin-bottom: 0.75rem;">Your retirement timeline</div>';
       for (const e of events) {
         html += `<div style="${evStyle}"><span style="${ageStyle}">${e.age}</span><span style="${descStyle}">${e.desc}</span></div>`;
@@ -1644,19 +1652,56 @@
 
       // Consider section
       html += `<div style="margin-top: 1rem; padding: 0.75rem; background: var(--color-primary-subtle, #eef2ff); border-radius: var(--radius-md, 0.5rem); border-left: 3px solid var(--color-primary, #4f46e5);">`;
-      html += `<div style="font-weight: 600; margin-bottom: 0.5rem; font-size: 0.8125rem;">Consider</div>`;
-      html += `<ul style="margin: 0; padding-left: 1.25rem; font-size: 0.8125rem; line-height: 1.6;">`;
-      if (summary.successRate >= 1.0 && summary.finalBalance > plan.targetNetIncome * 5) {
-        html += `<li>Your ISA grows untouched. Consider drawing some after 80 to reduce inheritance tax exposure</li>`;
+      // Calculate best single action by testing levers
+      const actions = [];
+      try {
+        // Lever 1: +500/month contributions
+        const extraContribPlan = createPlan({ ...data, annualPensionContribution: (data.annualPensionContribution || 0) + 6000,
+          assumptions: { projection: { defaultGrowthRate: plan.assumptions?.projection?.defaultGrowthRate || 0.04, defaultFeeRate: plan.assumptions?.projection?.defaultFeeRate || 0.005 } } });
+        const extraContribResult = runProjection(extraContribPlan, { endAge: 90 });
+        const contribDelta = extraContribResult.summary.finalBalance - summary.finalBalance;
+        actions.push({ label: `Add 500/month to contributions`, delta: contribDelta, detail: `adds ${formatCurrency(contribDelta)} to your final balance` });
+
+        // Lever 2: Retire 1 year later
+        if (plan.retirementAge < 70) {
+          const laterPlan = createPlan({ ...data, retirementAge: plan.retirementAge + 1,
+            assumptions: { projection: { defaultGrowthRate: plan.assumptions?.projection?.defaultGrowthRate || 0.04, defaultFeeRate: plan.assumptions?.projection?.defaultFeeRate || 0.005 } } });
+          const laterResult = runProjection(laterPlan, { endAge: 90 });
+          const laterDelta = laterResult.summary.finalBalance - summary.finalBalance;
+          actions.push({ label: `Retire 1 year later (at ${plan.retirementAge + 1})`, delta: laterDelta, detail: `adds ${formatCurrency(laterDelta)} to your final balance` });
+        }
+
+        // Lever 3: Reduce target by 5k
+        const lessPlan = createPlan({ ...data, targetNetIncome: plan.targetNetIncome - 5000,
+          assumptions: { projection: { defaultGrowthRate: plan.assumptions?.projection?.defaultGrowthRate || 0.04, defaultFeeRate: plan.assumptions?.projection?.defaultFeeRate || 0.005 } } });
+        const lessResult = runProjection(lessPlan, { endAge: 90 });
+        const lessDelta = lessResult.summary.finalBalance - summary.finalBalance;
+        actions.push({ label: `Reduce income target by 5,000/year`, delta: lessDelta, detail: `adds ${formatCurrency(lessDelta)} to your final balance` });
+      } catch (e) { /* action calculation failed, show generic advice */ }
+
+      // Sort by impact and show the best
+      actions.sort((a, b) => b.delta - a.delta);
+
+      if (summary.successRate >= 1.0 && summary.finalBalance > plan.targetNetIncome * 3) {
+        // Strong plan
+        html += `<div style="font-weight: 600; margin-bottom: 0.5rem; font-size: 0.8125rem; color: var(--color-success, #059669);">Your plan is strong. No urgent action needed.</div>`;
+        html += `<ul style="margin: 0; padding-left: 1.25rem; font-size: 0.8125rem; line-height: 1.6;">`;
+        if (data.pclsAlreadyTaken && summary.pclsTaken > 0) {
+          html += `<li>You have ${formatCurrency(summary.pclsTaken)} additional tax-free cash available</li>`;
+        }
+        html += `<li>Review annually as markets and circumstances change</li>`;
+        html += `</ul>`;
+      } else if (actions.length > 0) {
+        const best = actions[0];
+        html += `<div style="font-weight: 600; margin-bottom: 0.5rem; font-size: 0.8125rem;">Most impactful action</div>`;
+        html += `<div style="padding: 0.5rem 0.75rem; background: white; border-radius: var(--radius-sm, 4px); margin-bottom: 0.5rem; font-size: 0.8125rem;">`;
+        html += `<strong>${best.label}</strong> -- ${best.detail}`;
+        html += `</div>`;
+        html += `<div style="font-size: 0.75rem; color: var(--color-text-light);">Other options: ${actions.slice(1).map(a => a.label).join(', ')}</div>`;
+      } else {
+        html += `<div style="font-size: 0.8125rem;">Review your plan annually</div>`;
       }
-      if (data.pclsAlreadyTaken && summary.pclsTaken > 0) {
-        html += `<li>You have ${formatCurrency(summary.pclsTaken)} additional tax-free cash from new contributions</li>`;
-      }
-      if (summary.successRate < 1.0) {
-        html += `<li>Increase contributions or reduce target to improve your outcome</li>`;
-      }
-      html += `<li>Review annually. Market conditions and personal circumstances change</li>`;
-      html += `</ul></div>`;
+      html += `</div>`;
 
       el.innerHTML = html;
     }

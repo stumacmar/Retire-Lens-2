@@ -1,5 +1,16 @@
 # Changelog
 
+## Round 4: Decision Support (2026-04-18)
+
+### Added
+- Tail risk in narrative: "In the worst 10% of scenarios, funds run out by age X"
+- Calculated best action: tests 3 levers (+500/month, retire 1yr later, reduce target 5k) and highlights the most impactful
+- "Not financial advice" disclaimer on results page
+- Round 4 competition document
+
+### What a user of the previous version would notice
+The narrative timeline now includes a risk warning from Monte Carlo: when your money could run out in bad markets. The "Consider" section is replaced by a calculated recommendation: the system tests three specific actions and tells you which one adds the most to your final balance. A disclaimer clarifies this is not regulated financial advice.
+
 ## Round 3: Output Model (2026-04-18)
 
 ### Changed

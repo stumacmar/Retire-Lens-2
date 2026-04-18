@@ -65,7 +65,7 @@ export const PROJECTION_DEFAULTS = {
   // Growth rates (real, after inflation)
   defaultGrowthRate: 0.04, // 4% real growth
   conservativeGrowthRate: 0.02,
-  aggressiveGrowthRate: 0.06,
+  aggressiveGrowthRate: 0.07,
   
   // Inflation assumption
   inflationRate: 0.02, // 2% long-term

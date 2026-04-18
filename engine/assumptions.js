@@ -89,16 +89,13 @@ export const SCENARIO_PRESETS = Object.freeze({
   },
   optimistic: {
     name: 'Optimistic',
-    description: 'Higher growth, lower volatility - best case scenario',
-    // Single rate (legacy)
-    growthRate: 0.05,
+    description: 'Higher growth - strong market performance',
+    growthRate: 0.07,
     volatility: 0.12,
-    // Phase-based rates
-    preRetirementReturn: 0.055,
+    preRetirementReturn: 0.07,
     preRetirementVolatility: 0.14,
-    postRetirementReturn: 0.045,
+    postRetirementReturn: 0.06,
     postRetirementVolatility: 0.10,
-    // Other
     inflationRate: 0.02,
     feeRate: 0.004,
     scenario: 'optimistic'

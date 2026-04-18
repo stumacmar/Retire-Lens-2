@@ -2917,10 +2917,19 @@
             household = { person1: { currentAge: data.currentAge, retirementAge: data.retirementAge }, person2: null, isCouple: false };
           }
           
-          // 3. Run basic deterministic projection (existing)
+          // 3. Run basic deterministic projection
+          // Pass scenario-based assumptions to createPlan so growth rate actually changes
+          const scenarioPreset = SCENARIO_PRESETS[data.scenario] || SCENARIO_PRESETS.moderate;
           const plan = createPlan({
             name: 'Plan A',
-            ...data
+            ...data,
+            assumptions: {
+              projection: {
+                defaultGrowthRate: scenarioPreset.growthRate || 0.04,
+                defaultFeeRate: scenarioPreset.feeRate || 0.005,
+                volatility: scenarioPreset.volatility || 0.15
+              }
+            }
           });
           const basicProjection = runProjection(plan, { endAge: 90 });
           
@@ -2996,7 +3005,12 @@
           // 4. Run Monte Carlo simulation if enabled
           if (data.enableMonteCarlo) {
             try {
-              const mcResult = runMonteCarloWithBands(plan, { iterations: 1000, endAge: 90 });
+              const mcResult = runMonteCarloWithBands(plan, {
+                iterations: 1000,
+                endAge: 90,
+                mean: scenarioPreset.growthRate || 0.04,
+                volatility: scenarioPreset.volatility || 0.15
+              });
               results.mcResult = mcResult;
             } catch (e) {
               console.warn('Monte Carlo failed:', e);

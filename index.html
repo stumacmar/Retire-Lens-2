@@ -455,6 +455,25 @@
         <div class="context-hint" style="margin-top: 1.5rem; padding: 0.875rem 1rem; background: var(--color-primary-subtle); border-radius: var(--radius-md); font-size: 0.8125rem; color: var(--color-text-secondary); line-height: 1.5;">
           Check your latest pension statement or log in to your provider's website. Include all DC pots you plan to combine.
         </div>
+
+        <!-- Partner DB — always in HTML, shown/hidden by JS for couples -->
+        <div id="partner-db-section" style="display: none; margin-top: 1.5rem; padding-top: 1.5rem; border-top: 2px solid var(--color-primary-light, #e0e7ff);">
+          <div style="font-weight: 600; color: var(--color-primary, #4f46e5); margin-bottom: 0.75rem; font-size: 0.9rem;">Partner's DB Pension</div>
+          <div class="input-group">
+            <label style="font-weight: 600;">Annual income from DB scheme</label>
+            <div class="input-wrapper">
+              <span class="currency-symbol">£</span>
+              <input type="number" id="input-partner-db-income" min="0" step="500" placeholder="e.g. 4500" inputmode="numeric" />
+            </div>
+            <p class="help-text">Guaranteed annual income from final salary / career average pension. Enter 0 if none.</p>
+          </div>
+          <div class="input-group" style="margin-top: 0.5rem;">
+            <label>DB pension start age</label>
+            <div class="input-wrapper">
+              <input type="number" id="input-partner-db-start" min="50" max="75" value="67" inputmode="numeric" />
+            </div>
+          </div>
+        </div>
       </div>
       
       <div class="nav-buttons">

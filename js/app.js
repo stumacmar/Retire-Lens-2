@@ -202,10 +202,11 @@
         return;
       }
 
+      // pension-pot: DC pot still injected, DB is in permanent HTML
       if (screenId === 'pension-pot') {
         const html = `
           <div class="partner-input-group" style="margin-top: 1.5rem; padding-top: 1.5rem; border-top: 2px solid var(--color-primary-light, #e0e7ff);">
-            <div style="font-weight: 600; color: var(--color-primary, #4f46e5); margin-bottom: 0.75rem; font-size: 0.9rem;">Partner's Pensions</div>
+            <div style="font-weight: 600; color: var(--color-primary, #4f46e5); margin-bottom: 0.75rem; font-size: 0.9rem;">Partner's DC Pension</div>
             <div class="input-group">
               <label>Partner's DC pension pot</label>
               <div class="input-wrapper">
@@ -213,20 +214,6 @@
                 <input type="number" id="input-partner-pension-pot" min="0" step="1000" placeholder="0" inputmode="numeric" />
               </div>
               <p class="help-text">Defined contribution / SIPP / workplace pension</p>
-            </div>
-            <div class="input-group" style="margin-top: 0.75rem;">
-              <label style="font-weight: 600;">Partner's DB pension (annual income)</label>
-              <div class="input-wrapper">
-                <span class="currency-symbol">£</span>
-                <input type="number" id="input-partner-db-amount" min="0" step="500" placeholder="e.g. 4500" inputmode="numeric" />
-              </div>
-              <p class="help-text">Guaranteed annual income from final salary / career average scheme. Enter 0 if none.</p>
-            </div>
-            <div class="input-group" style="margin-top: 0.75rem;">
-              <label>Partner's DB start age</label>
-              <div class="input-wrapper">
-                <input type="number" id="input-partner-db-start-age" min="50" max="75" value="67" inputmode="numeric" />
-              </div>
             </div>
           </div>`;
         content.insertAdjacentHTML('beforeend', html);
@@ -304,6 +291,12 @@
       if (screenId === 'income-target' && (state.onboardingState?.householdType === HOUSEHOLD_TYPES.COUPLE)) {
         const sub = screen.querySelector('.screen-subtitle');
         if (sub) sub.textContent = 'Combined household income after tax';
+      }
+
+      // Show/hide partner DB section on pension-pot screen for couples
+      const partnerDbSection = document.getElementById('partner-db-section');
+      if (partnerDbSection) {
+        partnerDbSection.style.display = (screenId === 'pension-pot' && state.onboardingState?.householdType === HOUSEHOLD_TYPES.COUPLE) ? 'block' : 'none';
       }
 
       // Restore saved input values for this screen (including partner values)
@@ -410,8 +403,9 @@
             break;
           case 'pension-pot':
             personB.dcPot = getValue('input-partner-pension-pot', 0);
-            personB.dbAnnualIncome = getValue('input-partner-db-amount', 0);
-            personB.dbStartAge = getValue('input-partner-db-start-age', 67);
+            // Read DB from permanent HTML element (not dynamically injected)
+            personB.dbAnnualIncome = getValue('input-partner-db-income', 0);
+            personB.dbStartAge = getValue('input-partner-db-start', 67);
             break;
           case 'contributions': {
             const v = getValue('input-partner-pension-contribution', 0);
@@ -482,8 +476,8 @@
             break;
           case 'pension-pot':
             setInput('input-partner-pension-pot', personB.dcPot);
-            setInput('input-partner-db-amount', personB.dbAnnualIncome);
-            setInput('input-partner-db-start-age', personB.dbStartAge);
+            setInput('input-partner-db-income', personB.dbAnnualIncome);
+            setInput('input-partner-db-start', personB.dbStartAge);
             break;
           case 'contributions':
             setInput('input-partner-pension-contribution', personB.dcMonthlyContrib);
@@ -1154,7 +1148,8 @@
     let previewDebounceTimer = null;
     
     function updatePreviewCard() {
-      // Debounce updates
+      // Preview card removed — bail out
+      if (!document.getElementById('preview-retire-age')) return;
       clearTimeout(previewDebounceTimer);
       previewDebounceTimer = setTimeout(() => {
         // Include partner data for couples
@@ -1306,12 +1301,12 @@
         partnerStatePensionAge: isCouplesFlow ? cVal(state.onboardingState?.personB?.statePensionAge, couplesLiveData?.personB?.statePensionAge, 0) : 0,
         partnerExpectedStatePension: isCouplesFlow ? cVal(state.onboardingState?.personB?.expectedStatePension, state.onboardingState?.personB?.statePensionAmount, 0) : 0,
         partnerDBPensionAmount: isCouplesFlow ? (
-          cVal(state.onboardingState?.personB?.dbAnnualIncome, couplesLiveData?.personB?.dbAnnualIncome, 0)
-          || getValue('input-partner-db-amount', 0)
+          cVal(state.onboardingState?.personB?.dbAnnualIncome, null, 0)
+          || getValue('input-partner-db-income', 0)
         ) : 0,
         partnerDBPensionStartAge: isCouplesFlow ? (
-          cVal(state.onboardingState?.personB?.dbStartAge, couplesLiveData?.personB?.dbStartAge, 67)
-          || getValue('input-partner-db-start-age', 67)
+          cVal(state.onboardingState?.personB?.dbStartAge, null, 67)
+          || getValue('input-partner-db-start', 67)
         ) : 67,
 
         // Spending reductions in later life (always enabled)
@@ -3246,12 +3241,8 @@
           // Render basic results first
           renderResults(basicProjection, results);
           
-          // Hide Calculate button and show View Results button
-          document.getElementById('calculate-btn').style.display = 'none';
-          const viewResultsBtn = document.getElementById('view-results-btn');
-          if (viewResultsBtn) {
-            viewResultsBtn.style.display = 'inline-block';
-          }
+          // Auto-navigate to results
+          showScreen('results');
           
           // Render new charts
           try {

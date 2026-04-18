@@ -2157,7 +2157,7 @@
         const startBal = runningTotal;
         const growth = (y.growth?.pension || 0) + (y.growth?.isa || 0);
         const withdrawal = (y.withdrawals?.pension || 0) + (y.withdrawals?.isa || 0);
-        const spDb = (y.statePension || 0);
+        const spDb = (y.statePension || 0) + (y.dbPension || 0);
         const endBal = (y.endBalances.pension || 0) + (y.endBalances.isa || 0);
         runningTotal = endBal;
         const partnerAge = partnerAgeDiff ? y.age + partnerAgeDiff : '';

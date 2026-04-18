@@ -1571,6 +1571,35 @@
       // Render narrative summary
       renderNarrativeSummary(projection, results);
 
+      // Populate input summary
+      const inputsSummaryEl = document.getElementById('inputs-summary');
+      if (inputsSummaryEl) {
+        const d = state.formData || {};
+        let inputsHtml = '<table style="width: 100%; border-collapse: collapse;">';
+        inputsHtml += `<tr><td>Your age</td><td style="text-align: right;">${d.currentAge || plan.currentAge}</td></tr>`;
+        inputsHtml += `<tr><td>Retirement age</td><td style="text-align: right;">${d.retirementAge || plan.retirementAge}</td></tr>`;
+        inputsHtml += `<tr><td>Target income</td><td style="text-align: right;">${formatCurrency(d.targetNetIncome || plan.targetNetIncome)}</td></tr>`;
+        inputsHtml += `<tr><td>Pension pot</td><td style="text-align: right;">${formatCurrency(d.currentPension)}</td></tr>`;
+        inputsHtml += `<tr><td>Monthly contributions</td><td style="text-align: right;">${formatCurrency((d.annualPensionContribution || 0) / 12)}</td></tr>`;
+        inputsHtml += `<tr><td>ISA balance</td><td style="text-align: right;">${formatCurrency(d.currentIsa || 0)}</td></tr>`;
+        inputsHtml += `<tr><td>State Pension age</td><td style="text-align: right;">${d.statePensionAge || 67}</td></tr>`;
+        inputsHtml += `<tr><td>State Pension amount</td><td style="text-align: right;">${formatCurrency(d.expectedStatePension || 11973)}</td></tr>`;
+        if (d.isCouple) {
+          inputsHtml += `<tr><td style="padding-top: 0.5rem; font-weight: 600;" colspan="2">Partner</td></tr>`;
+          inputsHtml += `<tr><td>Partner age</td><td style="text-align: right;">${d.partnerCurrentAge || 0}</td></tr>`;
+          inputsHtml += `<tr><td>Partner SP</td><td style="text-align: right;">${formatCurrency(d.partnerExpectedStatePension || 0)}</td></tr>`;
+          inputsHtml += `<tr><td>Partner DB</td><td style="text-align: right;">${formatCurrency(d.partnerDBPensionAmount || 0)}</td></tr>`;
+        }
+        if (d.hasDBPension) {
+          inputsHtml += `<tr><td>Your DB pension</td><td style="text-align: right;">${formatCurrency(d.dbPensionAmount || 0)}</td></tr>`;
+        }
+        if (d.pclsAlreadyTaken) {
+          inputsHtml += `<tr><td>PCLS already taken</td><td style="text-align: right;">${formatCurrency(d.pclsAmountTaken || 0)}</td></tr>`;
+        }
+        inputsHtml += '</table>';
+        inputsSummaryEl.innerHTML = inputsHtml;
+      }
+
       // Populate assumptions detail
       const assumptionsEl = document.getElementById('assumptions-detail');
       if (assumptionsEl) {
@@ -1729,7 +1758,8 @@
         if (data.pclsAlreadyTaken && summary.pclsTaken > 0) {
           html += `<li>You have ${formatCurrency(summary.pclsTaken)} additional tax-free cash available</li>`;
         }
-        html += `<li>Review annually as markets and circumstances change</li>`;
+        const reviewMonth = new Date().getMonth() >= 3 ? 'April ' + (new Date().getFullYear() + 1) : 'April ' + new Date().getFullYear();
+        html += `<li>Review this plan after your next pension statement (target: ${reviewMonth})</li>`;
         html += `</ul>`;
       } else if (actions.length > 0) {
         const best = actions[0];
@@ -2154,16 +2184,16 @@
       ];
 
       if (yourSP > 0) {
-        sources.push({ name: 'Your State Pension', amount: yourSP, taxable: true, color: '#22c55e' });
+        sources.push({ name: 'Your State Pension', amount: yourSP, taxable: true, color: '#059669' });
       }
       if (partnerSP > 0) {
-        sources.push({ name: 'Partner State Pension', amount: partnerSP, taxable: true, color: '#16a34a' });
+        sources.push({ name: 'Partner State Pension', amount: partnerSP, taxable: true, color: '#34d399' });
       }
       if (yourDB > 0) {
-        sources.push({ name: 'Your DB Pension', amount: yourDB, taxable: true, color: '#3b82f6' });
+        sources.push({ name: 'Your DB Pension', amount: yourDB, taxable: true, color: '#2563eb' });
       }
       if (partnerDB > 0) {
-        sources.push({ name: 'Partner DB Pension', amount: partnerDB, taxable: true, color: '#2563eb' });
+        sources.push({ name: 'Partner DB Pension', amount: partnerDB, taxable: true, color: '#7c3aed' });
       }
       
       // PCLS is shown separately in the summary metrics, not as annual income
@@ -2226,17 +2256,17 @@
       const tdStyle = 'padding: 0.4rem; text-align: right; font-size: 0.75rem;';
       const ageStyle = 'padding: 0.4rem; text-align: center; font-weight: 600; position: sticky; left: 0; z-index: 1;';
 
-      let html = '<table style="width: 100%; border-collapse: collapse; min-width: 600px;">';
+      let html = '<table style="width: 100%; border-collapse: collapse;">';
       html += '<thead><tr style="background: var(--color-background, #f8fafc); border-bottom: 2px solid #e5e7eb;">';
       html += '<th style="' + ageStyle + ' background: var(--color-background, #f8fafc);">Age</th>';
-      if (partnerAgeDiff) html += '<th style="' + thStyle + ' text-align: center;">Partner</th>';
+      if (partnerAgeDiff) html += '<th class="hide-mobile" style="' + thStyle + ' text-align: center;">Partner</th>';
       html += '<th style="' + thStyle + '">Start</th>';
-      html += '<th style="' + thStyle + '">Invested</th>';
-      html += '<th style="' + thStyle + '">Growth</th>';
-      html += '<th style="' + thStyle + '">Drawn</th>';
-      html += '<th style="' + thStyle + '">SP+DB</th>';
-      html += '<th style="' + thStyle + '">Tax</th>';
-      html += '<th style="' + thStyle + '">Net Income</th>';
+      html += '<th class="hide-mobile" style="' + thStyle + '">Invested</th>';
+      html += '<th class="hide-mobile" style="' + thStyle + '">Growth</th>';
+      html += '<th class="hide-mobile" style="' + thStyle + '">Drawn</th>';
+      html += '<th class="hide-mobile" style="' + thStyle + '">SP+DB</th>';
+      html += '<th class="hide-mobile" style="' + thStyle + '">Tax</th>';
+      html += '<th class="hide-mobile" style="' + thStyle + '">Net</th>';
       html += '<th style="' + thStyle + ' font-weight: 700;">End</th>';
       html += '</tr></thead><tbody>';
 
@@ -2254,14 +2284,14 @@
 
         html += '<tr style="border-bottom: 1px solid #f1f5f9;">';
         html += '<td style="' + ageStyle + ' background: white;">' + (y.age + 1) + '</td>';
-        if (partnerAgeDiff) html += '<td style="' + tdStyle + ' text-align: center;">' + partnerAge + '</td>';
+        if (partnerAgeDiff) html += '<td class="hide-mobile" style="' + tdStyle + ' text-align: center;">' + partnerAge + '</td>';
         html += '<td style="' + tdStyle + '">' + formatCurrency(startBal) + '</td>';
-        html += '<td style="' + tdStyle + ' color: #059669;">' + formatCurrency(invested) + '</td>';
-        html += '<td style="' + tdStyle + ' color: #059669;">' + formatCurrency(growth) + '</td>';
-        html += '<td style="' + tdStyle + '">—</td>';
-        html += '<td style="' + tdStyle + '">—</td>';
-        html += '<td style="' + tdStyle + '">—</td>';
-        html += '<td style="' + tdStyle + '">—</td>';
+        html += '<td class="hide-mobile" style="' + tdStyle + ' color: #059669;">' + formatCurrency(invested) + '</td>';
+        html += '<td class="hide-mobile" style="' + tdStyle + ' color: #059669;">' + formatCurrency(growth) + '</td>';
+        html += '<td class="hide-mobile" style="' + tdStyle + '">—</td>';
+        html += '<td class="hide-mobile" style="' + tdStyle + '">—</td>';
+        html += '<td class="hide-mobile" style="' + tdStyle + '">—</td>';
+        html += '<td class="hide-mobile" style="' + tdStyle + '">—</td>';
         html += '<td style="' + tdStyle + ' font-weight: 700;">' + formatCurrency(endBal) + '</td>';
         html += '</tr>';
       }
@@ -2290,14 +2320,14 @@
 
         html += '<tr style="border-bottom: 1px solid #f1f5f9;' + (isReduced ? ' background: #fffbeb;' : '') + '">';
         html += '<td style="' + ageStyle + ' background:' + (isReduced ? '#fffbeb' : 'white') + ';">' + y.age + '</td>';
-        if (partnerAgeDiff) html += '<td style="' + tdStyle + ' text-align: center;">' + partnerAge + '</td>';
+        if (partnerAgeDiff) html += '<td class="hide-mobile" style="' + tdStyle + ' text-align: center;">' + partnerAge + '</td>';
         html += '<td style="' + tdStyle + '">' + formatCurrency(startBal) + '</td>';
-        html += '<td style="' + tdStyle + '">—</td>';
-        html += '<td style="' + tdStyle + ' color: #059669;">' + formatCurrency(growth) + '</td>';
-        html += '<td style="' + tdStyle + ' color: #dc2626;">-' + formatCurrency(withdrawal) + '</td>';
-        html += '<td style="' + tdStyle + ' color: #059669;">' + formatCurrency(spDb) + '</td>';
-        html += '<td style="' + tdStyle + ' color: #dc2626;">-' + formatCurrency(y.taxPaid || 0) + '</td>';
-        html += '<td style="' + tdStyle + ' font-weight: 600; color: ' + (isReduced ? '#d97706' : '#111827') + ';">' + formatCurrency(y.netIncome || 0) + '</td>';
+        html += '<td class="hide-mobile" style="' + tdStyle + '">—</td>';
+        html += '<td class="hide-mobile" style="' + tdStyle + ' color: #059669;">' + formatCurrency(growth) + '</td>';
+        html += '<td class="hide-mobile" style="' + tdStyle + ' color: #dc2626;">-' + formatCurrency(withdrawal) + '</td>';
+        html += '<td class="hide-mobile" style="' + tdStyle + ' color: #059669;">' + formatCurrency(spDb) + '</td>';
+        html += '<td class="hide-mobile" style="' + tdStyle + ' color: #dc2626;">-' + formatCurrency(y.taxPaid || 0) + '</td>';
+        html += '<td class="hide-mobile" style="' + tdStyle + ' font-weight: 600; color: ' + (isReduced ? '#d97706' : '#111827') + ';">' + formatCurrency(y.netIncome || 0) + '</td>';
         html += '<td style="' + tdStyle + ' font-weight: 700;">' + formatCurrency(endBal) + '</td>';
         html += '</tr>';
       }

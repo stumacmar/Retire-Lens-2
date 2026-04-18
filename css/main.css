@@ -1481,3 +1481,8 @@
       .result-card { break-inside: avoid; }
       body { font-size: 12px; }
     }
+
+    /* Mobile-responsive data table */
+    @media (max-width: 600px) {
+      .hide-mobile { display: none !important; }
+    }

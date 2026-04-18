@@ -320,6 +320,32 @@
             ? 'The PLSA Retirement Living Standards suggest: <strong>£22,400</strong> minimum, <strong>£43,100</strong> moderate, or <strong>£59,000</strong> comfortable for a couple.'
             : 'The PLSA Retirement Living Standards suggest: <strong>£14,400</strong> minimum, <strong>£31,300</strong> moderate, or <strong>£43,100</strong> comfortable for a single person.';
         }
+        // Instant estimate from age + retirement + any pension data already entered
+        const incomeInput = document.getElementById('input-target-income');
+        if (incomeInput) {
+          const updateEstimate = () => {
+            const age = state.onboardingState?.personA?.currentAge || 0;
+            const retAge = state.onboardingState?.personA?.retirementAge || 0;
+            const target = parseFloat(incomeInput.value) || 0;
+            const pot = state.onboardingState?.personA?.dcPot || 0;
+            const el = document.getElementById('instant-estimate');
+            const textEl = document.getElementById('instant-estimate-text');
+            if (!el || !textEl || !age || !retAge || !target) { if (el) el.style.display = 'none'; return; }
+            const years = retAge - age;
+            const potAtRetire = pot > 0 ? pot * Math.pow(1.04, years) : 0;
+            const sustainable = potAtRetire * 0.04;
+            const sp = 11973;
+            const gap = target - sustainable - sp;
+            el.style.display = 'block';
+            if (gap <= 0) {
+              textEl.innerHTML = `<span style="color: var(--color-success);">Your existing savings could support this. Add more detail for a full projection.</span>`;
+            } else {
+              textEl.innerHTML = `<span style="color: var(--color-warning);">Gap of ~${formatCurrency(gap)}/yr. Adding pension details on the next screen will improve this estimate.</span>`;
+            }
+          };
+          incomeInput.addEventListener('input', updateEstimate);
+          updateEstimate();
+        }
       }
 
       // Show/hide partner DB section on pension-pot screen for couples

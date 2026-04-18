@@ -97,7 +97,7 @@ export const SCENARIO_PRESETS = Object.freeze({
     postRetirementReturn: 0.06,
     postRetirementVolatility: 0.10,
     inflationRate: 0.02,
-    feeRate: 0.004,
+    feeRate: 0.0,
     scenario: 'optimistic'
   }
 });

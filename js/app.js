@@ -1287,7 +1287,7 @@
         return fallback;
       }
 
-      return {
+      const result = {
         // Basic inputs — use onboarding state + live component for couples, DOM inputs for singles
         currentAge: isCouplesFlow ? cVal(personA?.currentAge, cpA?.currentAge, 0) : getValue('input-current-age'),
         retirementAge: isCouplesFlow ? cVal(personA?.retirementAge, cpA?.retirementAge, 0) : getValue('input-retirement-age'),
@@ -1356,8 +1356,15 @@
         // Tax jurisdiction
         taxJurisdiction: getSelectedValue('tax-jurisdiction', 'england')
       };
+
+      // MPAA enforcement: if user has flexibly accessed pension, cap contributions at 10,000/year
+      if (getChecked('input-flexi-accessed') && result.annualPensionContribution > 10000) {
+        result.annualPensionContribution = 10000;
+      }
+
+      return result;
     }
-    
+
     function showError(message) {
       const el = document.getElementById('error-message');
       el.textContent = message;

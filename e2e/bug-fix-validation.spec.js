@@ -208,7 +208,7 @@ test.describe('Couple Household Full Flow', () => {
     // 5. Pension pot with partner input
     await page.waitForSelector('#screen-pension-pot.active');
     await page.fill('#input-pension-pot', '300000');
-    await page.locator('#screen-pension-pot .partner-input-group input').fill('150000');
+    await page.fill('#input-partner-pension-pot', '150000');
     await page.click('#screen-pension-pot.active [data-action="next"]');
 
     // 6. Contributions with partner input

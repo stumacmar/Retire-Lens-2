@@ -1169,15 +1169,21 @@
       // Debounce updates
       clearTimeout(previewDebounceTimer);
       previewDebounceTimer = setTimeout(() => {
+        // Include partner data for couples
+        const partnerPension = getValue('input-partner-pension-pot', 0);
+        const partnerContrib = getValue('input-partner-pension-contribution', 0) * 12;
+        const partnerSP = state.onboardingState?.personB?.expectedStatePension || state.onboardingState?.personB?.statePensionAmount || 0;
+        const partnerDB = state.onboardingState?.personB?.dbAnnualIncome || 0;
+
         const inputs = {
           currentAge: getValue('input-current-age', 0),
           retirementAge: getValue('input-retirement-age', 0),
           targetNetIncome: getValue('input-target-income', 0),
-          currentPension: getValue('input-pension-pot', 0),
-          annualPensionContribution: getValue('input-pension-contribution', 0) * 12,
-          currentIsa: getValue('input-isa-balance', 0),
+          currentPension: getValue('input-pension-pot', 0) + partnerPension,
+          annualPensionContribution: (getValue('input-pension-contribution', 0) * 12) + partnerContrib,
+          currentIsa: getValue('input-isa-balance', 0) + getValue('input-partner-isa-balance', 0),
           annualIsaContribution: getValue('input-isa-contribution', 0),
-          expectedStatePension: getValue('input-state-pension-amount', 0),
+          expectedStatePension: getValue('input-state-pension-amount', 0) + partnerSP + partnerDB,
           statePensionAge: getValue('input-state-pension-age', 67)
         };
         
@@ -1404,6 +1410,11 @@
         // Couples review: show both persons side by side
         const pA = state.onboardingState?.personA || {};
         const pB = state.onboardingState?.personB || {};
+
+        // Belt-and-braces: if partner retirement age wasn't saved, use partner's SP age as fallback
+        if (!pB.retirementAge && pB.currentAge) {
+          pB.retirementAge = pB.statePensionAge || 67;
+        }
 
         html = `
           <div style="text-align: center; margin-bottom: 1rem;">

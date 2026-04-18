@@ -41,8 +41,12 @@ export const PENSION_CONFIG = {
   statePensionAge: 67,
   fullStatePensionWeekly: 230.25, // 2025/26 full new state pension (was £221.20 in 2024/25)
 
-  // Lifetime Allowance abolished April 2024, but keeping for reference
-  lifetimeAllowance: null, // No longer applicable
+  // Lifetime Allowance abolished April 2024
+  lifetimeAllowance: null,
+
+  // Post-LTA regime: Lump Sum Allowance and Lump Sum Death Benefit Allowance
+  lumpSumAllowance: 268275,          // LSA: max tax-free lump sums (PCLS + small pots)
+  lumpSumDeathBenefitAllowance: 1073100, // LSDBA: max tax-free death lump sums
 
   // Annual Allowance
   annualAllowance: 60000,
@@ -65,7 +69,7 @@ export const PROJECTION_DEFAULTS = {
   // Growth rates (real, after inflation)
   defaultGrowthRate: 0.04, // 4% real growth
   conservativeGrowthRate: 0.02,
-  aggressiveGrowthRate: 0.07,
+  aggressiveGrowthRate: 0.06,
   
   // Inflation assumption
   inflationRate: 0.02, // 2% long-term

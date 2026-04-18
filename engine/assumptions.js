@@ -56,7 +56,7 @@ export const DEFAULT_ASSUMPTIONS = Object.freeze({
  */
 export const SCENARIO_PRESETS = Object.freeze({
   conservative: {
-    name: 'Conservative',
+    name: 'Below Average',
     description: 'Lower growth, higher volatility - pessimistic assumptions',
     // Single rate (legacy)
     growthRate: 0.03,
@@ -72,7 +72,7 @@ export const SCENARIO_PRESETS = Object.freeze({
     scenario: 'conservative'
   },
   moderate: {
-    name: 'Moderate',
+    name: 'Average',
     description: 'Balanced assumptions - reasonable base case',
     // Single rate (legacy)
     growthRate: 0.04,
@@ -88,16 +88,16 @@ export const SCENARIO_PRESETS = Object.freeze({
     scenario: 'moderate'
   },
   optimistic: {
-    name: 'Optimistic',
-    description: 'Higher growth - strong market performance',
-    growthRate: 0.07,
+    name: 'Above Average',
+    description: 'Strong market performance (UK equities have averaged ~5% real long-term)',
+    growthRate: 0.06,
     volatility: 0.12,
-    preRetirementReturn: 0.07,
+    preRetirementReturn: 0.065,
     preRetirementVolatility: 0.14,
-    postRetirementReturn: 0.06,
+    postRetirementReturn: 0.05,
     postRetirementVolatility: 0.10,
     inflationRate: 0.02,
-    feeRate: 0.0,
+    feeRate: 0.004,
     scenario: 'optimistic'
   }
 });

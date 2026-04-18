@@ -265,12 +265,15 @@ export function projectDecumulation(plan, accumulationResult, endAge = 90) {
   const pclsByAge = new Map();
   let taxFreeCash = 0;
 
+  // LSA cap: max tax-free lump sum is 268,275 (post-LTA regime)
+  const lsaCap = plan.assumptions?.pension?.lumpSumAllowance || 268275;
+  const priorPCLS = plan.pclsAmountTaken || 0;
+  const remainingLSA = Math.max(0, lsaCap - priorPCLS);
+
   if (pclsAlreadyTaken) {
-    // Uncrystallised portion already includes partner's DC (both tracked together)
-    // PCLS = 25% of the total uncrystallised amount (no separate partner calc needed)
     const uncrystallised = accumulationResult.uncrystallisedPension || 0;
     const pclsRate = plan.assumptions?.pension?.pclsRate || 0.25;
-    taxFreeCash = uncrystallised * pclsRate;
+    taxFreeCash = Math.min(uncrystallised * pclsRate, remainingLSA);
     pensionBalance -= taxFreeCash;
   } else {
     // FIX 1.4: Use strategy-aware PCLS calculation
@@ -286,7 +289,7 @@ export function projectDecumulation(plan, accumulationResult, endAge = 90) {
       pclsByAge.set(entry.age, entry.amount);
     });
 
-    taxFreeCash = pclsScheduleResult.totalPCLS;
+    taxFreeCash = Math.min(pclsScheduleResult.totalPCLS, remainingLSA);
     if (pclsStrategy === 'all_at_retirement' || !pclsStrategy) {
       pensionBalance -= taxFreeCash;
       pclsByAge.clear();

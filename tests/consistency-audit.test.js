@@ -99,10 +99,15 @@ assert(
   `pcls=${Math.round(pclsTaken)}`
 );
 
+// PCLS is capped by LSA (268,275) minus prior PCLS taken (167,000) = 101,275 remaining
+const lsaCap = 268275;
+const priorPCLS = 167000;
+const remainingLSA = lsaCap - priorPCLS;
+const expectedPCLS = Math.min(uncrystallised * 0.25, remainingLSA);
 assert(
-  Math.abs(pclsTaken - uncrystallised * 0.25) < 1,
-  'PCLS = 25% of uncrystallised pension',
-  `pcls=${Math.round(pclsTaken)}, 25% of ${Math.round(uncrystallised)} = ${Math.round(uncrystallised * 0.25)}`
+  Math.abs(pclsTaken - expectedPCLS) < 1,
+  'PCLS = min(25% of uncrystallised, remaining LSA)',
+  `pcls=${Math.round(pclsTaken)}, expected=${Math.round(expectedPCLS)} (LSA remaining=${remainingLSA})`
 );
 
 const origSipp = 167000 / 0.25;

@@ -287,10 +287,17 @@
       // For couples: inject partner input fields on wizard screens
       injectPartnerInputs(screenId);
 
-      // For couples: update income screen subtitle
-      if (screenId === 'income-target' && (state.onboardingState?.householdType === HOUSEHOLD_TYPES.COUPLE)) {
+      // Update income screen for singles vs couples
+      if (screenId === 'income-target') {
+        const isCouple = state.onboardingState?.householdType === HOUSEHOLD_TYPES.COUPLE;
         const sub = screen.querySelector('.screen-subtitle');
-        if (sub) sub.textContent = 'Combined household income after tax';
+        if (sub) sub.textContent = isCouple ? 'Combined household income after tax' : 'Annual net income after tax';
+        const plsa = document.getElementById('plsa-hint');
+        if (plsa) {
+          plsa.innerHTML = isCouple
+            ? 'The PLSA Retirement Living Standards suggest: <strong>£22,400</strong> minimum, <strong>£43,100</strong> moderate, or <strong>£59,000</strong> comfortable for a couple.'
+            : 'The PLSA Retirement Living Standards suggest: <strong>£14,400</strong> minimum, <strong>£31,300</strong> moderate, or <strong>£43,100</strong> comfortable for a single person.';
+        }
       }
 
       // Show/hide partner DB section on pension-pot screen for couples
@@ -368,6 +375,8 @@
           break;
         case 'pension-pot':
           personA.dcPot = getValue('input-pension-pot', 0);
+          personA.dbAnnualIncome = getValue('input-your-db-income', 0);
+          personA.dbStartAge = getValue('input-your-db-start', 65);
           break;
         case 'contributions': {
           const v = getValue('input-pension-contribution', 0);
@@ -450,6 +459,8 @@
           break;
         case 'pension-pot':
           setInput('input-pension-pot', personA.dcPot);
+          setInput('input-your-db-income', personA.dbAnnualIncome);
+          setInput('input-your-db-start', personA.dbStartAge);
           break;
         case 'contributions':
           setInput('input-pension-contribution', personA.dcMonthlyContrib);
@@ -1285,9 +1296,9 @@
         modelCareCosts: getChecked('model-care-costs'),
 
         // DB Pension
-        hasDBPension: isCouplesFlow ? (personA?.pensionTypes?.includes('db') || personA?.pensionTypes?.includes('both') || (cpA?.dbAnnualIncome > 0) || false) : getChecked('has-db-pension'),
-        dbPensionAmount: isCouplesFlow ? cVal(personA?.dbAnnualIncome, cpA?.dbAnnualIncome, 0) : getValue('db-pension-amount', 0),
-        dbPensionStartAge: isCouplesFlow ? cVal(personA?.dbStartAge, cpA?.dbStartAge, 65) : getValue('db-pension-start-age', 65),
+        hasDBPension: (cVal(personA?.dbAnnualIncome, null, 0) || getValue('input-your-db-income', 0)) > 0,
+        dbPensionAmount: cVal(personA?.dbAnnualIncome, null, 0) || getValue('input-your-db-income', 0),
+        dbPensionStartAge: cVal(personA?.dbStartAge, null, 65) || getValue('input-your-db-start', 65),
 
         // Couple mode
         isCouple: isCouplesFlow,

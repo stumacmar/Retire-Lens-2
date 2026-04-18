@@ -425,7 +425,7 @@
           <p class="help-text">Your target annual spending in today's money</p>
         </div>
         <div class="context-hint" style="margin-top: 1.5rem; padding: 0.875rem 1rem; background: var(--color-primary-subtle); border-radius: var(--radius-md); font-size: 0.8125rem; color: var(--color-text-secondary); line-height: 1.5;">
-          The PLSA Retirement Living Standards suggest: <strong>£14,400</strong> minimum, <strong>£31,300</strong> moderate, or <strong>£43,100</strong> comfortable for a single person.
+          <span id="plsa-hint">The PLSA Retirement Living Standards suggest: <strong>£14,400</strong> minimum, <strong>£31,300</strong> moderate, or <strong>£43,100</strong> comfortable for a single person.</span>
         </div>
       </div>
       
@@ -454,6 +454,25 @@
         </div>
         <div class="context-hint" style="margin-top: 1.5rem; padding: 0.875rem 1rem; background: var(--color-primary-subtle); border-radius: var(--radius-md); font-size: 0.8125rem; color: var(--color-text-secondary); line-height: 1.5;">
           Check your latest pension statement or log in to your provider's website. Include all DC pots you plan to combine.
+        </div>
+
+        <!-- Your DB Pension -->
+        <div style="margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px solid var(--color-border, #e2e8f0);">
+          <div style="font-weight: 600; margin-bottom: 0.75rem; font-size: 0.9rem;">Your DB Pension</div>
+          <div class="input-group">
+            <label style="font-weight: 600;">Annual income from DB scheme</label>
+            <div class="input-wrapper">
+              <span class="currency-symbol">£</span>
+              <input type="number" id="input-your-db-income" min="0" step="500" placeholder="0 if none" inputmode="numeric" />
+            </div>
+            <p class="help-text">Guaranteed annual income from final salary / career average pension. Enter 0 if none.</p>
+          </div>
+          <div class="input-group" style="margin-top: 0.5rem;">
+            <label>DB pension start age</label>
+            <div class="input-wrapper">
+              <input type="number" id="input-your-db-start" min="50" max="75" value="65" inputmode="numeric" />
+            </div>
+          </div>
         </div>
 
         <!-- Partner DB — always in HTML, shown/hidden by JS for couples -->

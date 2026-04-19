@@ -1817,6 +1817,26 @@
         events.push({ age: '', desc: `<span style="color: var(--color-text-light);">Annuity alternative: buying a level annuity at ${retireAge} would provide ~${formatCurrency(annuityIncome)}/yr guaranteed for life (${(annuityRate*100).toFixed(1)}% rate). Drawdown offers flexibility but no guarantee.</span>` });
       }
 
+      // Tax wrapper optimization insight
+      try {
+        const firstYear = projection.decumulation.years[0];
+        if (firstYear && firstYear.withdrawals) {
+          const guaranteed = (firstYear.statePension || 0);
+          const pa = 12570;
+          const paUsed = Math.min(guaranteed, pa);
+          const paRemaining = pa - paUsed;
+          // If guaranteed income already fills PA, pension withdrawals start at 20%+ tax
+          // In this case, ISA withdrawals would be more tax-efficient
+          if (paRemaining === 0 && (firstYear.withdrawals.pension || 0) > 0) {
+            const pensionTaxed = firstYear.withdrawals.pension || 0;
+            const taxOnPension = firstYear.taxPaid || 0;
+            events.push({ age: '', desc: `<span style="color: var(--color-accent, #0d9488);">Tax wrapper insight: your guaranteed income already uses your Personal Allowance. Every pound drawn from pension is taxed at ${guaranteed > 50270 ? '40' : '20'}%. Consider drawing from ISA first in years where guaranteed income is high.</span>` });
+          } else if (paRemaining > 0) {
+            events.push({ age: '', desc: `<span style="color: var(--color-text-light);">Tax efficiency: ${formatCurrency(paRemaining)} of Personal Allowance used for tax-free pension withdrawal each year.</span>` });
+          }
+        }
+      } catch (e) { /* tax wrapper analysis failed */ }
+
       // Sequence-of-returns risk
       try {
         const sor = illustrateSequenceOfReturns(projection.plan || state.planA);

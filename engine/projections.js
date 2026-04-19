@@ -55,6 +55,8 @@ export function createPlan(inputs) {
     pclsReinvest = true,
     pclsAlreadyTaken = false,
     pclsAmountTaken = 0,
+    // Withdrawal guardrails
+    useGuardrails = false,
     // Tax jurisdiction
     taxJurisdiction = 'england'
   } = inputs;
@@ -109,6 +111,7 @@ export function createPlan(inputs) {
     pclsStrategy,
     pclsReinvest,
     pclsAlreadyTaken: Boolean(pclsAlreadyTaken),
+    useGuardrails: Boolean(useGuardrails),
     pclsAmountTaken: pclsAmountTaken || 0,
     taxJurisdiction,
     assumptions: effectiveAssumptions,
@@ -301,10 +304,24 @@ export function projectDecumulation(plan, accumulationResult, endAge = 90) {
   const years = [];
   let fundsDepleted = false;
   let depletionAge = null;
+  const retirementPotValue = pensionBalance + isaBalance;
+  let guardrailSpendingAdjustment = 1.0;
 
   for (let age = retirementAge; age <= endAge; age++) {
+    // Guardrails: adjust spending based on portfolio performance
+    if (plan.useGuardrails) {
+      const currentTotal = pensionBalance + isaBalance;
+      const floorThreshold = retirementPotValue * 0.8;
+      const ceilingThreshold = retirementPotValue * 1.2;
+      if (currentTotal < floorThreshold && guardrailSpendingAdjustment > 0.8) {
+        guardrailSpendingAdjustment *= 0.9;
+      } else if (currentTotal > ceilingThreshold && guardrailSpendingAdjustment < 1.1) {
+        guardrailSpendingAdjustment *= 1.05;
+      }
+    }
+
     // Calculate age-adjusted spending target
-    const ageAdjustedSpending = spendingRules 
+    let ageAdjustedSpending = spendingRules
       ? calculateSpendingAtAge(
           spendingRules.baseSpending,
           age,
@@ -314,6 +331,11 @@ export function projectDecumulation(plan, accumulationResult, endAge = 90) {
           }
         )
       : targetNetIncome;
+
+    // Apply guardrail adjustment
+    if (plan.useGuardrails) {
+      ageAdjustedSpending = Math.round(ageAdjustedSpending * guardrailSpendingAdjustment);
+    }
 
     // FIX 1.4: Apply PCLS for non-immediate strategies
     const pclsThisYear = pclsByAge.get(age) || 0;

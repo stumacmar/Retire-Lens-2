@@ -1390,6 +1390,7 @@
         pclsStrategy: getSelectedValue('pcls-strategy', 'all_at_retirement'),
         pclsReinvest: getChecked('pcls-reinvest'),
         pclsAlreadyTaken: getChecked('input-pcls-taken') || getChecked('pcls-already-taken'),
+        useGuardrails: getChecked('input-guardrails'),
         pclsAmountTaken: getValue('input-pcls-amount', 0) || getValue('pcls-amount-taken', 0),
 
         // Tax jurisdiction
@@ -1584,9 +1585,18 @@
             Can I retire at ${plan.retirementAge} on ${formatCurrency(plan.targetNetIncome)}/year?
           </h2>
 
-          <div style="margin-top: 1rem;">
-            <span style="font-size: 2rem; font-weight: 700; color: ${confidenceColor};">${confidenceNum}</span>
-            <span style="font-size: 1rem; color: ${confidenceColor};"> out of 100</span>
+          <div style="margin-top: 1rem; display: flex; flex-direction: column; align-items: center;">
+            <svg width="160" height="100" viewBox="0 0 160 100" style="overflow: visible;">
+              <!-- Background arc -->
+              <path d="M 15 90 A 65 65 0 0 1 145 90" fill="none" stroke="#e5e7eb" stroke-width="12" stroke-linecap="round"/>
+              <!-- Confidence arc (animated) -->
+              <path d="M 15 90 A 65 65 0 0 1 145 90" fill="none" stroke="${confidenceColor}" stroke-width="12" stroke-linecap="round"
+                stroke-dasharray="${confidenceNum * 2.04} 999"
+                style="transition: stroke-dasharray 1.5s cubic-bezier(0.4, 0, 0.2, 1);"/>
+              <!-- Score text -->
+              <text x="80" y="75" text-anchor="middle" font-size="32" font-weight="700" fill="${confidenceColor}">${confidenceNum}</text>
+              <text x="80" y="95" text-anchor="middle" font-size="11" fill="#6b7280">out of 100</text>
+            </svg>
             <div style="font-size: 0.8125rem; color: var(--color-text-light); margin-top: 0.25rem;">
               market scenarios support your plan to age 90
             </div>

@@ -701,7 +701,14 @@
             <p class="help-text">Select planning assumptions - affects growth rates, volatility, and inflation</p>
           </div>
 
-          <!-- PCLS moved to pension pot screen -->
+          <!-- Guardrails toggle -->
+          <div style="margin-top: 1rem; display: flex; align-items: flex-start; gap: 0.5rem;">
+            <input type="checkbox" id="input-guardrails" style="margin-top: 3px;">
+            <div>
+              <label for="input-guardrails" style="font-weight: 500; cursor: pointer; font-size: 0.875rem;">Spending guardrails</label>
+              <p class="help-text" style="margin-top: 2px;">If your pot drops 20%, reduce spending 10%. If it rises 20%, increase 5%. Evidence-based strategy that extends fund life.</p>
+            </div>
+          </div>
 
           <!-- Advanced Options with Accordion (shown only in Full mode) -->
           <div id="advanced-options-container" class="advanced-accordion" style="margin-top: 1.5rem;">

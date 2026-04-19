@@ -219,23 +219,45 @@
                 <input type="number" id="input-partner-isa-contribution" min="0" step="500" placeholder="0" inputmode="numeric" />
               </div>
             </div>
+          </div>
+          <div class="partner-input-group" style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--color-border, #e2e8f0);">
+            <div style="font-weight: 600; color: var(--color-primary, #4f46e5); margin-bottom: 0.75rem; font-size: 0.9rem;">Partner's State Pension</div>
+            <div class="input-group">
+              <label>Partner's State Pension age</label>
+              <div class="input-wrapper">
+                <input type="number" id="input-partner-state-pension-age" min="60" max="75" value="67" inputmode="numeric" />
+              </div>
+            </div>
+            <div class="input-group">
+              <label>Partner's expected annual State Pension</label>
+              <div class="input-wrapper">
+                <span class="currency-symbol">£</span>
+                <input type="number" id="input-partner-state-pension-amount" min="0" step="100" value="11973" inputmode="numeric" />
+              </div>
+            </div>
           </div>`;
         content.insertAdjacentHTML('beforeend', html);
         return;
       }
 
-      // pension-pot: DC pot still injected, DB is in permanent HTML
+      // pension-pot: partner DC + contributions + DB
       if (screenId === 'pension-pot') {
         const html = `
           <div class="partner-input-group" style="margin-top: 1.5rem; padding-top: 1.5rem; border-top: 2px solid var(--color-primary-light, #e0e7ff);">
-            <div style="font-weight: 600; color: var(--color-primary, #4f46e5); margin-bottom: 0.75rem; font-size: 0.9rem;">Partner's DC Pension</div>
+            <div style="font-weight: 600; color: var(--color-primary, #4f46e5); margin-bottom: 0.75rem; font-size: 0.9rem;">Partner's Pensions</div>
             <div class="input-group">
               <label>Partner's DC pension pot</label>
               <div class="input-wrapper">
                 <span class="currency-symbol">£</span>
                 <input type="number" id="input-partner-pension-pot" min="0" step="1000" placeholder="0" inputmode="numeric" />
               </div>
-              <p class="help-text">Defined contribution / SIPP / workplace pension</p>
+            </div>
+            <div class="input-group" style="margin-top: 0.5rem;">
+              <label>Partner's monthly contribution</label>
+              <div class="input-wrapper">
+                <span class="currency-symbol">£</span>
+                <input type="number" id="input-partner-pension-contribution" min="0" step="50" placeholder="0" inputmode="numeric" />
+              </div>
             </div>
           </div>`;
         content.insertAdjacentHTML('beforeend', html);
@@ -454,21 +476,16 @@
             break;
           case 'pension-pot':
             personB.dcPot = getValue('input-partner-pension-pot', 0);
-            // Read DB from permanent HTML element (not dynamically injected)
             personB.dbAnnualIncome = getValue('input-partner-db-income', 0);
             personB.dbStartAge = getValue('input-partner-db-start', 67);
+            // Partner contribution now on same screen
+            const pv = getValue('input-partner-pension-contribution', 0);
+            personB.dcMonthlyContrib = pv;
+            personB.dcAnnualContrib = pv * 12;
             break;
-          case 'contributions': {
-            const v = getValue('input-partner-pension-contribution', 0);
-            personB.dcMonthlyContrib = v;
-            personB.dcAnnualContrib = v * 12;
-            break;
-          }
           case 'isa-savings':
             personB.isaBalance = getValue('input-partner-isa-balance', 0);
             personB.isaAnnualContrib = getValue('input-partner-isa-contribution', 0);
-            break;
-          case 'state-pension':
             personB.statePensionAge = getValue('input-partner-state-pension-age', 67);
             personB.statePensionAmount = getValue('input-partner-state-pension-amount', 11973);
             personB.expectedStatePension = personB.statePensionAmount;
@@ -534,15 +551,11 @@
             setInput('input-partner-pension-pot', personB.dcPot);
             setInput('input-partner-db-income', personB.dbAnnualIncome);
             setInput('input-partner-db-start', personB.dbStartAge);
-            break;
-          case 'contributions':
             setInput('input-partner-pension-contribution', personB.dcMonthlyContrib);
             break;
           case 'isa-savings':
             setInput('input-partner-isa-balance', personB.isaBalance);
             setInput('input-partner-isa-contribution', personB.isaAnnualContrib);
-            break;
-          case 'state-pension':
             setInput('input-partner-state-pension-age', personB.statePensionAge);
             setInput('input-partner-state-pension-amount', personB.statePensionAmount || personB.expectedStatePension);
             break;

@@ -1773,16 +1773,11 @@
         }
       }
 
-      let html = '<div style="font-size: 0.875rem; font-weight: 600; margin-bottom: 0.75rem;">Your retirement timeline</div>';
-      for (const e of events) {
-        html += `<div style="${evStyle}"><span style="${ageStyle}">${e.age}</span><span style="${descStyle}">${e.desc}</span></div>`;
-      }
-
-      // Calculate minimum pot needed (binary search)
+      // Calculate minimum pot needed (binary search) -- before rendering events
       try {
         const scenarioPreset = SCENARIO_PRESETS[data.scenario] || SCENARIO_PRESETS.moderate;
-        let lo = 0, hi = data.currentPension * 2, minPot = data.currentPension;
-        for (let i = 0; i < 15; i++) {
+        let lo = 0, hi = (data.currentPension || 100000) * 3, minPot = data.currentPension || 0;
+        for (let i = 0; i < 12; i++) {
           const mid = Math.round((lo + hi) / 2);
           const testPlan = createPlan({ ...data, currentPension: mid,
             assumptions: { projection: { defaultGrowthRate: scenarioPreset.growthRate || 0.04, defaultFeeRate: scenarioPreset.feeRate || 0.005 } } });
@@ -1790,12 +1785,18 @@
           if (testResult.summary.successRate >= 1.0) { hi = mid; minPot = mid; }
           else { lo = mid; }
         }
-        if (minPot < data.currentPension * 0.95) {
-          events.push({ age: '', desc: `<span style="color: var(--color-success, #059669);">Minimum pot needed: <strong>${formatCurrency(minPot)}</strong>. You have ${formatCurrency(data.currentPension - minPot)} more than required.</span>` });
-        } else if (minPot > data.currentPension * 1.05) {
-          events.push({ age: '', desc: `<span style="color: var(--color-warning, #d97706);">Minimum pot for full success: <strong>${formatCurrency(minPot)}</strong>. You need ${formatCurrency(minPot - data.currentPension)} more.</span>` });
+        const currentPot = data.currentPension || 0;
+        if (minPot < currentPot * 0.95) {
+          events.push({ age: '', desc: `<span style="color: var(--color-success, #059669);">Minimum pot needed: <strong>${formatCurrency(minPot)}</strong>. You have ${formatCurrency(currentPot - minPot)} more than required.</span>` });
+        } else if (minPot > currentPot * 1.05) {
+          events.push({ age: '', desc: `<span style="color: var(--color-warning, #d97706);">Minimum pot for full success: <strong>${formatCurrency(minPot)}</strong>. You need ${formatCurrency(minPot - currentPot)} more.</span>` });
         }
-      } catch (e) { /* min pot calc failed */ }
+      } catch (e) { console.warn('Min pot calc failed:', e.message); }
+
+      let html = '<div style="font-size: 0.875rem; font-weight: 600; margin-bottom: 0.75rem;">Your retirement timeline</div>';
+      for (const e of events) {
+        html += `<div style="${evStyle}"><span style="${ageStyle}">${e.age}</span><span style="${descStyle}">${e.desc}</span></div>`;
+      }
 
       // Consider section
       html += `<div style="margin-top: 1rem; padding: 0.75rem; background: var(--color-primary-subtle, #eef2ff); border-radius: var(--radius-md, 0.5rem); border-left: 3px solid var(--color-primary, #4f46e5);">`;
@@ -1849,6 +1850,9 @@
       } else {
         html += `<div style="font-size: 0.8125rem;">Review your plan annually</div>`;
       }
+      // Always show review date
+      const reviewMonth = new Date().getMonth() >= 3 ? 'April ' + (new Date().getFullYear() + 1) : 'April ' + new Date().getFullYear();
+      html += `<div style="font-size: 0.75rem; color: var(--color-text-light); margin-top: 0.5rem;">Next review: ${reviewMonth} (after your pension statement)</div>`;
       html += `</div>`;
 
       el.innerHTML = html;

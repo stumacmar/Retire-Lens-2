@@ -1622,6 +1622,53 @@
       // Render narrative summary
       renderNarrativeSummary(projection, results);
 
+      // Populate shareable summary card
+      const shareCardEl = document.getElementById('share-card-content');
+      if (shareCardEl) {
+        const isCouple = data.isCouple || (plan.partnerCurrentAge > 0);
+        const monthly = Math.round(plan.targetNetIncome / 12);
+        const mcPct = results?.mcResult?.statistics?.successRate;
+        const conf = mcPct != null ? Math.round(mcPct * 100) : Math.round(summary.successRate * 100);
+        const who = isCouple ? 'We' : 'I';
+        shareCardEl.innerHTML = `
+          <div style="font-weight: 700; margin-bottom: 0.25rem;">${who} can retire at ${plan.retirementAge} on ${formatCurrency(plan.targetNetIncome)}/yr (${formatCurrency(monthly)}/month)</div>
+          <div>${conf} out of 100 market scenarios support this plan to age 90</div>
+          <div>Final balance: ${formatCurrency(summary.finalBalance)} | ISA preserved</div>
+          <div style="font-size: 0.7rem; color: var(--color-text-light); margin-top: 0.25rem;">RetireLens Pro | Not financial advice | ${new Date().toLocaleDateString()}</div>
+        `;
+      }
+
+      // Copy share card button
+      document.getElementById('copy-share-card')?.addEventListener('click', () => {
+        const text = document.getElementById('share-card-content')?.textContent;
+        if (text) {
+          navigator.clipboard.writeText(text).then(() => {
+            const btn = document.getElementById('copy-share-card');
+            if (btn) { btn.textContent = 'Copied!'; setTimeout(() => { btn.textContent = 'Copy summary'; }, 2000); }
+          }).catch(() => {});
+        }
+      });
+
+      // Monthly/annual toggle
+      let showMonthly = false;
+      document.getElementById('toggle-monthly')?.addEventListener('click', () => {
+        showMonthly = !showMonthly;
+        const btn = document.getElementById('toggle-monthly');
+        if (btn) btn.textContent = showMonthly ? 'Show annual' : 'Show monthly';
+        // Re-render income breakdown with monthly values
+        if (showMonthly) {
+          document.querySelectorAll('[data-annual]').forEach(el => {
+            const annual = parseFloat(el.dataset.annual);
+            if (!isNaN(annual)) el.textContent = formatCurrency(Math.round(annual / 12)) + '/mo';
+          });
+        } else {
+          document.querySelectorAll('[data-annual]').forEach(el => {
+            const annual = parseFloat(el.dataset.annual);
+            if (!isNaN(annual)) el.textContent = formatCurrency(annual);
+          });
+        }
+      });
+
       // Populate input summary
       const inputsSummaryEl = document.getElementById('inputs-summary');
       if (inputsSummaryEl) {
@@ -1725,9 +1772,10 @@
         events.push({ age: plan.dbPensionStartAge, desc: `Your DB pension starts: <strong>${formatCurrency(yourDB)}/year</strong>. Pension withdrawal reduces.` });
       }
 
-      // Event: Your SP starts
+      // Event: Your SP starts + deferral option
       if (plan.statePensionAge > retireAge) {
-        events.push({ age: plan.statePensionAge, desc: `Your State Pension starts: <strong>${formatCurrency(yourSP)}/year</strong>. Pension withdrawal drops significantly.` });
+        const deferredSP = Math.round(yourSP * 1.058);
+        events.push({ age: plan.statePensionAge, desc: `Your State Pension starts: <strong>${formatCurrency(yourSP)}/year</strong>. Pension withdrawal drops significantly. <span style="color: var(--color-text-light); font-size: 0.75rem;">(Deferring 1 year would give ${formatCurrency(deferredSP)}/yr, +${formatCurrency(deferredSP - yourSP)} for life)</span>` });
       }
 
       // Event: Spending reduction at 80
@@ -3566,7 +3614,7 @@
       
       // What-if retirement age buttons
       function runWhatIf(ageOffset) {
-        if (!state.formData || !state.planA) return;
+        if (!state.formData || !state.planA || !state.projectionA) return;
         const data = state.formData;
         const newAge = (data.retirementAge || 60) + ageOffset;
         if (newAge < 50 || newAge > 75) return;
@@ -3576,10 +3624,60 @@
             assumptions: { projection: { defaultGrowthRate: scenarioPreset.growthRate || 0.04, defaultFeeRate: scenarioPreset.feeRate || 0.005 } } });
           const altResult = runProjection(altPlan, { endAge: 90 });
           const delta = altResult.summary.finalBalance - state.projectionA.summary.finalBalance;
+          const altMonthly = Math.round(altResult.summary.finalBalance / 12);
           const resultEl = document.getElementById('what-if-result');
           if (resultEl) {
             resultEl.style.display = 'block';
-            resultEl.innerHTML = `Retiring at <strong>${newAge}</strong> instead of ${data.retirementAge}: final balance ${delta >= 0 ? '+' : ''}${formatCurrency(delta)} (${formatCurrency(altResult.summary.finalBalance)} total)`;
+            resultEl.innerHTML = `
+              <div style="display: flex; gap: 1.5rem; justify-content: center; align-items: center; flex-wrap: wrap;">
+                <div>
+                  <div style="font-size: 0.7rem; color: var(--color-text-light);">Retire at ${data.retirementAge}</div>
+                  <div style="font-weight: 700;">${formatCurrency(state.projectionA.summary.finalBalance)}</div>
+                </div>
+                <div style="font-size: 1.2rem;">vs</div>
+                <div>
+                  <div style="font-size: 0.7rem; color: var(--color-text-light);">Retire at ${newAge}</div>
+                  <div style="font-weight: 700;">${formatCurrency(altResult.summary.finalBalance)}</div>
+                </div>
+                <div style="font-size: 0.8rem; color: ${delta >= 0 ? 'var(--color-success)' : 'var(--color-danger)'}; font-weight: 600;">
+                  ${delta >= 0 ? '+' : ''}${formatCurrency(delta)}
+                </div>
+              </div>`;
+          }
+
+          // Update wealth chart with comparison overlay
+          const canvas = document.getElementById('capital-chart');
+          if (canvas && typeof Chart !== 'undefined') {
+            const existingChart = Chart.getChart(canvas);
+            if (existingChart) {
+              // Add comparison dataset
+              const altYears = [
+                ...altResult.accumulation.years.map(y => ({ age: y.age, total: y.endBalances.pension + y.endBalances.isa })),
+                ...altResult.decumulation.years.filter(y => y.endBalances).map(y => ({ age: y.age, total: y.endBalances.pension + y.endBalances.isa }))
+              ];
+              // Remove old comparison if exists
+              while (existingChart.data.datasets.length > 3) {
+                existingChart.data.datasets.pop();
+              }
+              // Add new comparison
+              existingChart.data.datasets.push({
+                label: 'Retire at ' + newAge,
+                data: existingChart.data.labels.map(age => {
+                  const match = altYears.find(d => d.age === age);
+                  return match ? match.total : null;
+                }),
+                borderColor: '#ef4444',
+                borderDash: [6, 3],
+                backgroundColor: 'transparent',
+                fill: false,
+                tension: 0.3,
+                pointRadius: 0,
+                borderWidth: 2
+              });
+              existingChart.update();
+              // Switch to wealth tab to show comparison
+              document.querySelector('[data-results-tab="wealth"]')?.click();
+            }
           }
         } catch (e) { console.warn('What-if failed:', e); }
       }

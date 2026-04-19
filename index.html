@@ -850,6 +850,7 @@
 
       <div class="results-tabs" style="display: flex; border-bottom: 2px solid var(--color-border, #e2e8f0); margin-bottom: 1rem;">
         <button class="results-tab active" data-results-tab="income" style="flex: 1; padding: 0.75rem; border: none; background: none; font-weight: 600; font-size: 0.8125rem; color: var(--color-primary, #4f46e5); border-bottom: 3px solid var(--color-primary, #4f46e5); cursor: pointer;">Income</button>
+        <button class="results-tab" data-results-tab="flow" style="flex: 1; padding: 0.75rem; border: none; background: none; font-weight: 500; font-size: 0.8125rem; color: var(--color-text-light, #6b7280); border-bottom: 3px solid transparent; cursor: pointer;">Flow</button>
         <button class="results-tab" data-results-tab="wealth" style="flex: 1; padding: 0.75rem; border: none; background: none; font-weight: 500; font-size: 0.8125rem; color: var(--color-text-light, #6b7280); border-bottom: 3px solid transparent; cursor: pointer;">Wealth</button>
         <button class="results-tab" data-results-tab="risk" style="flex: 1; padding: 0.75rem; border: none; background: none; font-weight: 500; font-size: 0.8125rem; color: var(--color-text-light, #6b7280); border-bottom: 3px solid transparent; cursor: pointer;">Risk</button>
         <button class="results-tab" data-results-tab="detail" style="flex: 1; padding: 0.75rem; border: none; background: none; font-weight: 500; font-size: 0.8125rem; color: var(--color-text-light, #6b7280); border-bottom: 3px solid transparent; cursor: pointer;">Detail</button>
@@ -866,6 +867,21 @@
         <div class="result-card" id="income-sources-section" style="margin-top: 1rem;">
           <h3 style="font-size: 1rem; margin-bottom: 0.75rem;">Income Breakdown (Year 1)</h3>
           <div id="income-sources-breakdown"></div>
+        </div>
+      </div>
+
+      <!-- Tab: Flow (Sankey) -->
+      <div class="results-tab-content" id="tab-flow" style="display: none;">
+        <div class="result-card">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
+            <h3 style="font-size: 1rem; margin: 0;">Cash Flow</h3>
+            <div style="display: flex; align-items: center; gap: 0.5rem;">
+              <button id="sankey-prev" style="padding: 0.25rem 0.5rem; border: 1px solid var(--color-border); border-radius: 4px; background: var(--color-surface); cursor: pointer; font-size: 0.8rem;">&lt;</button>
+              <span id="sankey-year-label" style="font-weight: 600; font-size: 0.875rem; min-width: 4rem; text-align: center;">Age 60</span>
+              <button id="sankey-next" style="padding: 0.25rem 0.5rem; border: 1px solid var(--color-border); border-radius: 4px; background: var(--color-surface); cursor: pointer; font-size: 0.8rem;">&gt;</button>
+            </div>
+          </div>
+          <div id="sankey-container" style="width: 100%; min-height: 250px;"></div>
         </div>
       </div>
 

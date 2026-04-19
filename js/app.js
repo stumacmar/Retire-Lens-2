@@ -1635,7 +1635,8 @@
       // Populate shareable summary card
       const shareCardEl = document.getElementById('share-card-content');
       if (shareCardEl) {
-        const isCouple = data.isCouple || (plan.partnerCurrentAge > 0);
+        const shareData = state.formData || {};
+        const isCouple = shareData.isCouple || (plan.partnerCurrentAge > 0);
         const monthly = Math.round(plan.targetNetIncome / 12);
         const mcPct = results?.mcResult?.statistics?.successRate;
         const conf = mcPct != null ? Math.round(mcPct * 100) : Math.round(summary.successRate * 100);
@@ -2514,6 +2515,126 @@
     // Comparison
     // ═══════════════════════════════════════════════════════════════
     
+    // ═══════════════════════════════════════════════════════════════
+    // Sankey Cash Flow Diagram
+    // ═══════════════════════════════════════════════════════════════
+
+    let sankeyYearIndex = 0;
+
+    function renderSankey(projection, yearIndex) {
+      const container = document.getElementById('sankey-container');
+      const label = document.getElementById('sankey-year-label');
+      if (!container) return;
+
+      const decYears = projection.decumulation.years.filter(y => !y.fundsDepleted && y.withdrawals);
+      if (decYears.length === 0) return;
+
+      const idx = Math.max(0, Math.min(yearIndex, decYears.length - 1));
+      sankeyYearIndex = idx;
+      const y = decYears[idx];
+      if (label) label.textContent = 'Age ' + y.age;
+
+      // Income sources
+      const sources = [];
+      const yourSP = (y.statePension || 0) - (y.partnerStatePension || 0);
+      const partnerSP = y.partnerStatePension || 0;
+      const partnerDB = y.partnerDbPension || 0;
+      const yourDB = (y.dbPension || 0) - partnerDB;
+      const pensionW = y.withdrawals?.pension || 0;
+      const isaW = y.withdrawals?.isa || 0;
+
+      if (yourSP > 0) sources.push({ name: 'Your SP', value: yourSP, color: '#059669' });
+      if (partnerSP > 0) sources.push({ name: 'Partner SP', value: partnerSP, color: '#34d399' });
+      if (yourDB > 0) sources.push({ name: 'Your DB', value: yourDB, color: '#2563eb' });
+      if (partnerDB > 0) sources.push({ name: 'Partner DB', value: partnerDB, color: '#7c3aed' });
+      if (pensionW > 0) sources.push({ name: 'Pension', value: pensionW, color: '#f59e0b' });
+      if (isaW > 0) sources.push({ name: 'ISA', value: isaW, color: '#8b5cf6' });
+
+      const totalGross = sources.reduce((s, x) => s + x.value, 0);
+      const tax = y.taxPaid || 0;
+      const netIncome = y.netIncome || 0;
+
+      // SVG Sankey
+      const w = 320, h = 240;
+      const leftX = 10, midX = 160, rightX = 280;
+      const bandWidth = 60;
+
+      // Calculate Y positions for left side (sources)
+      let leftY = 20;
+      const leftBands = sources.map(s => {
+        const height = Math.max(8, (s.value / totalGross) * 180);
+        const band = { ...s, y: leftY, height };
+        leftY += height + 4;
+        return band;
+      });
+
+      // Right side: tax + net
+      const taxHeight = Math.max(8, (tax / totalGross) * 180);
+      const netHeight = Math.max(8, (netIncome / totalGross) * 180);
+      const rightStartY = 20;
+
+      let svg = `<svg viewBox="0 0 ${w} ${h}" style="width: 100%; max-width: 400px; display: block; margin: 0 auto;">`;
+
+      // Draw flow bands from each source to the right
+      leftBands.forEach(band => {
+        // Flow to net income (proportional)
+        const netPortion = band.value * (1 - tax / totalGross);
+        const taxPortion = band.value * (tax / totalGross);
+        const netBandH = (netPortion / netIncome) * netHeight;
+        const taxBandH = taxPortion > 0 ? (taxPortion / Math.max(1, tax)) * taxHeight : 0;
+
+        // Main flow (to net)
+        svg += `<path d="M ${leftX + bandWidth} ${band.y + band.height / 2} C ${midX} ${band.y + band.height / 2}, ${midX} ${rightStartY + netHeight / 2}, ${rightX} ${rightStartY + netHeight / 2}" fill="none" stroke="${band.color}" stroke-width="${Math.max(2, band.height * 0.6)}" opacity="0.3"/>`;
+
+        // Tax flow (to tax)
+        if (taxBandH > 1) {
+          svg += `<path d="M ${leftX + bandWidth} ${band.y + band.height / 2} C ${midX} ${band.y + band.height / 2}, ${midX} ${rightStartY + netHeight + 10 + taxHeight / 2}, ${rightX} ${rightStartY + netHeight + 10 + taxHeight / 2}" fill="none" stroke="#ef4444" stroke-width="${Math.max(1, taxBandH * 0.5)}" opacity="0.2"/>`;
+        }
+      });
+
+      // Left labels
+      leftBands.forEach(band => {
+        svg += `<rect x="${leftX}" y="${band.y}" width="${bandWidth}" height="${band.height}" rx="4" fill="${band.color}" opacity="0.8"/>`;
+        if (band.height > 14) {
+          svg += `<text x="${leftX + 4}" y="${band.y + band.height / 2 + 4}" font-size="9" fill="white" font-weight="600">${band.name}</text>`;
+        }
+      });
+
+      // Right: Net income block
+      svg += `<rect x="${rightX}" y="${rightStartY}" width="${bandWidth}" height="${netHeight}" rx="4" fill="#059669" opacity="0.8"/>`;
+      svg += `<text x="${rightX + 4}" y="${rightStartY + netHeight / 2 + 4}" font-size="9" fill="white" font-weight="600">Net</text>`;
+
+      // Right: Tax block
+      if (tax > 0) {
+        svg += `<rect x="${rightX}" y="${rightStartY + netHeight + 10}" width="${bandWidth}" height="${taxHeight}" rx="4" fill="#ef4444" opacity="0.8"/>`;
+        svg += `<text x="${rightX + 4}" y="${rightStartY + netHeight + 10 + taxHeight / 2 + 4}" font-size="9" fill="white" font-weight="600">Tax</text>`;
+      }
+
+      // Value labels (right side)
+      svg += `<text x="${rightX + bandWidth + 4}" y="${rightStartY + netHeight / 2 + 4}" font-size="10" fill="#059669" font-weight="600">${formatCompactCurrency(netIncome)}</text>`;
+      if (tax > 0) {
+        svg += `<text x="${rightX + bandWidth + 4}" y="${rightStartY + netHeight + 10 + taxHeight / 2 + 4}" font-size="10" fill="#ef4444" font-weight="600">${formatCompactCurrency(tax)}</text>`;
+      }
+
+      // Source value labels (left side)
+      leftBands.forEach(band => {
+        svg += `<text x="${leftX + bandWidth + 4}" y="${band.y + band.height / 2 + 4}" font-size="9" fill="${band.color}" font-weight="500">${formatCompactCurrency(band.value)}</text>`;
+      });
+
+      svg += '</svg>';
+      container.innerHTML = svg;
+    }
+
+    function initSankey(projection) {
+      renderSankey(projection, 0);
+      document.getElementById('sankey-prev')?.addEventListener('click', () => {
+        renderSankey(projection, sankeyYearIndex - 1);
+      });
+      document.getElementById('sankey-next')?.addEventListener('click', () => {
+        renderSankey(projection, sankeyYearIndex + 1);
+      });
+    }
+
     function renderComparison(projA, projB) {
       const comparison = comparePlans(projA, projB);
       const { deltas } = comparison;
@@ -3600,6 +3721,7 @@
             renderGuaranteedIncomeChart(basicProjection, data);
             renderIncomeSourcesBreakdown(basicProjection, data);
             renderDataTable(basicProjection, data);
+            initSankey(basicProjection);
           } catch (e) {
             console.warn('Chart rendering failed:', e);
           }

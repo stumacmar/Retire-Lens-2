@@ -194,9 +194,14 @@ export function renderFanChart(yearlyBands, deterministicData, canvasSelector, o
             text: 'Portfolio Value'
           },
           ticks: {
-            callback: (value) => formatCurrency(value)
+            callback: (value) => {
+              if (value >= 1000000) return '\u00a3' + (value / 1000000).toFixed(1) + 'm';
+              if (value >= 1000) return '\u00a3' + (value / 1000).toFixed(0) + 'k';
+              return '\u00a3' + value;
+            }
           },
-          beginAtZero: true
+          beginAtZero: true,
+          suggestedMax: deterministicValues.length > 0 ? Math.max(...deterministicValues.map(d => d.value)) * 2.5 : undefined
         }
       }
     }
@@ -573,7 +578,8 @@ export function renderConfidenceExplainer(mcResult, containerSelector, options =
   }
   
   // Build success probability display
-  let successDisplay = `<span style="font-size: 2rem; font-weight: bold; color: ${confidenceColor};">${successPct}%</span>`;
+  const successNum = Math.round(successRate * 100);
+  let successDisplay = `<span style="font-size: 2rem; font-weight: bold; color: ${confidenceColor};">${successNum}</span><span style="font-size: 1rem; color: ${confidenceColor};"> out of 100</span>`;
   
   if (isProvisional) {
     successDisplay = `<span style="font-size: 2rem; font-weight: bold; color: #6b7280;">— (provisional)</span>`;
@@ -583,7 +589,7 @@ export function renderConfidenceExplainer(mcResult, containerSelector, options =
     <div class="confidence-explainer" style="padding: 1rem; background: #f8fafc; border-radius: 8px; margin-bottom: 1rem;">
       <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem;">
         <div>
-          <h4 style="font-size: 0.875rem; color: #6b7280; margin: 0 0 0.25rem 0;">Success Probability</h4>
+          <h4 style="font-size: 0.875rem; color: #6b7280; margin: 0 0 0.25rem 0;">Market Scenario Success</h4>
           ${successDisplay}
           ${!isProvisional ? `
             <p style="font-size: 0.75rem; color: #6b7280; margin: 0.25rem 0 0 0;">

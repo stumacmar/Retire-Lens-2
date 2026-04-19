@@ -2173,8 +2173,8 @@
         data: targetLine,
         type: 'line',
         borderColor: '#ef4444',
-        borderWidth: 2,
-        borderDash: [5, 5],
+        borderWidth: 3,
+        borderDash: [8, 4],
         fill: false,
         pointRadius: 0,
         order: 0
@@ -2627,7 +2627,7 @@
       // Right: Tax block
       if (tax > 0) {
         svg += `<rect x="${rightX}" y="${rightStartY + netHeight + 10}" width="${bandWidth}" height="${taxHeight}" rx="4" fill="#ef4444" opacity="0.8"/>`;
-        svg += `<text x="${rightX + 4}" y="${rightStartY + netHeight + 10 + taxHeight / 2 + 4}" font-size="9" fill="white" font-weight="600">Tax</text>`;
+        svg += `<text x="${rightX + 4}" y="${rightStartY + netHeight + 10 + taxHeight / 2 + 4}" font-size="9" fill="white" font-weight="600">Tax ${formatCompactCurrency(tax)}</text>`;
       }
 
       // Value labels (right side)

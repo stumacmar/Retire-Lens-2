@@ -443,11 +443,18 @@
     .result-card {
       background: var(--color-surface);
       border-radius: var(--radius-xl);
-      padding: var(--spacing-2xl) var(--spacing-xl);
-      margin-bottom: var(--spacing-xl);
+      padding: var(--spacing-lg) var(--spacing-md);
+      margin-bottom: var(--spacing-md);
       box-shadow: var(--shadow-md);
       border: 1px solid var(--color-border-light);
       transition: box-shadow var(--transition-slow), transform var(--transition-slow);
+    }
+
+    @media (min-width: 600px) {
+      .result-card {
+        padding: var(--spacing-2xl) var(--spacing-xl);
+        margin-bottom: var(--spacing-xl);
+      }
     }
 
     /* Cards with charts need overflow hidden for rounded corners */

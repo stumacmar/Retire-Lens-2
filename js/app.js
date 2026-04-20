@@ -1855,8 +1855,8 @@
       const metrics = document.querySelectorAll('.metric-value[data-metric]');
       metrics.forEach(el => {
         const key = el.dataset.metric;
-        if (key === 'retirementPot') el.textContent = formatCurrency(summary.retirementPot);
-        else if (key === 'yearsSupported') el.textContent = `${summary.yearsWithFullIncome}/${summary.totalYearsInRetirement}`;
+        if (key === 'monthlyIncome') el.textContent = formatCurrency(monthly);
+        else if (key === 'confidence') { el.textContent = confidenceNum + '%'; el.style.color = confidenceColor; }
         else if (key === 'finalBalance') el.textContent = formatCurrency(summary.finalBalance);
         else if (key === 'pclsTaken') el.textContent = formatCurrency(summary.pclsTaken);
       });
@@ -1902,15 +1902,15 @@
 
         <div class="results-metrics" style="margin-bottom: 0.5rem;">
           <div class="metric">
-            <span class="metric-label">Retirement Fund</span>
-            <span class="metric-value" data-metric="retirementPot">${formatCurrency(summary.retirementPot)}</span>
+            <span class="metric-label">Monthly Income</span>
+            <span class="metric-value" data-metric="monthlyIncome">${formatCurrency(monthly)}</span>
           </div>
           <div class="metric">
-            <span class="metric-label">Years Supported</span>
-            <span class="metric-value" data-metric="yearsSupported">${summary.yearsWithFullIncome}/${summary.totalYearsInRetirement}</span>
+            <span class="metric-label">Confidence</span>
+            <span class="metric-value" data-metric="confidence" style="color: ${confidenceColor};">${confidenceNum}%</span>
           </div>
           <div class="metric">
-            <span class="metric-label">Final Balance</span>
+            <span class="metric-label">Surplus at 90</span>
             <span class="metric-value" data-metric="finalBalance">${formatCurrency(summary.finalBalance)}</span>
           </div>
           <div class="metric">

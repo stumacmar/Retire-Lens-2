@@ -140,14 +140,14 @@
       // Same wizard screens for BOTH singles and couples
       // For couples, each screen shows doubled-up inputs (you + partner)
       // Consolidated: age+retirement, income, pension+contributions, isa+state-pension
-      screens.push('age', 'income-target', 'pension-pot');
+      screens.push('age', 'pension-pot');
 
       // ISA and state pension on one screen
       if (isFeatureEnabled('GUIDED_MODE') || state.mode === 'guided' || state.mode === 'full') {
         screens.push('isa-savings');
       }
 
-      screens.push('review', 'results');
+      screens.push('results');
 
       return screens;
     }
@@ -331,11 +331,11 @@
       // For couples: inject partner input fields on wizard screens
       injectPartnerInputs(screenId);
 
-      // Update income screen for singles vs couples
-      if (screenId === 'income-target') {
+      // Update pension-pot screen for singles vs couples (includes target income + PLSA)
+      if (screenId === 'pension-pot') {
         const isCouple = state.onboardingState?.householdType === HOUSEHOLD_TYPES.COUPLE;
-        const sub = screen.querySelector('.screen-subtitle');
-        if (sub) sub.textContent = isCouple ? 'Combined household income after tax' : 'Annual net income after tax';
+        const sub = document.getElementById('pension-pot-subtitle');
+        if (sub) sub.textContent = isCouple ? 'Combined household income and pension details' : 'Target income and pension details';
         // Update PLSA card values for single vs couple
         const plsaValues = isCouple
           ? { min: 22400, mod: 43100, comf: 59000 }
@@ -354,7 +354,6 @@
             const val = type === 'minimum' ? plsaValues.min : type === 'moderate' ? plsaValues.mod : plsaValues.comf;
             const input = document.getElementById('input-target-income');
             if (input) input.value = val;
-            // Update card styles
             document.querySelectorAll('.plsa-card').forEach(c => {
               c.style.borderColor = 'var(--color-border)';
               c.style.background = 'var(--color-surface)';
@@ -363,32 +362,6 @@
             card.style.background = 'var(--color-primary-subtle)';
           });
         });
-        // Instant estimate from age + retirement + any pension data already entered
-        const incomeInput = document.getElementById('input-target-income');
-        if (incomeInput) {
-          const updateEstimate = () => {
-            const age = state.onboardingState?.personA?.currentAge || 0;
-            const retAge = state.onboardingState?.personA?.retirementAge || 0;
-            const target = parseFloat(incomeInput.value) || 0;
-            const pot = state.onboardingState?.personA?.dcPot || 0;
-            const el = document.getElementById('instant-estimate');
-            const textEl = document.getElementById('instant-estimate-text');
-            if (!el || !textEl || !age || !retAge || !target) { if (el) el.style.display = 'none'; return; }
-            const years = retAge - age;
-            const potAtRetire = pot > 0 ? pot * Math.pow(1.04, years) : 0;
-            const sustainable = potAtRetire * 0.04;
-            const sp = 11973;
-            const gap = target - sustainable - sp;
-            el.style.display = 'block';
-            if (gap <= 0) {
-              textEl.innerHTML = `<span style="color: var(--color-success);">Your existing savings could support this. Add more detail for a full projection.</span>`;
-            } else {
-              textEl.innerHTML = `<span style="color: var(--color-warning);">Gap of ~${formatCurrency(gap)}/yr. Adding pension details on the next screen will improve this estimate.</span>`;
-            }
-          };
-          incomeInput.addEventListener('input', updateEstimate);
-          updateEstimate();
-        }
       }
 
       // Show/hide partner DB section on pension-pot screen for couples
@@ -421,24 +394,15 @@
         initializeCouplesInput();
       }
       
-      // Hide advanced options for non-full modes
+      // Review screen (kept for direct navigation / backward compat)
       if (screenId === 'review') {
-        const advancedContainer = document.getElementById('advanced-options-container');
-        const scenarioSelect = document.getElementById('scenario-select')?.closest('.input-group');
-        
-        if (state.mode === 'quick') {
-          advancedContainer?.style && (advancedContainer.style.display = 'none');
-          scenarioSelect?.style && (scenarioSelect.style.display = 'none');
-        } else if (state.mode === 'guided') {
-          advancedContainer?.style && (advancedContainer.style.display = 'none');
-          scenarioSelect?.style && (scenarioSelect.style.display = 'block');
-        } else {
-          // Full mode: show scenario selector, collapse advanced by default
-          advancedContainer?.style && (advancedContainer.style.display = 'none');
-          scenarioSelect?.style && (scenarioSelect.style.display = 'block');
-        }
-        
         renderReviewSummary();
+      }
+
+      // Auto-calculate when entering results screen
+      if (screenId === 'results') {
+        // Always run fresh calculation when entering results
+        setTimeout(() => runFullCalculation(), 100);
       }
     }
     
@@ -464,6 +428,7 @@
           state.onboardingState.targetNetIncome = getValue('input-target-income', 0);
           break;
         case 'pension-pot': {
+          state.onboardingState.targetNetIncome = getValue('input-target-income', 0);
           personA.dcPot = getValue('input-pension-pot', 0);
           personA.dbAnnualIncome = getValue('input-your-db-income', 0);
           personA.dbStartAge = getValue('input-your-db-start', 65);
@@ -536,6 +501,7 @@
           setInput('input-target-income', state.onboardingState.targetNetIncome);
           break;
         case 'pension-pot':
+          setInput('input-target-income', state.onboardingState.targetNetIncome);
           setInput('input-pension-pot', personA.dcPot);
           setInput('input-your-db-income', personA.dbAnnualIncome);
           setInput('input-your-db-start', personA.dbStartAge);
@@ -1584,17 +1550,329 @@
       return '£' + Math.round(amount).toLocaleString();
     }
     
+    // ═══════════════════════════════════════════════════════════════
+    // Live What-if Sliders — instant deterministic re-projection
+    // ═══════════════════════════════════════════════════════════════
+    let sliderDebounceTimer = null;
+    const originalFormData = {};
+
+    function initSliders() {
+      if (!state.formData) return;
+      Object.assign(originalFormData, state.formData);
+
+      const ageSlider = document.getElementById('slider-retirement-age');
+      const contribSlider = document.getElementById('slider-monthly-contribution');
+      if (ageSlider) {
+        ageSlider.value = state.formData.retirementAge || 60;
+        document.getElementById('slider-retirement-age-value').textContent = ageSlider.value;
+        updateSliderFill(ageSlider);
+      }
+      if (contribSlider) {
+        const monthly = Math.round((state.formData.annualPensionContribution || 0) / 12);
+        contribSlider.value = monthly;
+        document.getElementById('slider-contribution-value').textContent = '£' + Number(monthly).toLocaleString();
+        updateSliderFill(contribSlider);
+      }
+    }
+
+    function updateSliderFill(slider) {
+      if (!slider) return;
+      const pct = ((slider.value - slider.min) / (slider.max - slider.min)) * 100;
+      slider.style.background = `linear-gradient(to right, var(--color-primary, #4f46e5) ${pct}%, var(--color-border, #e2e8f0) ${pct}%)`;
+    }
+
+    function runSliderProjection() {
+      if (!state.formData || !state.planA) return;
+      const ageSlider = document.getElementById('slider-retirement-age');
+      const contribSlider = document.getElementById('slider-monthly-contribution');
+      if (!ageSlider || !contribSlider) return;
+
+      const newAge = parseInt(ageSlider.value);
+      const newMonthly = parseInt(contribSlider.value);
+      const newAnnualContrib = newMonthly * 12;
+
+      document.getElementById('slider-retirement-age-value').textContent = newAge;
+      document.getElementById('slider-contribution-value').textContent = '£' + Number(newMonthly).toLocaleString();
+      updateSliderFill(ageSlider);
+      updateSliderFill(contribSlider);
+
+      clearTimeout(sliderDebounceTimer);
+      sliderDebounceTimer = setTimeout(() => {
+        try {
+          const data = { ...state.formData, retirementAge: newAge, annualPensionContribution: newAnnualContrib };
+          const scenarioPreset = SCENARIO_PRESETS[data.scenario] || SCENARIO_PRESETS.moderate;
+          const altPlan = createPlan({
+            ...data,
+            assumptions: {
+              projection: {
+                defaultGrowthRate: scenarioPreset.growthRate || 0.04,
+                defaultFeeRate: scenarioPreset.feeRate || 0.005
+              }
+            }
+          });
+          const altProjection = runProjection(altPlan, { endAge: 90 });
+
+          state.formData.retirementAge = newAge;
+          state.formData.annualPensionContribution = newAnnualContrib;
+          state.planA = altPlan;
+          state.projectionA = altProjection;
+
+          updateHeroFromProjection(altProjection, null);
+
+          renderIncomeGap(altProjection, data);
+          renderSPBridge(altProjection, data);
+          renderContributionImpact(altProjection, data);
+          renderCashflowChart(altProjection, data);
+          renderCapitalChart(altProjection);
+          renderDataTable(altProjection, data);
+          try { initSankey(altProjection); } catch (e) { /* ok */ }
+
+          const impactEl = document.getElementById('slider-impact');
+          if (impactEl) {
+            const origBalance = originalFormData._originalFinalBalance;
+            const newBalance = altProjection.summary.finalBalance;
+            if (origBalance != null) {
+              const delta = newBalance - origBalance;
+              const sign = delta >= 0 ? '+' : '';
+              impactEl.style.display = 'block';
+              impactEl.innerHTML = `vs original plan: <span style="color: ${delta >= 0 ? 'var(--color-success, #059669)' : 'var(--color-danger, #dc2626)'}; font-weight: 700;">${sign}${formatCurrency(delta)}</span> final balance`;
+            }
+          }
+        } catch (e) {
+          console.warn('Slider projection failed:', e);
+        }
+      }, 100);
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // Full Calculation — extracted so results screen can call it directly
+    // ═══════════════════════════════════════════════════════════════
+    function runFullCalculation() {
+      const overlay = document.getElementById('loading-overlay');
+      if (overlay) overlay.style.display = 'flex';
+
+      setTimeout(() => {
+        try {
+          const validation = validateCanCalculate();
+          if (!validation.canCalculate) {
+            showError(validation.reason || 'Please complete all required fields');
+            if (overlay) overlay.style.display = 'none';
+            return;
+          }
+
+          const data = collectFormData();
+          state.formData = data;
+
+          if (state.onboardingState && state.onboardingState.householdType) {
+            data.householdType = state.onboardingState.householdType;
+            data.personA = state.onboardingState.personA;
+            data.personB = state.onboardingState.personB;
+            data.isCouple = state.onboardingState.householdType === HOUSEHOLD_TYPES.COUPLE;
+          }
+
+          const assumptions = createUserAssumptions(SCENARIO_PRESETS[data.scenario] || SCENARIO_PRESETS.moderate);
+
+          let household = null;
+          try {
+            if (data.householdType === HOUSEHOLD_TYPES.COUPLE && state.onboardingState) {
+              const householdPlan = onboardingToHouseholdPlan(state.onboardingState);
+              household = createHouseholdPlan(householdPlan);
+            } else {
+              household = createHousehold({
+                person1: { currentAge: data.currentAge, retirementAge: data.retirementAge },
+                person2: null
+              });
+            }
+          } catch (e) {
+            console.warn('Household creation failed:', e);
+            household = { person1: { currentAge: data.currentAge, retirementAge: data.retirementAge }, person2: null, isCouple: false };
+          }
+
+          const scenarioPreset = SCENARIO_PRESETS[data.scenario] || SCENARIO_PRESETS.moderate;
+          if (data.isCouple && state.onboardingState?.personB?.dbAnnualIncome > 0 && !data.partnerDBPensionAmount) {
+            data.partnerDBPensionAmount = state.onboardingState.personB.dbAnnualIncome;
+            data.partnerDBPensionStartAge = state.onboardingState.personB.dbStartAge || 67;
+          }
+          const plan = createPlan({
+            name: 'Plan A',
+            ...data,
+            assumptions: {
+              projection: {
+                defaultGrowthRate: scenarioPreset.growthRate || 0.04,
+                defaultFeeRate: scenarioPreset.feeRate || 0.005,
+                volatility: scenarioPreset.volatility || 0.15
+              }
+            }
+          });
+          const basicProjection = runProjection(plan, { endAge: 90 });
+
+          state.planA = plan;
+          state.projectionA = basicProjection;
+
+          const results = { basicProjection, household, assumptions, data, plan };
+
+          if (data.isCouple && household && state.onboardingState) {
+            try {
+              const householdPlanInput = {
+                householdType: 'couple',
+                personA: {
+                  name: 'You', currentAge: data.currentAge, retirementAge: data.retirementAge,
+                  pensionTypes: state.onboardingState.personA?.pensionTypes || ['dc'],
+                  dcPot: data.currentPension, dcMonthlyContrib: data.annualPensionContribution / 12,
+                  isaBalance: data.currentIsa || 0, isaAnnualContrib: data.annualIsaContribution || 0,
+                  statePensionAge: data.statePensionAge, expectedStatePension: data.expectedStatePension,
+                  hasDB: data.hasDBPension, dbAnnualIncome: data.dbPensionAmount || 0, dbStartAge: data.dbPensionStartAge || 65
+                },
+                personB: {
+                  name: 'Partner', currentAge: state.onboardingState.personB.currentAge,
+                  retirementAge: state.onboardingState.personB.retirementAge,
+                  pensionTypes: state.onboardingState.personB.pensionTypes || ['dc'],
+                  dcPot: state.onboardingState.personB.dcPot || 0,
+                  dcMonthlyContrib: state.onboardingState.personB.dcMonthlyContrib || 0,
+                  isaBalance: 0, isaAnnualContrib: 0,
+                  statePensionAge: state.onboardingState.personB.statePensionAge || 67,
+                  expectedStatePension: state.onboardingState.personB.expectedStatePension || 11973,
+                  hasDB: (state.onboardingState.personB.pensionTypes || []).includes('db'),
+                  dbAnnualIncome: state.onboardingState.personB.dbAnnualIncome || 0,
+                  dbStartAge: state.onboardingState.personB.dbStartAge || 67
+                },
+                targetNetIncome: data.targetNetIncome, planningHorizonAge: 95,
+                growthRate: assumptions.growthRate || 0.04, feeRate: assumptions.feeRate || 0.005,
+                inflationRate: assumptions.inflationRate || 0.02
+              };
+              const fullHouseholdPlan = createHouseholdPlan(householdPlanInput);
+              const householdTimeline = projectHousehold(fullHouseholdPlan);
+              results.householdTimeline = householdTimeline;
+              results.fullHouseholdPlan = fullHouseholdPlan;
+            } catch (e) {
+              console.warn('Household projection failed, falling back to single-person:', e);
+            }
+          }
+
+          if (data.enableMonteCarlo) {
+            try {
+              results.mcResult = runMonteCarloWithBands(plan, {
+                iterations: 1000, endAge: 90,
+                mean: scenarioPreset.growthRate || 0.04, volatility: scenarioPreset.volatility || 0.15
+              });
+            } catch (e) { console.warn('Monte Carlo failed:', e); }
+          }
+
+          try { results.readiness = calculateReadinessScore(basicProjection, data); } catch (e) { /* ok */ }
+          try {
+            results.insights = generateInsights(plan, basicProjection);
+            results.recommendations = generateRecommendations(basicProjection, data, results.mcResult);
+          } catch (e) { /* ok */ }
+          if (data.enableBenchmarking) {
+            try { results.benchmarks = generateBenchmarkAnalysis(plan, basicProjection); } catch (e) { /* ok */ }
+          }
+          try { results.milestones = integrateMilestonesIntoSpending([], plan); } catch (e) { /* ok */ }
+          if (data.hasDBPension && data.dbPensionAmount > 0) {
+            try { results.dbPension = createDBPension({ annualAmount: data.dbPensionAmount, startAge: data.dbPensionStartAge, inflationLinked: true }); } catch (e) { /* ok */ }
+          }
+          if (data.modelCareCosts) {
+            try {
+              const hp = createHealthcarePlan({ startAge: data.currentAge, retirementAge: data.retirementAge });
+              results.careCosts = projectHealthcareCosts(hp, data.retirementAge, 95);
+            } catch (e) { /* ok */ }
+          }
+          if (data.enableTaxOptimization) {
+            try { results.taxOptimization = generateTaxEfficiencyReport({ currentPot: data.currentPension, isaBalance: data.currentIsa || 0, targetIncome: data.targetNetIncome }); } catch (e) { /* ok */ }
+          }
+          try { results.spendingRules = createSpendingRules({}); } catch (e) { /* ok */ }
+          if (results.mcResult) {
+            try {
+              results.riskScore = calculateRiskScore(results.mcResult, basicProjection);
+              results.riskRecommendations = generateRiskRecommendations(results.riskScore, basicProjection);
+            } catch (e) { /* ok */ }
+          }
+          try {
+            results.legacyPlan = createLegacyPlan({ targetLegacy: 0, beneficiaries: [] });
+            results.estateValue = projectEstateValue({ currentWealth: basicProjection.summary.finalBalance }, 0);
+            results.ihtEstimate = calculateInheritanceTax(results.estateValue);
+          } catch (e) { /* ok */ }
+          if (data.isPhasedRetirement && data.phaseStartAge > 0) {
+            try { results.phasedRetirement = createPhasedRetirement({ fullRetirementAge: data.retirementAge, phaseStartAge: data.phaseStartAge, reducedHoursPercent: data.reducedHours }); } catch (e) { /* ok */ }
+          }
+
+          state.lastResults = results;
+          updateProvisionalBanner();
+          renderResults(basicProjection, results);
+
+          try {
+            renderIncomeGap(basicProjection, data);
+            renderSPBridge(basicProjection, data);
+            renderContributionImpact(basicProjection, data);
+            renderCashflowChart(basicProjection, data);
+            renderTaxChart(basicProjection);
+            renderGuaranteedIncomeChart(basicProjection, data);
+            renderIncomeSourcesBreakdown(basicProjection, data);
+            renderDataTable(basicProjection, data);
+            initSankey(basicProjection);
+          } catch (e) { console.warn('Chart rendering failed:', e); }
+
+          renderAllVisualizations(results);
+
+        } catch (error) {
+          console.error(error);
+          showError(error.message);
+        } finally {
+          if (overlay) overlay.style.display = 'none';
+        }
+      }, 50);
+    }
+
+    // Surgical hero update from projection — used by sliders for instant feedback
+    function updateHeroFromProjection(projection, results) {
+      const { summary, plan } = projection;
+      const isSuccess = summary.successRate >= 1.0;
+      const mcSuccess = results?.mcResult?.statistics?.successRate;
+      const confidenceNum = mcSuccess != null ? Math.round(mcSuccess * 100) : Math.round(summary.successRate * 100);
+      let confidenceColor = '#059669';
+      if (confidenceNum < 60) confidenceColor = '#dc2626';
+      else if (confidenceNum < 85) confidenceColor = '#d97706';
+
+      const monthly = Math.round(plan.targetNetIncome / 12);
+
+      // Update badge
+      const badge = document.querySelector('.answer-badge');
+      if (badge) {
+        badge.className = 'answer-badge ' + (isSuccess ? 'success' : confidenceNum >= 60 ? 'partial' : 'danger');
+        badge.textContent = isSuccess ? 'YES' : confidenceNum >= 60 ? 'LIKELY' : 'AT RISK';
+      }
+
+      // Update question
+      const question = document.querySelector('.results-question');
+      if (question) question.innerHTML = `Can I retire at ${plan.retirementAge} on <span id="hero-income-amount" data-annual="${plan.targetNetIncome}">${formatCurrency(monthly)}/mo</span>?`;
+
+      // Update gauge arc and score
+      const arcEl = document.getElementById('confidence-arc');
+      const scoreEl = document.getElementById('confidence-score');
+      if (arcEl) { arcEl.setAttribute('stroke', confidenceColor); arcEl.setAttribute('stroke-dasharray', `${confidenceNum * 2.04} 999`); }
+      if (scoreEl) { scoreEl.textContent = confidenceNum; scoreEl.setAttribute('fill', confidenceColor); }
+
+      // Update metrics
+      const metrics = document.querySelectorAll('.metric-value[data-metric]');
+      metrics.forEach(el => {
+        const key = el.dataset.metric;
+        if (key === 'retirementPot') el.textContent = formatCurrency(summary.retirementPot);
+        else if (key === 'yearsSupported') el.textContent = `${summary.yearsWithFullIncome}/${summary.totalYearsInRetirement}`;
+        else if (key === 'finalBalance') el.textContent = formatCurrency(summary.finalBalance);
+        else if (key === 'pclsTaken') el.textContent = formatCurrency(summary.pclsTaken);
+      });
+    }
+
     function renderResults(projection, results = null) {
       const { summary, plan } = projection;
       const isSuccess = summary.successRate >= 1.0;
 
-      // Get MC success for the single confidence number
       const mcSuccess = results?.mcResult?.statistics?.successRate;
       const confidenceNum = mcSuccess != null ? Math.round(mcSuccess * 100) : Math.round(summary.successRate * 100);
       let confidenceColor = '#059669';
-      let confidenceLabel = 'High confidence';
-      if (confidenceNum < 60) { confidenceColor = '#dc2626'; confidenceLabel = 'Needs attention'; }
-      else if (confidenceNum < 85) { confidenceColor = '#d97706'; confidenceLabel = 'Moderate confidence'; }
+      if (confidenceNum < 60) { confidenceColor = '#dc2626'; }
+      else if (confidenceNum < 85) { confidenceColor = '#d97706'; }
+
+      const monthly = Math.round(plan.targetNetIncome / 12);
 
       const html = `
         <div class="results-hero" style="padding-bottom: 1rem;">
@@ -1603,19 +1881,17 @@
           </div>
 
           <h2 class="results-question" style="margin-top: 0.5rem;">
-            Can I retire at ${plan.retirementAge} on ${formatCurrency(plan.targetNetIncome)}/year?
+            Can I retire at ${plan.retirementAge} on <span id="hero-income-amount" data-annual="${plan.targetNetIncome}">${formatCurrency(monthly)}/mo</span>?
           </h2>
+          <button id="toggle-monthly" style="margin-top: 0.375rem; padding: 0.25rem 0.75rem; font-size: 0.7rem; border: 1px solid var(--color-border); border-radius: var(--radius-full, 9999px); background: var(--color-surface); cursor: pointer; color: var(--color-text-light); transition: all 0.2s;">Show annual</button>
 
           <div style="margin-top: 1rem; display: flex; flex-direction: column; align-items: center;">
             <svg width="160" height="100" viewBox="0 0 160 100" style="overflow: visible;">
-              <!-- Background arc -->
               <path d="M 15 90 A 65 65 0 0 1 145 90" fill="none" stroke="#e5e7eb" stroke-width="12" stroke-linecap="round"/>
-              <!-- Confidence arc (animated) -->
-              <path d="M 15 90 A 65 65 0 0 1 145 90" fill="none" stroke="${confidenceColor}" stroke-width="12" stroke-linecap="round"
+              <path id="confidence-arc" d="M 15 90 A 65 65 0 0 1 145 90" fill="none" stroke="${confidenceColor}" stroke-width="12" stroke-linecap="round"
                 stroke-dasharray="${confidenceNum * 2.04} 999"
-                style="transition: stroke-dasharray 1.5s cubic-bezier(0.4, 0, 0.2, 1);"/>
-              <!-- Score text -->
-              <text x="80" y="75" text-anchor="middle" font-size="32" font-weight="700" fill="${confidenceColor}">${confidenceNum}</text>
+                style="transition: stroke-dasharray 0.6s cubic-bezier(0.4, 0, 0.2, 1);"/>
+              <text id="confidence-score" x="80" y="75" text-anchor="middle" font-size="32" font-weight="700" fill="${confidenceColor}">${confidenceNum}</text>
               <text x="80" y="95" text-anchor="middle" font-size="11" fill="#6b7280">out of 100</text>
             </svg>
             <div style="font-size: 0.8125rem; color: var(--color-text-light); margin-top: 0.25rem;">
@@ -1627,19 +1903,19 @@
         <div class="results-metrics" style="margin-bottom: 0.5rem;">
           <div class="metric">
             <span class="metric-label">Retirement Fund</span>
-            <span class="metric-value">${formatCurrency(summary.retirementPot)}</span>
+            <span class="metric-value" data-metric="retirementPot">${formatCurrency(summary.retirementPot)}</span>
           </div>
           <div class="metric">
             <span class="metric-label">Years Supported</span>
-            <span class="metric-value">${summary.yearsWithFullIncome}/${summary.totalYearsInRetirement}</span>
+            <span class="metric-value" data-metric="yearsSupported">${summary.yearsWithFullIncome}/${summary.totalYearsInRetirement}</span>
           </div>
           <div class="metric">
             <span class="metric-label">Final Balance</span>
-            <span class="metric-value">${formatCurrency(summary.finalBalance)}</span>
+            <span class="metric-value" data-metric="finalBalance">${formatCurrency(summary.finalBalance)}</span>
           </div>
           <div class="metric">
             <span class="metric-label">Tax-Free Cash</span>
-            <span class="metric-value">${formatCurrency(summary.pclsTaken)}</span>
+            <span class="metric-value" data-metric="pclsTaken">${formatCurrency(summary.pclsTaken)}</span>
           </div>
         </div>
 
@@ -1658,12 +1934,11 @@
       if (shareCardEl) {
         const shareData = state.formData || {};
         const isCouple = shareData.isCouple || (plan.partnerCurrentAge > 0);
-        const monthly = Math.round(plan.targetNetIncome / 12);
         const mcPct = results?.mcResult?.statistics?.successRate;
         const conf = mcPct != null ? Math.round(mcPct * 100) : Math.round(summary.successRate * 100);
         const who = isCouple ? 'We' : 'I';
         shareCardEl.innerHTML = `
-          <div style="font-weight: 700; margin-bottom: 0.25rem;">${who} can retire at ${plan.retirementAge} on ${formatCurrency(plan.targetNetIncome)}/yr (${formatCurrency(monthly)}/month)</div>
+          <div style="font-weight: 700; margin-bottom: 0.25rem;">${who} can retire at ${plan.retirementAge} on ${formatCurrency(monthly)}/mo (${formatCurrency(plan.targetNetIncome)}/yr)</div>
           <div>${conf} out of 100 market scenarios support this plan to age 90</div>
           <div>Final balance: ${formatCurrency(summary.finalBalance)} | ISA preserved</div>
           <div style="font-size: 0.7rem; color: var(--color-text-light); margin-top: 0.25rem;">RetireLens Pro | Not financial advice | ${new Date().toLocaleDateString()}</div>
@@ -1681,53 +1956,124 @@
         }
       });
 
-      // Monthly/annual toggle
-      let showMonthly = false;
+      // Monthly/annual toggle — starts in monthly (income-first framing)
+      let showAnnual = false;
       document.getElementById('toggle-monthly')?.addEventListener('click', () => {
-        showMonthly = !showMonthly;
+        showAnnual = !showAnnual;
         const btn = document.getElementById('toggle-monthly');
-        if (btn) btn.textContent = showMonthly ? 'Show annual' : 'Show monthly';
-        // Re-render income breakdown with monthly values
-        if (showMonthly) {
-          document.querySelectorAll('[data-annual]').forEach(el => {
-            const annual = parseFloat(el.dataset.annual);
-            if (!isNaN(annual)) el.textContent = formatCurrency(Math.round(annual / 12)) + '/mo';
-          });
-        } else {
-          document.querySelectorAll('[data-annual]').forEach(el => {
-            const annual = parseFloat(el.dataset.annual);
-            if (!isNaN(annual)) el.textContent = formatCurrency(annual);
-          });
+        if (btn) btn.textContent = showAnnual ? 'Show monthly' : 'Show annual';
+        const heroAmount = document.getElementById('hero-income-amount');
+        if (heroAmount) {
+          const annual = parseFloat(heroAmount.dataset.annual);
+          if (!isNaN(annual)) heroAmount.textContent = showAnnual ? formatCurrency(annual) + '/yr' : formatCurrency(Math.round(annual / 12)) + '/mo';
         }
+        document.querySelectorAll('[data-annual]').forEach(el => {
+          if (el.id === 'hero-income-amount') return;
+          const annual = parseFloat(el.dataset.annual);
+          if (!isNaN(annual)) el.textContent = showAnnual ? formatCurrency(annual) : formatCurrency(Math.round(annual / 12)) + '/mo';
+        });
       });
 
-      // Populate input summary
+      // Initialize sliders with current values and snapshot original final balance
+      if (typeof originalFormData !== 'undefined' && state.formData) {
+        state.formData._originalFinalBalance = summary.finalBalance;
+      }
+      initSliders();
+
+      // Populate input summary with inline editing
       const inputsSummaryEl = document.getElementById('inputs-summary');
       if (inputsSummaryEl) {
         const d = state.formData || {};
+        function editCell(label, key, value, isCurrency) {
+          const display = isCurrency ? formatCurrency(value) : value;
+          return `<tr>
+            <td>${label}</td>
+            <td style="text-align: right;">
+              <span class="inline-edit" data-key="${key}" data-currency="${isCurrency ? '1' : '0'}" title="Tap to edit">${display} <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="vertical-align: -1px; opacity: 0.5;"><path d="M17 3a2.83 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg></span>
+            </td>
+          </tr>`;
+        }
         let inputsHtml = '<table style="width: 100%; border-collapse: collapse;">';
-        inputsHtml += `<tr><td>Your age</td><td style="text-align: right;">${d.currentAge || plan.currentAge}</td></tr>`;
-        inputsHtml += `<tr><td>Retirement age</td><td style="text-align: right;">${d.retirementAge || plan.retirementAge}</td></tr>`;
-        inputsHtml += `<tr><td>Target income</td><td style="text-align: right;">${formatCurrency(d.targetNetIncome || plan.targetNetIncome)}</td></tr>`;
-        inputsHtml += `<tr><td>Pension pot</td><td style="text-align: right;">${formatCurrency(d.currentPension)}</td></tr>`;
-        inputsHtml += `<tr><td>Monthly contributions</td><td style="text-align: right;">${formatCurrency((d.annualPensionContribution || 0) / 12)}</td></tr>`;
-        inputsHtml += `<tr><td>ISA balance</td><td style="text-align: right;">${formatCurrency(d.currentIsa || 0)}</td></tr>`;
-        inputsHtml += `<tr><td>State Pension age</td><td style="text-align: right;">${d.statePensionAge || 67}</td></tr>`;
-        inputsHtml += `<tr><td>State Pension amount</td><td style="text-align: right;">${formatCurrency(d.expectedStatePension || 11973)}</td></tr>`;
+        inputsHtml += editCell('Your age', 'currentAge', d.currentAge || plan.currentAge, false);
+        inputsHtml += editCell('Retirement age', 'retirementAge', d.retirementAge || plan.retirementAge, false);
+        inputsHtml += editCell('Target income', 'targetNetIncome', d.targetNetIncome || plan.targetNetIncome, true);
+        inputsHtml += editCell('Pension pot', 'currentPension', d.currentPension, true);
+        inputsHtml += editCell('Monthly contributions', 'monthlyContrib', Math.round((d.annualPensionContribution || 0) / 12), true);
+        inputsHtml += editCell('ISA balance', 'currentIsa', d.currentIsa || 0, true);
+        inputsHtml += editCell('State Pension age', 'statePensionAge', d.statePensionAge || 67, false);
+        inputsHtml += editCell('State Pension', 'expectedStatePension', d.expectedStatePension || 11973, true);
         if (d.isCouple) {
           inputsHtml += `<tr><td style="padding-top: 0.5rem; font-weight: 600;" colspan="2">Partner</td></tr>`;
-          inputsHtml += `<tr><td>Partner age</td><td style="text-align: right;">${d.partnerCurrentAge || 0}</td></tr>`;
-          inputsHtml += `<tr><td>Partner SP</td><td style="text-align: right;">${formatCurrency(d.partnerExpectedStatePension || 0)}</td></tr>`;
-          inputsHtml += `<tr><td>Partner DB</td><td style="text-align: right;">${formatCurrency(d.partnerDBPensionAmount || 0)}</td></tr>`;
+          inputsHtml += editCell('Partner age', 'partnerCurrentAge', d.partnerCurrentAge || 0, false);
+          inputsHtml += editCell('Partner SP', 'partnerExpectedStatePension', d.partnerExpectedStatePension || 0, true);
+          inputsHtml += editCell('Partner DB', 'partnerDBPensionAmount', d.partnerDBPensionAmount || 0, true);
         }
         if (d.hasDBPension) {
-          inputsHtml += `<tr><td>Your DB pension</td><td style="text-align: right;">${formatCurrency(d.dbPensionAmount || 0)}</td></tr>`;
+          inputsHtml += editCell('Your DB pension', 'dbPensionAmount', d.dbPensionAmount || 0, true);
         }
         if (d.pclsAlreadyTaken) {
-          inputsHtml += `<tr><td>PCLS already taken</td><td style="text-align: right;">${formatCurrency(d.pclsAmountTaken || 0)}</td></tr>`;
+          inputsHtml += editCell('PCLS taken', 'pclsAmountTaken', d.pclsAmountTaken || 0, true);
         }
         inputsHtml += '</table>';
+        inputsHtml += '<p style="font-size: 0.65rem; color: var(--color-text-light); margin-top: 0.5rem;">Tap any value to edit. Changes recalculate instantly.</p>';
         inputsSummaryEl.innerHTML = inputsHtml;
+
+        // Wire up inline editing
+        inputsSummaryEl.querySelectorAll('.inline-edit').forEach(el => {
+          el.addEventListener('click', () => {
+            if (el.querySelector('input')) return;
+            const key = el.dataset.key;
+            const isCurrency = el.dataset.currency === '1';
+            const raw = key === 'monthlyContrib'
+              ? Math.round((state.formData.annualPensionContribution || 0) / 12)
+              : (state.formData[key] || 0);
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.inputMode = 'numeric';
+            input.value = raw;
+            input.style.cssText = 'width: 5rem; text-align: right; font-size: inherit; font-weight: 600; border: 2px solid var(--color-primary); border-radius: 4px; padding: 2px 4px; outline: none;';
+            el.textContent = '';
+            el.appendChild(input);
+            input.focus();
+            input.select();
+
+            function commit() {
+              const newVal = parseFloat(input.value) || 0;
+              if (key === 'monthlyContrib') {
+                state.formData.annualPensionContribution = newVal * 12;
+              } else {
+                state.formData[key] = newVal;
+              }
+              // Sync to onboarding state for consistency
+              if (state.onboardingState?.personA) {
+                const pa = state.onboardingState.personA;
+                if (key === 'currentAge') pa.currentAge = newVal;
+                if (key === 'retirementAge') pa.retirementAge = newVal;
+                if (key === 'currentPension') pa.dcPot = newVal;
+                if (key === 'monthlyContrib') { pa.dcMonthlyContrib = newVal; pa.dcAnnualContrib = newVal * 12; }
+                if (key === 'currentIsa') pa.isaBalance = newVal;
+                if (key === 'statePensionAge') pa.statePensionAge = newVal;
+                if (key === 'expectedStatePension') { pa.expectedStatePension = newVal; pa.statePensionAmount = newVal; }
+              }
+              // Also sync DOM inputs for collectFormData
+              const domMap = {
+                currentAge: 'input-current-age', retirementAge: 'input-retirement-age',
+                targetNetIncome: 'input-target-income', currentPension: 'input-pension-pot',
+                monthlyContrib: 'input-pension-contribution', currentIsa: 'input-isa-balance',
+                statePensionAge: 'input-state-pension-age', expectedStatePension: 'input-state-pension-amount'
+              };
+              if (domMap[key]) {
+                const domEl = document.getElementById(domMap[key]);
+                if (domEl) domEl.value = newVal;
+              }
+              el.textContent = isCurrency ? formatCurrency(newVal) : newVal;
+              // Re-run full calculation
+              runFullCalculation();
+            }
+            input.addEventListener('blur', commit);
+            input.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); input.blur(); } });
+          });
+        });
       }
 
       // Populate assumptions detail
@@ -2102,10 +2448,153 @@
       return '£' + Math.round(value);
     }
     
-    /**
-     * Render the Annual Net Cashflow Chart (stacked bars by income source)
-     * FIX 1.2: Uses projection engine values directly - no independent tax recalculation
-     */
+    // ═══════════════════════════════════════════════════════════════
+    // UX Primitives: Income Gap, SP Bridge, Contribution Impact
+    // ═══════════════════════════════════════════════════════════════
+
+    function renderIncomeGap(projection, data) {
+      const el = document.getElementById('income-gap-section');
+      if (!el) return;
+
+      const target = data.targetNetIncome || projection.plan.targetNetIncome;
+      const firstDecYear = projection.decumulation.years[0];
+      if (!firstDecYear) { el.style.display = 'none'; return; }
+
+      const projected = firstDecYear.netIncome || 0;
+      const pct = Math.min(100, Math.round((projected / target) * 100));
+      const gap = target - projected;
+      const isShortfall = gap > 0;
+      const barColor = pct >= 100 ? 'var(--color-success, #059669)' : pct >= 80 ? 'var(--color-warning, #d97706)' : 'var(--color-danger, #dc2626)';
+
+      el.style.display = 'block';
+      el.innerHTML = `
+        <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 0.5rem;">
+          <span style="font-size: 0.8125rem; font-weight: 600;">Year 1 Income vs Target</span>
+          <span style="font-size: 0.8125rem; font-weight: 700; color: ${barColor};">${pct}%</span>
+        </div>
+        <div style="position: relative; height: 24px; background: var(--color-border-light, #f1f5f9); border-radius: 12px; overflow: hidden;">
+          <div style="height: 100%; width: ${pct}%; background: ${barColor}; border-radius: 12px; transition: width 0.8s cubic-bezier(0.4,0,0.2,1);"></div>
+        </div>
+        <div style="display: flex; justify-content: space-between; margin-top: 0.375rem; font-size: 0.75rem; color: var(--color-text-light);">
+          <span>Projected: <strong style="color: var(--color-text);">${formatCurrency(Math.round(projected / 12))}/mo</strong></span>
+          <span>Target: <strong style="color: var(--color-text);">${formatCurrency(Math.round(target / 12))}/mo</strong></span>
+        </div>
+        ${isShortfall ? `<div style="margin-top: 0.5rem; padding: 0.5rem 0.625rem; background: var(--color-danger-light, #fee2e2); border-radius: var(--radius-md, 0.5rem); font-size: 0.75rem; color: var(--color-danger, #dc2626);">
+          Shortfall of <strong>${formatCurrency(Math.round(gap / 12))}/mo</strong> (${formatCurrency(gap)}/yr). Use the sliders below to close the gap.
+        </div>` : `<div style="margin-top: 0.5rem; padding: 0.5rem 0.625rem; background: var(--color-success-light, #d1fae5); border-radius: var(--radius-md, 0.5rem); font-size: 0.75rem; color: var(--color-success, #059669);">
+          Your plan meets or exceeds your target income.
+        </div>`}
+      `;
+    }
+
+    function renderSPBridge(projection, data) {
+      const el = document.getElementById('sp-bridge-section');
+      if (!el) return;
+
+      const plan = projection.plan;
+      const retireAge = plan.retirementAge;
+      const spAge = plan.statePensionAge || data.statePensionAge || 67;
+      const sp = plan.expectedStatePension || data.expectedStatePension || 0;
+
+      if (spAge <= retireAge || sp <= 0) { el.style.display = 'none'; return; }
+
+      const bridgeYears = spAge - retireAge;
+      const isCouple = data.isCouple || false;
+      const partnerSP = data.partnerExpectedStatePension || 0;
+      const partnerSpAge = data.partnerStatePensionAge || 67;
+      const partnerCurrentAge = data.partnerCurrentAge || 0;
+      const ageDiff = partnerCurrentAge - plan.currentAge;
+      const partnerSpUserAge = partnerSpAge - ageDiff;
+
+      // Income before SP
+      const preSpDecYears = projection.decumulation.years.filter(y => y.age >= retireAge && y.age < spAge);
+      const avgPreSP = preSpDecYears.length > 0 ? Math.round(preSpDecYears.reduce((s, y) => s + (y.netIncome || 0), 0) / preSpDecYears.length) : 0;
+
+      // Income after SP
+      const postSpDecYears = projection.decumulation.years.filter(y => y.age >= spAge && y.age < spAge + 3);
+      const avgPostSP = postSpDecYears.length > 0 ? Math.round(postSpDecYears.reduce((s, y) => s + (y.netIncome || 0), 0) / postSpDecYears.length) : 0;
+
+      const totalSP = sp + (isCouple && partnerSpUserAge <= spAge ? partnerSP : 0);
+
+      el.style.display = 'block';
+      el.innerHTML = `
+        <h3 style="font-size: 1rem; margin-bottom: 0.75rem;">Bridge Period: ${bridgeYears} years without State Pension</h3>
+        <div style="display: flex; gap: 0.5rem; margin-bottom: 0.75rem;">
+          <div style="flex: 1; padding: 0.75rem; background: var(--color-warning-light, #fef3c7); border-radius: var(--radius-md, 0.5rem); text-align: center;">
+            <div style="font-size: 0.65rem; text-transform: uppercase; color: var(--color-warning, #d97706); letter-spacing: 0.04em;">Age ${retireAge}-${spAge - 1}</div>
+            <div style="font-size: 1.125rem; font-weight: 700; margin-top: 0.25rem;">${formatCurrency(Math.round(avgPreSP / 12))}/mo</div>
+            <div style="font-size: 0.7rem; color: var(--color-text-light); margin-top: 0.125rem;">Pension + ISA only</div>
+          </div>
+          <div style="display: flex; align-items: center; font-size: 1.2rem; color: var(--color-text-light);">→</div>
+          <div style="flex: 1; padding: 0.75rem; background: var(--color-success-light, #d1fae5); border-radius: var(--radius-md, 0.5rem); text-align: center;">
+            <div style="font-size: 0.65rem; text-transform: uppercase; color: var(--color-success, #059669); letter-spacing: 0.04em;">Age ${spAge}+</div>
+            <div style="font-size: 1.125rem; font-weight: 700; margin-top: 0.25rem;">${formatCurrency(Math.round(avgPostSP / 12))}/mo</div>
+            <div style="font-size: 0.7rem; color: var(--color-text-light); margin-top: 0.125rem;">+ SP ${formatCurrency(Math.round(totalSP / 12))}/mo</div>
+          </div>
+        </div>
+        <p style="font-size: 0.75rem; color: var(--color-text-light);">
+          During the bridge period, your pension pot must cover the full target. Once State Pension kicks in at ${spAge}, withdrawal pressure drops by ${formatCurrency(totalSP)}/yr.
+        </p>
+      `;
+    }
+
+    function renderContributionImpact(projection, data) {
+      const el = document.getElementById('contribution-impact-section');
+      if (!el) return;
+
+      const plan = projection.plan;
+      const currentMonthly = Math.round((data.annualPensionContribution || 0) / 12);
+      const yearsToRetire = (plan.retirementAge || 60) - (plan.currentAge || 56);
+      if (yearsToRetire <= 0) { el.style.display = 'none'; return; }
+
+      const scenarioPreset = SCENARIO_PRESETS[data.scenario] || SCENARIO_PRESETS.moderate;
+      const growthRate = scenarioPreset.growthRate || 0.04;
+
+      // Calculate impact of extra £100/mo and £250/mo
+      function extraPotValue(extraMonthly) {
+        let pot = 0;
+        for (let y = 0; y < yearsToRetire; y++) {
+          pot = (pot + extraMonthly * 12) * (1 + growthRate);
+        }
+        return Math.round(pot);
+      }
+
+      const extra100 = extraPotValue(100);
+      const extra250 = extraPotValue(250);
+      const extra100Income = Math.round(extra100 * 0.04 / 12);
+      const extra250Income = Math.round(extra250 * 0.04 / 12);
+
+      // Tax relief: basic rate payer pays 80%, gov tops up 20%
+      const taxRelief100 = Math.round(100 * 0.25);
+      const taxRelief250 = Math.round(250 * 0.25);
+      const isSalarySacrifice = data.annualPensionContribution && document.getElementById('input-salary-sacrifice')?.checked;
+
+      el.style.display = 'block';
+      el.innerHTML = `
+        <h3 style="font-size: 1rem; margin-bottom: 0.75rem;">What would extra contributions do?</h3>
+        <div style="display: flex; gap: 0.5rem; margin-bottom: 0.75rem;">
+          <div style="flex: 1; padding: 0.75rem; background: var(--color-primary-subtle, #eef2ff); border-radius: var(--radius-md, 0.5rem); text-align: center;">
+            <div style="font-size: 0.65rem; text-transform: uppercase; color: var(--color-primary); letter-spacing: 0.04em;">+£100/mo</div>
+            <div style="font-size: 1.125rem; font-weight: 700; margin-top: 0.25rem;">+${formatCurrency(extra100)}</div>
+            <div style="font-size: 0.7rem; color: var(--color-text-light); margin-top: 0.125rem;">at retirement</div>
+            <div style="font-size: 0.75rem; font-weight: 600; color: var(--color-success); margin-top: 0.25rem;">+${formatCurrency(extra100Income)}/mo income</div>
+          </div>
+          <div style="flex: 1; padding: 0.75rem; background: var(--color-primary-subtle, #eef2ff); border-radius: var(--radius-md, 0.5rem); text-align: center;">
+            <div style="font-size: 0.65rem; text-transform: uppercase; color: var(--color-primary); letter-spacing: 0.04em;">+£250/mo</div>
+            <div style="font-size: 1.125rem; font-weight: 700; margin-top: 0.25rem;">+${formatCurrency(extra250)}</div>
+            <div style="font-size: 0.7rem; color: var(--color-text-light); margin-top: 0.125rem;">at retirement</div>
+            <div style="font-size: 0.75rem; font-weight: 600; color: var(--color-success); margin-top: 0.25rem;">+${formatCurrency(extra250Income)}/mo income</div>
+          </div>
+        </div>
+        <div style="padding: 0.5rem 0.625rem; background: var(--color-accent-light, #ccfbf1); border-radius: var(--radius-md, 0.5rem); font-size: 0.75rem; color: var(--color-accent, #0d9488);">
+          <strong>Tax relief:</strong> You pay £80, the government adds £20 — so £100 goes into your pension.${isSalarySacrifice ? ' Via salary sacrifice, your employer also saves 13.8% NI.' : ' Higher-rate taxpayers claim a further £20 via self-assessment.'}
+        </div>
+        <p style="font-size: 0.65rem; color: var(--color-text-light); margin-top: 0.375rem;">
+          Based on ${yearsToRetire} years to retirement at ${(growthRate * 100).toFixed(0)}% real growth. Income estimate uses 4% sustainable withdrawal rate.
+        </p>
+      `;
+    }
+
     function renderCashflowChart(projection, data) {
       const canvas = document.getElementById('cashflow-chart');
       if (!canvas || typeof Chart === 'undefined') return;
@@ -3458,403 +3947,47 @@
       });
       
       // Calculate button - Enhanced with all 20 modules
-      document.getElementById('calculate-btn')?.addEventListener('click', () => {
-        // Show loading overlay
-        const overlay = document.getElementById('loading-overlay');
-        if (overlay) overlay.style.display = 'flex';
-
-        // Use setTimeout to let the overlay render before heavy calculation
-        setTimeout(() => {
-        try {
-          // Validate before calculating
-          const validation = validateCanCalculate();
-          if (!validation.canCalculate) {
-            showError(validation.reason || 'Please complete all required fields');
-            return;
-          }
-          
-          const data = collectFormData();
-          state.formData = data;
-          
-          // Bridge onboarding state to formData if not already done
-          if (state.onboardingState && state.onboardingState.householdType) {
-            data.householdType = state.onboardingState.householdType;
-            data.personA = state.onboardingState.personA;
-            data.personB = state.onboardingState.personB;
-            data.isCouple = state.onboardingState.householdType === HOUSEHOLD_TYPES.COUPLE;
-          }
-          
-          // 1. Create assumptions from selected scenario
-          const assumptions = createUserAssumptions(SCENARIO_PRESETS[data.scenario] || SCENARIO_PRESETS.moderate);
-          
-          // 2. Create household using new engine for couples, existing for singles
-          let household = null;
-          try {
-            if (data.householdType === HOUSEHOLD_TYPES.COUPLE && state.onboardingState) {
-              // Use new couples-first household engine
-              const householdPlan = onboardingToHouseholdPlan(state.onboardingState);
-              household = createHouseholdPlan(householdPlan);
-              debugLog('HOUSEHOLD', 'Created couple household from onboarding', household);
-            } else {
-              // Use existing single person logic
-              household = createHousehold({
-                person1: { currentAge: data.currentAge, retirementAge: data.retirementAge },
-                person2: null
-              });
-            }
-          } catch (e) {
-            console.warn('Household creation failed:', e);
-            // Create default single household
-            household = { person1: { currentAge: data.currentAge, retirementAge: data.retirementAge }, person2: null, isCouple: false };
-          }
-          
-          // 3. Run basic deterministic projection
-          // Pass scenario-based assumptions to createPlan so growth rate actually changes
-          const scenarioPreset = SCENARIO_PRESETS[data.scenario] || SCENARIO_PRESETS.moderate;
-          // Force-read partner DB from state (belt-and-braces — collectFormData should have it)
-          if (data.isCouple && state.onboardingState?.personB?.dbAnnualIncome > 0 && !data.partnerDBPensionAmount) {
-            data.partnerDBPensionAmount = state.onboardingState.personB.dbAnnualIncome;
-            data.partnerDBPensionStartAge = state.onboardingState.personB.dbStartAge || 67;
-          }
-          const plan = createPlan({
-            name: 'Plan A',
-            ...data,
-            assumptions: {
-              projection: {
-                defaultGrowthRate: scenarioPreset.growthRate || 0.04,
-                defaultFeeRate: scenarioPreset.feeRate || 0.005,
-                volatility: scenarioPreset.volatility || 0.15
-              }
-            }
-          });
-          const basicProjection = runProjection(plan, { endAge: 90 });
-          
-          state.planA = plan;
-          state.projectionA = basicProjection;
-          
-          // Initialize results object
-          const results = {
-            basicProjection,
-            household,
-            assumptions,
-            data,
-            plan
-          };
-          
-          // 3b. FIX 2.3: Run household projection for couples and attach to results
-          if (data.isCouple && household && state.onboardingState) {
-            try {
-              const householdPlanInput = {
-                householdType: 'couple',
-                personA: {
-                  name: 'You',
-                  currentAge: data.currentAge,
-                  retirementAge: data.retirementAge,
-                  pensionTypes: state.onboardingState.personA?.pensionTypes || ['dc'],
-                  dcPot: data.currentPension,
-                  dcMonthlyContrib: data.annualPensionContribution / 12,
-                  isaBalance: data.currentIsa || 0,
-                  isaAnnualContrib: data.annualIsaContribution || 0,
-                  statePensionAge: data.statePensionAge,
-                  expectedStatePension: data.expectedStatePension,
-                  hasDB: data.hasDBPension,
-                  dbAnnualIncome: data.dbPensionAmount || 0,
-                  dbStartAge: data.dbPensionStartAge || 65
-                },
-                personB: {
-                  name: 'Partner',
-                  currentAge: state.onboardingState.personB.currentAge,
-                  retirementAge: state.onboardingState.personB.retirementAge,
-                  pensionTypes: state.onboardingState.personB.pensionTypes || ['dc'],
-                  dcPot: state.onboardingState.personB.dcPot || 0,
-                  dcMonthlyContrib: state.onboardingState.personB.dcMonthlyContrib || 0,
-                  isaBalance: 0,
-                  isaAnnualContrib: 0,
-                  statePensionAge: state.onboardingState.personB.statePensionAge || 67,
-                  expectedStatePension: state.onboardingState.personB.expectedStatePension || 11973,
-                  hasDB: (state.onboardingState.personB.pensionTypes || []).includes('db'),
-                  dbAnnualIncome: state.onboardingState.personB.dbAnnualIncome || 0,
-                  dbStartAge: state.onboardingState.personB.dbStartAge || 67
-                },
-                targetNetIncome: data.targetNetIncome,
-                planningHorizonAge: 95,
-                growthRate: assumptions.growthRate || 0.04,
-                feeRate: assumptions.feeRate || 0.005,
-                inflationRate: assumptions.inflationRate || 0.02
-              };
-              
-              const fullHouseholdPlan = createHouseholdPlan(householdPlanInput);
-              const householdTimeline = projectHousehold(fullHouseholdPlan);
-              results.householdTimeline = householdTimeline;
-              results.fullHouseholdPlan = fullHouseholdPlan;
-              
-              debugLog('HOUSEHOLD', 'Household projection complete', {
-                years: householdTimeline.length,
-                firstYear: householdTimeline[0],
-                lastYear: householdTimeline[householdTimeline.length - 1]
-              });
-            } catch (e) {
-              console.warn('Household projection failed, falling back to single-person:', e);
-            }
-          }
-          
-          // 4. Run Monte Carlo simulation if enabled
-          if (data.enableMonteCarlo) {
-            try {
-              const mcResult = runMonteCarloWithBands(plan, {
-                iterations: 1000,
-                endAge: 90,
-                mean: scenarioPreset.growthRate || 0.04,
-                volatility: scenarioPreset.volatility || 0.15
-              });
-              results.mcResult = mcResult;
-            } catch (e) {
-              console.warn('Monte Carlo failed:', e);
-            }
-          }
-          
-          // 5. Calculate readiness score
-          try {
-            const readiness = calculateReadinessScore(basicProjection, data);
-            results.readiness = readiness;
-          } catch (e) {
-            console.warn('Readiness score failed:', e);
-          }
-          
-          // 6. Generate insights & recommendations
-          try {
-            const insights = generateInsights(plan, basicProjection);
-            results.insights = insights;
-            
-            const recommendations = generateRecommendations(basicProjection, data, results.mcResult);
-            results.recommendations = recommendations;
-          } catch (e) {
-            console.warn('Insights/recommendations failed:', e);
-          }
-          
-          // 7. Calculate benchmarks if enabled
-          if (data.enableBenchmarking) {
-            try {
-              const benchmarks = generateBenchmarkAnalysis(plan, basicProjection);
-              results.benchmarks = benchmarks;
-            } catch (e) {
-              console.warn('Benchmarking failed:', e);
-            }
-          }
-          
-          // 8. Track milestones
-          try {
-            const milestones = integrateMilestonesIntoSpending([], plan);
-            results.milestones = milestones;
-          } catch (e) {
-            console.warn('Milestones tracking failed:', e);
-          }
-          
-          // 9. Model DB pensions if applicable
-          if (data.hasDBPension && data.dbPensionAmount > 0) {
-            try {
-              const dbPension = createDBPension({
-                annualAmount: data.dbPensionAmount,
-                startAge: data.dbPensionStartAge,
-                inflationLinked: true
-              });
-              results.dbPension = dbPension;
-            } catch (e) {
-              console.warn('DB pension projection failed:', e);
-            }
-          }
-          
-          // 10. Estimate care costs if enabled
-          if (data.modelCareCosts) {
-            try {
-              const healthcarePlan = createHealthcarePlan({
-                startAge: data.currentAge,
-                retirementAge: data.retirementAge
-              });
-              const careCosts = projectHealthcareCosts(healthcarePlan, data.retirementAge, 95);
-              results.careCosts = careCosts;
-            } catch (e) {
-              console.warn('Care costs estimation failed:', e);
-            }
-          }
-          
-          // 11. Optimize tax efficiency if enabled
-          if (data.enableTaxOptimization) {
-            try {
-              const taxReport = generateTaxEfficiencyReport({
-                currentPot: data.currentPension,
-                isaBalance: data.currentIsa || 0,
-                targetIncome: data.targetNetIncome
-              });
-              results.taxOptimization = taxReport;
-            } catch (e) {
-              console.warn('Tax optimization failed:', e);
-            }
-          }
-          
-          // 12. Apply spending policy
-          try {
-            const spendingRules = createSpendingRules({});
-            results.spendingRules = spendingRules;
-          } catch (e) {
-            console.warn('Spending policy failed:', e);
-          }
-          
-          // 13. Assess risk
-          if (results.mcResult) {
-            try {
-              const riskScore = calculateRiskScore(results.mcResult, basicProjection);
-              const riskRecommendations = generateRiskRecommendations(riskScore, basicProjection);
-              results.riskScore = riskScore;
-              results.riskRecommendations = riskRecommendations;
-            } catch (e) {
-              console.warn('Risk assessment failed:', e);
-            }
-          }
-          
-          // 14. Calculate legacy
-          try {
-            const legacyPlan = createLegacyPlan({
-              targetLegacy: 0,
-              beneficiaries: []
-            });
-            const estateValue = projectEstateValue({
-              currentWealth: basicProjection.summary.finalBalance
-            }, 0);
-            const ihtEstimate = calculateInheritanceTax(estateValue);
-            results.legacyPlan = legacyPlan;
-            results.estateValue = estateValue;
-            results.ihtEstimate = ihtEstimate;
-          } catch (e) {
-            console.warn('Legacy planning failed:', e);
-          }
-          
-          // 15. Model phased retirement if requested
-          if (data.isPhasedRetirement && data.phaseStartAge > 0) {
-            try {
-              const phasedRetirement = createPhasedRetirement({
-                fullRetirementAge: data.retirementAge,
-                phaseStartAge: data.phaseStartAge,
-                reducedHoursPercent: data.reducedHours
-              });
-              results.phasedRetirement = phasedRetirement;
-            } catch (e) {
-              console.warn('Phased retirement failed:', e);
-            }
-          }
-          
-          debugLog('CALC', 'Enhanced projection complete with all modules', results);
-          
-          // Update provisional banner if applicable
-          updateProvisionalBanner();
-          
-          // Render basic results first
-          renderResults(basicProjection, results);
-          
-          // Auto-navigate to results
-          showScreen('results');
-          
-          // Render new charts
-          try {
-            renderCashflowChart(basicProjection, data);
-            renderTaxChart(basicProjection);
-            renderGuaranteedIncomeChart(basicProjection, data);
-            renderIncomeSourcesBreakdown(basicProjection, data);
-            renderDataTable(basicProjection, data);
-            initSankey(basicProjection);
-          } catch (e) {
-            console.warn('Chart rendering failed:', e);
-          }
-          
-          // Then render all advanced visualizations
-          renderAllVisualizations(results);
-
-        } catch (error) {
-          console.error(error);
-          showError(error.message);
-        } finally {
-          const overlay = document.getElementById('loading-overlay');
-          if (overlay) overlay.style.display = 'none';
-        }
-        }, 50); // end setTimeout for loading overlay
-      });
+      document.getElementById('calculate-btn')?.addEventListener('click', () => runFullCalculation());
       
       // View Results button - navigate to results screen after calculation
       document.getElementById('view-results-btn')?.addEventListener('click', () => {
         nextScreen();
       });
       
-      // What-if retirement age buttons
-      function runWhatIf(ageOffset) {
-        if (!state.formData || !state.planA || !state.projectionA) return;
-        const data = state.formData;
-        const newAge = (data.retirementAge || 60) + ageOffset;
-        if (newAge < 50 || newAge > 75) return;
-        try {
-          const scenarioPreset = SCENARIO_PRESETS[data.scenario] || SCENARIO_PRESETS.moderate;
-          const altPlan = createPlan({ ...data, retirementAge: newAge,
-            assumptions: { projection: { defaultGrowthRate: scenarioPreset.growthRate || 0.04, defaultFeeRate: scenarioPreset.feeRate || 0.005 } } });
-          const altResult = runProjection(altPlan, { endAge: 90 });
-          const delta = altResult.summary.finalBalance - state.projectionA.summary.finalBalance;
-          const altMonthly = Math.round(altResult.summary.finalBalance / 12);
-          const resultEl = document.getElementById('what-if-result');
-          if (resultEl) {
-            resultEl.style.display = 'block';
-            resultEl.innerHTML = `
-              <div style="display: flex; gap: 1.5rem; justify-content: center; align-items: center; flex-wrap: wrap;">
-                <div>
-                  <div style="font-size: 0.7rem; color: var(--color-text-light);">Retire at ${data.retirementAge}</div>
-                  <div style="font-weight: 700;">${formatCurrency(state.projectionA.summary.finalBalance)}</div>
-                </div>
-                <div style="font-size: 1.2rem;">vs</div>
-                <div>
-                  <div style="font-size: 0.7rem; color: var(--color-text-light);">Retire at ${newAge}</div>
-                  <div style="font-weight: 700;">${formatCurrency(altResult.summary.finalBalance)}</div>
-                </div>
-                <div style="font-size: 0.8rem; color: ${delta >= 0 ? 'var(--color-success)' : 'var(--color-danger)'}; font-weight: 600;">
-                  ${delta >= 0 ? '+' : ''}${formatCurrency(delta)}
-                </div>
-              </div>`;
-          }
+      // Slider event listeners (functions defined at module scope)
+      document.getElementById('slider-retirement-age')?.addEventListener('input', runSliderProjection);
+      document.getElementById('slider-monthly-contribution')?.addEventListener('input', runSliderProjection);
 
-          // Update wealth chart with comparison overlay
-          const canvas = document.getElementById('capital-chart');
-          if (canvas && typeof Chart !== 'undefined') {
-            const existingChart = Chart.getChart(canvas);
-            if (existingChart) {
-              // Add comparison dataset
-              const altYears = [
-                ...altResult.accumulation.years.map(y => ({ age: y.age, total: y.endBalances.pension + y.endBalances.isa })),
-                ...altResult.decumulation.years.filter(y => y.endBalances).map(y => ({ age: y.age, total: y.endBalances.pension + y.endBalances.isa }))
-              ];
-              // Remove old comparison if exists
-              while (existingChart.data.datasets.length > 3) {
-                existingChart.data.datasets.pop();
-              }
-              // Add new comparison
-              existingChart.data.datasets.push({
-                label: 'Retire at ' + newAge,
-                data: existingChart.data.labels.map(age => {
-                  const match = altYears.find(d => d.age === age);
-                  return match ? match.total : null;
-                }),
-                borderColor: '#ef4444',
-                borderDash: [6, 3],
-                backgroundColor: 'transparent',
-                fill: false,
-                tension: 0.3,
-                pointRadius: 0,
-                borderWidth: 2
-              });
-              existingChart.update();
-              // Scroll to wealth chart to show comparison
-              document.getElementById('capital-chart')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            }
-          }
-        } catch (e) { console.warn('What-if failed:', e); }
-      }
-      document.getElementById('whatif-earlier')?.addEventListener('click', () => runWhatIf(-1));
-      document.getElementById('whatif-later')?.addEventListener('click', () => runWhatIf(1));
+      // Scenario cards on results page — tap to change scenario and recalculate
+      document.querySelectorAll('.scenario-card').forEach(card => {
+        card.addEventListener('click', () => {
+          const scenario = card.dataset.scenario;
+          // Update hidden review select for collectFormData compatibility
+          const select = document.getElementById('scenario-select');
+          if (select) select.value = scenario;
+          // Visual update
+          document.querySelectorAll('.scenario-card').forEach(c => {
+            c.style.borderColor = 'var(--color-border)';
+            c.style.background = 'var(--color-surface)';
+            c.classList.remove('selected');
+          });
+          card.style.borderColor = 'var(--color-primary)';
+          card.style.background = 'var(--color-primary-subtle)';
+          card.classList.add('selected');
+          // Reset slider impact since we're recalculating baseline
+          const impactEl = document.getElementById('slider-impact');
+          if (impactEl) impactEl.style.display = 'none';
+          // Re-run full calculation with new scenario
+          runFullCalculation();
+        });
+      });
+
+      // Guardrails toggle on results page
+      document.getElementById('results-guardrails')?.addEventListener('change', (e) => {
+        const reviewGuardrails = document.getElementById('input-guardrails');
+        if (reviewGuardrails) reviewGuardrails.checked = e.target.checked;
+        runFullCalculation();
+      });
 
       // Save/load scenarios
       document.getElementById('save-scenario-btn')?.addEventListener('click', () => {

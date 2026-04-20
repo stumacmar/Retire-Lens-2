@@ -412,70 +412,49 @@
     </div>
     
     <!-- ═══════════════════════════════════════════════════════════════
-         Screen: Target Income
-         ═══════════════════════════════════════════════════════════════ -->
-    <div id="screen-income-target" class="screen" aria-hidden="true">
-      <div class="screen-header">
-        <h2 class="screen-title">How much income do you need?</h2>
-        <p class="screen-subtitle">Annual net income after tax</p>
-      </div>
-      
-      <div class="screen-content">
-        <div class="input-group">
-          <div class="input-wrapper">
-            <span class="currency-symbol">£</span>
-            <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-target-income" min="0" step="1000" placeholder="30000" inputmode="numeric" aria-label="Target annual income" />
-          </div>
-          <p class="help-text">Your target annual spending in today's money</p>
-        </div>
-        <!-- PLSA preset cards -->
-        <div id="plsa-presets" style="display: flex; gap: 0.5rem; margin-top: 1.25rem;">
-          <button type="button" class="plsa-card" data-plsa="minimum" style="flex: 1; padding: 0.75rem 0.5rem; border: 2px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-surface); cursor: pointer; text-align: center; transition: all var(--transition-base);">
-            <div style="font-size: 0.65rem; color: var(--color-text-light); text-transform: uppercase; letter-spacing: 0.05em;">Minimum</div>
-            <div style="font-size: 1rem; font-weight: 700; margin-top: 0.25rem;" id="plsa-min-val">14,400</div>
-          </button>
-          <button type="button" class="plsa-card" data-plsa="moderate" style="flex: 1; padding: 0.75rem 0.5rem; border: 2px solid var(--color-primary); border-radius: var(--radius-md); background: var(--color-primary-subtle); cursor: pointer; text-align: center; transition: all var(--transition-base);">
-            <div style="font-size: 0.65rem; color: var(--color-text-light); text-transform: uppercase; letter-spacing: 0.05em;">Moderate</div>
-            <div style="font-size: 1rem; font-weight: 700; margin-top: 0.25rem;" id="plsa-mod-val">31,300</div>
-          </button>
-          <button type="button" class="plsa-card" data-plsa="comfortable" style="flex: 1; padding: 0.75rem 0.5rem; border: 2px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-surface); cursor: pointer; text-align: center; transition: all var(--transition-base);">
-            <div style="font-size: 0.65rem; color: var(--color-text-light); text-transform: uppercase; letter-spacing: 0.05em;">Comfortable</div>
-            <div style="font-size: 1rem; font-weight: 700; margin-top: 0.25rem;" id="plsa-comf-val">43,100</div>
-          </button>
-        </div>
-        <p style="font-size: 0.65rem; color: var(--color-text-light); margin-top: 0.5rem; text-align: center;">PLSA Retirement Living Standards. Or enter your own amount above.</p>
-        <!-- Instant estimate from what we know so far -->
-        <div id="instant-estimate" style="display: none; margin-top: 1rem; padding: 1rem; background: var(--color-surface); border: 1px solid var(--color-border-light); border-radius: var(--radius-md); text-align: center;">
-          <div style="font-size: 0.75rem; color: var(--color-text-light); margin-bottom: 0.25rem;">Quick estimate based on what you have entered so far</div>
-          <div id="instant-estimate-text" style="font-size: 0.875rem; font-weight: 600;"></div>
-        </div>
-      </div>
-      
-      <div class="nav-buttons">
-        <button type="button" class="btn btn-secondary" data-action="back">Back</button>
-        <button type="button" class="btn btn-primary" data-action="next">Next</button>
-      </div>
-    </div>
-    
-    <!-- ═══════════════════════════════════════════════════════════════
          Screen: Pension Pot
          ═══════════════════════════════════════════════════════════════ -->
     <div id="screen-pension-pot" class="screen" aria-hidden="true">
       <div class="screen-header">
-        <h2 class="screen-title">What's in your pension?</h2>
-        <p class="screen-subtitle">Current DC pension value</p>
+        <h2 class="screen-title">How much do you need and have?</h2>
+        <p class="screen-subtitle" id="pension-pot-subtitle">Target income and pension details</p>
       </div>
-      
+
       <div class="screen-content">
+        <!-- Target Income (merged from income-target screen) -->
         <div class="input-group">
+          <label style="font-weight: 600;">Target annual income (after tax)</label>
           <div class="input-wrapper">
             <span class="currency-symbol">£</span>
-            <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-pension-pot" min="0" step="1000" placeholder="100000" inputmode="numeric" aria-label="Pension pot value" />
+            <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-target-income" min="0" step="1000" placeholder="30000" inputmode="numeric" aria-label="Target annual income" />
           </div>
-          <p class="help-text">Your defined contribution pension pot</p>
         </div>
-        <div class="context-hint" style="margin-top: 1.5rem; padding: 0.875rem 1rem; background: var(--color-primary-subtle); border-radius: var(--radius-md); font-size: 0.8125rem; color: var(--color-text-secondary); line-height: 1.5;">
-          Check your latest pension statement or log in to your provider's website. Include all DC pots you plan to combine.
+        <!-- PLSA preset cards -->
+        <div id="plsa-presets" style="display: flex; gap: 0.5rem; margin-bottom: 1.25rem;">
+          <button type="button" class="plsa-card" data-plsa="minimum" style="flex: 1; padding: 0.625rem 0.5rem; border: 2px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-surface); cursor: pointer; text-align: center; transition: all var(--transition-base);">
+            <div style="font-size: 0.6rem; color: var(--color-text-light); text-transform: uppercase; letter-spacing: 0.05em;">Minimum</div>
+            <div style="font-size: 0.9rem; font-weight: 700; margin-top: 0.15rem;" id="plsa-min-val">14,400</div>
+          </button>
+          <button type="button" class="plsa-card" data-plsa="moderate" style="flex: 1; padding: 0.625rem 0.5rem; border: 2px solid var(--color-primary); border-radius: var(--radius-md); background: var(--color-primary-subtle); cursor: pointer; text-align: center; transition: all var(--transition-base);">
+            <div style="font-size: 0.6rem; color: var(--color-text-light); text-transform: uppercase; letter-spacing: 0.05em;">Moderate</div>
+            <div style="font-size: 0.9rem; font-weight: 700; margin-top: 0.15rem;" id="plsa-mod-val">31,300</div>
+          </button>
+          <button type="button" class="plsa-card" data-plsa="comfortable" style="flex: 1; padding: 0.625rem 0.5rem; border: 2px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-surface); cursor: pointer; text-align: center; transition: all var(--transition-base);">
+            <div style="font-size: 0.6rem; color: var(--color-text-light); text-transform: uppercase; letter-spacing: 0.05em;">Comfortable</div>
+            <div style="font-size: 0.9rem; font-weight: 700; margin-top: 0.15rem;" id="plsa-comf-val">43,100</div>
+          </button>
+        </div>
+
+        <!-- Pension Pot -->
+        <div style="padding-top: 1rem; border-top: 1px solid var(--color-border, #e2e8f0);">
+          <div class="input-group">
+            <label style="font-weight: 600;">Current DC pension pot</label>
+            <div class="input-wrapper">
+              <span class="currency-symbol">£</span>
+              <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-pension-pot" min="0" step="1000" placeholder="100000" inputmode="numeric" aria-label="Pension pot value" />
+            </div>
+            <p class="help-text">Check your pension statement. Include all DC pots you plan to combine.</p>
+          </div>
         </div>
 
         <!-- Your DB Pension -->
@@ -882,6 +861,29 @@
       </div>
 
       <!-- Single scrollable results -- no tabs -->
+
+      <!-- Planning Options (moved from review screen) -->
+      <div class="result-card" id="results-planning-options" style="margin-bottom: 1rem;">
+        <h3 style="font-size: 1rem; margin-bottom: 0.75rem;">Planning assumptions</h3>
+        <div id="scenario-cards" style="display: flex; gap: 0.5rem; margin-bottom: 0.75rem;">
+          <button type="button" class="scenario-card" data-scenario="conservative" style="flex: 1; padding: 0.625rem 0.5rem; border: 2px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-surface); cursor: pointer; text-align: center; transition: all 0.2s;">
+            <div style="font-size: 0.65rem; color: var(--color-text-light); text-transform: uppercase; letter-spacing: 0.04em;">Below Avg</div>
+            <div style="font-size: 0.9rem; font-weight: 700; margin-top: 0.15rem;">3%</div>
+          </button>
+          <button type="button" class="scenario-card selected" data-scenario="moderate" style="flex: 1; padding: 0.625rem 0.5rem; border: 2px solid var(--color-primary); border-radius: var(--radius-md); background: var(--color-primary-subtle); cursor: pointer; text-align: center; transition: all 0.2s;">
+            <div style="font-size: 0.65rem; color: var(--color-text-light); text-transform: uppercase; letter-spacing: 0.04em;">Average</div>
+            <div style="font-size: 0.9rem; font-weight: 700; margin-top: 0.15rem;">4%</div>
+          </button>
+          <button type="button" class="scenario-card" data-scenario="optimistic" style="flex: 1; padding: 0.625rem 0.5rem; border: 2px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-surface); cursor: pointer; text-align: center; transition: all 0.2s;">
+            <div style="font-size: 0.65rem; color: var(--color-text-light); text-transform: uppercase; letter-spacing: 0.04em;">Above Avg</div>
+            <div style="font-size: 0.9rem; font-weight: 700; margin-top: 0.15rem;">6%</div>
+          </button>
+        </div>
+        <div style="display: flex; align-items: center; gap: 0.5rem;">
+          <input type="checkbox" id="results-guardrails" style="margin: 0;">
+          <label for="results-guardrails" style="font-size: 0.8125rem; cursor: pointer; color: var(--color-text-secondary);">Spending guardrails (cut 10% if pot drops 20%)</label>
+        </div>
+      </div>
 
       <!-- Income Chart -->
       <div class="result-card" id="cashflow-section">

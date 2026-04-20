@@ -249,14 +249,14 @@
             <div class="input-group">
               <label for="input-partner-age">Partner's current age *</label>
               <div class="input-wrapper">
-                <input type="number" id="input-partner-age" min="18" max="100" placeholder="45" inputmode="numeric" aria-required="true" />
+                <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-partner-age" min="18" max="100" placeholder="45" inputmode="numeric" aria-required="true" />
               </div>
               <p class="help-text">Partner's age in years</p>
             </div>
             <div class="input-group">
               <label for="input-partner-retirement-age">Partner's target retirement age *</label>
               <div class="input-wrapper">
-                <input type="number" id="input-partner-retirement-age" min="50" max="100" placeholder="65" inputmode="numeric" aria-required="true" />
+                <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-partner-retirement-age" min="50" max="100" placeholder="65" inputmode="numeric" aria-required="true" />
               </div>
               <p class="help-text">When partner plans to stop working</p>
             </div>
@@ -268,7 +268,7 @@
               <label>Partner's DC pension pot</label>
               <div class="input-wrapper">
                 <span class="currency-symbol">£</span>
-                <input type="number" id="input-partner-dc-pot" min="0" step="1000" placeholder="0" inputmode="numeric" />
+                <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-partner-dc-pot" min="0" step="1000" placeholder="0" inputmode="numeric" />
               </div>
               <p class="help-text">Enter 0 if unknown - results will be provisional</p>
             </div>
@@ -276,7 +276,7 @@
               <label>Partner's monthly DC contributions</label>
               <div class="input-wrapper">
                 <span class="currency-symbol">£</span>
-                <input type="number" id="input-partner-dc-contrib" min="0" step="50" placeholder="0" inputmode="numeric" />
+                <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-partner-dc-contrib" min="0" step="50" placeholder="0" inputmode="numeric" />
               </div>
               <p class="help-text">Optional - monthly amount including employer</p>
             </div>
@@ -288,14 +288,14 @@
               <label>Partner's annual DB pension amount *</label>
               <div class="input-wrapper">
                 <span class="currency-symbol">£</span>
-                <input type="number" id="input-partner-db-amount" min="0" step="500" placeholder="15000" inputmode="numeric" />
+                <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-partner-db-amount" min="0" step="500" placeholder="15000" inputmode="numeric" />
               </div>
               <p class="help-text">Guaranteed yearly income from DB scheme</p>
             </div>
             <div class="input-group">
               <label>Partner's DB pension start age</label>
               <div class="input-wrapper">
-                <input type="number" id="input-partner-db-start-age" min="50" max="75" value="67" inputmode="numeric" />
+                <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-partner-db-start-age" min="50" max="75" value="67" inputmode="numeric" />
               </div>
               <p class="help-text">When DB payments begin (usually retirement age)</p>
             </div>
@@ -306,14 +306,14 @@
             <div class="input-group">
               <label>Partner's State Pension age</label>
               <div class="input-wrapper">
-                <input type="number" id="input-partner-sp-age" min="60" max="75" value="67" inputmode="numeric" />
+                <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-partner-sp-age" min="60" max="75" value="67" inputmode="numeric" />
               </div>
             </div>
             <div class="input-group">
               <label>Partner's expected State Pension (annual)</label>
               <div class="input-wrapper">
                 <span class="currency-symbol">£</span>
-                <input type="number" id="input-partner-sp-amount" min="0" step="100" value="11500" inputmode="numeric" />
+                <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-partner-sp-amount" min="0" step="100" value="11500" inputmode="numeric" />
               </div>
               <p class="help-text">Full new State Pension is ~£11,500/year</p>
             </div>
@@ -358,19 +358,23 @@
          ═══════════════════════════════════════════════════════════════ -->
     <div id="screen-age" class="screen" aria-hidden="true">
       <div class="screen-header">
-        <h2 class="screen-title">How old are you?</h2>
-        <p class="screen-subtitle">Your current age</p>
+        <h2 class="screen-title">Your age and retirement</h2>
+        <p class="screen-subtitle">When do you want to stop working?</p>
       </div>
 
       <div class="screen-content">
         <div class="input-group">
+          <label style="font-weight: 500;">Your current age</label>
           <div class="input-wrapper">
-            <input type="number" id="input-current-age" min="18" max="100" placeholder="45" inputmode="numeric" aria-label="Current age" />
+            <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-current-age" min="18" max="100" placeholder="56" inputmode="numeric" aria-label="Current age" />
           </div>
-          <p class="help-text">Enter your age in years</p>
         </div>
-        <div class="context-hint" style="margin-top: 1.5rem; padding: 0.875rem 1rem; background: var(--color-primary-subtle); border-radius: var(--radius-md); font-size: 0.8125rem; color: var(--color-text-secondary); line-height: 1.5;">
-          Your age determines how long your savings have to grow before retirement. Even a few extra years of contributions can make a significant difference.
+        <div class="input-group" style="margin-top: 1rem;">
+          <label style="font-weight: 500;">Target retirement age</label>
+          <div class="input-wrapper">
+            <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-retirement-age" min="50" max="100" placeholder="60" inputmode="numeric" aria-label="Retirement age" />
+          </div>
+          <p class="help-text">UK State Pension starts at 67. Each extra year of work adds 8-12% to your retirement income.</p>
         </div>
       </div>
       
@@ -392,7 +396,7 @@
       <div class="screen-content">
         <div class="input-group">
           <div class="input-wrapper">
-            <input type="number" id="input-retirement-age" min="50" max="100" placeholder="65" inputmode="numeric" aria-label="Retirement age" />
+            <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-retirement-age" min="50" max="100" placeholder="65" inputmode="numeric" aria-label="Retirement age" />
           </div>
           <p class="help-text">The age you plan to stop working</p>
         </div>
@@ -420,12 +424,30 @@
         <div class="input-group">
           <div class="input-wrapper">
             <span class="currency-symbol">£</span>
-            <input type="number" id="input-target-income" min="0" step="1000" placeholder="30000" inputmode="numeric" aria-label="Target annual income" />
+            <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-target-income" min="0" step="1000" placeholder="30000" inputmode="numeric" aria-label="Target annual income" />
           </div>
           <p class="help-text">Your target annual spending in today's money</p>
         </div>
-        <div class="context-hint" style="margin-top: 1.5rem; padding: 0.875rem 1rem; background: var(--color-primary-subtle); border-radius: var(--radius-md); font-size: 0.8125rem; color: var(--color-text-secondary); line-height: 1.5;">
-          The PLSA Retirement Living Standards suggest: <strong>£14,400</strong> minimum, <strong>£31,300</strong> moderate, or <strong>£43,100</strong> comfortable for a single person.
+        <!-- PLSA preset cards -->
+        <div id="plsa-presets" style="display: flex; gap: 0.5rem; margin-top: 1.25rem;">
+          <button type="button" class="plsa-card" data-plsa="minimum" style="flex: 1; padding: 0.75rem 0.5rem; border: 2px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-surface); cursor: pointer; text-align: center; transition: all var(--transition-base);">
+            <div style="font-size: 0.65rem; color: var(--color-text-light); text-transform: uppercase; letter-spacing: 0.05em;">Minimum</div>
+            <div style="font-size: 1rem; font-weight: 700; margin-top: 0.25rem;" id="plsa-min-val">14,400</div>
+          </button>
+          <button type="button" class="plsa-card" data-plsa="moderate" style="flex: 1; padding: 0.75rem 0.5rem; border: 2px solid var(--color-primary); border-radius: var(--radius-md); background: var(--color-primary-subtle); cursor: pointer; text-align: center; transition: all var(--transition-base);">
+            <div style="font-size: 0.65rem; color: var(--color-text-light); text-transform: uppercase; letter-spacing: 0.05em;">Moderate</div>
+            <div style="font-size: 1rem; font-weight: 700; margin-top: 0.25rem;" id="plsa-mod-val">31,300</div>
+          </button>
+          <button type="button" class="plsa-card" data-plsa="comfortable" style="flex: 1; padding: 0.75rem 0.5rem; border: 2px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-surface); cursor: pointer; text-align: center; transition: all var(--transition-base);">
+            <div style="font-size: 0.65rem; color: var(--color-text-light); text-transform: uppercase; letter-spacing: 0.05em;">Comfortable</div>
+            <div style="font-size: 1rem; font-weight: 700; margin-top: 0.25rem;" id="plsa-comf-val">43,100</div>
+          </button>
+        </div>
+        <p style="font-size: 0.65rem; color: var(--color-text-light); margin-top: 0.5rem; text-align: center;">PLSA Retirement Living Standards. Or enter your own amount above.</p>
+        <!-- Instant estimate from what we know so far -->
+        <div id="instant-estimate" style="display: none; margin-top: 1rem; padding: 1rem; background: var(--color-surface); border: 1px solid var(--color-border-light); border-radius: var(--radius-md); text-align: center;">
+          <div style="font-size: 0.75rem; color: var(--color-text-light); margin-bottom: 0.25rem;">Quick estimate based on what you have entered so far</div>
+          <div id="instant-estimate-text" style="font-size: 0.875rem; font-weight: 600;"></div>
         </div>
       </div>
       
@@ -448,21 +470,101 @@
         <div class="input-group">
           <div class="input-wrapper">
             <span class="currency-symbol">£</span>
-            <input type="number" id="input-pension-pot" min="0" step="1000" placeholder="100000" inputmode="numeric" aria-label="Pension pot value" />
+            <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-pension-pot" min="0" step="1000" placeholder="100000" inputmode="numeric" aria-label="Pension pot value" />
           </div>
           <p class="help-text">Your defined contribution pension pot</p>
         </div>
         <div class="context-hint" style="margin-top: 1.5rem; padding: 0.875rem 1rem; background: var(--color-primary-subtle); border-radius: var(--radius-md); font-size: 0.8125rem; color: var(--color-text-secondary); line-height: 1.5;">
           Check your latest pension statement or log in to your provider's website. Include all DC pots you plan to combine.
         </div>
+
+        <!-- Your DB Pension -->
+        <div style="margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px solid var(--color-border, #e2e8f0);">
+          <div style="font-weight: 600; margin-bottom: 0.75rem; font-size: 0.9rem;">Your DB Pension</div>
+          <div class="input-group">
+            <label style="font-weight: 600;">Annual income from DB scheme</label>
+            <div class="input-wrapper">
+              <span class="currency-symbol">£</span>
+              <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-your-db-income" min="0" step="500" placeholder="0 if none" inputmode="numeric" />
+            </div>
+            <p class="help-text">Guaranteed annual income from final salary / career average pension. Enter 0 if none.</p>
+          </div>
+          <div class="input-group" style="margin-top: 0.5rem;">
+            <label>DB pension start age</label>
+            <div class="input-wrapper">
+              <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-your-db-start" min="50" max="75" value="65" inputmode="numeric" />
+            </div>
+          </div>
+        </div>
+
+        <!-- Partner DB — always in HTML, shown/hidden by JS for couples -->
+        <div id="partner-db-section" style="display: none; margin-top: 1.5rem; padding-top: 1.5rem; border-top: 2px solid var(--color-primary-light, #e0e7ff);">
+          <div style="font-weight: 600; color: var(--color-primary, #4f46e5); margin-bottom: 0.75rem; font-size: 0.9rem;">Partner's DB Pension</div>
+          <div class="input-group">
+            <label style="font-weight: 600;">Annual income from DB scheme</label>
+            <div class="input-wrapper">
+              <span class="currency-symbol">£</span>
+              <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-partner-db-income" min="0" step="500" placeholder="e.g. 4500" inputmode="numeric" />
+            </div>
+            <p class="help-text">Guaranteed annual income from final salary / career average pension. Enter 0 if none.</p>
+          </div>
+          <div class="input-group" style="margin-top: 0.5rem;">
+            <label>DB pension start age</label>
+            <div class="input-wrapper">
+              <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-partner-db-start" min="50" max="75" value="67" inputmode="numeric" />
+            </div>
+          </div>
+        </div>
+
+        <!-- Monthly contributions (moved from separate screen) -->
+        <div class="input-group" style="margin-top: 1rem;">
+          <label style="font-weight: 500;">Monthly pension contribution</label>
+          <div class="input-wrapper">
+            <span class="currency-symbol">£</span>
+            <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-pension-contribution" min="0" step="50" placeholder="500" inputmode="numeric" />
+          </div>
+          <p class="help-text">Total monthly contribution including employer match</p>
+          <div style="margin-top: 0.5rem; display: flex; align-items: center; gap: 0.5rem;">
+            <input type="checkbox" id="input-salary-sacrifice" style="margin: 0;">
+            <label for="input-salary-sacrifice" style="font-size: 0.8rem; color: var(--color-text-secondary); cursor: pointer;">Via salary sacrifice (adds employer NI saving of 13.8%)</label>
+          </div>
+        </div>
+
+        <!-- Flexible access question (MPAA trigger) -->
+        <div style="margin-top: 1rem; display: flex; align-items: flex-start; gap: 0.5rem;">
+          <input type="checkbox" id="input-flexi-accessed" style="margin-top: 3px;">
+          <div>
+            <label for="input-flexi-accessed" style="font-weight: 500; cursor: pointer;">I have taken taxable income from my pension</label>
+            <p class="help-text" style="margin-top: 2px;">Not just tax-free cash. This limits future contributions to 10,000/year (MPAA).</p>
+          </div>
+        </div>
+
+        <!-- PCLS question -- in plain English on the pension screen where it belongs -->
+        <div style="margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px solid var(--color-border, #e2e8f0);">
+          <div style="display: flex; align-items: flex-start; gap: 0.5rem;">
+            <input type="checkbox" id="input-pcls-taken" style="margin-top: 3px;">
+            <div>
+              <label for="input-pcls-taken" style="font-weight: 600; cursor: pointer;">I have already taken my 25% tax-free cash</label>
+              <p class="help-text" style="margin-top: 2px;">If you have crystallised your pension and received a lump sum</p>
+            </div>
+          </div>
+          <div id="pcls-amount-section" style="display: none; margin-top: 0.75rem; margin-left: 1.5rem;">
+            <label style="font-size: 0.875rem; font-weight: 500;">How much did you receive?</label>
+            <div class="input-wrapper" style="margin-top: 0.25rem;">
+              <span class="currency-symbol">£</span>
+              <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-pcls-amount" min="0" step="1000" placeholder="e.g. 167000" inputmode="numeric" />
+            </div>
+            <p class="help-text">We will calculate any remaining tax-free cash entitlement from new contributions.</p>
+          </div>
+        </div>
       </div>
-      
+
       <div class="nav-buttons">
         <button type="button" class="btn btn-secondary" data-action="back">Back</button>
         <button type="button" class="btn btn-primary" data-action="next">Next</button>
       </div>
     </div>
-    
+
     <!-- ═══════════════════════════════════════════════════════════════
          Screen: Contributions
          ═══════════════════════════════════════════════════════════════ -->
@@ -476,12 +578,15 @@
         <div class="input-group">
           <div class="input-wrapper">
             <span class="currency-symbol">£</span>
-            <input type="number" id="input-pension-contribution" min="0" step="50" placeholder="500" inputmode="numeric" />
+            <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-pension-contribution" min="0" step="50" placeholder="500" inputmode="numeric" />
           </div>
           <p class="help-text">Monthly contribution until retirement (including employer)</p>
         </div>
+        <div class="context-hint" style="margin-top: 1.5rem; padding: 0.875rem 1rem; background: var(--color-primary-subtle); border-radius: var(--radius-md); font-size: 0.8125rem; color: var(--color-text-secondary); line-height: 1.5;">
+          Include your personal contribution plus any employer match. Check your payslip for the total. £500/month for 5 years adds roughly £35,000 to your pot (with growth).
+        </div>
       </div>
-      
+
       <div class="nav-buttons">
         <button type="button" class="btn btn-secondary" data-action="back">Back</button>
         <button type="button" class="btn btn-primary" data-action="next">Next</button>
@@ -493,35 +598,53 @@
          ═══════════════════════════════════════════════════════════════ -->
     <div id="screen-isa-savings" class="screen" aria-hidden="true">
       <div class="screen-header">
-        <h2 class="screen-title">Any ISA savings?</h2>
-        <p class="screen-subtitle">Tax-free ISA investments</p>
+        <h2 class="screen-title">ISA and State Pension</h2>
+        <p class="screen-subtitle">Other savings and guaranteed income</p>
       </div>
-      
+
       <div class="screen-content">
+        <div style="font-weight: 600; margin-bottom: 0.5rem; font-size: 0.9rem;">ISA Savings</div>
         <div class="input-group">
           <label>Current ISA balance</label>
           <div class="input-wrapper">
             <span class="currency-symbol">£</span>
-            <input type="number" id="input-isa-balance" min="0" step="1000" placeholder="0" inputmode="numeric" />
+            <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-isa-balance" min="0" step="1000" placeholder="0" inputmode="numeric" />
           </div>
         </div>
-        
+
         <div class="input-group">
           <label>Annual ISA contribution</label>
           <div class="input-wrapper">
             <span class="currency-symbol">£</span>
-            <input type="number" id="input-isa-contribution" min="0" step="500" placeholder="0" inputmode="numeric" />
+            <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-isa-contribution" min="0" step="500" placeholder="0" inputmode="numeric" />
           </div>
-          <p class="help-text">How much you add to ISA each year</p>
+          <p class="help-text">ISA withdrawals are tax-free and pass to your spouse without IHT</p>
+        </div>
+
+        <div style="font-weight: 600; margin-top: 1.5rem; margin-bottom: 0.5rem; font-size: 0.9rem; padding-top: 1rem; border-top: 1px solid var(--color-border, #e2e8f0);">State Pension</div>
+        <div class="input-group">
+          <label>Your State Pension age</label>
+          <div class="input-wrapper">
+            <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-state-pension-age" min="60" max="75" value="67" inputmode="numeric" />
+          </div>
+        </div>
+
+        <div class="input-group">
+          <label>Expected annual State Pension</label>
+          <div class="input-wrapper">
+            <span class="currency-symbol">£</span>
+            <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-state-pension-amount" min="0" step="100" value="11973" inputmode="numeric" />
+          </div>
+          <p class="help-text">Full new State Pension is ~11,973/year (2025/26). Check yours at gov.uk/check-state-pension</p>
         </div>
       </div>
-      
+
       <div class="nav-buttons">
         <button type="button" class="btn btn-secondary" data-action="back">Back</button>
         <button type="button" class="btn btn-primary" data-action="next">Next</button>
       </div>
     </div>
-    
+
     <!-- ═══════════════════════════════════════════════════════════════
          Screen: State Pension
          ═══════════════════════════════════════════════════════════════ -->
@@ -535,7 +658,7 @@
         <div class="input-group">
           <label>State Pension age</label>
           <div class="input-wrapper">
-            <input type="number" id="input-state-pension-age" min="60" max="75" value="67" inputmode="numeric" />
+            <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-state-pension-age" min="60" max="75" value="67" inputmode="numeric" />
           </div>
         </div>
         
@@ -543,12 +666,15 @@
           <label>Expected annual State Pension</label>
           <div class="input-wrapper">
             <span class="currency-symbol">£</span>
-            <input type="number" id="input-state-pension-amount" min="0" step="100" value="11973" inputmode="numeric" />
+            <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-state-pension-amount" min="0" step="100" value="11973" inputmode="numeric" />
           </div>
           <p class="help-text">Full new State Pension is ~£11,973/year (2025/26)</p>
         </div>
+        <div class="context-hint" style="margin-top: 1.5rem; padding: 0.875rem 1rem; background: var(--color-primary-subtle); border-radius: var(--radius-md); font-size: 0.8125rem; color: var(--color-text-secondary); line-height: 1.5;">
+          Check your forecast at gov.uk/check-state-pension. You need 35 qualifying years for the full amount. State Pension grows with the triple lock (highest of inflation, earnings, or 2.5%).
+        </div>
       </div>
-      
+
       <div class="nav-buttons">
         <button type="button" class="btn btn-secondary" data-action="back">Back</button>
         <button type="button" class="btn btn-primary" data-action="next">Next</button>
@@ -581,13 +707,22 @@
           <div class="input-group">
             <label for="scenario-select" style="font-weight: 500; color: var(--color-text-secondary);">Planning Scenario</label>
             <select id="scenario-select" class="form-control" style="width: 100%; padding: 0.625rem; border: 2px solid var(--color-border); border-radius: var(--radius-md); font-size: 0.875rem; background: var(--color-surface); color: var(--color-text); cursor: pointer;">
-              <option value="conservative">Conservative - 2% real growth</option>
-              <option value="moderate" selected>Moderate - Balanced base case</option>
-              <option value="optimistic">Optimistic - 6% real growth</option>
+              <option value="conservative">Below Average markets - 3% real</option>
+              <option value="moderate" selected>Average markets - 4% real</option>
+              <option value="optimistic">Above Average markets - 6% real</option>
             </select>
             <p class="help-text">Select planning assumptions - affects growth rates, volatility, and inflation</p>
           </div>
-          
+
+          <!-- Guardrails toggle -->
+          <div style="margin-top: 1rem; display: flex; align-items: flex-start; gap: 0.5rem;">
+            <input type="checkbox" id="input-guardrails" style="margin-top: 3px;">
+            <div>
+              <label for="input-guardrails" style="font-weight: 500; cursor: pointer; font-size: 0.875rem;">Spending guardrails</label>
+              <p class="help-text" style="margin-top: 2px;">If your pot drops 20%, reduce spending 10%. If it rises 20%, increase 5%. Evidence-based strategy that extends fund life.</p>
+            </div>
+          </div>
+
           <!-- Advanced Options with Accordion (shown only in Full mode) -->
           <div id="advanced-options-container" class="advanced-accordion" style="margin-top: 1.5rem;">
             <h4 style="font-size: 0.8125rem; font-weight: 600; margin-bottom: 0.75rem; color: var(--color-text-light); text-transform: uppercase; letter-spacing: 0.05em;">Advanced Analysis</h4>
@@ -632,41 +767,8 @@
                     <p class="accordion-option-helper">Maximize after-tax retirement income</p>
                   </div>
                 </div>
-                <div class="accordion-option">
-                  <input type="checkbox" id="has-db-pension">
-                  <div class="accordion-option-content">
-                    <label class="accordion-option-label" for="has-db-pension">I have a Defined Benefit pension</label>
-                    <p class="accordion-option-helper">Include final salary or career average pension</p>
-                  </div>
-                </div>
-                <div id="db-pension-inputs" style="display: none; margin-left: 1.5rem; margin-top: 0.5rem;">
-                  <div class="input-group" style="margin-bottom: 0.5rem;">
-                    <input type="number" id="db-pension-amount" placeholder="Annual DB pension (£)" style="width: 100%; padding: 0.5rem; border: 1px solid #e5e7eb; border-radius: 4px;">
-                  </div>
-                  <div class="input-group">
-                    <input type="number" id="db-pension-start-age" placeholder="DB pension start age" value="65" style="width: 100%; padding: 0.5rem; border: 1px solid #e5e7eb; border-radius: 4px;">
-                  </div>
-                </div>
-                
-                <!-- PCLS Strategy -->
-                <div class="accordion-option" style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid #e5e7eb;">
-                  <div class="accordion-option-content" style="width: 100%;">
-                    <label class="accordion-option-label">💰 Tax-Free Cash (PCLS) Strategy</label>
-                    <p class="accordion-option-helper" style="margin-bottom: 0.5rem;">When to take your 25% pension tax-free cash</p>
-                    <select id="pcls-strategy" style="width: 100%; padding: 0.5rem; border: 1px solid #e5e7eb; border-radius: 4px; margin-bottom: 0.5rem;">
-                      <option value="all_at_retirement">Take all at retirement</option>
-                      <option value="phased">Phase over 5 years</option>
-                      <option value="deferred">Defer until State Pension age</option>
-                    </select>
-                    <div class="accordion-option" style="margin-top: 0.5rem;">
-                      <input type="checkbox" id="pcls-reinvest" checked>
-                      <div class="accordion-option-content">
-                        <label class="accordion-option-label" for="pcls-reinvest">Reinvest PCLS into ISA/GIA</label>
-                        <p class="accordion-option-helper">If ON: grows at portfolio return. If OFF: cash reserve (0%)</p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
+
+                <!-- PCLS moved above accordion for visibility -->
                 
                 <!-- Tax Jurisdiction -->
                 <div class="accordion-option" style="margin-top: 0.5rem;">
@@ -705,10 +807,10 @@
                 </div>
                 <div id="phased-inputs" style="display: none; margin-left: 1.5rem; margin-top: 0.5rem;">
                   <div class="input-group" style="margin-bottom: 0.5rem;">
-                    <input type="number" id="phase-start-age" placeholder="Phased retirement start age" style="width: 100%; padding: 0.5rem; border: 1px solid #e5e7eb; border-radius: 4px;">
+                    <input type="text" inputmode="numeric" pattern="[0-9]*" id="phase-start-age" placeholder="Phased retirement start age" style="width: 100%; padding: 0.5rem; border: 1px solid #e5e7eb; border-radius: 4px;">
                   </div>
                   <div class="input-group">
-                    <input type="number" id="reduced-hours" placeholder="Reduced hours (%)" value="50" style="width: 100%; padding: 0.5rem; border: 1px solid #e5e7eb; border-radius: 4px;">
+                    <input type="text" inputmode="numeric" pattern="[0-9]*" id="reduced-hours" placeholder="Reduced hours (%)" value="50" style="width: 100%; padding: 0.5rem; border: 1px solid #e5e7eb; border-radius: 4px;">
                   </div>
                 </div>
               </div>
@@ -726,245 +828,175 @@
     </div>
     
     <!-- ═══════════════════════════════════════════════════════════════
-         Screen: Results
+         Screen: Results — Tabbed Layout
          ═══════════════════════════════════════════════════════════════ -->
     <div id="screen-results" class="screen" aria-hidden="true">
-      <!-- Provisional Results Banner (hidden by default) -->
       <div id="provisional-banner" class="provisional-banner" style="display: none;">
         <span class="banner-icon">⚠️</span>
-        <span id="provisional-banner-message">Provisional results — partner pension amounts not yet included.</span>
+        <span id="provisional-banner-message">Provisional results.</span>
       </div>
-      
-      <div id="results-container">
-        <!-- Populated by JavaScript -->
+
+      <!-- Hero Answer -->
+      <div id="results-container"></div>
+
+      <!-- Shareable Summary Card -->
+      <div id="share-card" class="result-card" style="margin-bottom: 1rem; padding: 1rem; background: linear-gradient(135deg, var(--color-primary-subtle, #eef2ff), var(--color-surface)); border: 2px solid var(--color-primary-light, #e0e7ff);">
+        <div id="share-card-content" style="font-size: 0.8125rem; line-height: 1.6;"></div>
+        <button id="copy-share-card" style="margin-top: 0.5rem; padding: 0.375rem 0.75rem; font-size: 0.75rem; background: var(--color-primary, #4f46e5); color: white; border: none; border-radius: var(--radius-sm, 4px); cursor: pointer;">Copy summary</button>
       </div>
-      
-      <div class="chart-container">
-        <canvas id="capital-chart"></canvas>
+
+      <!-- Monthly/Annual toggle -->
+      <div style="display: flex; justify-content: flex-end; margin-bottom: 0.5rem;">
+        <button id="toggle-monthly" style="padding: 0.25rem 0.75rem; font-size: 0.7rem; border: 1px solid var(--color-border); border-radius: var(--radius-full, 9999px); background: var(--color-surface); cursor: pointer; color: var(--color-text-light);">Show annual</button>
       </div>
-      
-      <!-- Annual Net Cashflow Chart -->
-      <div class="result-card" id="cashflow-section" style="margin-top: 1.5rem;">
-        <h3>📊 Annual Net Income (by source)</h3>
-        <div class="chart-container" style="height: 320px;">
+
+      <!-- Narrative Summary -->
+      <div id="narrative-summary" class="result-card" style="margin-bottom: 1rem;"></div>
+
+      <!-- What-if Sliders -->
+      <div class="result-card" id="whatif-sliders-section" style="margin-bottom: 1rem;">
+        <h3 style="font-size: 1rem; margin-bottom: 1rem;">What if I change...</h3>
+
+        <!-- Retirement Age Slider -->
+        <div style="margin-bottom: 1.25rem;">
+          <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 0.5rem;">
+            <label for="slider-retirement-age" style="font-size: 0.8125rem; font-weight: 500; color: var(--color-text-secondary);">Retirement age</label>
+            <span id="slider-retirement-age-value" style="font-size: 1.125rem; font-weight: 700; color: var(--color-primary); min-width: 2rem; text-align: right;">60</span>
+          </div>
+          <input type="range" id="slider-retirement-age" min="50" max="75" step="1" value="60"
+            style="width: 100%; height: 8px; -webkit-appearance: none; appearance: none; background: var(--color-border); border-radius: 4px; outline: none; cursor: pointer;">
+        </div>
+
+        <!-- Monthly Contribution Slider -->
+        <div style="margin-bottom: 0.75rem;">
+          <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 0.5rem;">
+            <label for="slider-monthly-contribution" style="font-size: 0.8125rem; font-weight: 500; color: var(--color-text-secondary);">Monthly contribution</label>
+            <span id="slider-contribution-value" style="font-size: 1.125rem; font-weight: 700; color: var(--color-primary); min-width: 4rem; text-align: right;">£500</span>
+          </div>
+          <input type="range" id="slider-monthly-contribution" min="0" max="5000" step="100" value="500"
+            style="width: 100%; height: 8px; -webkit-appearance: none; appearance: none; background: var(--color-border); border-radius: 4px; outline: none; cursor: pointer;">
+        </div>
+
+        <!-- Slider impact summary -->
+        <div id="slider-impact" style="display: none; text-align: center; font-size: 0.8125rem; padding: 0.625rem; margin-top: 0.5rem; background: var(--color-primary-subtle, #eef2ff); border-radius: var(--radius-md, 0.5rem); font-weight: 500;"></div>
+      </div>
+
+      <!-- Single scrollable results -- no tabs -->
+
+      <!-- Income Chart -->
+      <div class="result-card" id="cashflow-section">
+        <h3 style="font-size: 1rem; margin-bottom: 0.75rem;">Income by Source</h3>
+        <div class="chart-container" style="height: 260px;">
           <canvas id="cashflow-chart"></canvas>
         </div>
-        <div id="tax-overlay-container" style="margin-top: 1rem;">
-          <h4 style="font-size: 0.9rem; color: #6b7280; margin-bottom: 0.5rem;">Tax Paid Per Year</h4>
-          <div class="chart-container" style="height: 150px;">
-            <canvas id="tax-chart"></canvas>
+      </div>
+
+      <!-- Income Breakdown -->
+      <div class="result-card" id="income-sources-section">
+        <h3 style="font-size: 1rem; margin-bottom: 0.75rem;">Income Breakdown (Year 1)</h3>
+        <div id="income-sources-breakdown"></div>
+      </div>
+
+      <!-- Cash Flow (Sankey) -->
+      <div class="result-card">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
+          <h3 style="font-size: 1rem; margin: 0;">Cash Flow</h3>
+          <div style="display: flex; align-items: center; gap: 0.5rem;">
+            <button id="sankey-prev" style="padding: 0.25rem 0.5rem; border: 1px solid var(--color-border); border-radius: 4px; background: var(--color-surface); cursor: pointer; font-size: 0.8rem;">&lt;</button>
+            <span id="sankey-year-label" style="font-weight: 600; font-size: 0.875rem; min-width: 4rem; text-align: center;">Age 60</span>
+            <button id="sankey-next" style="padding: 0.25rem 0.5rem; border: 1px solid var(--color-border); border-radius: 4px; background: var(--color-surface); cursor: pointer; font-size: 0.8rem;">&gt;</button>
           </div>
         </div>
+        <div id="sankey-container" style="width: 100%; min-height: 250px;"></div>
       </div>
-      
-      <!-- Income Sources Breakdown Panel -->
-      <div class="result-card" id="income-sources-section" style="margin-top: 1.5rem;">
-        <h3>💰 Income Sources Breakdown</h3>
-        <div id="income-sources-breakdown">
-          <!-- Populated by JavaScript -->
+
+      <!-- Wealth Chart -->
+      <div class="result-card">
+        <h3 style="font-size: 1rem; margin-bottom: 0.75rem;">Pension & ISA Balances</h3>
+        <div class="chart-container" style="height: 260px;">
+          <canvas id="capital-chart"></canvas>
         </div>
       </div>
-      
-      <!-- Guaranteed Income Timeline -->
-      <div class="result-card" id="guaranteed-income-section" style="margin-top: 1.5rem;">
-        <h3>📅 Guaranteed Income Timeline</h3>
-        <div class="chart-container" style="height: 200px;">
-          <canvas id="guaranteed-income-chart"></canvas>
-        </div>
-        <div id="guaranteed-income-details">
-          <!-- Populated by JavaScript -->
-        </div>
-      </div>
-      
-      <div id="assumptions-results-panel">
-        <!-- Populated by JavaScript -->
-      </div>
-      
-      <!-- ═══════════════════════════════════════════════════════════════
-           Advanced Analysis Sections
-           ═══════════════════════════════════════════════════════════════ -->
-      
-      <!-- Monte Carlo Visualization Section -->
-      <div class="result-card" id="monte-carlo-section" style="display: none;">
-        <h3>📊 Monte Carlo Simulation</h3>
+
+      <!-- Monte Carlo -->
+      <div class="result-card" id="monte-carlo-section">
         <div id="confidence-explainer-container"></div>
-        <div id="fan-chart-container">
+        <div id="fan-chart-container" style="position: relative; height: 260px;">
           <canvas id="fan-chart"></canvas>
         </div>
-        <div id="depletion-histogram-container">
+        <div id="depletion-histogram-container" style="position: relative; height: 160px; margin-top: 1rem;">
           <canvas id="depletion-histogram"></canvas>
         </div>
       </div>
-      
-      <!-- Readiness Score -->
-      <div class="result-card" id="readiness-section" style="display: none;">
-        <h3>🎯 Retirement Readiness Score</h3>
-        <div id="readiness-gauge"></div>
-        <div id="readiness-factors"></div>
+
+      <!-- Data Table (collapsible) -->
+      <details class="result-card" id="data-table-section">
+        <summary style="cursor: pointer; font-size: 1rem; font-weight: 600;">Year-by-Year Projection</summary>
+        <div id="data-table-container" style="overflow-x: auto; -webkit-overflow-scrolling: touch; margin-top: 0.75rem;"></div>
+      </details>
+
+      <!-- Hidden elements for JS compatibility -->
+      <div style="display:none;">
+        <canvas id="tax-chart"></canvas>
+        <canvas id="guaranteed-income-chart"></canvas>
+        <div id="guaranteed-income-details"></div>
+        <div id="assumptions-results-panel"></div>
+        <div id="readiness-section"></div>
+        <div id="insights-section"></div>
+        <div id="benchmarking-section"></div>
+        <div id="tax-optimization-section"></div>
+        <div id="risk-section"></div>
+        <div id="spending-policy-section"></div>
+        <div id="milestones-section"></div>
+        <div id="legacy-section"></div>
+        <div id="household-section"></div>
+        <div id="db-pension-section"></div>
+        <div id="care-costs-section"></div>
+        <div id="phased-retirement-section"></div>
       </div>
-      
-      <!-- Insights & Recommendations -->
-      <div class="result-card" id="insights-section" style="display: none;">
-        <h3>💡 Personalized Insights</h3>
-        <div id="insights-list"></div>
-        <div id="recommendations-list"></div>
+
+      <!-- Your inputs (collapsible) -->
+      <details style="margin-top: 1.5rem; border-top: 1px solid var(--color-border-light, #f1f5f9); padding-top: 0.75rem;">
+        <summary style="cursor: pointer; font-size: 0.8125rem; font-weight: 600; color: var(--color-text-light);">Your inputs</summary>
+        <div id="inputs-summary" style="margin-top: 0.5rem; font-size: 0.75rem; color: var(--color-text-light); line-height: 1.6;"></div>
+      </details>
+
+      <!-- Assumptions (collapsible) -->
+      <details style="margin-top: 1.5rem; border-top: 1px solid var(--color-border-light, #f1f5f9); padding-top: 0.75rem;">
+        <summary style="cursor: pointer; font-size: 0.8125rem; font-weight: 600; color: var(--color-text-light);">Assumptions used in this projection</summary>
+        <div id="assumptions-detail" style="margin-top: 0.5rem; font-size: 0.75rem; color: var(--color-text-light); line-height: 1.6;"></div>
+      </details>
+
+      <!-- Disclaimer -->
+      <div style="margin-top: 1rem; padding: 0.75rem; font-size: 0.7rem; color: var(--color-text-light); line-height: 1.5;">
+        This tool provides estimates for planning purposes only. It is not regulated financial advice. Based on HMRC tax year 2025/26 rates. Tax rules may change. Consider consulting a qualified financial adviser. All figures in today's money (real terms, after assumed inflation).
       </div>
-      
-      <!-- Benchmarking -->
-      <div class="result-card" id="benchmarking-section" style="display: none;">
-        <h3>📈 How You Compare</h3>
-        <div id="benchmark-chart"></div>
-        <div id="benchmark-details"></div>
-      </div>
-      
-      <!-- Tax Optimization -->
-      <div class="result-card" id="tax-optimization-section" style="display: none;">
-        <h3>💷 Tax-Efficient Drawdown</h3>
-        <div id="tax-optimization-results"></div>
-        <div id="withdrawal-strategy"></div>
-      </div>
-      
-      <!-- Risk Assessment -->
-      <div class="result-card" id="risk-section" style="display: none;">
-        <h3>⚠️ Risk Assessment</h3>
-        <div id="risk-profile"></div>
-        <div id="portfolio-risk-score"></div>
-      </div>
-      
-      <!-- Spending Policy -->
-      <div class="result-card" id="spending-policy-section" style="display: none;">
-        <h3>💸 Age-Based Spending</h3>
-        <div id="spending-policy-chart"></div>
-        <div id="spending-adjustments"></div>
-      </div>
-      
-      <!-- Milestones -->
-      <div class="result-card" id="milestones-section" style="display: none;">
-        <h3>🎖️ Retirement Milestones</h3>
-        <div id="milestones-timeline"></div>
-      </div>
-      
-      <!-- Legacy Planning -->
-      <div class="result-card" id="legacy-section" style="display: none;">
-        <h3>🏛️ Estate Planning</h3>
-        <div id="legacy-projection"></div>
-        <div id="iht-estimate"></div>
-      </div>
-      
-      <!-- Household & Survivor Analysis -->
-      <div class="result-card" id="household-section" style="display: none;">
-        <h3>👥 Household Analysis</h3>
-        <div id="household-details"></div>
-        <div id="survivor-projection"></div>
-      </div>
-      
-      <!-- DB Pension Projection -->
-      <div class="result-card" id="db-pension-section" style="display: none;">
-        <h3>💼 DB Pension Income</h3>
-        <div id="db-pension-chart"></div>
-        <div id="db-pension-details"></div>
-      </div>
-      
-      <!-- Care Costs Planning -->
-      <div class="result-card" id="care-costs-section" style="display: none;">
-        <h3>🏥 Care Cost Planning</h3>
-        <div id="care-cost-scenarios"></div>
-        <div id="care-cost-impact"></div>
-      </div>
-      
-      <!-- Phased Retirement -->
-      <div class="result-card" id="phased-retirement-section" style="display: none;">
-        <h3>⏰ Phased Retirement</h3>
-        <div id="phased-retirement-chart"></div>
-        <div id="phased-retirement-details"></div>
-      </div>
-      
-      <div class="nav-buttons">
+
+      <div class="nav-buttons" style="margin-top: 0.75rem;">
         <button type="button" class="btn btn-secondary" data-action="back">Edit Inputs</button>
-        <button type="button" class="btn btn-primary" data-action="next">Compare Plans</button>
+        <button type="button" class="btn btn-primary" onclick="window.print()" style="font-size: 0.8rem;">Print</button>
+        <button type="button" class="btn btn-secondary" id="save-scenario-btn" style="font-size: 0.8rem;">Save Scenario</button>
+        <button type="button" class="btn btn-secondary" onclick="if(confirm('Clear all data and start fresh?')){localStorage.clear();indexedDB.deleteDatabase('RetireLensDB');location.reload();}">Reset</button>
       </div>
-      
-      <!-- Debug output (visible with ?debug=1) -->
+      <!-- Saved scenarios list -->
+      <div id="saved-scenarios" style="margin-top: 0.75rem; font-size: 0.75rem;"></div>
+
       <div id="debug-output" style="display: none;"></div>
     </div>
-    
-    <!-- ═══════════════════════════════════════════════════════════════
-         Screen: Compare (Plan A vs Plan B)
-         ═══════════════════════════════════════════════════════════════ -->
-    <div id="screen-compare" class="screen" aria-hidden="true">
-      <div class="screen-header">
-        <h2 class="screen-title">Compare Plans</h2>
-        <p class="screen-subtitle">What if you changed one thing?</p>
-      </div>
-      
-      <div class="screen-content">
-        <div class="input-group">
-          <label>Plan B: Retire at different age</label>
-          <div class="input-wrapper">
-            <input type="number" id="input-planb-retirement-age" min="50" max="100" placeholder="67" inputmode="numeric" />
-          </div>
-          <p class="help-text">Change the retirement age for Plan B</p>
-        </div>
-        
-        <button type="button" class="btn btn-primary" id="compare-btn" style="margin-top: 1rem;">
-          Compare Plans
-        </button>
-        
-        <div id="comparison-container">
-          <!-- Populated by JavaScript -->
-        </div>
-        
-        <div class="chart-container">
-          <canvas id="comparison-chart"></canvas>
-        </div>
-      </div>
-      
-      <div class="nav-buttons">
-        <button type="button" class="btn btn-secondary" data-action="back">Back to Results</button>
-        <button type="button" class="btn btn-secondary" onclick="location.reload()">Start Over</button>
-      </div>
+
+    <!-- Loading overlay -->
+    <div id="loading-overlay" style="display: none; position: fixed; inset: 0; background: rgba(255,255,255,0.9); z-index: 1000; display: none; align-items: center; justify-content: center; flex-direction: column;">
+      <div style="width: 40px; height: 40px; border: 4px solid var(--color-border, #e2e8f0); border-top-color: var(--color-primary, #4f46e5); border-radius: 50%; animation: spin 0.8s linear infinite;"></div>
+      <p style="margin-top: 1rem; font-size: 0.875rem; color: var(--color-text-secondary, #374151);">Running 1,000 market scenarios...</p>
     </div>
+    <style>@keyframes spin { to { transform: rotate(360deg); } }</style>
+    
+    <!-- Compare Plans removed — can be re-added later -->
+    <div id="screen-compare" class="screen" aria-hidden="true" style="display:none;"></div>
     
   </div>
   
-  <!-- Answer Preview Card (Sticky) -->
-  <div id="answer-preview-card" class="answer-preview-card hidden">
-    <div class="preview-info-tooltip" id="preview-tooltip">
-      <ul>
-        <li>Estimate only (no full tax sequencing yet)</li>
-        <li>Results can change with market returns</li>
-        <li>Full plan uses detailed modeling on Calculate</li>
-      </ul>
-    </div>
-    <div class="preview-header">
-      <span class="preview-title">
-        Live Estimate
-      </span>
-      <button type="button" class="preview-info-btn" id="preview-info-btn" aria-label="More info" style="color: var(--color-text-light); font-size: 0.875rem; border: 1px solid var(--color-border); border-radius: 50%; width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; padding: 0; cursor: pointer; background: none;">?</button>
-    </div>
-    <div class="preview-content" id="preview-content">
-      <div class="preview-item">
-        <div class="preview-label">Retire at</div>
-        <div class="preview-value" id="preview-retire-age" style="color: var(--color-text-light);">...</div>
-      </div>
-      <div class="preview-item">
-        <div class="preview-label">Target net</div>
-        <div class="preview-value" id="preview-target" style="color: var(--color-text-light);">...</div>
-      </div>
-      <div class="preview-item">
-        <div class="preview-label">Projected pot</div>
-        <div class="preview-value" id="preview-pot" style="color: var(--color-text-light);">...</div>
-      </div>
-      <div class="preview-item">
-        <div class="preview-label">Gap / Surplus</div>
-        <div class="preview-value neutral" id="preview-gap" style="color: var(--color-text-light);">...</div>
-      </div>
-      <div class="preview-hint" id="preview-hint" style="display: none;">Enter age and retirement age to see estimate</div>
-    </div>
-    <div style="text-align: center; font-size: 0.6875rem; color: var(--color-text-light); margin-top: 4px; letter-spacing: 0.02em;">
-      Quick estimate based on the 4% withdrawal rule
-    </div>
-  </div>
+  <!-- Live Estimate removed — created anxiety during data entry -->
   
   <!-- Error message toast -->
   <div id="error-message"></div>
@@ -972,14 +1004,11 @@
   <!-- Version footer -->
   <footer id="version-footer" style="text-align: center; font-size: 0.6875rem; color: var(--color-text-light); padding: 12px 0; background: var(--color-background); letter-spacing: 0.02em;">
     <span id="model-version">RetireLens Pro v1.0.0</span> &middot; Your data never leaves this device
+    <br>
+    <button onclick="if(confirm('Clear all saved data and start fresh?')){localStorage.clear();indexedDB.deleteDatabase('RetireLensDB');location.reload();}" style="margin-top: 6px; background: none; border: 1px solid var(--color-border); border-radius: var(--radius-sm, 4px); padding: 4px 12px; font-size: 0.6875rem; color: var(--color-text-light); cursor: pointer;">Reset &amp; Start Over</button>
   </footer>
   
-  <!-- Bottom Ticker for Onboarding Progress -->
-  <div id="bottom-ticker">
-    <div class="ticker-content">
-      <div id="ticker-messages" class="ticker-message"></div>
-    </div>
-  </div>
+  <!-- Bottom Ticker removed -->
   
   <!-- Main application script -->
   <script type="module" src="js/app.js"></script>

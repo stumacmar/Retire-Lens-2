@@ -1565,12 +1565,20 @@
       if (ageSlider) {
         ageSlider.value = state.formData.retirementAge || 60;
         document.getElementById('slider-retirement-age-value').textContent = ageSlider.value;
+        updateSliderFill(ageSlider);
       }
       if (contribSlider) {
         const monthly = Math.round((state.formData.annualPensionContribution || 0) / 12);
         contribSlider.value = monthly;
         document.getElementById('slider-contribution-value').textContent = '£' + Number(monthly).toLocaleString();
+        updateSliderFill(contribSlider);
       }
+    }
+
+    function updateSliderFill(slider) {
+      if (!slider) return;
+      const pct = ((slider.value - slider.min) / (slider.max - slider.min)) * 100;
+      slider.style.background = `linear-gradient(to right, var(--color-primary, #4f46e5) ${pct}%, var(--color-border, #e2e8f0) ${pct}%)`;
     }
 
     function runSliderProjection() {
@@ -1585,6 +1593,8 @@
 
       document.getElementById('slider-retirement-age-value').textContent = newAge;
       document.getElementById('slider-contribution-value').textContent = '£' + Number(newMonthly).toLocaleString();
+      updateSliderFill(ageSlider);
+      updateSliderFill(contribSlider);
 
       clearTimeout(sliderDebounceTimer);
       sliderDebounceTimer = setTimeout(() => {
@@ -1873,6 +1883,7 @@
           <h2 class="results-question" style="margin-top: 0.5rem;">
             Can I retire at ${plan.retirementAge} on <span id="hero-income-amount" data-annual="${plan.targetNetIncome}">${formatCurrency(monthly)}/mo</span>?
           </h2>
+          <button id="toggle-monthly" style="margin-top: 0.375rem; padding: 0.25rem 0.75rem; font-size: 0.7rem; border: 1px solid var(--color-border); border-radius: var(--radius-full, 9999px); background: var(--color-surface); cursor: pointer; color: var(--color-text-light); transition: all 0.2s;">Show annual</button>
 
           <div style="margin-top: 1rem; display: flex; flex-direction: column; align-items: center;">
             <svg width="160" height="100" viewBox="0 0 160 100" style="overflow: visible;">
@@ -1973,13 +1984,12 @@
       const inputsSummaryEl = document.getElementById('inputs-summary');
       if (inputsSummaryEl) {
         const d = state.formData || {};
-        const editStyle = 'cursor: pointer; color: var(--color-primary); border-bottom: 1px dashed var(--color-primary-light); padding: 1px 2px;';
         function editCell(label, key, value, isCurrency) {
           const display = isCurrency ? formatCurrency(value) : value;
           return `<tr>
             <td>${label}</td>
             <td style="text-align: right;">
-              <span class="inline-edit" data-key="${key}" data-currency="${isCurrency ? '1' : '0'}" style="${editStyle}" title="Tap to edit">${display}</span>
+              <span class="inline-edit" data-key="${key}" data-currency="${isCurrency ? '1' : '0'}" title="Tap to edit">${display} <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="vertical-align: -1px; opacity: 0.5;"><path d="M17 3a2.83 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg></span>
             </td>
           </tr>`;
         }

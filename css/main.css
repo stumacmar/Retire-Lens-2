@@ -1592,6 +1592,20 @@
       border: 3px solid white;
       box-shadow: 0 2px 6px rgba(0,0,0,0.15);
     }
+    input[type="range"]::-webkit-slider-runnable-track {
+      height: 8px;
+      border-radius: 4px;
+    }
+    input[type="range"]::-moz-range-track {
+      height: 8px;
+      border-radius: 4px;
+      background: var(--color-border);
+    }
+    input[type="range"]::-moz-range-progress {
+      height: 8px;
+      border-radius: 4px 0 0 4px;
+      background: var(--color-primary, #4f46e5);
+    }
     @media (pointer: coarse) {
       input[type="range"]::-webkit-slider-thumb {
         width: 40px;
@@ -1601,4 +1615,36 @@
         width: 40px;
         height: 40px;
       }
+    }
+
+    /* Inline edit tap targets */
+    .inline-edit {
+      cursor: pointer;
+      color: var(--color-primary);
+      border-bottom: 1px dashed var(--color-primary-light);
+      padding: 2px 4px;
+      border-radius: 2px;
+      transition: background var(--transition-fast);
+    }
+    .inline-edit:hover, .inline-edit:active {
+      background: var(--color-primary-subtle);
+    }
+
+    /* SP bridge responsive stacking */
+    @media (max-width: 380px) {
+      #sp-bridge-section > div:first-of-type {
+        flex-direction: column !important;
+      }
+      #sp-bridge-section > div:first-of-type > div:nth-child(2) {
+        transform: rotate(90deg);
+        text-align: center;
+      }
+    }
+
+    /* Income gap bar animation */
+    @keyframes fillBar {
+      from { width: 0; }
+    }
+    #income-gap-section [style*="width:"] {
+      animation: fillBar 0.8s cubic-bezier(0.4, 0, 0.2, 1);
     }

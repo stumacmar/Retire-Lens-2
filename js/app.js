@@ -1906,16 +1906,16 @@
             <span class="metric-value" data-metric="monthlyIncome">${formatCurrency(monthly)}</span>
           </div>
           <div class="metric">
+            <span class="metric-label">Tax-Free Cash</span>
+            <span class="metric-value" data-metric="pclsTaken">${formatCurrency(summary.pclsTaken)}</span>
+          </div>
+          <div class="metric">
             <span class="metric-label">Confidence</span>
             <span class="metric-value" data-metric="confidence" style="color: ${confidenceColor};">${confidenceNum}%</span>
           </div>
           <div class="metric">
             <span class="metric-label">Surplus at 90</span>
             <span class="metric-value" data-metric="finalBalance">${formatCurrency(summary.finalBalance)}</span>
-          </div>
-          <div class="metric">
-            <span class="metric-label">Tax-Free Cash</span>
-            <span class="metric-value" data-metric="pclsTaken">${formatCurrency(summary.pclsTaken)}</span>
           </div>
         </div>
 

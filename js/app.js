@@ -2123,207 +2123,115 @@
       const yourSP = plan.expectedStatePension || 0;
       const yourDB = plan.dbPensionAmount || 0;
       const retireAge = plan.retirementAge;
+      const spAge = plan.statePensionAge || data.statePensionAge || 67;
 
-      // Build event-based timeline
-      const events = [];
-      const evStyle = 'display: flex; gap: 0.75rem; margin-bottom: 0.75rem; font-size: 0.8125rem; line-height: 1.5;';
-      const ageStyle = 'min-width: 2.5rem; font-weight: 700; color: var(--color-primary, #4f46e5); flex-shrink: 0;';
-      const descStyle = 'flex: 1;';
+      const milestones = [];
 
-      // Event: Retirement
-      let retireDesc = `You retire on <strong>${formatCurrency(plan.targetNetIncome)}/year</strong>.`;
-      if (isCouple) {
-        const ageDiff = (data.partnerCurrentAge || 0) - plan.currentAge;
-        const partnerAgeAtRetire = retireAge + ageDiff;
-        const partnerSpStart = (data.partnerStatePensionAge || 67) - ageDiff;
-        if (partnerAgeAtRetire >= (data.partnerStatePensionAge || 67)) {
-          let partnerIncome = [];
-          if (partnerSP > 0) partnerIncome.push(`State Pension ${formatCurrency(partnerSP)}`);
-          if (partnerDB > 0) partnerIncome.push(`DB pension ${formatCurrency(partnerDB)}`);
-          retireDesc += ` Partner is ${partnerAgeAtRetire} -- ${partnerIncome.join(' and ')} start${partnerIncome.length > 0 ? '' : 's'} immediately.`;
-        }
-      }
-      events.push({ age: retireAge, desc: retireDesc });
+      // Milestone: Retirement
+      milestones.push({
+        age: retireAge,
+        label: 'Retire',
+        color: 'var(--color-primary, #4f46e5)',
+        detail: `${formatCurrency(Math.round(plan.targetNetIncome / 12))}/mo target`
+      });
 
-      // Event: Your DB starts (if applicable and after retirement)
+      // Milestone: DB starts (if after retirement)
       if (yourDB > 0 && plan.dbPensionStartAge > retireAge) {
-        events.push({ age: plan.dbPensionStartAge, desc: `Your DB pension starts: <strong>${formatCurrency(yourDB)}/year</strong>. Pension withdrawal reduces.` });
+        milestones.push({
+          age: plan.dbPensionStartAge,
+          label: 'DB starts',
+          color: 'var(--color-accent, #0d9488)',
+          detail: `+${formatCurrency(Math.round(yourDB / 12))}/mo guaranteed`
+        });
       }
 
-      // Event: Your SP starts + deferral option
-      if (plan.statePensionAge > retireAge) {
-        const deferredSP = Math.round(yourSP * 1.058);
-        events.push({ age: plan.statePensionAge, desc: `Your State Pension starts: <strong>${formatCurrency(yourSP)}/year</strong>. Pension withdrawal drops significantly. <span style="color: var(--color-text-light); font-size: 0.75rem;">(Deferring 1 year would give ${formatCurrency(deferredSP)}/yr, +${formatCurrency(deferredSP - yourSP)} for life)</span>` });
+      // Milestone: SP starts
+      if (spAge > retireAge) {
+        milestones.push({
+          age: spAge,
+          label: 'State Pension',
+          color: '#22c55e',
+          detail: `+${formatCurrency(Math.round(yourSP / 12))}/mo, pot pressure drops`
+        });
       }
 
-      // Event: Spending reduction at 80
-      events.push({ age: 80, desc: `Spending reduces to <strong>${formatCurrency(plan.targetNetIncome * 0.75)}/year</strong> (-25%). Less pressure on your pot.` });
+      // Milestone: Spending cut at 80
+      milestones.push({
+        age: 80,
+        label: 'Spend -25%',
+        color: 'var(--color-warning, #d97706)',
+        detail: `Target drops to ${formatCurrency(Math.round(plan.targetNetIncome * 0.75 / 12))}/mo`
+      });
 
-      // Event: Outcome
+      // Milestone: Outcome at 90
       if (summary.successRate >= 1.0) {
-        events.push({ age: 90, desc: `<strong style="color: var(--color-success, #059669);">Plan succeeds.</strong> Final balance: <strong>${formatCurrency(summary.finalBalance)}</strong>.` });
+        milestones.push({
+          age: 90,
+          label: 'Plan succeeds',
+          color: 'var(--color-success, #059669)',
+          detail: `${formatCurrency(summary.finalBalance)} remaining`
+        });
       } else {
-        events.push({ age: summary.depletionAge || 85, desc: `<strong style="color: var(--color-danger, #dc2626);">Funds may run out.</strong> Consider increasing contributions or reducing target.` });
+        const deplAge = summary.depletionAge || 85;
+        milestones.push({
+          age: deplAge,
+          label: 'Funds run out',
+          color: 'var(--color-danger, #dc2626)',
+          detail: 'Increase contributions or reduce target'
+        });
       }
 
-      // Add risk context from MC results
+      // MC worst case
       const mcStats = results?.mcResult?.statistics;
-      if (mcStats) {
-        if (mcStats.depletionAge?.earliest) {
-          events.push({ age: '!', desc: `<span style="color: var(--color-warning, #d97706);">In the worst 10% of market scenarios, funds could run out by age ${mcStats.depletionAge.earliest}.</span>` });
-        }
+      if (mcStats?.depletionAge?.earliest) {
+        milestones.push({
+          age: mcStats.depletionAge.earliest,
+          label: 'Worst 10%',
+          color: 'var(--color-danger, #dc2626)',
+          detail: `Funds could run out in bad markets`
+        });
       }
 
-      // Annuity comparison estimate (rough, based on typical rates)
-      // Standard annuity rate at 60: ~5.0%, at 65: ~5.8%, at 67: ~6.2%
+      milestones.sort((a, b) => a.age - b.age);
+
+      // Build horizontal timeline
+      const minAge = milestones[0]?.age || 55;
+      const maxAge = Math.max(90, milestones[milestones.length - 1]?.age || 90);
+      const range = maxAge - minAge || 1;
+
+      let html = `<h3 style="font-size: 1rem; margin-bottom: 1rem;">Your retirement journey</h3>`;
+
+      // Timeline bar
+      html += `<div style="position: relative; margin: 0.5rem 0 2.5rem 0; height: 4px; background: var(--color-border); border-radius: 2px;">`;
+
+      milestones.forEach((m, i) => {
+        const pct = ((m.age - minAge) / range) * 100;
+        const isTop = i % 2 === 0;
+        html += `
+          <div style="position: absolute; left: ${pct}%; transform: translateX(-50%); ${isTop ? 'bottom: 8px;' : 'top: 8px;'} text-align: center; width: max-content; max-width: 5.5rem;">
+            <div style="position: absolute; left: 50%; ${isTop ? 'bottom: -8px;' : 'top: -8px;'} width: 12px; height: 12px; border-radius: 50%; background: ${m.color}; border: 2px solid white; box-shadow: 0 1px 3px rgba(0,0,0,0.2); transform: translateX(-50%);"></div>
+            <div style="font-size: 0.6875rem; font-weight: 700; color: ${m.color};">${m.age}</div>
+            <div style="font-size: 0.625rem; font-weight: 600; color: var(--color-text); margin-top: 1px;">${m.label}</div>
+            <div style="font-size: 0.5625rem; color: var(--color-text-light); margin-top: 1px; line-height: 1.3;">${m.detail}</div>
+          </div>`;
+      });
+
+      html += `</div>`;
+
+      // Annuity + key insights as compact pills below
       const annuityRate = retireAge >= 67 ? 0.062 : retireAge >= 65 ? 0.058 : 0.050;
       const potAfterPCLS = summary.retirementPot - summary.pclsTaken;
       const annuityIncome = Math.round(potAfterPCLS * annuityRate);
+
+      html += `<div style="display: flex; flex-wrap: wrap; gap: 0.375rem; margin-top: 2.5rem;">`;
       if (annuityIncome > 0) {
-        const totalWithAnnuity = annuityIncome + (yourSP + partnerSP + partnerDB);
-        events.push({ age: '', desc: `<span style="color: var(--color-text-light);">Annuity alternative: buying a level annuity at ${retireAge} would provide ~${formatCurrency(annuityIncome)}/yr guaranteed for life (${(annuityRate*100).toFixed(1)}% rate). Drawdown offers flexibility but no guarantee.</span>` });
+        html += `<span style="font-size: 0.6875rem; padding: 0.25rem 0.5rem; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-full, 9999px); color: var(--color-text-light);">Annuity alt: ${formatCurrency(annuityIncome)}/yr at ${(annuityRate*100).toFixed(0)}%</span>`;
       }
-
-      // Tax wrapper optimization insight
-      try {
-        const firstYear = projection.decumulation.years[0];
-        if (firstYear && firstYear.withdrawals) {
-          const guaranteed = (firstYear.statePension || 0);
-          const pa = 12570;
-          const paUsed = Math.min(guaranteed, pa);
-          const paRemaining = pa - paUsed;
-          // If guaranteed income already fills PA, pension withdrawals start at 20%+ tax
-          // In this case, ISA withdrawals would be more tax-efficient
-          if (paRemaining === 0 && (firstYear.withdrawals.pension || 0) > 0) {
-            const pensionTaxed = firstYear.withdrawals.pension || 0;
-            const taxOnPension = firstYear.taxPaid || 0;
-            events.push({ age: '', desc: `<span style="color: var(--color-accent, #0d9488);">Tax wrapper insight: your guaranteed income already uses your Personal Allowance. Every pound drawn from pension is taxed at ${guaranteed > 50270 ? '40' : '20'}%. Consider drawing from ISA first in years where guaranteed income is high.</span>` });
-          } else if (paRemaining > 0) {
-            events.push({ age: '', desc: `<span style="color: var(--color-text-light);">Tax efficiency: ${formatCurrency(paRemaining)} of Personal Allowance used for tax-free pension withdrawal each year.</span>` });
-          }
-        }
-      } catch (e) { /* tax wrapper analysis failed */ }
-
-      // Sequence-of-returns risk
-      try {
-        const sor = illustrateSequenceOfReturns(projection.plan || state.planA);
-        if (sor && sor.badStart && sor.goodStart) {
-          const diff = Math.round(sor.goodStart.finalBalance - sor.badStart.finalBalance);
-          if (diff > 10000) {
-            events.push({ age: '!', desc: `<span style="color: var(--color-text-light);">Return timing matters: good early markets leave ${formatCurrency(sor.goodStart.finalBalance)}, poor early markets leave ${formatCurrency(sor.badStart.finalBalance)} (${formatCurrency(diff)} difference).</span>` });
-          }
-        }
-      } catch (e) { /* sequence illustration failed */ }
-
-      // Survivor scenario for couples
       if (isCouple) {
-        const ageDiff = (data.partnerCurrentAge || 0) - plan.currentAge;
-        // What does partner have if you die at 75?
-        const deathAge = 75;
-        const yearAtDeath = projection.decumulation.years.find(y => y.age === deathAge);
-        if (yearAtDeath) {
-          const survivorPension = (yearAtDeath.endBalances?.pension || 0) + (yearAtDeath.endBalances?.isa || 0);
-          const partnerOwnSP = partnerSP > 0 ? partnerSP : 0;
-          const partnerOwnDB = partnerDB > 0 ? partnerDB : 0;
-          const survivorGuaranteed = partnerOwnSP + partnerOwnDB;
-          events.push({ age: '?',
-            desc: `<span style="color: var(--color-text-secondary);">If you were to die at ${deathAge}: partner inherits pension pot (${formatCurrency(survivorPension)}) via beneficiary drawdown, plus their own SP (${formatCurrency(partnerOwnSP)}) and DB (${formatCurrency(partnerOwnDB)}). ISA passes to spouse tax-free.</span>`
-          });
-        }
+        html += `<span style="font-size: 0.6875rem; padding: 0.25rem 0.5rem; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-full, 9999px); color: var(--color-text-light);">Survivor: partner inherits pot + SP + DB</span>`;
       }
-
-      // Calculate minimum pot needed (binary search) -- before rendering events
-      try {
-        const scenarioPreset = SCENARIO_PRESETS[data.scenario] || SCENARIO_PRESETS.moderate;
-        let lo = 0, hi = (data.currentPension || 100000) * 3, minPot = data.currentPension || 0;
-        for (let i = 0; i < 12; i++) {
-          const mid = Math.round((lo + hi) / 2);
-          const testPlan = createPlan({ ...data, currentPension: mid,
-            assumptions: { projection: { defaultGrowthRate: scenarioPreset.growthRate || 0.04, defaultFeeRate: scenarioPreset.feeRate || 0.005 } } });
-          const testResult = runProjection(testPlan, { endAge: 90 });
-          if (testResult.summary.successRate >= 1.0) { hi = mid; minPot = mid; }
-          else { lo = mid; }
-        }
-        const currentPot = data.currentPension || 0;
-        if (minPot < currentPot * 0.95) {
-          events.push({ age: '', desc: `<span style="color: var(--color-success, #059669);">Minimum pot needed: <strong>${formatCurrency(minPot)}</strong>. You have ${formatCurrency(currentPot - minPot)} more than required.</span>` });
-        } else if (minPot > currentPot * 1.05) {
-          events.push({ age: '', desc: `<span style="color: var(--color-warning, #d97706);">Minimum pot for full success: <strong>${formatCurrency(minPot)}</strong>. You need ${formatCurrency(minPot - currentPot)} more.</span>` });
-        }
-      } catch (e) { console.warn('Min pot calc failed:', e.message); }
-
-      // Split events: first 3 key milestones always visible, rest in concertina
-      const keyEvents = events.slice(0, 3);
-      const detailEvents = events.slice(3);
-
-      let html = '<div style="font-size: 0.875rem; font-weight: 600; margin-bottom: 0.75rem;">Your retirement timeline</div>';
-      for (const e of keyEvents) {
-        html += `<div style="${evStyle}"><span style="${ageStyle}">${e.age}</span><span style="${descStyle}">${e.desc}</span></div>`;
-      }
-      if (detailEvents.length > 0) {
-        html += `<details style="margin-top: 0.25rem; margin-bottom: 0.75rem;">`;
-        html += `<summary style="cursor: pointer; font-size: 0.8125rem; font-weight: 500; color: var(--color-primary); margin-bottom: 0.75rem;">See full timeline (${detailEvents.length} more events)</summary>`;
-        for (const e of detailEvents) {
-          html += `<div style="${evStyle}"><span style="${ageStyle}">${e.age}</span><span style="${descStyle}">${e.desc}</span></div>`;
-        }
-        html += `</details>`;
-      }
-
-      // Consider section
-      html += `<div style="margin-top: 1rem; padding: 0.75rem; background: var(--color-primary-subtle, #eef2ff); border-radius: var(--radius-md, 0.5rem); border-left: 3px solid var(--color-primary, #4f46e5);">`;
-      // Calculate best single action by testing levers
-      const actions = [];
-      try {
-        // Lever 1: +500/month contributions
-        const extraContribPlan = createPlan({ ...data, annualPensionContribution: (data.annualPensionContribution || 0) + 6000,
-          assumptions: { projection: { defaultGrowthRate: plan.assumptions?.projection?.defaultGrowthRate || 0.04, defaultFeeRate: plan.assumptions?.projection?.defaultFeeRate || 0.005 } } });
-        const extraContribResult = runProjection(extraContribPlan, { endAge: 90 });
-        const contribDelta = extraContribResult.summary.finalBalance - summary.finalBalance;
-        actions.push({ label: `Add 500/month to contributions`, delta: contribDelta, detail: `adds ${formatCurrency(contribDelta)} to your final balance` });
-
-        // Lever 2: Retire 1 year later
-        if (plan.retirementAge < 70) {
-          const laterPlan = createPlan({ ...data, retirementAge: plan.retirementAge + 1,
-            assumptions: { projection: { defaultGrowthRate: plan.assumptions?.projection?.defaultGrowthRate || 0.04, defaultFeeRate: plan.assumptions?.projection?.defaultFeeRate || 0.005 } } });
-          const laterResult = runProjection(laterPlan, { endAge: 90 });
-          const laterDelta = laterResult.summary.finalBalance - summary.finalBalance;
-          actions.push({ label: `Retire 1 year later (at ${plan.retirementAge + 1})`, delta: laterDelta, detail: `adds ${formatCurrency(laterDelta)} to your final balance` });
-        }
-
-        // Lever 3: Reduce target by 5k
-        const lessPlan = createPlan({ ...data, targetNetIncome: plan.targetNetIncome - 5000,
-          assumptions: { projection: { defaultGrowthRate: plan.assumptions?.projection?.defaultGrowthRate || 0.04, defaultFeeRate: plan.assumptions?.projection?.defaultFeeRate || 0.005 } } });
-        const lessResult = runProjection(lessPlan, { endAge: 90 });
-        const lessDelta = lessResult.summary.finalBalance - summary.finalBalance;
-        actions.push({ label: `Reduce income target by 5,000/year`, delta: lessDelta, detail: `adds ${formatCurrency(lessDelta)} to your final balance` });
-      } catch (e) { /* action calculation failed, show generic advice */ }
-
-      // Sort by impact and show the best
-      actions.sort((a, b) => b.delta - a.delta);
-
-      if (summary.successRate >= 1.0 && summary.finalBalance > plan.targetNetIncome * 3) {
-        // Strong plan
-        html += `<div style="font-weight: 600; margin-bottom: 0.5rem; font-size: 0.8125rem; color: var(--color-success, #059669);">Your plan is strong. No urgent action needed.</div>`;
-        html += `<ul style="margin: 0; padding-left: 1.25rem; font-size: 0.8125rem; line-height: 1.6;">`;
-        if (data.pclsAlreadyTaken && summary.pclsTaken > 0) {
-          html += `<li>You have ${formatCurrency(summary.pclsTaken)} additional tax-free cash available</li>`;
-        }
-        const reviewMonth = new Date().getMonth() >= 3 ? 'April ' + (new Date().getFullYear() + 1) : 'April ' + new Date().getFullYear();
-        html += `<li>Review this plan after your next pension statement (target: ${reviewMonth})</li>`;
-        html += `</ul>`;
-      } else if (actions.length > 0) {
-        const best = actions[0];
-        html += `<div style="font-weight: 600; margin-bottom: 0.5rem; font-size: 0.8125rem;">Most impactful action</div>`;
-        html += `<div style="padding: 0.5rem 0.75rem; background: white; border-radius: var(--radius-sm, 4px); margin-bottom: 0.5rem; font-size: 0.8125rem;">`;
-        html += `<strong>${best.label}</strong> -- ${best.detail}`;
-        html += `</div>`;
-        html += `<div style="font-size: 0.75rem; color: var(--color-text-light);">Other options: ${actions.slice(1).map(a => a.label).join(', ')}</div>`;
-      } else {
-        html += `<div style="font-size: 0.8125rem;">Review your plan annually</div>`;
-      }
-      // Always show review date
       const reviewMonth = new Date().getMonth() >= 3 ? 'April ' + (new Date().getFullYear() + 1) : 'April ' + new Date().getFullYear();
-      html += `<div style="font-size: 0.75rem; color: var(--color-text-light); margin-top: 0.5rem;">Next review: ${reviewMonth} (after your pension statement)</div>`;
+      html += `<span style="font-size: 0.6875rem; padding: 0.25rem 0.5rem; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-full, 9999px); color: var(--color-text-light);">Review: ${reviewMonth}</span>`;
       html += `</div>`;
 
       el.innerHTML = html;
@@ -2518,37 +2426,52 @@
       const ageDiff = partnerCurrentAge - plan.currentAge;
       const partnerSpUserAge = partnerSpAge - ageDiff;
 
-      // Pension withdrawal before SP (what the pot must fund)
       const preSpDecYears = projection.decumulation.years.filter(y => y.age >= retireAge && y.age < spAge);
       const avgPreWithdrawal = preSpDecYears.length > 0 ? Math.round(preSpDecYears.reduce((s, y) => s + (y.withdrawals?.pension || 0) + (y.withdrawals?.isa || 0), 0) / preSpDecYears.length) : 0;
 
-      // Pension withdrawal after SP (reduced by SP + partner SP)
       const postSpDecYears = projection.decumulation.years.filter(y => y.age >= spAge && y.age < spAge + 3);
       const avgPostWithdrawal = postSpDecYears.length > 0 ? Math.round(postSpDecYears.reduce((s, y) => s + (y.withdrawals?.pension || 0) + (y.withdrawals?.isa || 0), 0) / postSpDecYears.length) : 0;
 
       const totalSP = sp + (isCouple && partnerSpUserAge <= spAge ? partnerSP : 0);
       const reduction = avgPreWithdrawal - avgPostWithdrawal;
 
+      // Drawdown rate: annual withdrawal as % of pot at retirement
+      const potAtRetire = projection.summary.retirementPot - projection.summary.pclsTaken;
+      const drawdownRate = potAtRetire > 0 ? ((avgPreWithdrawal / potAtRetire) * 100).toFixed(1) : 0;
+      const drawdownRatePost = potAtRetire > 0 ? ((avgPostWithdrawal / potAtRetire) * 100).toFixed(1) : 0;
+
+      // How much pot is consumed during bridge
+      const bridgeCost = avgPreWithdrawal * bridgeYears;
+      const pctPotConsumed = potAtRetire > 0 ? Math.round((bridgeCost / potAtRetire) * 100) : 0;
+
       el.style.display = 'block';
       el.innerHTML = `
-        <h3 style="font-size: 1rem; margin-bottom: 0.75rem;">Bridge Period: ${bridgeYears} years without State Pension</h3>
+        <h3 style="font-size: 1rem; margin-bottom: 0.75rem;">Bridge: ${bridgeYears} years before State Pension</h3>
         <div style="display: flex; gap: 0.5rem; margin-bottom: 0.75rem;">
           <div style="flex: 1; padding: 0.75rem; background: var(--color-warning-light, #fef3c7); border-radius: var(--radius-md, 0.5rem); text-align: center;">
             <div style="font-size: 0.65rem; text-transform: uppercase; color: var(--color-warning, #d97706); letter-spacing: 0.04em;">Age ${retireAge}-${spAge - 1}</div>
             <div style="font-size: 1.125rem; font-weight: 700; margin-top: 0.25rem;">${formatCurrency(Math.round(avgPreWithdrawal / 12))}/mo</div>
-            <div style="font-size: 0.7rem; color: var(--color-text-light); margin-top: 0.125rem;">from your pot</div>
+            <div style="font-size: 0.7rem; color: var(--color-text-light); margin-top: 0.125rem;">from pot (${drawdownRate}% drawdown)</div>
           </div>
           <div style="display: flex; align-items: center; font-size: 1.2rem; color: var(--color-text-light);">→</div>
           <div style="flex: 1; padding: 0.75rem; background: var(--color-success-light, #d1fae5); border-radius: var(--radius-md, 0.5rem); text-align: center;">
             <div style="font-size: 0.65rem; text-transform: uppercase; color: var(--color-success, #059669); letter-spacing: 0.04em;">Age ${spAge}+</div>
             <div style="font-size: 1.125rem; font-weight: 700; margin-top: 0.25rem;">${formatCurrency(Math.round(avgPostWithdrawal / 12))}/mo</div>
-            <div style="font-size: 0.7rem; color: var(--color-text-light); margin-top: 0.125rem;">from pot (SP covers rest)</div>
+            <div style="font-size: 0.7rem; color: var(--color-text-light); margin-top: 0.125rem;">from pot (${drawdownRatePost}% drawdown)</div>
           </div>
         </div>
-        ${reduction > 0 ? `<div style="text-align: center; font-size: 0.8125rem; font-weight: 600; color: var(--color-success, #059669); margin-bottom: 0.5rem;">Pot withdrawal drops ${formatCurrency(Math.round(reduction / 12))}/mo when SP starts</div>` : ''}
-        <p style="font-size: 0.75rem; color: var(--color-text-light);">
-          Before ${spAge}, your pension pot must fund everything. After, State Pension (${formatCurrency(Math.round(totalSP / 12))}/mo) takes over, extending pot life significantly.
-        </p>
+        <div style="display: flex; gap: 0.5rem; font-size: 0.75rem; margin-bottom: 0.5rem;">
+          <div style="flex: 1; padding: 0.5rem; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-md, 0.5rem); text-align: center;">
+            <div style="color: var(--color-text-light);">Bridge cost</div>
+            <div style="font-weight: 700;">${formatCurrency(bridgeCost)}</div>
+            <div style="color: var(--color-warning); font-size: 0.6875rem;">${pctPotConsumed}% of your pot</div>
+          </div>
+          <div style="flex: 1; padding: 0.5rem; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-md, 0.5rem); text-align: center;">
+            <div style="color: var(--color-text-light);">SP relief</div>
+            <div style="font-weight: 700; color: var(--color-success);">${formatCurrency(Math.round(totalSP / 12))}/mo</div>
+            <div style="color: var(--color-success); font-size: 0.6875rem;">saves ${formatCurrency(totalSP * (90 - spAge))}/yr to 90</div>
+          </div>
+        </div>
       `;
     }
 
@@ -2564,7 +2487,6 @@
       const scenarioPreset = SCENARIO_PRESETS[data.scenario] || SCENARIO_PRESETS.moderate;
       const growthRate = scenarioPreset.growthRate || 0.04;
 
-      // Calculate impact of extra £100/mo and £250/mo
       function extraPotValue(extraMonthly) {
         let pot = 0;
         for (let y = 0; y < yearsToRetire; y++) {
@@ -2573,39 +2495,35 @@
         return Math.round(pot);
       }
 
-      const extra100 = extraPotValue(100);
-      const extra250 = extraPotValue(250);
-      const extra100Income = Math.round(extra100 * 0.04 / 12);
-      const extra250Income = Math.round(extra250 * 0.04 / 12);
-
-      // Tax relief: basic rate payer pays 80%, gov tops up 20%
-      const taxRelief100 = Math.round(100 * 0.25);
-      const taxRelief250 = Math.round(250 * 0.25);
-      const isSalarySacrifice = data.annualPensionContribution && document.getElementById('input-salary-sacrifice')?.checked;
+      // Dynamic: show +£200/mo and +£500/mo relative to CURRENT slider position
+      const bump1 = 200, bump2 = 500;
+      const extra1 = extraPotValue(bump1);
+      const extra2 = extraPotValue(bump2);
+      const income1 = Math.round(extra1 * 0.04 / 12);
+      const income2 = Math.round(extra2 * 0.04 / 12);
+      const isSalarySacrifice = document.getElementById('input-salary-sacrifice')?.checked;
 
       el.style.display = 'block';
       el.innerHTML = `
-        <h3 style="font-size: 1rem; margin-bottom: 0.75rem;">What would extra contributions do?</h3>
+        <h3 style="font-size: 1rem; margin-bottom: 0.25rem;">Add more to your pension?</h3>
+        <p style="font-size: 0.7rem; color: var(--color-text-light); margin-bottom: 0.75rem;">On top of your current ${formatCurrency(currentMonthly)}/mo over ${yearsToRetire} years</p>
         <div style="display: flex; gap: 0.5rem; margin-bottom: 0.75rem;">
           <div style="flex: 1; padding: 0.75rem; background: var(--color-primary-subtle, #eef2ff); border-radius: var(--radius-md, 0.5rem); text-align: center;">
-            <div style="font-size: 0.65rem; text-transform: uppercase; color: var(--color-primary); letter-spacing: 0.04em;">+£100/mo</div>
-            <div style="font-size: 1.125rem; font-weight: 700; margin-top: 0.25rem;">+${formatCurrency(extra100)}</div>
-            <div style="font-size: 0.7rem; color: var(--color-text-light); margin-top: 0.125rem;">at retirement</div>
-            <div style="font-size: 0.75rem; font-weight: 600; color: var(--color-success); margin-top: 0.25rem;">+${formatCurrency(extra100Income)}/mo income</div>
+            <div style="font-size: 0.65rem; text-transform: uppercase; color: var(--color-primary); letter-spacing: 0.04em;">+${formatCurrency(bump1)}/mo</div>
+            <div style="font-size: 1.125rem; font-weight: 700; margin-top: 0.25rem;">+${formatCurrency(extra1)}</div>
+            <div style="font-size: 0.7rem; color: var(--color-text-light); margin-top: 0.125rem;">extra at retirement</div>
+            <div style="font-size: 0.75rem; font-weight: 600; color: var(--color-success); margin-top: 0.25rem;">+${formatCurrency(income1)}/mo income</div>
           </div>
           <div style="flex: 1; padding: 0.75rem; background: var(--color-primary-subtle, #eef2ff); border-radius: var(--radius-md, 0.5rem); text-align: center;">
-            <div style="font-size: 0.65rem; text-transform: uppercase; color: var(--color-primary); letter-spacing: 0.04em;">+£250/mo</div>
-            <div style="font-size: 1.125rem; font-weight: 700; margin-top: 0.25rem;">+${formatCurrency(extra250)}</div>
-            <div style="font-size: 0.7rem; color: var(--color-text-light); margin-top: 0.125rem;">at retirement</div>
-            <div style="font-size: 0.75rem; font-weight: 600; color: var(--color-success); margin-top: 0.25rem;">+${formatCurrency(extra250Income)}/mo income</div>
+            <div style="font-size: 0.65rem; text-transform: uppercase; color: var(--color-primary); letter-spacing: 0.04em;">+${formatCurrency(bump2)}/mo</div>
+            <div style="font-size: 1.125rem; font-weight: 700; margin-top: 0.25rem;">+${formatCurrency(extra2)}</div>
+            <div style="font-size: 0.7rem; color: var(--color-text-light); margin-top: 0.125rem;">extra at retirement</div>
+            <div style="font-size: 0.75rem; font-weight: 600; color: var(--color-success); margin-top: 0.25rem;">+${formatCurrency(income2)}/mo income</div>
           </div>
         </div>
         <div style="padding: 0.5rem 0.625rem; background: var(--color-accent-light, #ccfbf1); border-radius: var(--radius-md, 0.5rem); font-size: 0.75rem; color: var(--color-accent, #0d9488);">
-          <strong>Tax relief:</strong> You pay £80, the government adds £20 — so £100 goes into your pension.${isSalarySacrifice ? ' Via salary sacrifice, your employer also saves 13.8% NI.' : ' Higher-rate taxpayers claim a further £20 via self-assessment.'}
+          <strong>Tax relief:</strong> You pay £80, government adds £20 — £100 goes in.${isSalarySacrifice ? ' Salary sacrifice saves 13.8% employer NI too.' : ' Higher-rate taxpayers reclaim a further £20.'}
         </div>
-        <p style="font-size: 0.65rem; color: var(--color-text-light); margin-top: 0.375rem;">
-          Based on ${yearsToRetire} years to retirement at ${(growthRate * 100).toFixed(0)}% real growth. Income estimate uses 4% sustainable withdrawal rate.
-        </p>
       `;
     }
 

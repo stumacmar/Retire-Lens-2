@@ -729,15 +729,6 @@
       <!-- Hero Answer -->
       <div id="results-container"></div>
 
-      <!-- Income Gap Visualization (first thing after hero — drives action) -->
-      <div id="income-gap-section" class="result-card" style="margin-bottom: 1rem; display: none;"></div>
-
-      <!-- Narrative Summary (concertina) -->
-      <div id="narrative-summary" class="result-card" style="margin-bottom: 1rem;"></div>
-
-      <!-- State Pension Bridge Period -->
-      <div id="sp-bridge-section" class="result-card" style="margin-bottom: 1rem; display: none;"></div>
-
       <!-- What-if Sliders + Income Chart (connected — no gap) -->
       <div class="result-card" id="whatif-sliders-section" style="margin-bottom: 0; border-bottom-left-radius: 0; border-bottom-right-radius: 0; border-bottom: none; padding-bottom: 1rem;">
         <h3 style="font-size: 1rem; margin-bottom: 0.25rem;">What if I change...</h3>
@@ -771,14 +762,23 @@
         </div>
       </div>
 
-      <!-- Contribution Impact Calculator -->
+      <!-- Contribution Impact (dynamic — updates with sliders) -->
       <div id="contribution-impact-section" class="result-card" style="margin-bottom: 1rem; display: none;"></div>
+
+      <!-- Retirement Timeline (horizontal) -->
+      <div id="narrative-summary" class="result-card" style="margin-bottom: 1rem;"></div>
+
+      <!-- State Pension Bridge Period -->
+      <div id="sp-bridge-section" class="result-card" style="margin-bottom: 1rem; display: none;"></div>
 
       <!-- Income Breakdown -->
       <div class="result-card" id="income-sources-section">
         <h3 style="font-size: 1rem; margin-bottom: 0.75rem;">Income Breakdown (Year 1)</h3>
         <div id="income-sources-breakdown"></div>
       </div>
+
+      <!-- Income Gap (hidden by default) -->
+      <div id="income-gap-section" style="display: none;"></div>
 
       <!-- Planning Options (collapsed by default for consumers) -->
       <details class="result-card" style="margin-bottom: 1rem;">

@@ -2252,9 +2252,21 @@
         }
       } catch (e) { console.warn('Min pot calc failed:', e.message); }
 
+      // Split events: first 3 key milestones always visible, rest in concertina
+      const keyEvents = events.slice(0, 3);
+      const detailEvents = events.slice(3);
+
       let html = '<div style="font-size: 0.875rem; font-weight: 600; margin-bottom: 0.75rem;">Your retirement timeline</div>';
-      for (const e of events) {
+      for (const e of keyEvents) {
         html += `<div style="${evStyle}"><span style="${ageStyle}">${e.age}</span><span style="${descStyle}">${e.desc}</span></div>`;
+      }
+      if (detailEvents.length > 0) {
+        html += `<details style="margin-top: 0.25rem; margin-bottom: 0.75rem;">`;
+        html += `<summary style="cursor: pointer; font-size: 0.8125rem; font-weight: 500; color: var(--color-primary); margin-bottom: 0.75rem;">See full timeline (${detailEvents.length} more events)</summary>`;
+        for (const e of detailEvents) {
+          html += `<div style="${evStyle}"><span style="${ageStyle}">${e.age}</span><span style="${descStyle}">${e.desc}</span></div>`;
+        }
+        html += `</details>`;
       }
 
       // Consider section

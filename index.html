@@ -746,37 +746,36 @@
       <!-- State Pension Bridge Period -->
       <div id="sp-bridge-section" class="result-card" style="margin-bottom: 1rem; display: none;"></div>
 
-      <!-- Income Chart -->
-      <div class="result-card" id="cashflow-section">
+      <!-- Income Chart + What-if Sliders (combined so chart updates are visible while dragging) -->
+      <div class="result-card" id="cashflow-section" style="margin-bottom: 1rem;">
         <h3 style="font-size: 1rem; margin-bottom: 0.75rem;">Income by Source</h3>
         <div class="chart-container" style="height: 260px;">
           <canvas id="cashflow-chart"></canvas>
         </div>
-      </div>
 
-      <!-- What-if Sliders (after charts so user sees data first) -->
-      <div class="result-card" id="whatif-sliders-section" style="margin-bottom: 1rem;">
-        <h3 style="font-size: 1rem; margin-bottom: 1rem;">What if I change...</h3>
+        <div style="margin-top: 1.25rem; padding-top: 1rem; border-top: 1px solid var(--color-border-light, #f1f5f9);">
+          <h3 style="font-size: 1rem; margin-bottom: 1rem;">What if I change...</h3>
 
-        <div style="margin-bottom: 1.25rem;">
-          <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 0.5rem;">
-            <label for="slider-retirement-age" style="font-size: 0.8125rem; font-weight: 500; color: var(--color-text-secondary);">Retirement age</label>
-            <span id="slider-retirement-age-value" style="font-size: 1.125rem; font-weight: 700; color: var(--color-primary); min-width: 2rem; text-align: right;">60</span>
+          <div style="margin-bottom: 1.25rem;">
+            <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 0.5rem;">
+              <label for="slider-retirement-age" style="font-size: 0.8125rem; font-weight: 500; color: var(--color-text-secondary);">Retirement age</label>
+              <span id="slider-retirement-age-value" style="font-size: 1.125rem; font-weight: 700; color: var(--color-primary); min-width: 2rem; text-align: right;">60</span>
+            </div>
+            <input type="range" id="slider-retirement-age" min="50" max="75" step="1" value="60"
+              style="width: 100%; height: 8px; -webkit-appearance: none; appearance: none; background: var(--color-border); border-radius: 4px; outline: none; cursor: pointer;">
           </div>
-          <input type="range" id="slider-retirement-age" min="50" max="75" step="1" value="60"
-            style="width: 100%; height: 8px; -webkit-appearance: none; appearance: none; background: var(--color-border); border-radius: 4px; outline: none; cursor: pointer;">
-        </div>
 
-        <div style="margin-bottom: 0.75rem;">
-          <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 0.5rem;">
-            <label for="slider-monthly-contribution" style="font-size: 0.8125rem; font-weight: 500; color: var(--color-text-secondary);">Monthly contribution</label>
-            <span id="slider-contribution-value" style="font-size: 1.125rem; font-weight: 700; color: var(--color-primary); min-width: 4rem; text-align: right;">£500</span>
+          <div style="margin-bottom: 0.75rem;">
+            <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 0.5rem;">
+              <label for="slider-monthly-contribution" style="font-size: 0.8125rem; font-weight: 500; color: var(--color-text-secondary);">Monthly contribution</label>
+              <span id="slider-contribution-value" style="font-size: 1.125rem; font-weight: 700; color: var(--color-primary); min-width: 4rem; text-align: right;">£500</span>
+            </div>
+            <input type="range" id="slider-monthly-contribution" min="0" max="10000" step="100" value="500"
+              style="width: 100%; height: 8px; -webkit-appearance: none; appearance: none; background: var(--color-border); border-radius: 4px; outline: none; cursor: pointer;">
           </div>
-          <input type="range" id="slider-monthly-contribution" min="0" max="10000" step="100" value="500"
-            style="width: 100%; height: 8px; -webkit-appearance: none; appearance: none; background: var(--color-border); border-radius: 4px; outline: none; cursor: pointer;">
-        </div>
 
-        <div id="slider-impact" style="display: none; text-align: center; font-size: 0.8125rem; padding: 0.625rem; margin-top: 0.5rem; background: var(--color-primary-subtle, #eef2ff); border-radius: var(--radius-md, 0.5rem); font-weight: 500;"></div>
+          <div id="slider-impact" style="display: none; text-align: center; font-size: 0.8125rem; padding: 0.625rem; margin-top: 0.5rem; background: var(--color-primary-subtle, #eef2ff); border-radius: var(--radius-md, 0.5rem); font-weight: 500;"></div>
+        </div>
       </div>
 
       <!-- Contribution Impact Calculator -->

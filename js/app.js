@@ -2506,15 +2506,16 @@
       const ageDiff = partnerCurrentAge - plan.currentAge;
       const partnerSpUserAge = partnerSpAge - ageDiff;
 
-      // Income before SP
+      // Pension withdrawal before SP (what the pot must fund)
       const preSpDecYears = projection.decumulation.years.filter(y => y.age >= retireAge && y.age < spAge);
-      const avgPreSP = preSpDecYears.length > 0 ? Math.round(preSpDecYears.reduce((s, y) => s + (y.netIncome || 0), 0) / preSpDecYears.length) : 0;
+      const avgPreWithdrawal = preSpDecYears.length > 0 ? Math.round(preSpDecYears.reduce((s, y) => s + (y.withdrawals?.pension || 0) + (y.withdrawals?.isa || 0), 0) / preSpDecYears.length) : 0;
 
-      // Income after SP
+      // Pension withdrawal after SP (reduced by SP + partner SP)
       const postSpDecYears = projection.decumulation.years.filter(y => y.age >= spAge && y.age < spAge + 3);
-      const avgPostSP = postSpDecYears.length > 0 ? Math.round(postSpDecYears.reduce((s, y) => s + (y.netIncome || 0), 0) / postSpDecYears.length) : 0;
+      const avgPostWithdrawal = postSpDecYears.length > 0 ? Math.round(postSpDecYears.reduce((s, y) => s + (y.withdrawals?.pension || 0) + (y.withdrawals?.isa || 0), 0) / postSpDecYears.length) : 0;
 
       const totalSP = sp + (isCouple && partnerSpUserAge <= spAge ? partnerSP : 0);
+      const reduction = avgPreWithdrawal - avgPostWithdrawal;
 
       el.style.display = 'block';
       el.innerHTML = `
@@ -2522,18 +2523,19 @@
         <div style="display: flex; gap: 0.5rem; margin-bottom: 0.75rem;">
           <div style="flex: 1; padding: 0.75rem; background: var(--color-warning-light, #fef3c7); border-radius: var(--radius-md, 0.5rem); text-align: center;">
             <div style="font-size: 0.65rem; text-transform: uppercase; color: var(--color-warning, #d97706); letter-spacing: 0.04em;">Age ${retireAge}-${spAge - 1}</div>
-            <div style="font-size: 1.125rem; font-weight: 700; margin-top: 0.25rem;">${formatCurrency(Math.round(avgPreSP / 12))}/mo</div>
-            <div style="font-size: 0.7rem; color: var(--color-text-light); margin-top: 0.125rem;">Pension + ISA only</div>
+            <div style="font-size: 1.125rem; font-weight: 700; margin-top: 0.25rem;">${formatCurrency(Math.round(avgPreWithdrawal / 12))}/mo</div>
+            <div style="font-size: 0.7rem; color: var(--color-text-light); margin-top: 0.125rem;">from your pot</div>
           </div>
           <div style="display: flex; align-items: center; font-size: 1.2rem; color: var(--color-text-light);">→</div>
           <div style="flex: 1; padding: 0.75rem; background: var(--color-success-light, #d1fae5); border-radius: var(--radius-md, 0.5rem); text-align: center;">
             <div style="font-size: 0.65rem; text-transform: uppercase; color: var(--color-success, #059669); letter-spacing: 0.04em;">Age ${spAge}+</div>
-            <div style="font-size: 1.125rem; font-weight: 700; margin-top: 0.25rem;">${formatCurrency(Math.round(avgPostSP / 12))}/mo</div>
-            <div style="font-size: 0.7rem; color: var(--color-text-light); margin-top: 0.125rem;">+ SP ${formatCurrency(Math.round(totalSP / 12))}/mo</div>
+            <div style="font-size: 1.125rem; font-weight: 700; margin-top: 0.25rem;">${formatCurrency(Math.round(avgPostWithdrawal / 12))}/mo</div>
+            <div style="font-size: 0.7rem; color: var(--color-text-light); margin-top: 0.125rem;">from pot (SP covers rest)</div>
           </div>
         </div>
+        ${reduction > 0 ? `<div style="text-align: center; font-size: 0.8125rem; font-weight: 600; color: var(--color-success, #059669); margin-bottom: 0.5rem;">Pot withdrawal drops ${formatCurrency(Math.round(reduction / 12))}/mo when SP starts</div>` : ''}
         <p style="font-size: 0.75rem; color: var(--color-text-light);">
-          During the bridge period, your pension pot must cover the full target. Once State Pension kicks in at ${spAge}, withdrawal pressure drops by ${formatCurrency(totalSP)}/yr.
+          Before ${spAge}, your pension pot must fund everything. After, State Pension (${formatCurrency(Math.round(totalSP / 12))}/mo) takes over, extending pot life significantly.
         </p>
       `;
     }

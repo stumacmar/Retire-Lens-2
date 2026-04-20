@@ -428,9 +428,22 @@
           </div>
           <p class="help-text">Your target annual spending in today's money</p>
         </div>
-        <div class="context-hint" style="margin-top: 1.5rem; padding: 0.875rem 1rem; background: var(--color-primary-subtle); border-radius: var(--radius-md); font-size: 0.8125rem; color: var(--color-text-secondary); line-height: 1.5;">
-          <span id="plsa-hint">The PLSA Retirement Living Standards suggest: <strong>£14,400</strong> minimum, <strong>£31,300</strong> moderate, or <strong>£43,100</strong> comfortable for a single person.</span>
+        <!-- PLSA preset cards -->
+        <div id="plsa-presets" style="display: flex; gap: 0.5rem; margin-top: 1.25rem;">
+          <button type="button" class="plsa-card" data-plsa="minimum" style="flex: 1; padding: 0.75rem 0.5rem; border: 2px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-surface); cursor: pointer; text-align: center; transition: all var(--transition-base);">
+            <div style="font-size: 0.65rem; color: var(--color-text-light); text-transform: uppercase; letter-spacing: 0.05em;">Minimum</div>
+            <div style="font-size: 1rem; font-weight: 700; margin-top: 0.25rem;" id="plsa-min-val">14,400</div>
+          </button>
+          <button type="button" class="plsa-card" data-plsa="moderate" style="flex: 1; padding: 0.75rem 0.5rem; border: 2px solid var(--color-primary); border-radius: var(--radius-md); background: var(--color-primary-subtle); cursor: pointer; text-align: center; transition: all var(--transition-base);">
+            <div style="font-size: 0.65rem; color: var(--color-text-light); text-transform: uppercase; letter-spacing: 0.05em;">Moderate</div>
+            <div style="font-size: 1rem; font-weight: 700; margin-top: 0.25rem;" id="plsa-mod-val">31,300</div>
+          </button>
+          <button type="button" class="plsa-card" data-plsa="comfortable" style="flex: 1; padding: 0.75rem 0.5rem; border: 2px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-surface); cursor: pointer; text-align: center; transition: all var(--transition-base);">
+            <div style="font-size: 0.65rem; color: var(--color-text-light); text-transform: uppercase; letter-spacing: 0.05em;">Comfortable</div>
+            <div style="font-size: 1rem; font-weight: 700; margin-top: 0.25rem;" id="plsa-comf-val">43,100</div>
+          </button>
         </div>
+        <p style="font-size: 0.65rem; color: var(--color-text-light); margin-top: 0.5rem; text-align: center;">PLSA Retirement Living Standards. Or enter your own amount above.</p>
         <!-- Instant estimate from what we know so far -->
         <div id="instant-estimate" style="display: none; margin-top: 1rem; padding: 1rem; background: var(--color-surface); border: 1px solid var(--color-border-light); border-radius: var(--radius-md); text-align: center;">
           <div style="font-size: 0.75rem; color: var(--color-text-light); margin-bottom: 0.25rem;">Quick estimate based on what you have entered so far</div>
@@ -848,73 +861,59 @@
       </div>
       <div id="what-if-result" style="display: none; text-align: center; font-size: 0.8rem; margin-bottom: 1rem; padding: 0.5rem; background: var(--color-primary-subtle, #eef2ff); border-radius: var(--radius-md, 0.5rem);"></div>
 
-      <div class="results-tabs" style="display: flex; border-bottom: 2px solid var(--color-border, #e2e8f0); margin-bottom: 1rem;">
-        <button class="results-tab active" data-results-tab="income" style="flex: 1; padding: 0.75rem; border: none; background: none; font-weight: 600; font-size: 0.8125rem; color: var(--color-primary, #4f46e5); border-bottom: 3px solid var(--color-primary, #4f46e5); cursor: pointer;">Income</button>
-        <button class="results-tab" data-results-tab="flow" style="flex: 1; padding: 0.75rem; border: none; background: none; font-weight: 500; font-size: 0.8125rem; color: var(--color-text-light, #6b7280); border-bottom: 3px solid transparent; cursor: pointer;">Flow</button>
-        <button class="results-tab" data-results-tab="wealth" style="flex: 1; padding: 0.75rem; border: none; background: none; font-weight: 500; font-size: 0.8125rem; color: var(--color-text-light, #6b7280); border-bottom: 3px solid transparent; cursor: pointer;">Wealth</button>
-        <button class="results-tab" data-results-tab="risk" style="flex: 1; padding: 0.75rem; border: none; background: none; font-weight: 500; font-size: 0.8125rem; color: var(--color-text-light, #6b7280); border-bottom: 3px solid transparent; cursor: pointer;">Risk</button>
-        <button class="results-tab" data-results-tab="detail" style="flex: 1; padding: 0.75rem; border: none; background: none; font-weight: 500; font-size: 0.8125rem; color: var(--color-text-light, #6b7280); border-bottom: 3px solid transparent; cursor: pointer;">Detail</button>
-      </div>
+      <!-- Single scrollable results -- no tabs -->
 
-      <!-- Tab: Income -->
-      <div class="results-tab-content active" id="tab-income">
-        <div class="result-card" id="cashflow-section">
-          <h3 style="font-size: 1rem; margin-bottom: 0.75rem;">Annual Income by Source</h3>
-          <div class="chart-container" style="height: 280px;">
-            <canvas id="cashflow-chart"></canvas>
-          </div>
-        </div>
-        <div class="result-card" id="income-sources-section" style="margin-top: 1rem;">
-          <h3 style="font-size: 1rem; margin-bottom: 0.75rem;">Income Breakdown (Year 1)</h3>
-          <div id="income-sources-breakdown"></div>
+      <!-- Income Chart -->
+      <div class="result-card" id="cashflow-section">
+        <h3 style="font-size: 1rem; margin-bottom: 0.75rem;">Income by Source</h3>
+        <div class="chart-container" style="height: 260px;">
+          <canvas id="cashflow-chart"></canvas>
         </div>
       </div>
 
-      <!-- Tab: Flow (Sankey) -->
-      <div class="results-tab-content" id="tab-flow" style="display: none;">
-        <div class="result-card">
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
-            <h3 style="font-size: 1rem; margin: 0;">Cash Flow</h3>
-            <div style="display: flex; align-items: center; gap: 0.5rem;">
-              <button id="sankey-prev" style="padding: 0.25rem 0.5rem; border: 1px solid var(--color-border); border-radius: 4px; background: var(--color-surface); cursor: pointer; font-size: 0.8rem;">&lt;</button>
-              <span id="sankey-year-label" style="font-weight: 600; font-size: 0.875rem; min-width: 4rem; text-align: center;">Age 60</span>
-              <button id="sankey-next" style="padding: 0.25rem 0.5rem; border: 1px solid var(--color-border); border-radius: 4px; background: var(--color-surface); cursor: pointer; font-size: 0.8rem;">&gt;</button>
-            </div>
+      <!-- Income Breakdown -->
+      <div class="result-card" id="income-sources-section">
+        <h3 style="font-size: 1rem; margin-bottom: 0.75rem;">Income Breakdown (Year 1)</h3>
+        <div id="income-sources-breakdown"></div>
+      </div>
+
+      <!-- Cash Flow (Sankey) -->
+      <div class="result-card">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
+          <h3 style="font-size: 1rem; margin: 0;">Cash Flow</h3>
+          <div style="display: flex; align-items: center; gap: 0.5rem;">
+            <button id="sankey-prev" style="padding: 0.25rem 0.5rem; border: 1px solid var(--color-border); border-radius: 4px; background: var(--color-surface); cursor: pointer; font-size: 0.8rem;">&lt;</button>
+            <span id="sankey-year-label" style="font-weight: 600; font-size: 0.875rem; min-width: 4rem; text-align: center;">Age 60</span>
+            <button id="sankey-next" style="padding: 0.25rem 0.5rem; border: 1px solid var(--color-border); border-radius: 4px; background: var(--color-surface); cursor: pointer; font-size: 0.8rem;">&gt;</button>
           </div>
-          <div id="sankey-container" style="width: 100%; min-height: 250px;"></div>
+        </div>
+        <div id="sankey-container" style="width: 100%; min-height: 250px;"></div>
+      </div>
+
+      <!-- Wealth Chart -->
+      <div class="result-card">
+        <h3 style="font-size: 1rem; margin-bottom: 0.75rem;">Pension & ISA Balances</h3>
+        <div class="chart-container" style="height: 260px;">
+          <canvas id="capital-chart"></canvas>
         </div>
       </div>
 
-      <!-- Tab: Wealth -->
-      <div class="results-tab-content" id="tab-wealth" style="display: none;">
-        <div class="result-card">
-          <h3 style="font-size: 1rem; margin-bottom: 0.75rem;">Pension & ISA Balances</h3>
-          <div class="chart-container" style="height: 280px;">
-            <canvas id="capital-chart"></canvas>
-          </div>
+      <!-- Monte Carlo -->
+      <div class="result-card" id="monte-carlo-section">
+        <div id="confidence-explainer-container"></div>
+        <div id="fan-chart-container" style="position: relative; height: 260px;">
+          <canvas id="fan-chart"></canvas>
+        </div>
+        <div id="depletion-histogram-container" style="position: relative; height: 160px; margin-top: 1rem;">
+          <canvas id="depletion-histogram"></canvas>
         </div>
       </div>
 
-      <!-- Tab: Risk -->
-      <div class="results-tab-content" id="tab-risk" style="display: none;">
-        <div class="result-card" id="monte-carlo-section">
-          <div id="confidence-explainer-container"></div>
-          <div id="fan-chart-container" style="position: relative; height: 280px;">
-            <canvas id="fan-chart"></canvas>
-          </div>
-          <div id="depletion-histogram-container" style="position: relative; height: 180px; margin-top: 1rem;">
-            <canvas id="depletion-histogram"></canvas>
-          </div>
-        </div>
-      </div>
-
-      <!-- Tab: Detail -->
-      <div class="results-tab-content" id="tab-detail" style="display: none;">
-        <div class="result-card" id="data-table-section">
-          <h3 style="font-size: 1rem; margin-bottom: 0.75rem;">Year-by-Year Projection</h3>
-          <div id="data-table-container" style="overflow-x: auto; -webkit-overflow-scrolling: touch;"></div>
-        </div>
-      </div>
+      <!-- Data Table (collapsible) -->
+      <details class="result-card" id="data-table-section">
+        <summary style="cursor: pointer; font-size: 1rem; font-weight: 600;">Year-by-Year Projection</summary>
+        <div id="data-table-container" style="overflow-x: auto; -webkit-overflow-scrolling: touch; margin-top: 0.75rem;"></div>
+      </details>
 
       <!-- Hidden elements for JS compatibility -->
       <div style="display:none;">

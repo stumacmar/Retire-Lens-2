@@ -336,12 +336,33 @@
         const isCouple = state.onboardingState?.householdType === HOUSEHOLD_TYPES.COUPLE;
         const sub = screen.querySelector('.screen-subtitle');
         if (sub) sub.textContent = isCouple ? 'Combined household income after tax' : 'Annual net income after tax';
-        const plsa = document.getElementById('plsa-hint');
-        if (plsa) {
-          plsa.innerHTML = isCouple
-            ? 'The PLSA Retirement Living Standards suggest: <strong>£22,400</strong> minimum, <strong>£43,100</strong> moderate, or <strong>£59,000</strong> comfortable for a couple.'
-            : 'The PLSA Retirement Living Standards suggest: <strong>£14,400</strong> minimum, <strong>£31,300</strong> moderate, or <strong>£43,100</strong> comfortable for a single person.';
-        }
+        // Update PLSA card values for single vs couple
+        const plsaValues = isCouple
+          ? { min: 22400, mod: 43100, comf: 59000 }
+          : { min: 14400, mod: 31300, comf: 43100 };
+        const minEl = document.getElementById('plsa-min-val');
+        const modEl = document.getElementById('plsa-mod-val');
+        const comfEl = document.getElementById('plsa-comf-val');
+        if (minEl) minEl.textContent = plsaValues.min.toLocaleString();
+        if (modEl) modEl.textContent = plsaValues.mod.toLocaleString();
+        if (comfEl) comfEl.textContent = plsaValues.comf.toLocaleString();
+
+        // PLSA card click handlers
+        document.querySelectorAll('.plsa-card').forEach(card => {
+          card.addEventListener('click', () => {
+            const type = card.dataset.plsa;
+            const val = type === 'minimum' ? plsaValues.min : type === 'moderate' ? plsaValues.mod : plsaValues.comf;
+            const input = document.getElementById('input-target-income');
+            if (input) input.value = val;
+            // Update card styles
+            document.querySelectorAll('.plsa-card').forEach(c => {
+              c.style.borderColor = 'var(--color-border)';
+              c.style.background = 'var(--color-surface)';
+            });
+            card.style.borderColor = 'var(--color-primary)';
+            card.style.background = 'var(--color-primary-subtle)';
+          });
+        });
         // Instant estimate from age + retirement + any pension data already entered
         const incomeInput = document.getElementById('input-target-income');
         if (incomeInput) {
@@ -2790,8 +2811,7 @@
               legacyPlan, estateValue, ihtEstimate, phasedRetirement, household, data } = results;
       
       // Only show validated sections — hide everything else to prevent conflicting metrics
-      // Tabs handle section visibility — init tab switching
-      initResultsTabs();
+      // Single scrollable results -- no tabs needed
       
       // === Monte Carlo Visualization ===
       if (mcResult) {
@@ -3827,8 +3847,8 @@
                 borderWidth: 2
               });
               existingChart.update();
-              // Switch to wealth tab to show comparison
-              document.querySelector('[data-results-tab="wealth"]')?.click();
+              // Scroll to wealth chart to show comparison
+              document.getElementById('capital-chart')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
             }
           }
         } catch (e) { console.warn('What-if failed:', e); }

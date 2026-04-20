@@ -187,13 +187,13 @@
             <div class="input-group">
               <label style="font-weight: 500;">Partner's current age</label>
               <div class="input-wrapper">
-                <input type="number" id="input-partner-current-age" min="18" max="100" placeholder="63" inputmode="numeric" />
+                <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-partner-current-age" min="18" max="100" placeholder="63" inputmode="numeric" />
               </div>
             </div>
             <div class="input-group" style="margin-top: 0.75rem;">
               <label style="font-weight: 500;">Partner's retirement age</label>
               <div class="input-wrapper">
-                <input type="number" id="input-partner-retirement-age" min="50" max="100" placeholder="67" inputmode="numeric" />
+                <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-partner-retirement-age" min="50" max="100" placeholder="67" inputmode="numeric" />
               </div>
             </div>
           </div>`;
@@ -209,14 +209,14 @@
               <label>Partner's ISA balance</label>
               <div class="input-wrapper">
                 <span class="currency-symbol">£</span>
-                <input type="number" id="input-partner-isa-balance" min="0" step="1000" placeholder="0" inputmode="numeric" />
+                <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-partner-isa-balance" min="0" step="1000" placeholder="0" inputmode="numeric" />
               </div>
             </div>
             <div class="input-group">
               <label>Partner's annual ISA contribution</label>
               <div class="input-wrapper">
                 <span class="currency-symbol">£</span>
-                <input type="number" id="input-partner-isa-contribution" min="0" step="500" placeholder="0" inputmode="numeric" />
+                <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-partner-isa-contribution" min="0" step="500" placeholder="0" inputmode="numeric" />
               </div>
             </div>
           </div>
@@ -225,14 +225,14 @@
             <div class="input-group">
               <label>Partner's State Pension age</label>
               <div class="input-wrapper">
-                <input type="number" id="input-partner-state-pension-age" min="60" max="75" value="67" inputmode="numeric" />
+                <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-partner-state-pension-age" min="60" max="75" value="67" inputmode="numeric" />
               </div>
             </div>
             <div class="input-group">
               <label>Partner's expected annual State Pension</label>
               <div class="input-wrapper">
                 <span class="currency-symbol">£</span>
-                <input type="number" id="input-partner-state-pension-amount" min="0" step="100" value="11973" inputmode="numeric" />
+                <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-partner-state-pension-amount" min="0" step="100" value="11973" inputmode="numeric" />
               </div>
             </div>
           </div>`;
@@ -249,14 +249,14 @@
               <label>Partner's DC pension pot</label>
               <div class="input-wrapper">
                 <span class="currency-symbol">£</span>
-                <input type="number" id="input-partner-pension-pot" min="0" step="1000" placeholder="0" inputmode="numeric" />
+                <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-partner-pension-pot" min="0" step="1000" placeholder="0" inputmode="numeric" />
               </div>
             </div>
             <div class="input-group" style="margin-top: 0.5rem;">
               <label>Partner's monthly contribution</label>
               <div class="input-wrapper">
                 <span class="currency-symbol">£</span>
-                <input type="number" id="input-partner-pension-contribution" min="0" step="50" placeholder="0" inputmode="numeric" />
+                <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-partner-pension-contribution" min="0" step="50" placeholder="0" inputmode="numeric" />
               </div>
             </div>
           </div>`;
@@ -271,14 +271,14 @@
             <div class="input-group">
               <label>Partner's State Pension age</label>
               <div class="input-wrapper">
-                <input type="number" id="input-partner-state-pension-age" min="60" max="75" value="67" inputmode="numeric" />
+                <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-partner-state-pension-age" min="60" max="75" value="67" inputmode="numeric" />
               </div>
             </div>
             <div class="input-group">
               <label>Partner's expected annual State Pension</label>
               <div class="input-wrapper">
                 <span class="currency-symbol">£</span>
-                <input type="number" id="input-partner-state-pension-amount" min="0" step="100" value="11973" inputmode="numeric" />
+                <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-partner-state-pension-amount" min="0" step="100" value="11973" inputmode="numeric" />
               </div>
             </div>
           </div>`;
@@ -298,7 +298,7 @@
             <label>${config.label}</label>
             <div class="input-wrapper">
               ${currencyPrefix}
-              <input type="number" id="${config.id}" min="${config.min || 0}" ${config.max ? 'max="' + config.max + '"' : ''} ${config.step ? 'step="' + config.step + '"' : ''} placeholder="${config.placeholder}" inputmode="numeric" />
+              <input type="text" inputmode="numeric" pattern="[0-9]*" id="${config.id}" min="${config.min || 0}" ${config.max ? 'max="' + config.max + '"' : ''} ${config.step ? 'step="' + config.step + '"' : ''} placeholder="${config.placeholder}" inputmode="numeric" />
             </div>
           </div>
         </div>`;

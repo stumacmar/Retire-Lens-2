@@ -249,14 +249,14 @@
             <div class="input-group">
               <label for="input-partner-age">Partner's current age *</label>
               <div class="input-wrapper">
-                <input type="number" id="input-partner-age" min="18" max="100" placeholder="45" inputmode="numeric" aria-required="true" />
+                <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-partner-age" min="18" max="100" placeholder="45" inputmode="numeric" aria-required="true" />
               </div>
               <p class="help-text">Partner's age in years</p>
             </div>
             <div class="input-group">
               <label for="input-partner-retirement-age">Partner's target retirement age *</label>
               <div class="input-wrapper">
-                <input type="number" id="input-partner-retirement-age" min="50" max="100" placeholder="65" inputmode="numeric" aria-required="true" />
+                <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-partner-retirement-age" min="50" max="100" placeholder="65" inputmode="numeric" aria-required="true" />
               </div>
               <p class="help-text">When partner plans to stop working</p>
             </div>
@@ -268,7 +268,7 @@
               <label>Partner's DC pension pot</label>
               <div class="input-wrapper">
                 <span class="currency-symbol">£</span>
-                <input type="number" id="input-partner-dc-pot" min="0" step="1000" placeholder="0" inputmode="numeric" />
+                <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-partner-dc-pot" min="0" step="1000" placeholder="0" inputmode="numeric" />
               </div>
               <p class="help-text">Enter 0 if unknown - results will be provisional</p>
             </div>
@@ -276,7 +276,7 @@
               <label>Partner's monthly DC contributions</label>
               <div class="input-wrapper">
                 <span class="currency-symbol">£</span>
-                <input type="number" id="input-partner-dc-contrib" min="0" step="50" placeholder="0" inputmode="numeric" />
+                <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-partner-dc-contrib" min="0" step="50" placeholder="0" inputmode="numeric" />
               </div>
               <p class="help-text">Optional - monthly amount including employer</p>
             </div>
@@ -288,14 +288,14 @@
               <label>Partner's annual DB pension amount *</label>
               <div class="input-wrapper">
                 <span class="currency-symbol">£</span>
-                <input type="number" id="input-partner-db-amount" min="0" step="500" placeholder="15000" inputmode="numeric" />
+                <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-partner-db-amount" min="0" step="500" placeholder="15000" inputmode="numeric" />
               </div>
               <p class="help-text">Guaranteed yearly income from DB scheme</p>
             </div>
             <div class="input-group">
               <label>Partner's DB pension start age</label>
               <div class="input-wrapper">
-                <input type="number" id="input-partner-db-start-age" min="50" max="75" value="67" inputmode="numeric" />
+                <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-partner-db-start-age" min="50" max="75" value="67" inputmode="numeric" />
               </div>
               <p class="help-text">When DB payments begin (usually retirement age)</p>
             </div>
@@ -306,14 +306,14 @@
             <div class="input-group">
               <label>Partner's State Pension age</label>
               <div class="input-wrapper">
-                <input type="number" id="input-partner-sp-age" min="60" max="75" value="67" inputmode="numeric" />
+                <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-partner-sp-age" min="60" max="75" value="67" inputmode="numeric" />
               </div>
             </div>
             <div class="input-group">
               <label>Partner's expected State Pension (annual)</label>
               <div class="input-wrapper">
                 <span class="currency-symbol">£</span>
-                <input type="number" id="input-partner-sp-amount" min="0" step="100" value="11500" inputmode="numeric" />
+                <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-partner-sp-amount" min="0" step="100" value="11500" inputmode="numeric" />
               </div>
               <p class="help-text">Full new State Pension is ~£11,500/year</p>
             </div>
@@ -366,13 +366,13 @@
         <div class="input-group">
           <label style="font-weight: 500;">Your current age</label>
           <div class="input-wrapper">
-            <input type="number" id="input-current-age" min="18" max="100" placeholder="56" inputmode="numeric" aria-label="Current age" />
+            <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-current-age" min="18" max="100" placeholder="56" inputmode="numeric" aria-label="Current age" />
           </div>
         </div>
         <div class="input-group" style="margin-top: 1rem;">
           <label style="font-weight: 500;">Target retirement age</label>
           <div class="input-wrapper">
-            <input type="number" id="input-retirement-age" min="50" max="100" placeholder="60" inputmode="numeric" aria-label="Retirement age" />
+            <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-retirement-age" min="50" max="100" placeholder="60" inputmode="numeric" aria-label="Retirement age" />
           </div>
           <p class="help-text">UK State Pension starts at 67. Each extra year of work adds 8-12% to your retirement income.</p>
         </div>
@@ -396,7 +396,7 @@
       <div class="screen-content">
         <div class="input-group">
           <div class="input-wrapper">
-            <input type="number" id="input-retirement-age" min="50" max="100" placeholder="65" inputmode="numeric" aria-label="Retirement age" />
+            <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-retirement-age" min="50" max="100" placeholder="65" inputmode="numeric" aria-label="Retirement age" />
           </div>
           <p class="help-text">The age you plan to stop working</p>
         </div>
@@ -424,7 +424,7 @@
         <div class="input-group">
           <div class="input-wrapper">
             <span class="currency-symbol">£</span>
-            <input type="number" id="input-target-income" min="0" step="1000" placeholder="30000" inputmode="numeric" aria-label="Target annual income" />
+            <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-target-income" min="0" step="1000" placeholder="30000" inputmode="numeric" aria-label="Target annual income" />
           </div>
           <p class="help-text">Your target annual spending in today's money</p>
         </div>
@@ -457,7 +457,7 @@
         <div class="input-group">
           <div class="input-wrapper">
             <span class="currency-symbol">£</span>
-            <input type="number" id="input-pension-pot" min="0" step="1000" placeholder="100000" inputmode="numeric" aria-label="Pension pot value" />
+            <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-pension-pot" min="0" step="1000" placeholder="100000" inputmode="numeric" aria-label="Pension pot value" />
           </div>
           <p class="help-text">Your defined contribution pension pot</p>
         </div>
@@ -472,14 +472,14 @@
             <label style="font-weight: 600;">Annual income from DB scheme</label>
             <div class="input-wrapper">
               <span class="currency-symbol">£</span>
-              <input type="number" id="input-your-db-income" min="0" step="500" placeholder="0 if none" inputmode="numeric" />
+              <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-your-db-income" min="0" step="500" placeholder="0 if none" inputmode="numeric" />
             </div>
             <p class="help-text">Guaranteed annual income from final salary / career average pension. Enter 0 if none.</p>
           </div>
           <div class="input-group" style="margin-top: 0.5rem;">
             <label>DB pension start age</label>
             <div class="input-wrapper">
-              <input type="number" id="input-your-db-start" min="50" max="75" value="65" inputmode="numeric" />
+              <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-your-db-start" min="50" max="75" value="65" inputmode="numeric" />
             </div>
           </div>
         </div>
@@ -491,14 +491,14 @@
             <label style="font-weight: 600;">Annual income from DB scheme</label>
             <div class="input-wrapper">
               <span class="currency-symbol">£</span>
-              <input type="number" id="input-partner-db-income" min="0" step="500" placeholder="e.g. 4500" inputmode="numeric" />
+              <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-partner-db-income" min="0" step="500" placeholder="e.g. 4500" inputmode="numeric" />
             </div>
             <p class="help-text">Guaranteed annual income from final salary / career average pension. Enter 0 if none.</p>
           </div>
           <div class="input-group" style="margin-top: 0.5rem;">
             <label>DB pension start age</label>
             <div class="input-wrapper">
-              <input type="number" id="input-partner-db-start" min="50" max="75" value="67" inputmode="numeric" />
+              <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-partner-db-start" min="50" max="75" value="67" inputmode="numeric" />
             </div>
           </div>
         </div>
@@ -508,7 +508,7 @@
           <label style="font-weight: 500;">Monthly pension contribution</label>
           <div class="input-wrapper">
             <span class="currency-symbol">£</span>
-            <input type="number" id="input-pension-contribution" min="0" step="50" placeholder="500" inputmode="numeric" />
+            <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-pension-contribution" min="0" step="50" placeholder="500" inputmode="numeric" />
           </div>
           <p class="help-text">Total monthly contribution including employer match</p>
           <div style="margin-top: 0.5rem; display: flex; align-items: center; gap: 0.5rem;">
@@ -539,7 +539,7 @@
             <label style="font-size: 0.875rem; font-weight: 500;">How much did you receive?</label>
             <div class="input-wrapper" style="margin-top: 0.25rem;">
               <span class="currency-symbol">£</span>
-              <input type="number" id="input-pcls-amount" min="0" step="1000" placeholder="e.g. 167000" inputmode="numeric" />
+              <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-pcls-amount" min="0" step="1000" placeholder="e.g. 167000" inputmode="numeric" />
             </div>
             <p class="help-text">We will calculate any remaining tax-free cash entitlement from new contributions.</p>
           </div>
@@ -565,7 +565,7 @@
         <div class="input-group">
           <div class="input-wrapper">
             <span class="currency-symbol">£</span>
-            <input type="number" id="input-pension-contribution" min="0" step="50" placeholder="500" inputmode="numeric" />
+            <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-pension-contribution" min="0" step="50" placeholder="500" inputmode="numeric" />
           </div>
           <p class="help-text">Monthly contribution until retirement (including employer)</p>
         </div>
@@ -595,7 +595,7 @@
           <label>Current ISA balance</label>
           <div class="input-wrapper">
             <span class="currency-symbol">£</span>
-            <input type="number" id="input-isa-balance" min="0" step="1000" placeholder="0" inputmode="numeric" />
+            <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-isa-balance" min="0" step="1000" placeholder="0" inputmode="numeric" />
           </div>
         </div>
 
@@ -603,7 +603,7 @@
           <label>Annual ISA contribution</label>
           <div class="input-wrapper">
             <span class="currency-symbol">£</span>
-            <input type="number" id="input-isa-contribution" min="0" step="500" placeholder="0" inputmode="numeric" />
+            <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-isa-contribution" min="0" step="500" placeholder="0" inputmode="numeric" />
           </div>
           <p class="help-text">ISA withdrawals are tax-free and pass to your spouse without IHT</p>
         </div>
@@ -612,7 +612,7 @@
         <div class="input-group">
           <label>Your State Pension age</label>
           <div class="input-wrapper">
-            <input type="number" id="input-state-pension-age" min="60" max="75" value="67" inputmode="numeric" />
+            <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-state-pension-age" min="60" max="75" value="67" inputmode="numeric" />
           </div>
         </div>
 
@@ -620,7 +620,7 @@
           <label>Expected annual State Pension</label>
           <div class="input-wrapper">
             <span class="currency-symbol">£</span>
-            <input type="number" id="input-state-pension-amount" min="0" step="100" value="11973" inputmode="numeric" />
+            <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-state-pension-amount" min="0" step="100" value="11973" inputmode="numeric" />
           </div>
           <p class="help-text">Full new State Pension is ~11,973/year (2025/26). Check yours at gov.uk/check-state-pension</p>
         </div>
@@ -645,7 +645,7 @@
         <div class="input-group">
           <label>State Pension age</label>
           <div class="input-wrapper">
-            <input type="number" id="input-state-pension-age" min="60" max="75" value="67" inputmode="numeric" />
+            <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-state-pension-age" min="60" max="75" value="67" inputmode="numeric" />
           </div>
         </div>
         
@@ -653,7 +653,7 @@
           <label>Expected annual State Pension</label>
           <div class="input-wrapper">
             <span class="currency-symbol">£</span>
-            <input type="number" id="input-state-pension-amount" min="0" step="100" value="11973" inputmode="numeric" />
+            <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-state-pension-amount" min="0" step="100" value="11973" inputmode="numeric" />
           </div>
           <p class="help-text">Full new State Pension is ~£11,973/year (2025/26)</p>
         </div>
@@ -794,10 +794,10 @@
                 </div>
                 <div id="phased-inputs" style="display: none; margin-left: 1.5rem; margin-top: 0.5rem;">
                   <div class="input-group" style="margin-bottom: 0.5rem;">
-                    <input type="number" id="phase-start-age" placeholder="Phased retirement start age" style="width: 100%; padding: 0.5rem; border: 1px solid #e5e7eb; border-radius: 4px;">
+                    <input type="text" inputmode="numeric" pattern="[0-9]*" id="phase-start-age" placeholder="Phased retirement start age" style="width: 100%; padding: 0.5rem; border: 1px solid #e5e7eb; border-radius: 4px;">
                   </div>
                   <div class="input-group">
-                    <input type="number" id="reduced-hours" placeholder="Reduced hours (%)" value="50" style="width: 100%; padding: 0.5rem; border: 1px solid #e5e7eb; border-radius: 4px;">
+                    <input type="text" inputmode="numeric" pattern="[0-9]*" id="reduced-hours" placeholder="Reduced hours (%)" value="50" style="width: 100%; padding: 0.5rem; border: 1px solid #e5e7eb; border-radius: 4px;">
                   </div>
                 </div>
               </div>

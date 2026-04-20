@@ -1609,6 +1609,9 @@
 
           updateHeroFromProjection(altProjection, null);
 
+          renderIncomeGap(altProjection, data);
+          renderSPBridge(altProjection, data);
+          renderContributionImpact(altProjection, data);
           renderCashflowChart(altProjection, data);
           renderCapitalChart(altProjection);
           renderDataTable(altProjection, data);
@@ -1787,6 +1790,9 @@
           renderResults(basicProjection, results);
 
           try {
+            renderIncomeGap(basicProjection, data);
+            renderSPBridge(basicProjection, data);
+            renderContributionImpact(basicProjection, data);
             renderCashflowChart(basicProjection, data);
             renderTaxChart(basicProjection);
             renderGuaranteedIncomeChart(basicProjection, data);
@@ -2432,10 +2438,153 @@
       return '£' + Math.round(value);
     }
     
-    /**
-     * Render the Annual Net Cashflow Chart (stacked bars by income source)
-     * FIX 1.2: Uses projection engine values directly - no independent tax recalculation
-     */
+    // ═══════════════════════════════════════════════════════════════
+    // UX Primitives: Income Gap, SP Bridge, Contribution Impact
+    // ═══════════════════════════════════════════════════════════════
+
+    function renderIncomeGap(projection, data) {
+      const el = document.getElementById('income-gap-section');
+      if (!el) return;
+
+      const target = data.targetNetIncome || projection.plan.targetNetIncome;
+      const firstDecYear = projection.decumulation.years[0];
+      if (!firstDecYear) { el.style.display = 'none'; return; }
+
+      const projected = firstDecYear.netIncome || 0;
+      const pct = Math.min(100, Math.round((projected / target) * 100));
+      const gap = target - projected;
+      const isShortfall = gap > 0;
+      const barColor = pct >= 100 ? 'var(--color-success, #059669)' : pct >= 80 ? 'var(--color-warning, #d97706)' : 'var(--color-danger, #dc2626)';
+
+      el.style.display = 'block';
+      el.innerHTML = `
+        <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 0.5rem;">
+          <span style="font-size: 0.8125rem; font-weight: 600;">Year 1 Income vs Target</span>
+          <span style="font-size: 0.8125rem; font-weight: 700; color: ${barColor};">${pct}%</span>
+        </div>
+        <div style="position: relative; height: 24px; background: var(--color-border-light, #f1f5f9); border-radius: 12px; overflow: hidden;">
+          <div style="height: 100%; width: ${pct}%; background: ${barColor}; border-radius: 12px; transition: width 0.8s cubic-bezier(0.4,0,0.2,1);"></div>
+        </div>
+        <div style="display: flex; justify-content: space-between; margin-top: 0.375rem; font-size: 0.75rem; color: var(--color-text-light);">
+          <span>Projected: <strong style="color: var(--color-text);">${formatCurrency(Math.round(projected / 12))}/mo</strong></span>
+          <span>Target: <strong style="color: var(--color-text);">${formatCurrency(Math.round(target / 12))}/mo</strong></span>
+        </div>
+        ${isShortfall ? `<div style="margin-top: 0.5rem; padding: 0.5rem 0.625rem; background: var(--color-danger-light, #fee2e2); border-radius: var(--radius-md, 0.5rem); font-size: 0.75rem; color: var(--color-danger, #dc2626);">
+          Shortfall of <strong>${formatCurrency(Math.round(gap / 12))}/mo</strong> (${formatCurrency(gap)}/yr). Use the sliders below to close the gap.
+        </div>` : `<div style="margin-top: 0.5rem; padding: 0.5rem 0.625rem; background: var(--color-success-light, #d1fae5); border-radius: var(--radius-md, 0.5rem); font-size: 0.75rem; color: var(--color-success, #059669);">
+          Your plan meets or exceeds your target income.
+        </div>`}
+      `;
+    }
+
+    function renderSPBridge(projection, data) {
+      const el = document.getElementById('sp-bridge-section');
+      if (!el) return;
+
+      const plan = projection.plan;
+      const retireAge = plan.retirementAge;
+      const spAge = plan.statePensionAge || data.statePensionAge || 67;
+      const sp = plan.expectedStatePension || data.expectedStatePension || 0;
+
+      if (spAge <= retireAge || sp <= 0) { el.style.display = 'none'; return; }
+
+      const bridgeYears = spAge - retireAge;
+      const isCouple = data.isCouple || false;
+      const partnerSP = data.partnerExpectedStatePension || 0;
+      const partnerSpAge = data.partnerStatePensionAge || 67;
+      const partnerCurrentAge = data.partnerCurrentAge || 0;
+      const ageDiff = partnerCurrentAge - plan.currentAge;
+      const partnerSpUserAge = partnerSpAge - ageDiff;
+
+      // Income before SP
+      const preSpDecYears = projection.decumulation.years.filter(y => y.age >= retireAge && y.age < spAge);
+      const avgPreSP = preSpDecYears.length > 0 ? Math.round(preSpDecYears.reduce((s, y) => s + (y.netIncome || 0), 0) / preSpDecYears.length) : 0;
+
+      // Income after SP
+      const postSpDecYears = projection.decumulation.years.filter(y => y.age >= spAge && y.age < spAge + 3);
+      const avgPostSP = postSpDecYears.length > 0 ? Math.round(postSpDecYears.reduce((s, y) => s + (y.netIncome || 0), 0) / postSpDecYears.length) : 0;
+
+      const totalSP = sp + (isCouple && partnerSpUserAge <= spAge ? partnerSP : 0);
+
+      el.style.display = 'block';
+      el.innerHTML = `
+        <h3 style="font-size: 1rem; margin-bottom: 0.75rem;">Bridge Period: ${bridgeYears} years without State Pension</h3>
+        <div style="display: flex; gap: 0.5rem; margin-bottom: 0.75rem;">
+          <div style="flex: 1; padding: 0.75rem; background: var(--color-warning-light, #fef3c7); border-radius: var(--radius-md, 0.5rem); text-align: center;">
+            <div style="font-size: 0.65rem; text-transform: uppercase; color: var(--color-warning, #d97706); letter-spacing: 0.04em;">Age ${retireAge}-${spAge - 1}</div>
+            <div style="font-size: 1.125rem; font-weight: 700; margin-top: 0.25rem;">${formatCurrency(Math.round(avgPreSP / 12))}/mo</div>
+            <div style="font-size: 0.7rem; color: var(--color-text-light); margin-top: 0.125rem;">Pension + ISA only</div>
+          </div>
+          <div style="display: flex; align-items: center; font-size: 1.2rem; color: var(--color-text-light);">→</div>
+          <div style="flex: 1; padding: 0.75rem; background: var(--color-success-light, #d1fae5); border-radius: var(--radius-md, 0.5rem); text-align: center;">
+            <div style="font-size: 0.65rem; text-transform: uppercase; color: var(--color-success, #059669); letter-spacing: 0.04em;">Age ${spAge}+</div>
+            <div style="font-size: 1.125rem; font-weight: 700; margin-top: 0.25rem;">${formatCurrency(Math.round(avgPostSP / 12))}/mo</div>
+            <div style="font-size: 0.7rem; color: var(--color-text-light); margin-top: 0.125rem;">+ SP ${formatCurrency(Math.round(totalSP / 12))}/mo</div>
+          </div>
+        </div>
+        <p style="font-size: 0.75rem; color: var(--color-text-light);">
+          During the bridge period, your pension pot must cover the full target. Once State Pension kicks in at ${spAge}, withdrawal pressure drops by ${formatCurrency(totalSP)}/yr.
+        </p>
+      `;
+    }
+
+    function renderContributionImpact(projection, data) {
+      const el = document.getElementById('contribution-impact-section');
+      if (!el) return;
+
+      const plan = projection.plan;
+      const currentMonthly = Math.round((data.annualPensionContribution || 0) / 12);
+      const yearsToRetire = (plan.retirementAge || 60) - (plan.currentAge || 56);
+      if (yearsToRetire <= 0) { el.style.display = 'none'; return; }
+
+      const scenarioPreset = SCENARIO_PRESETS[data.scenario] || SCENARIO_PRESETS.moderate;
+      const growthRate = scenarioPreset.growthRate || 0.04;
+
+      // Calculate impact of extra £100/mo and £250/mo
+      function extraPotValue(extraMonthly) {
+        let pot = 0;
+        for (let y = 0; y < yearsToRetire; y++) {
+          pot = (pot + extraMonthly * 12) * (1 + growthRate);
+        }
+        return Math.round(pot);
+      }
+
+      const extra100 = extraPotValue(100);
+      const extra250 = extraPotValue(250);
+      const extra100Income = Math.round(extra100 * 0.04 / 12);
+      const extra250Income = Math.round(extra250 * 0.04 / 12);
+
+      // Tax relief: basic rate payer pays 80%, gov tops up 20%
+      const taxRelief100 = Math.round(100 * 0.25);
+      const taxRelief250 = Math.round(250 * 0.25);
+      const isSalarySacrifice = data.annualPensionContribution && document.getElementById('input-salary-sacrifice')?.checked;
+
+      el.style.display = 'block';
+      el.innerHTML = `
+        <h3 style="font-size: 1rem; margin-bottom: 0.75rem;">What would extra contributions do?</h3>
+        <div style="display: flex; gap: 0.5rem; margin-bottom: 0.75rem;">
+          <div style="flex: 1; padding: 0.75rem; background: var(--color-primary-subtle, #eef2ff); border-radius: var(--radius-md, 0.5rem); text-align: center;">
+            <div style="font-size: 0.65rem; text-transform: uppercase; color: var(--color-primary); letter-spacing: 0.04em;">+£100/mo</div>
+            <div style="font-size: 1.125rem; font-weight: 700; margin-top: 0.25rem;">+${formatCurrency(extra100)}</div>
+            <div style="font-size: 0.7rem; color: var(--color-text-light); margin-top: 0.125rem;">at retirement</div>
+            <div style="font-size: 0.75rem; font-weight: 600; color: var(--color-success); margin-top: 0.25rem;">+${formatCurrency(extra100Income)}/mo income</div>
+          </div>
+          <div style="flex: 1; padding: 0.75rem; background: var(--color-primary-subtle, #eef2ff); border-radius: var(--radius-md, 0.5rem); text-align: center;">
+            <div style="font-size: 0.65rem; text-transform: uppercase; color: var(--color-primary); letter-spacing: 0.04em;">+£250/mo</div>
+            <div style="font-size: 1.125rem; font-weight: 700; margin-top: 0.25rem;">+${formatCurrency(extra250)}</div>
+            <div style="font-size: 0.7rem; color: var(--color-text-light); margin-top: 0.125rem;">at retirement</div>
+            <div style="font-size: 0.75rem; font-weight: 600; color: var(--color-success); margin-top: 0.25rem;">+${formatCurrency(extra250Income)}/mo income</div>
+          </div>
+        </div>
+        <div style="padding: 0.5rem 0.625rem; background: var(--color-accent-light, #ccfbf1); border-radius: var(--radius-md, 0.5rem); font-size: 0.75rem; color: var(--color-accent, #0d9488);">
+          <strong>Tax relief:</strong> You pay £80, the government adds £20 — so £100 goes into your pension.${isSalarySacrifice ? ' Via salary sacrifice, your employer also saves 13.8% NI.' : ' Higher-rate taxpayers claim a further £20 via self-assessment.'}
+        </div>
+        <p style="font-size: 0.65rem; color: var(--color-text-light); margin-top: 0.375rem;">
+          Based on ${yearsToRetire} years to retirement at ${(growthRate * 100).toFixed(0)}% real growth. Income estimate uses 4% sustainable withdrawal rate.
+        </p>
+      `;
+    }
+
     function renderCashflowChart(projection, data) {
       const canvas = document.getElementById('cashflow-chart');
       if (!canvas || typeof Chart === 'undefined') return;

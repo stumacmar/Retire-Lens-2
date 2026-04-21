@@ -1376,9 +1376,9 @@
         // PCLS Strategy
         pclsStrategy: getSelectedValue('pcls-strategy', 'all_at_retirement'),
         pclsReinvest: getChecked('pcls-reinvest'),
-        pclsAlreadyTaken: getChecked('input-pcls-taken') || getChecked('pcls-already-taken'),
-        useGuardrails: getChecked('input-guardrails'),
-        pclsAmountTaken: getValue('input-pcls-amount', 0) || getValue('pcls-amount-taken', 0),
+        pclsAlreadyTaken: getChecked('input-pcls-taken') || getChecked('pcls-already-taken') || (state.onboardingState?.personA?.pclsTaken || false),
+        useGuardrails: getChecked('input-guardrails') || getChecked('results-guardrails'),
+        pclsAmountTaken: getValue('input-pcls-amount', 0) || getValue('pcls-amount-taken', 0) || (state.onboardingState?.personA?.pclsAmount || 0),
 
         // Tax jurisdiction
         taxJurisdiction: getSelectedValue('tax-jurisdiction', 'england')
@@ -2545,26 +2545,25 @@
       const decYears = projection.decumulation.years.filter(y => !y.fundsDepleted || y.netIncome > 0);
       const labels = decYears.map(y => y.age);
       
-      // Build year-by-year data directly from projection results
+      // Build year-by-year data — scale sources to sum to actual netIncome
       const yearlyData = decYears.map(y => {
         const statePension = y.statePension || 0;
         const dbPension = y.dbPension || 0;
         const pensionWithdrawal = y.withdrawals?.pension || 0;
         const isaWithdrawal = y.withdrawals?.isa || 0;
-        const taxPaid = y.taxPaid || 0;
         const netIncome = y.netIncome || 0;
-        
-        // Distribute tax proportionally across taxable sources for display
-        const totalTaxable = statePension + dbPension + pensionWithdrawal;
-        const effectiveRate = totalTaxable > 0 ? taxPaid / totalTaxable : 0;
-        
+
+        // Total gross from all sources
+        const totalGross = statePension + dbPension + pensionWithdrawal + isaWithdrawal;
+        // Scale each source proportionally so stacked total = netIncome
+        const scale = totalGross > 0 ? netIncome / totalGross : 0;
+
         return {
           age: y.age,
-          statePensionNet: statePension > 0 ? Math.max(0, statePension * (1 - effectiveRate)) : 0,
-          dbPensionNet: dbPension > 0 ? Math.max(0, dbPension * (1 - effectiveRate)) : 0,
-          pensionWithdrawalNet: pensionWithdrawal > 0 ? Math.max(0, pensionWithdrawal * (1 - effectiveRate)) : 0,
-          isaNet: isaWithdrawal, // Tax-free
-          taxPaid,
+          statePensionNet: Math.round(statePension * scale),
+          dbPensionNet: Math.round(dbPension * scale),
+          pensionWithdrawalNet: Math.round(pensionWithdrawal * scale),
+          isaNet: Math.round(isaWithdrawal * scale),
           netIncome
         };
       });

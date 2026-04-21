@@ -1826,11 +1826,21 @@
     function updateHeroFromProjection(projection, results) {
       const { summary, plan } = projection;
       const isSuccess = summary.finalBalance > 0 && summary.successRate >= 1.0;
-      // MC confidence for full calc, deterministic for slider updates
       const mcSuccess = results?.mcResult?.statistics?.successRate;
       let confidenceNum;
       if (mcSuccess != null) {
+        // Full MC result available — use directly
         confidenceNum = Math.round(mcSuccess * 100);
+      } else if (originalFormData._mcConfidence != null && originalFormData._originalFinalBalance != null) {
+        // Slider change: scale MC confidence proportionally to balance change
+        const origBalance = originalFormData._originalFinalBalance;
+        const origConf = originalFormData._mcConfidence;
+        if (origBalance > 0) {
+          const ratio = summary.finalBalance / origBalance;
+          confidenceNum = Math.min(100, Math.max(0, Math.round(origConf * Math.pow(ratio, 0.3))));
+        } else {
+          confidenceNum = summary.finalBalance > 0 ? 100 : 0;
+        }
       } else {
         confidenceNum = summary.finalBalance > 0 ? 100 : Math.round(summary.successRate * 100);
       }
@@ -1870,10 +1880,10 @@
 
     function renderResults(projection, results = null) {
       const { summary, plan } = projection;
-      const isSuccess = summary.finalBalance > 0 && summary.successRate >= 1.0;
 
       const mcSuccess = results?.mcResult?.statistics?.successRate;
-      const confidenceNum = mcSuccess != null ? Math.round(mcSuccess * 100) : (summary.finalBalance > 0 ? 100 : Math.round(summary.successRate * 100));
+      const confidenceNum = mcSuccess != null ? Math.round(mcSuccess * 100) : Math.round(summary.successRate * 100);
+      const isSuccess = confidenceNum >= 85;
       let confidenceColor = '#059669';
       if (confidenceNum < 60) { confidenceColor = '#dc2626'; }
       else if (confidenceNum < 85) { confidenceColor = '#d97706'; }
@@ -1980,9 +1990,10 @@
         });
       });
 
-      // Initialize sliders with current values and snapshot original final balance
+      // Initialize sliders and snapshot baseline for proportional slider confidence
       if (typeof originalFormData !== 'undefined' && state.formData) {
         state.formData._originalFinalBalance = summary.finalBalance;
+        state.formData._mcConfidence = confidenceNum;
       }
       initSliders();
 

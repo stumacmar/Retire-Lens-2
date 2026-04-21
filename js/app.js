@@ -1853,8 +1853,8 @@
       // Update badge
       const badge = document.querySelector('.answer-badge');
       if (badge) {
-        badge.className = 'answer-badge ' + (isSuccess ? 'success' : confidenceNum >= 60 ? 'partial' : 'danger');
-        badge.textContent = isSuccess ? 'YES' : confidenceNum >= 60 ? 'LIKELY' : 'AT RISK';
+        badge.className = 'answer-badge ' + (isSuccess ? 'success' : 'danger');
+        badge.textContent = isSuccess ? 'YES' : 'AT RISK';
       }
 
       // Update question
@@ -1892,8 +1892,8 @@
 
       const html = `
         <div class="results-hero" style="padding-bottom: 1rem;">
-          <div class="answer-badge ${isSuccess ? 'success' : confidenceNum >= 60 ? 'partial' : 'danger'}">
-            ${isSuccess ? 'YES' : confidenceNum >= 60 ? 'LIKELY' : 'AT RISK'}
+          <div class="answer-badge ${isSuccess ? 'success' : 'danger'}">
+            ${isSuccess ? 'YES' : 'AT RISK'}
           </div>
 
           <h2 class="results-question" style="margin-top: 0.5rem;">
@@ -2381,6 +2381,8 @@
 
     function renderIncomeGap(projection, data) {
       const el = document.getElementById('income-gap-section');
+      if (el) el.style.display = 'none';
+      return;
       if (!el) return;
 
       const target = data.targetNetIncome || projection.plan.targetNetIncome;
@@ -2416,6 +2418,8 @@
 
     function renderSPBridge(projection, data) {
       const el = document.getElementById('sp-bridge-section');
+      if (el) el.style.display = 'none';
+      return;
       if (!el) return;
 
       const plan = projection.plan;

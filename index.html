@@ -420,95 +420,145 @@
 
         <p style="font-size: 0.6rem; color: var(--color-text-light); margin-bottom: 0.75rem; text-align: center;">PLSA Retirement Living Standards 2023/24</p>
 
-        <!-- Pension Pot -->
+        <!-- ═══ YOUR PENSIONS ═══ -->
         <div style="padding-top: 1rem; border-top: 1px solid var(--color-border, #e2e8f0);">
+          <div style="font-weight: 700; font-size: 1rem; margin-bottom: 1rem;">Your pensions</div>
+
+          <!-- Defined Contribution -->
           <div class="input-group">
-            <label style="font-weight: 600;">Current DC pension pot</label>
+            <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.25rem;">
+              <label style="font-weight: 600;">Defined Contribution pension pot</label>
+              <button type="button" class="pension-info-btn" onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'block':'none'" style="background: none; border: 1px solid var(--color-border); border-radius: 50%; width: 20px; height: 20px; font-size: 0.7rem; cursor: pointer; color: var(--color-text-light); flex-shrink: 0;">?</button>
+              <div style="display: none; font-size: 0.75rem; color: var(--color-text-light); background: var(--color-primary-subtle); padding: 0.5rem; border-radius: var(--radius-md); margin-top: 0.25rem;">A pot of money you and/or your employer pay into. The value goes up and down with investments. Includes workplace pensions, SIPPs, and personal pensions.</div>
+            </div>
             <div class="input-wrapper">
               <span class="currency-symbol">£</span>
               <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-pension-pot" min="0" step="1000" placeholder="100000" inputmode="numeric" aria-label="Pension pot value" />
             </div>
-            <p class="help-text">Check your pension statement. Include all DC pots you plan to combine.</p>
+            <p class="help-text">Include all pots you plan to combine</p>
           </div>
-        </div>
 
-        <!-- Your DB Pension -->
-        <div style="margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px solid var(--color-border, #e2e8f0);">
-          <div style="font-weight: 600; margin-bottom: 0.75rem; font-size: 0.9rem;">Your DB Pension</div>
           <div class="input-group">
-            <label style="font-weight: 600;">Annual income from DB scheme</label>
+            <label style="font-weight: 500;">Monthly contribution</label>
             <div class="input-wrapper">
               <span class="currency-symbol">£</span>
-              <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-your-db-income" min="0" step="500" placeholder="0 if none" inputmode="numeric" />
+              <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-pension-contribution" min="0" step="50" placeholder="500" inputmode="numeric" />
             </div>
-            <p class="help-text">Guaranteed annual income from final salary / career average pension. Enter 0 if none.</p>
+            <p class="help-text">Total monthly including employer match</p>
+            <div style="margin-top: 0.5rem; display: flex; align-items: center; gap: 0.5rem;">
+              <input type="checkbox" id="input-salary-sacrifice" style="margin: 0;">
+              <label for="input-salary-sacrifice" style="font-size: 0.8rem; color: var(--color-text-secondary); cursor: pointer;">Via salary sacrifice (+13.8% employer NI saving)</label>
+            </div>
           </div>
-          <div class="input-group" style="margin-top: 0.5rem;">
-            <label>DB pension start age</label>
-            <div class="input-wrapper">
-              <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-your-db-start" min="50" max="75" value="65" inputmode="numeric" />
+
+          <!-- Defined Benefit -->
+          <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--color-border-light, #f1f5f9);">
+            <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;">
+              <span style="font-weight: 600; font-size: 0.9rem;">Defined Benefit pension</span>
+              <button type="button" class="pension-info-btn" onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'block':'none'" style="background: none; border: 1px solid var(--color-border); border-radius: 50%; width: 20px; height: 20px; font-size: 0.7rem; cursor: pointer; color: var(--color-text-light); flex-shrink: 0;">?</button>
+              <div style="display: none; font-size: 0.75rem; color: var(--color-text-light); background: var(--color-primary-subtle); padding: 0.5rem; border-radius: var(--radius-md); margin-top: 0.25rem;">A guaranteed income for life from an employer. Based on salary and years worked. Includes final salary and career average pensions.</div>
+            </div>
+            <div class="input-group">
+              <label>Annual income from scheme</label>
+              <div class="input-wrapper">
+                <span class="currency-symbol">£</span>
+                <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-your-db-income" min="0" step="500" placeholder="0 if none" inputmode="numeric" />
+              </div>
+            </div>
+            <div class="input-group" style="margin-top: 0.5rem;">
+              <label>Start age</label>
+              <div class="input-wrapper">
+                <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-your-db-start" min="50" max="75" value="65" inputmode="numeric" />
+              </div>
+            </div>
+          </div>
+
+          <!-- MPAA + PCLS -->
+          <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--color-border-light, #f1f5f9);">
+            <div style="display: flex; align-items: flex-start; gap: 0.5rem; margin-bottom: 0.75rem;">
+              <input type="checkbox" id="input-flexi-accessed" style="margin-top: 3px;">
+              <div>
+                <label for="input-flexi-accessed" style="font-weight: 500; cursor: pointer;">I have taken taxable income from my pension</label>
+                <p class="help-text" style="margin-top: 2px;">This limits future contributions to £10,000/year (MPAA)</p>
+              </div>
+            </div>
+
+            <div style="display: flex; align-items: flex-start; gap: 0.5rem;">
+              <input type="checkbox" id="input-pcls-taken" style="margin-top: 3px;">
+              <div>
+                <label for="input-pcls-taken" style="font-weight: 500; cursor: pointer;">I have already taken my 25% tax-free cash</label>
+                <p class="help-text" style="margin-top: 2px;">If you have crystallised your pension and received a lump sum</p>
+              </div>
+            </div>
+            <div id="pcls-amount-section" style="display: none; margin-top: 0.75rem; margin-left: 1.5rem;">
+              <label style="font-size: 0.875rem; font-weight: 500;">How much did you receive?</label>
+              <div class="input-wrapper" style="margin-top: 0.25rem;">
+                <span class="currency-symbol">£</span>
+                <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-pcls-amount" min="0" step="1000" placeholder="e.g. 167000" inputmode="numeric" />
+              </div>
             </div>
           </div>
         </div>
 
-        <!-- Partner DB — always in HTML, shown/hidden by JS for couples -->
-        <div id="partner-db-section" style="display: none; margin-top: 1.5rem; padding-top: 1.5rem; border-top: 2px solid var(--color-primary-light, #e0e7ff);">
-          <div style="font-weight: 600; color: var(--color-primary, #4f46e5); margin-bottom: 0.75rem; font-size: 0.9rem;">Partner's DB Pension</div>
+        <!-- ═══ PARTNER'S PENSIONS (shown/hidden by JS) ═══ -->
+        <div id="partner-pension-section" style="display: none; margin-top: 1.5rem; padding-top: 1.5rem; border-top: 2px solid var(--color-primary-light, #e0e7ff);">
+          <div style="font-weight: 700; font-size: 1rem; color: var(--color-primary); margin-bottom: 1rem;">Partner's pensions</div>
+
+          <!-- Partner DC -->
           <div class="input-group">
-            <label style="font-weight: 600;">Annual income from DB scheme</label>
+            <label style="font-weight: 600;">Defined Contribution pension pot</label>
             <div class="input-wrapper">
               <span class="currency-symbol">£</span>
-              <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-partner-db-income" min="0" step="500" placeholder="e.g. 4500" inputmode="numeric" />
+              <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-partner-pension-pot" min="0" step="1000" placeholder="0" inputmode="numeric" />
             </div>
-            <p class="help-text">Guaranteed annual income from final salary / career average pension. Enter 0 if none.</p>
           </div>
-          <div class="input-group" style="margin-top: 0.5rem;">
-            <label>DB pension start age</label>
+
+          <div class="input-group">
+            <label>Monthly contribution</label>
             <div class="input-wrapper">
-              <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-partner-db-start" min="50" max="75" value="67" inputmode="numeric" />
-            </div>
-          </div>
-        </div>
-
-        <!-- Monthly contributions (moved from separate screen) -->
-        <div class="input-group" style="margin-top: 1rem;">
-          <label style="font-weight: 500;">Monthly pension contribution</label>
-          <div class="input-wrapper">
-            <span class="currency-symbol">£</span>
-            <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-pension-contribution" min="0" step="50" placeholder="500" inputmode="numeric" />
-          </div>
-          <p class="help-text">Total monthly contribution including employer match</p>
-          <div style="margin-top: 0.5rem; display: flex; align-items: center; gap: 0.5rem;">
-            <input type="checkbox" id="input-salary-sacrifice" style="margin: 0;">
-            <label for="input-salary-sacrifice" style="font-size: 0.8rem; color: var(--color-text-secondary); cursor: pointer;">Via salary sacrifice (adds employer NI saving of 13.8%)</label>
-          </div>
-        </div>
-
-        <!-- Flexible access question (MPAA trigger) -->
-        <div style="margin-top: 1rem; display: flex; align-items: flex-start; gap: 0.5rem;">
-          <input type="checkbox" id="input-flexi-accessed" style="margin-top: 3px;">
-          <div>
-            <label for="input-flexi-accessed" style="font-weight: 500; cursor: pointer;">I have taken taxable income from my pension</label>
-            <p class="help-text" style="margin-top: 2px;">Not just tax-free cash. This limits future contributions to 10,000/year (MPAA).</p>
-          </div>
-        </div>
-
-        <!-- PCLS question -- in plain English on the pension screen where it belongs -->
-        <div style="margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px solid var(--color-border, #e2e8f0);">
-          <div style="display: flex; align-items: flex-start; gap: 0.5rem;">
-            <input type="checkbox" id="input-pcls-taken" style="margin-top: 3px;">
-            <div>
-              <label for="input-pcls-taken" style="font-weight: 600; cursor: pointer;">I have already taken my 25% tax-free cash</label>
-              <p class="help-text" style="margin-top: 2px;">If you have crystallised your pension and received a lump sum</p>
-            </div>
-          </div>
-          <div id="pcls-amount-section" style="display: none; margin-top: 0.75rem; margin-left: 1.5rem;">
-            <label style="font-size: 0.875rem; font-weight: 500;">How much did you receive?</label>
-            <div class="input-wrapper" style="margin-top: 0.25rem;">
               <span class="currency-symbol">£</span>
-              <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-pcls-amount" min="0" step="1000" placeholder="e.g. 167000" inputmode="numeric" />
+              <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-partner-pension-contribution" min="0" step="50" placeholder="0" inputmode="numeric" />
             </div>
-            <p class="help-text">We will calculate any remaining tax-free cash entitlement from new contributions.</p>
+            <div style="margin-top: 0.5rem; display: flex; align-items: center; gap: 0.5rem;">
+              <input type="checkbox" id="input-partner-salary-sacrifice" style="margin: 0;">
+              <label for="input-partner-salary-sacrifice" style="font-size: 0.8rem; color: var(--color-text-secondary); cursor: pointer;">Via salary sacrifice (+13.8% employer NI saving)</label>
+            </div>
+          </div>
+
+          <!-- Partner DB -->
+          <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--color-border-light, #f1f5f9);">
+            <div style="font-weight: 600; font-size: 0.9rem; margin-bottom: 0.5rem;">Defined Benefit pension</div>
+            <div class="input-group">
+              <label>Annual income from scheme</label>
+              <div class="input-wrapper">
+                <span class="currency-symbol">£</span>
+                <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-partner-db-income" min="0" step="500" placeholder="0 if none" inputmode="numeric" />
+              </div>
+            </div>
+            <div class="input-group" style="margin-top: 0.5rem;">
+              <label>Start age</label>
+              <div class="input-wrapper">
+                <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-partner-db-start" min="50" max="75" value="67" inputmode="numeric" />
+              </div>
+            </div>
+          </div>
+
+          <!-- Partner MPAA + PCLS -->
+          <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--color-border-light, #f1f5f9);">
+            <div style="display: flex; align-items: flex-start; gap: 0.5rem; margin-bottom: 0.75rem;">
+              <input type="checkbox" id="input-partner-flexi-accessed" style="margin-top: 3px;">
+              <div>
+                <label for="input-partner-flexi-accessed" style="font-weight: 500; cursor: pointer;">Partner has taken taxable income from pension</label>
+                <p class="help-text" style="margin-top: 2px;">Limits partner's contributions to £10,000/year (MPAA)</p>
+              </div>
+            </div>
+
+            <div style="display: flex; align-items: flex-start; gap: 0.5rem;">
+              <input type="checkbox" id="input-partner-pcls-taken" style="margin-top: 3px;">
+              <div>
+                <label for="input-partner-pcls-taken" style="font-weight: 500; cursor: pointer;">Partner has already taken 25% tax-free cash</label>
+              </div>
+            </div>
           </div>
         </div>
       </div>

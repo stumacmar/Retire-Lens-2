@@ -1485,13 +1485,56 @@
 
     /* Print styles */
     @media print {
-      .progress-container, .nav-buttons, .results-tabs, #what-if-section, #what-if-result,
-      footer, #loading-overlay, .btn { display: none !important; }
+      /* Hide interactive elements */
+      .progress-container, .nav-buttons, .results-tabs, #whatif-sliders-section,
+      #what-if-section, #what-if-result, #slider-impact,
+      footer, #loading-overlay, .btn, #toggle-monthly,
+      #scenario-cards, #results-guardrails, #save-scenario-btn,
+      #saved-scenarios, #share-card, #copy-share-card,
+      [onclick*="print"], [onclick*="Reset"], [onclick*="reload"],
+      .scenario-card, .pension-info-btn,
+      details > summary { display: none !important; }
+
+      /* Show all collapsed sections */
+      details, details[open] { display: block !important; }
+      details > div, details > * { display: block !important; }
       .results-tab-content { display: block !important; }
+
+      /* Only show results screen */
       .screen { display: block !important; overflow: visible !important; }
-      .screen:not(.active) { display: none !important; }
-      .result-card { break-inside: avoid; }
-      body { font-size: 12px; }
+      .screen:not(#screen-results) { display: none !important; }
+
+      /* Layout */
+      body { font-size: 11px; color: #111; background: white; }
+      .app-container { max-width: 100%; padding: 0 1rem; }
+
+      /* Cards: no shadow, borders for print */
+      .result-card {
+        box-shadow: none !important;
+        border: 1px solid #ddd !important;
+        break-inside: avoid;
+        margin-bottom: 0.75rem !important;
+        padding: 0.75rem !important;
+      }
+
+      /* Report header */
+      .results-hero { text-align: center; border-bottom: 2px solid #4f46e5; padding-bottom: 1rem; margin-bottom: 1rem; }
+      .results-question { font-size: 1.25rem !important; }
+
+      /* Metrics grid: tighter */
+      .metric { padding: 0.5rem !important; }
+      .metric-label { font-size: 0.6rem !important; }
+      .metric-value { font-size: 1rem !important; }
+
+      /* Charts: ensure they print */
+      canvas { max-height: 200px !important; }
+      .chart-container { height: 200px !important; margin: 0.5rem 0 !important; padding: 0.5rem !important; }
+
+      /* Page footer */
+      #version-footer { display: block !important; font-size: 0.6rem; border-top: 1px solid #ddd; margin-top: 1rem; }
+
+      /* Disclaimer */
+      @page { margin: 1.5cm; }
     }
 
     /* Mobile-responsive data table */

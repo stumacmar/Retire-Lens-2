@@ -240,27 +240,8 @@
         return;
       }
 
-      // pension-pot: partner DC + contributions + DB
+      // pension-pot: partner section is now permanent HTML, shown/hidden by showScreen
       if (screenId === 'pension-pot') {
-        const html = `
-          <div class="partner-input-group" style="margin-top: 1.5rem; padding-top: 1.5rem; border-top: 2px solid var(--color-primary-light, #e0e7ff);">
-            <div style="font-weight: 600; color: var(--color-primary, #4f46e5); margin-bottom: 0.75rem; font-size: 0.9rem;">Partner's Pensions</div>
-            <div class="input-group">
-              <label>Partner's DC pension pot</label>
-              <div class="input-wrapper">
-                <span class="currency-symbol">£</span>
-                <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-partner-pension-pot" min="0" step="1000" placeholder="0" inputmode="numeric" />
-              </div>
-            </div>
-            <div class="input-group" style="margin-top: 0.5rem;">
-              <label>Partner's monthly contribution</label>
-              <div class="input-wrapper">
-                <span class="currency-symbol">£</span>
-                <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-partner-pension-contribution" min="0" step="50" placeholder="0" inputmode="numeric" />
-              </div>
-            </div>
-          </div>`;
-        content.insertAdjacentHTML('beforeend', html);
         return;
       }
 
@@ -364,10 +345,10 @@
         });
       }
 
-      // Show/hide partner DB section on pension-pot screen for couples
-      const partnerDbSection = document.getElementById('partner-db-section');
-      if (partnerDbSection) {
-        partnerDbSection.style.display = (screenId === 'pension-pot' && state.onboardingState?.householdType === HOUSEHOLD_TYPES.COUPLE) ? 'block' : 'none';
+      // Show/hide partner pension section on pension-pot screen for couples
+      const partnerPensionSection = document.getElementById('partner-pension-section');
+      if (partnerPensionSection) {
+        partnerPensionSection.style.display = (screenId === 'pension-pot' && state.onboardingState?.householdType === HOUSEHOLD_TYPES.COUPLE) ? 'block' : 'none';
       }
 
       // Restore saved input values for this screen (including partner values)

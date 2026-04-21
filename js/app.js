@@ -1825,9 +1825,15 @@
     // Surgical hero update from projection — used by sliders for instant feedback
     function updateHeroFromProjection(projection, results) {
       const { summary, plan } = projection;
-      const isSuccess = summary.successRate >= 1.0;
+      const isSuccess = summary.finalBalance > 0 && summary.successRate >= 1.0;
+      // MC confidence for full calc, deterministic for slider updates
       const mcSuccess = results?.mcResult?.statistics?.successRate;
-      const confidenceNum = mcSuccess != null ? Math.round(mcSuccess * 100) : Math.round(summary.successRate * 100);
+      let confidenceNum;
+      if (mcSuccess != null) {
+        confidenceNum = Math.round(mcSuccess * 100);
+      } else {
+        confidenceNum = summary.finalBalance > 0 ? 100 : Math.round(summary.successRate * 100);
+      }
       let confidenceColor = '#059669';
       if (confidenceNum < 60) confidenceColor = '#dc2626';
       else if (confidenceNum < 85) confidenceColor = '#d97706';
@@ -1864,10 +1870,10 @@
 
     function renderResults(projection, results = null) {
       const { summary, plan } = projection;
-      const isSuccess = summary.successRate >= 1.0;
+      const isSuccess = summary.finalBalance > 0 && summary.successRate >= 1.0;
 
       const mcSuccess = results?.mcResult?.statistics?.successRate;
-      const confidenceNum = mcSuccess != null ? Math.round(mcSuccess * 100) : Math.round(summary.successRate * 100);
+      const confidenceNum = mcSuccess != null ? Math.round(mcSuccess * 100) : (summary.finalBalance > 0 ? 100 : Math.round(summary.successRate * 100));
       let confidenceColor = '#059669';
       if (confidenceNum < 60) { confidenceColor = '#dc2626'; }
       else if (confidenceNum < 85) { confidenceColor = '#d97706'; }

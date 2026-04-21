@@ -56,6 +56,23 @@
     // ═══════════════════════════════════════════════════════════════
     
     const MODEL_VERSION = 'v1.0.0';
+
+    // ═══ Global Chart.js Styling ═══
+    if (typeof Chart !== 'undefined') {
+      Chart.defaults.font.family = "'Inter', -apple-system, system-ui, sans-serif";
+      Chart.defaults.font.size = 11;
+      Chart.defaults.color = '#94a3b8';
+      Chart.defaults.plugins.legend.labels.usePointStyle = true;
+      Chart.defaults.plugins.legend.labels.pointStyle = 'circle';
+      Chart.defaults.plugins.legend.labels.padding = 16;
+      Chart.defaults.plugins.tooltip.backgroundColor = 'rgba(15, 23, 42, 0.9)';
+      Chart.defaults.plugins.tooltip.cornerRadius = 8;
+      Chart.defaults.plugins.tooltip.padding = 10;
+      Chart.defaults.plugins.tooltip.titleFont = { family: "'Inter'", size: 12, weight: '600' };
+      Chart.defaults.plugins.tooltip.bodyFont = { family: "'Inter'", size: 11 };
+      Chart.defaults.scale.grid = { color: 'rgba(226, 232, 240, 0.5)', drawBorder: false };
+      Chart.defaults.scale.ticks = { padding: 6 };
+    }
     
     // ═══════════════════════════════════════════════════════════════
     // State Management
@@ -1870,28 +1887,32 @@
       const monthly = Math.round(plan.targetNetIncome / 12);
 
       const html = `
-        <div class="results-hero" style="padding-bottom: 1rem;">
-          <h2 class="results-question" style="margin-top: 0.5rem;">
+        <div class="card-hero">
+          <h2 class="results-question tracking-tight">
             Can I retire at ${plan.retirementAge} on <span id="hero-income-amount" data-annual="${plan.targetNetIncome}">${formatCurrency(monthly)}/mo</span>?
           </h2>
-          <button id="toggle-monthly" style="margin-top: 0.375rem; padding: 0.25rem 0.75rem; font-size: 0.7rem; border: 1px solid var(--color-border); border-radius: var(--radius-full, 9999px); background: var(--color-surface); cursor: pointer; color: var(--color-text-light); transition: all 0.2s;">Show annual</button>
+          <button id="toggle-monthly" class="text-xs text-muted mt-xs" style="padding: 0.25rem 0.75rem; border: 1px solid var(--color-border); border-radius: var(--radius-full); background: var(--color-surface); cursor: pointer; transition: all var(--transition-fast);">Show annual</button>
 
-          <div style="margin-top: 1rem; display: flex; flex-direction: column; align-items: center;">
+          <div class="gauge-wrapper">
             <svg width="160" height="100" viewBox="0 0 160 100" style="overflow: visible;">
-              <path d="M 15 90 A 65 65 0 0 1 145 90" fill="none" stroke="#e5e7eb" stroke-width="12" stroke-linecap="round"/>
-              <path id="confidence-arc" d="M 15 90 A 65 65 0 0 1 145 90" fill="none" stroke="${confidenceColor}" stroke-width="12" stroke-linecap="round"
+              <defs>
+                <linearGradient id="gauge-grad" x1="0%" y1="0%" x2="100%" y2="0%">
+                  <stop offset="0%" stop-color="${confidenceColor}" stop-opacity="0.6"/>
+                  <stop offset="100%" stop-color="${confidenceColor}"/>
+                </linearGradient>
+              </defs>
+              <path d="M 15 90 A 65 65 0 0 1 145 90" fill="none" stroke="var(--color-border-light)" stroke-width="12" stroke-linecap="round"/>
+              <path id="confidence-arc" d="M 15 90 A 65 65 0 0 1 145 90" fill="none" stroke="url(#gauge-grad)" stroke-width="12" stroke-linecap="round"
                 stroke-dasharray="${confidenceNum * 2.04} 999"
-                style="transition: stroke-dasharray 0.6s cubic-bezier(0.4, 0, 0.2, 1);"/>
-              <text id="confidence-score" x="80" y="75" text-anchor="middle" font-size="32" font-weight="700" fill="${confidenceColor}">${confidenceNum}</text>
-              <text x="80" y="95" text-anchor="middle" font-size="11" fill="#6b7280">out of 100</text>
+                style="transition: stroke-dasharray 0.8s cubic-bezier(0.16, 1, 0.3, 1);"/>
+              <text id="confidence-score" x="80" y="72" text-anchor="middle" font-size="36" font-weight="700" fill="${confidenceColor}" font-family="Inter, system-ui">${confidenceNum}</text>
+              <text x="80" y="92" text-anchor="middle" font-size="10" fill="var(--color-text-light)" font-family="Inter, system-ui" letter-spacing="0.03em">out of 100</text>
             </svg>
-            <div style="font-size: 0.8125rem; color: var(--color-text-light); margin-top: 0.25rem;">
-              market scenarios support your plan to age 90
-            </div>
+            <div class="gauge-label">market scenarios support your plan to age 90</div>
           </div>
         </div>
 
-        <div class="results-metrics" style="margin-bottom: 0.5rem;">
+        <div class="results-metrics mb-md">
           <div class="metric">
             <span class="metric-label">Pension Fund</span>
             <span class="metric-value" data-metric="retirementPot">${formatCurrency(summary.retirementPot)}</span>
@@ -1902,7 +1923,7 @@
           </div>
           <div class="metric">
             <span class="metric-label">Confidence</span>
-            <span class="metric-value" data-metric="confidence" style="color: ${confidenceColor};">${confidenceNum}%</span>
+            <span class="metric-value text-${confidenceNum >= 85 ? 'success' : confidenceNum >= 60 ? 'warning' : 'danger'}" data-metric="confidence">${confidenceNum}%</span>
           </div>
           <div class="metric">
             <span class="metric-label">Surplus at 90</span>
@@ -1910,12 +1931,16 @@
           </div>
         </div>
 
-        <p style="text-align: center; font-size: 0.65rem; color: var(--color-text-light); margin-top: 0.75rem;">
+        <p class="text-xs text-muted text-center mt-md">
           For planning purposes only. Not regulated financial advice. Tax year 2025/26 rates.
         </p>
       `;
 
       document.getElementById('results-container').innerHTML = html;
+
+      // Update sticky header with plan summary
+      const headerSummary = document.getElementById('results-header-summary');
+      if (headerSummary) headerSummary.textContent = `Age ${plan.retirementAge} · ${formatCurrency(monthly)}/mo · ${confidenceNum}%`;
 
       // Render narrative summary
       renderNarrativeSummary(projection, results);
@@ -2191,28 +2216,25 @@
       const maxAge = Math.max(90, milestones[milestones.length - 1]?.age || 90);
       const range = maxAge - minAge || 1;
 
-      let html = `<h3 style="font-size: 1rem; margin-bottom: 0;">Your retirement journey</h3>`;
+      let html = `<h3 class="section-title">Your retirement journey</h3>`;
 
-      // Timeline: milestones as a horizontal scrollable strip
-      html += `<div style="margin-top: 1rem; overflow-x: auto; -webkit-overflow-scrolling: touch; padding-bottom: 0.5rem;">`;
-      html += `<div style="display: flex; gap: 0; min-width: ${milestones.length * 5.5}rem; position: relative;">`;
-
-      // Draw connecting line
-      html += `<div style="position: absolute; top: 1rem; left: 1.5rem; right: 1.5rem; height: 3px; background: var(--color-border); border-radius: 2px; z-index: 0;"></div>`;
+      html += `<div class="timeline-scroll">`;
+      html += `<div class="timeline-track" style="min-width: ${milestones.length * 5.5}rem;">`;
+      html += `<div class="timeline-line"></div>`;
 
       milestones.forEach(m => {
         html += `
-          <div style="flex: 1; text-align: center; position: relative; z-index: 1; min-width: 4.5rem;">
-            <div style="font-size: 0.6875rem; font-weight: 700; color: ${m.color};">${m.age}</div>
-            <div style="width: 12px; height: 12px; border-radius: 50%; background: ${m.color}; border: 2px solid white; box-shadow: 0 1px 3px rgba(0,0,0,0.15); margin: 0.25rem auto;"></div>
-            <div style="font-size: 0.6875rem; font-weight: 600; color: var(--color-text); margin-top: 0.25rem; line-height: 1.2;">${m.label}</div>
-            <div style="font-size: 0.5625rem; color: var(--color-text-light); margin-top: 2px; line-height: 1.3; padding: 0 0.25rem;">${m.detail}</div>
+          <div class="timeline-milestone">
+            <div class="timeline-age" style="color: ${m.color};">${m.age}</div>
+            <div class="timeline-dot" style="background: ${m.color}; box-shadow: 0 0 0 1px ${m.color};"></div>
+            <div class="timeline-label">${m.label}</div>
+            <div class="timeline-detail">${m.detail}</div>
           </div>`;
       });
 
       html += `</div>`;
       if (milestones.length > 3) {
-        html += `<div style="text-align: right; font-size: 0.625rem; color: var(--color-text-light); margin-top: 0.25rem;">Swipe to see more →</div>`;
+        html += `<div class="timeline-hint">Swipe →</div>`;
       }
       html += `</div>`;
 

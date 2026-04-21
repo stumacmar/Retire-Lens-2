@@ -421,8 +421,8 @@
         <p style="font-size: 0.6rem; color: var(--color-text-light); margin-bottom: 0.75rem; text-align: center;">PLSA Retirement Living Standards 2023/24</p>
 
         <!-- ═══ YOUR PENSIONS ═══ -->
-        <div style="padding-top: 1rem; border-top: 1px solid var(--color-border, #e2e8f0);">
-          <div style="font-weight: 700; font-size: 1rem; margin-bottom: 1rem;">Your pensions</div>
+        <div class="pension-section">
+          <div class="pension-section-title">Your pensions</div>
 
           <!-- Defined Contribution -->
           <div class="input-group">
@@ -501,8 +501,8 @@
         </div>
 
         <!-- ═══ PARTNER'S PENSIONS (shown/hidden by JS) ═══ -->
-        <div id="partner-pension-section" style="display: none; margin-top: 1.5rem; padding-top: 1.5rem; border-top: 2px solid var(--color-primary-light, #e0e7ff);">
-          <div style="font-weight: 700; font-size: 1rem; color: var(--color-primary); margin-bottom: 1rem;">Partner's pensions</div>
+        <div id="partner-pension-section" class="pension-section pension-section--partner" style="display: none;">
+          <div class="pension-section-title">Partner's pensions</div>
 
           <!-- Partner DC -->
           <div class="input-group">
@@ -771,6 +771,12 @@
          Screen: Results — Tabbed Layout
          ═══════════════════════════════════════════════════════════════ -->
     <div id="screen-results" class="screen" aria-hidden="true">
+      <!-- Sticky branded header -->
+      <div class="results-sticky-header" id="results-header">
+        <span class="text-sm font-bold tracking-tight">Retire<span class="text-primary">Lens</span></span>
+        <span class="text-xs text-muted" id="results-header-summary"></span>
+      </div>
+
       <div id="provisional-banner" class="provisional-banner" style="display: none;">
         <span class="banner-icon">⚠️</span>
         <span id="provisional-banner-message">Provisional results.</span>
@@ -934,10 +940,10 @@
         This tool provides estimates for planning purposes only. It is not regulated financial advice. Based on HMRC tax year 2025/26 rates. Tax rules may change. Consider consulting a qualified financial adviser. All figures in today's money (real terms, after assumed inflation).
       </div>
 
-      <div class="nav-buttons" style="margin-top: 0.75rem;">
-        <button type="button" class="btn btn-secondary" data-action="back">Edit Inputs</button>
-        <button type="button" class="btn btn-primary" onclick="window.print()" style="font-size: 0.8rem;">Print</button>
-        <button type="button" class="btn btn-secondary" id="save-scenario-btn" style="font-size: 0.8rem;">Save Scenario</button>
+      <div class="btn-action-bar">
+        <button type="button" class="btn btn-primary" data-action="back">Edit Inputs</button>
+        <button type="button" class="btn btn-secondary" onclick="window.print()">Print</button>
+        <button type="button" class="btn btn-secondary" id="save-scenario-btn">Save</button>
         <button type="button" class="btn btn-secondary" onclick="if(confirm('Clear all data and start fresh?')){localStorage.clear();indexedDB.deleteDatabase('RetireLensDB');location.reload();}">Reset</button>
       </div>
       <!-- Saved scenarios list -->

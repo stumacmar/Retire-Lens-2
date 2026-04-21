@@ -1570,7 +1570,28 @@
         --color-border-light: #1e293b;
         --color-primary-subtle: #1e1b4b;
         --color-primary-light: #312e81;
+        --color-success-light: #064e3b;
+        --color-warning-light: #78350f;
+        --color-danger-light: #7f1d1d;
+        --color-accent-light: #134e4a;
       }
+      /* Charts: dark background for chart containers */
+      .chart-container { background: var(--color-surface) !important; border-color: var(--color-border) !important; }
+      /* SVG gauge text */
+      #confidence-score { fill: currentColor; }
+      /* Scenario cards */
+      .scenario-card { background: var(--color-surface) !important; border-color: var(--color-border) !important; color: var(--color-text) !important; }
+      .scenario-card.selected { background: var(--color-primary-subtle) !important; border-color: var(--color-primary) !important; }
+      /* PLSA cards */
+      .plsa-card { background: var(--color-surface) !important; border-color: var(--color-border) !important; color: var(--color-text) !important; }
+      /* Inline edit */
+      .inline-edit { color: var(--color-primary-light) !important; }
+      /* Range slider track */
+      input[type="range"] { background: var(--color-border) !important; }
+      /* Info buttons */
+      .pension-info-btn { border-color: var(--color-border) !important; color: var(--color-text-light) !important; }
+      /* Metrics grid */
+      .results-metrics { background: var(--color-border) !important; }
     }
 
     /* God Level: smooth entrance for the whole results page */

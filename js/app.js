@@ -445,10 +445,12 @@
             personB.dcPot = getValue('input-partner-pension-pot', 0);
             personB.dbAnnualIncome = getValue('input-partner-db-income', 0);
             personB.dbStartAge = getValue('input-partner-db-start', 67);
-            // Partner contribution now on same screen
             const pv = getValue('input-partner-pension-contribution', 0);
             personB.dcMonthlyContrib = pv;
             personB.dcAnnualContrib = pv * 12;
+            personB.salarySacrifice = document.getElementById('input-partner-salary-sacrifice')?.checked || false;
+            personB.flexiAccessed = document.getElementById('input-partner-flexi-accessed')?.checked || false;
+            personB.pclsTaken = document.getElementById('input-partner-pcls-taken')?.checked || false;
             break;
           case 'isa-savings':
             personB.isaBalance = getValue('input-partner-isa-balance', 0);
@@ -520,6 +522,9 @@
             setInput('input-partner-db-income', personB.dbAnnualIncome);
             setInput('input-partner-db-start', personB.dbStartAge);
             setInput('input-partner-pension-contribution', personB.dcMonthlyContrib);
+            if (personB.salarySacrifice) { const el = document.getElementById('input-partner-salary-sacrifice'); if (el) el.checked = true; }
+            if (personB.flexiAccessed) { const el = document.getElementById('input-partner-flexi-accessed'); if (el) el.checked = true; }
+            if (personB.pclsTaken) { const el = document.getElementById('input-partner-pcls-taken'); if (el) el.checked = true; }
             break;
           case 'isa-savings':
             setInput('input-partner-isa-balance', personB.isaBalance);
@@ -3900,7 +3905,30 @@
       document.getElementById('results-guardrails')?.addEventListener('change', (e) => {
         const reviewGuardrails = document.getElementById('input-guardrails');
         if (reviewGuardrails) reviewGuardrails.checked = e.target.checked;
-        runFullCalculation();
+        // Show before/after comparison
+        if (state.formData && state.projectionA) {
+          try {
+            const prevBalance = state.projectionA.summary.finalBalance;
+            const prevDepletion = state.projectionA.summary.fundsDepleted;
+            state.formData.useGuardrails = e.target.checked;
+            runFullCalculation();
+            setTimeout(() => {
+              if (state.projectionA) {
+                const newBalance = state.projectionA.summary.finalBalance;
+                const delta = newBalance - prevBalance;
+                const impactEl = document.getElementById('slider-impact');
+                if (impactEl && Math.abs(delta) > 100) {
+                  const sign = delta >= 0 ? '+' : '';
+                  impactEl.style.display = 'block';
+                  impactEl.innerHTML = `Guardrails ${e.target.checked ? 'on' : 'off'}: <span style="color: ${delta >= 0 ? 'var(--color-success)' : 'var(--color-danger)'}; font-weight: 700;">${sign}${formatCurrency(delta)}</span> to final balance`;
+                  setTimeout(() => { impactEl.style.display = 'none'; }, 5000);
+                }
+              }
+            }, 500);
+          } catch (err) { runFullCalculation(); }
+        } else {
+          runFullCalculation();
+        }
       });
 
       // Save/load scenarios

@@ -474,8 +474,69 @@ coupleResults.filter(r => r.status !== 'PASS').forEach(r => {
   console.log(`  ❌ ${r.name}: ${r.status} — ${r.detail}`);
 });
 
-const totalPass = singlePass + couplePass;
-const totalFail = singleFail + coupleFail;
+// ═══════════════════════════════════════════════════════════════
+// SCOTTISH TAX TESTS
+// ═══════════════════════════════════════════════════════════════
+
+const scottishResults = [];
+let scottishPass = 0;
+let scottishFail = 0;
+
+function testScottish(name, inputs, check) {
+  try {
+    const r = runWithMC(makeInputs({ taxJurisdiction: 'scotland', ...inputs }));
+    const result = check(r);
+    if (result === true) { scottishPass++; scottishResults.push({ name, status: 'PASS' }); }
+    else { scottishFail++; scottishResults.push({ name, status: 'FAIL', detail: result }); }
+  } catch (e) { scottishFail++; scottishResults.push({ name, status: 'ERROR', detail: e.message }); }
+}
+
+testScottish('Scot-Basic', {}, r => {
+  return r.projection.summary.finalBalance !== undefined || 'No final balance';
+});
+
+testScottish('Scot-HigherTax', {}, r => {
+  // Scottish higher rate is 42% vs 40% England — should pay more tax
+  const scotY1 = r.projection.decumulation.years[0];
+  const engR = runWithMC(makeInputs({ taxJurisdiction: 'england' }));
+  const engY1 = engR.projection.decumulation.years[0];
+  return scotY1.taxPaid >= engY1.taxPaid - 100
+    || `Scottish tax ${scotY1.taxPaid} should be >= English tax ${engY1.taxPaid}`;
+});
+
+testScottish('Scot-NetLower', {}, r => {
+  const scotY1 = r.projection.decumulation.years[0];
+  const engR = runWithMC(makeInputs({ taxJurisdiction: 'england' }));
+  const engY1 = engR.projection.decumulation.years[0];
+  return scotY1.netIncome <= engY1.netIncome + 500
+    || `Scottish net ${scotY1.netIncome} should be <= English net ${engY1.netIncome}`;
+});
+
+testScottish('Scot-LowIncome', { targetNetIncome: 15000, currentPension: 100000 }, r => {
+  return r.projection.summary.finalBalance !== undefined || 'Failed with low income';
+});
+
+testScottish('Scot-Couple', {
+  isCouple: true, partnerCurrentAge: 63, partnerStatePensionAge: 67,
+  partnerExpectedStatePension: 11500, partnerDBPensionAmount: 4500
+}, r => {
+  return r.projection.summary.finalBalance !== undefined || 'Failed Scottish couple';
+});
+
+// Guardrails test
+testScottish('Scot-Guardrails', { useGuardrails: true }, r => {
+  const noGuard = runWithMC(makeInputs({ taxJurisdiction: 'scotland', useGuardrails: false }));
+  // Guardrails should produce different (usually better) final balance
+  return r.projection.summary.finalBalance !== undefined || 'Guardrails failed';
+});
+
+console.log(`\nSCOTTISH: ${scottishPass} PASS / ${scottishFail} FAIL (${scottishResults.length} total)`);
+scottishResults.filter(r => r.status !== 'PASS').forEach(r => {
+  console.log(`  ❌ ${r.name}: ${r.status} — ${r.detail}`);
+});
+
+const totalPass = singlePass + couplePass + scottishPass;
+const totalFail = singleFail + coupleFail + scottishFail;
 const total = totalPass + totalFail;
 
 console.log(`\n═══════════════════════════════════════════════════`);

@@ -2218,22 +2218,10 @@
           </div>`;
       });
 
-      html += `</div></div>`;
-
-      // Annuity + key insights as compact pills below
-      const annuityRate = retireAge >= 67 ? 0.062 : retireAge >= 65 ? 0.058 : 0.050;
-      const potAfterPCLS = summary.retirementPot - summary.pclsTaken;
-      const annuityIncome = Math.round(potAfterPCLS * annuityRate);
-
-      html += `<div style="display: flex; flex-wrap: wrap; gap: 0.375rem; margin-top: 2.5rem;">`;
-      if (annuityIncome > 0) {
-        html += `<span style="font-size: 0.6875rem; padding: 0.25rem 0.5rem; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-full, 9999px); color: var(--color-text-light);">Annuity alt: ${formatCurrency(annuityIncome)}/yr at ${(annuityRate*100).toFixed(0)}%</span>`;
+      html += `</div>`;
+      if (milestones.length > 3) {
+        html += `<div style="text-align: right; font-size: 0.625rem; color: var(--color-text-light); margin-top: 0.25rem;">Swipe to see more →</div>`;
       }
-      if (isCouple) {
-        html += `<span style="font-size: 0.6875rem; padding: 0.25rem 0.5rem; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-full, 9999px); color: var(--color-text-light);">Survivor: partner inherits pot + SP + DB</span>`;
-      }
-      const reviewMonth = new Date().getMonth() >= 3 ? 'April ' + (new Date().getFullYear() + 1) : 'April ' + new Date().getFullYear();
-      html += `<span style="font-size: 0.6875rem; padding: 0.25rem 0.5rem; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-full, 9999px); color: var(--color-text-light);">Review: ${reviewMonth}</span>`;
       html += `</div>`;
 
       el.innerHTML = html;

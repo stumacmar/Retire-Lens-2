@@ -2109,16 +2109,23 @@
       const isCouple = data.isCouple || (plan.partnerCurrentAge > 0);
       const partnerDB = data.partnerDBPensionAmount || 0;
       const partnerSP = data.partnerExpectedStatePension || 0;
-      const yourSP = plan.expectedStatePension || 0;
-      const yourDB = plan.dbPensionAmount || 0;
+      const yourSP = plan.expectedStatePension || data.expectedStatePension || 11973;
+      const yourDB = plan.dbPensionAmount || data.dbPensionAmount || 0;
       const retireAge = plan.retirementAge;
       const spAge = plan.statePensionAge || data.statePensionAge || 67;
 
       const milestones = [];
+      const ageDiff = isCouple ? ((data.partnerCurrentAge || 0) - plan.currentAge) : 0;
+      function partnerAgeAt(userAge) { return isCouple ? userAge + ageDiff : null; }
+      function ageLabel(userAge) {
+        const pAge = partnerAgeAt(userAge);
+        return pAge ? `${userAge} (${pAge})` : `${userAge}`;
+      }
 
       // Milestone: Retirement
       milestones.push({
-        age: retireAge,
+        age: ageLabel(retireAge),
+        sortAge: retireAge,
         label: 'Retire',
         color: 'var(--color-primary, #4f46e5)',
         detail: `${formatCurrency(Math.round(plan.targetNetIncome / 12))}/mo target`
@@ -2127,7 +2134,8 @@
       // Milestone: DB starts (if after retirement)
       if (yourDB > 0 && plan.dbPensionStartAge > retireAge) {
         milestones.push({
-          age: plan.dbPensionStartAge,
+          age: ageLabel(plan.dbPensionStartAge),
+          sortAge: plan.dbPensionStartAge,
           label: 'DB starts',
           color: 'var(--color-accent, #0d9488)',
           detail: `+${formatCurrency(Math.round(yourDB / 12))}/mo guaranteed`
@@ -2137,16 +2145,18 @@
       // Milestone: SP starts
       if (spAge > retireAge) {
         milestones.push({
-          age: spAge,
+          age: ageLabel(spAge),
+          sortAge: spAge,
           label: 'State Pension',
           color: '#22c55e',
-          detail: `+${formatCurrency(Math.round(yourSP / 12))}/mo, pot pressure drops`
+          detail: `+${formatCurrency(Math.round(yourSP / 12))}/mo`
         });
       }
 
       // Milestone: Spending cut at 80
       milestones.push({
-        age: 80,
+        age: ageLabel(80),
+        sortAge: 80,
         label: 'Spend -25%',
         color: 'var(--color-warning, #d97706)',
         detail: `Target drops to ${formatCurrency(Math.round(plan.targetNetIncome * 0.75 / 12))}/mo`
@@ -2155,7 +2165,8 @@
       // Milestone: Outcome at 90
       if (summary.successRate >= 1.0) {
         milestones.push({
-          age: 90,
+          age: ageLabel(90),
+          sortAge: 90,
           label: 'Plan succeeds',
           color: 'var(--color-success, #059669)',
           detail: `${formatCurrency(summary.finalBalance)} remaining`
@@ -2163,7 +2174,8 @@
       } else {
         const deplAge = summary.depletionAge || 85;
         milestones.push({
-          age: deplAge,
+          age: ageLabel(deplAge),
+          sortAge: deplAge,
           label: 'Funds run out',
           color: 'var(--color-danger, #dc2626)',
           detail: 'Increase contributions or reduce target'
@@ -2174,14 +2186,15 @@
       const mcStats = results?.mcResult?.statistics;
       if (mcStats?.depletionAge?.earliest) {
         milestones.push({
-          age: mcStats.depletionAge.earliest,
+          age: ageLabel(mcStats.depletionAge.earliest),
+          sortAge: mcStats.depletionAge.earliest,
           label: 'Worst 10%',
           color: 'var(--color-danger, #dc2626)',
           detail: `Funds could run out in bad markets`
         });
       }
 
-      milestones.sort((a, b) => a.age - b.age);
+      milestones.sort((a, b) => a.sortAge - b.sortAge);
 
       // Build horizontal timeline
       const minAge = milestones[0]?.age || 55;
@@ -2304,6 +2317,9 @@
             x: {
               title: { display: true, text: 'Age' },
               ticks: {
+                autoSkip: false,
+                maxRotation: 45,
+                minRotation: 0,
                 callback: function(val, index) {
                   const age = allYears[index]?.age;
                   const plan = projection.plan;
@@ -2876,9 +2892,8 @@
       html += '<th style="' + ageStyle + ' background: var(--color-background, #f8fafc);">Age</th>';
       if (partnerAgeDiff) html += '<th class="hide-mobile" style="' + thStyle + ' text-align: center;">Partner</th>';
       html += '<th style="' + thStyle + '">Start</th>';
-      html += '<th class="hide-mobile" style="' + thStyle + '">Invested</th>';
-      html += '<th class="hide-mobile" style="' + thStyle + '">Growth</th>';
-      html += '<th class="hide-mobile" style="' + thStyle + '">Drawn</th>';
+      html += '<th style="' + thStyle + '">In/Out</th>';
+      html += '<th style="' + thStyle + '">Return</th>';
       html += '<th class="hide-mobile" style="' + thStyle + '">SP+DB</th>';
       html += '<th class="hide-mobile" style="' + thStyle + '">Tax</th>';
       html += '<th class="hide-mobile" style="' + thStyle + '">Net</th>';
@@ -2901,9 +2916,8 @@
         html += '<td style="' + ageStyle + ' background: white;">' + (y.age + 1) + '</td>';
         if (partnerAgeDiff) html += '<td class="hide-mobile" style="' + tdStyle + ' text-align: center;">' + partnerAge + '</td>';
         html += '<td style="' + tdStyle + '">' + formatCurrency(startBal) + '</td>';
-        html += '<td class="hide-mobile" style="' + tdStyle + ' color: #059669;">' + formatCurrency(invested) + '</td>';
-        html += '<td class="hide-mobile" style="' + tdStyle + ' color: #059669;">' + formatCurrency(growth) + '</td>';
-        html += '<td class="hide-mobile" style="' + tdStyle + '">—</td>';
+        html += '<td style="' + tdStyle + ' color: #059669;">+' + formatCurrency(invested) + '</td>';
+        html += '<td style="' + tdStyle + ' color: #059669;">' + formatCurrency(growth) + '</td>';
         html += '<td class="hide-mobile" style="' + tdStyle + '">—</td>';
         html += '<td class="hide-mobile" style="' + tdStyle + '">—</td>';
         html += '<td class="hide-mobile" style="' + tdStyle + '">—</td>';
@@ -2913,7 +2927,7 @@
 
       // Retirement row
       const pclsText = projection.decumulation.pclsTaken > 0 ? ' | PCLS: ' + formatCurrency(projection.decumulation.pclsTaken) : '';
-      const colSpan = partnerAgeDiff ? 10 : 9;
+      const colSpan = partnerAgeDiff ? 9 : 8;
       html += '<tr style="border: 3px solid var(--color-primary, #4f46e5); background: var(--color-primary-subtle, #eef2ff);">';
       html += '<td colspan="' + colSpan + '" style="padding: 0.5rem; text-align: center; font-weight: 700; color: var(--color-primary, #4f46e5);">RETIREMENT — Age ' + data.retirementAge + pclsText + '</td>';
       html += '</tr>';
@@ -2937,9 +2951,8 @@
         html += '<td style="' + ageStyle + ' background:' + (isReduced ? '#fffbeb' : 'white') + ';">' + y.age + '</td>';
         if (partnerAgeDiff) html += '<td class="hide-mobile" style="' + tdStyle + ' text-align: center;">' + partnerAge + '</td>';
         html += '<td style="' + tdStyle + '">' + formatCurrency(startBal) + '</td>';
-        html += '<td class="hide-mobile" style="' + tdStyle + '">—</td>';
-        html += '<td class="hide-mobile" style="' + tdStyle + ' color: #059669;">' + formatCurrency(growth) + '</td>';
-        html += '<td class="hide-mobile" style="' + tdStyle + ' color: #dc2626;">-' + formatCurrency(withdrawal) + '</td>';
+        html += '<td style="' + tdStyle + ' color: #dc2626;">-' + formatCurrency(withdrawal) + '</td>';
+        html += '<td style="' + tdStyle + ' color: #059669;">' + formatCurrency(growth) + '</td>';
         html += '<td class="hide-mobile" style="' + tdStyle + ' color: #059669;">' + formatCurrency(spDb) + '</td>';
         html += '<td class="hide-mobile" style="' + tdStyle + ' color: #dc2626;">-' + formatCurrency(y.taxPaid || 0) + '</td>';
         html += '<td class="hide-mobile" style="' + tdStyle + ' font-weight: 600; color: ' + (isReduced ? '#d97706' : '#111827') + ';">' + formatCurrency(y.netIncome || 0) + '</td>';

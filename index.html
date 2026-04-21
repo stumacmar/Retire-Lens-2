@@ -574,47 +574,88 @@
          ═══════════════════════════════════════════════════════════════ -->
     <div id="screen-isa-savings" class="screen" aria-hidden="true">
       <div class="screen-header">
-        <h2 class="screen-title">ISA and State Pension</h2>
-        <p class="screen-subtitle">Other savings and guaranteed income</p>
+        <h2 class="screen-title">Other income and savings</h2>
+        <p class="screen-subtitle">ISA and State Pension details</p>
       </div>
 
       <div class="screen-content">
-        <div style="font-weight: 600; margin-bottom: 0.5rem; font-size: 0.9rem;">ISA Savings</div>
-        <div class="input-group">
-          <label>Current ISA balance</label>
-          <div class="input-wrapper">
-            <span class="currency-symbol">£</span>
-            <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-isa-balance" min="0" step="1000" placeholder="0" inputmode="numeric" />
+        <!-- ═══ YOUR ISA + SP ═══ -->
+        <div class="pension-section">
+          <div class="pension-section-title">Your other income</div>
+
+          <div class="text-sm font-semibold mb-sm">ISA Savings</div>
+          <div class="input-group">
+            <label>Current ISA balance</label>
+            <div class="input-wrapper">
+              <span class="currency-symbol">£</span>
+              <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-isa-balance" min="0" step="1000" placeholder="0" inputmode="numeric" />
+            </div>
+          </div>
+          <div class="input-group">
+            <label>Annual ISA contribution</label>
+            <div class="input-wrapper">
+              <span class="currency-symbol">£</span>
+              <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-isa-contribution" min="0" step="500" placeholder="0" inputmode="numeric" />
+            </div>
+            <p class="help-text">ISA withdrawals are tax-free and pass to your spouse without IHT</p>
+          </div>
+
+          <div class="pt-md mt-md border-t">
+            <div class="text-sm font-semibold mb-sm">State Pension</div>
+            <div class="input-group">
+              <label>Your State Pension age</label>
+              <div class="input-wrapper">
+                <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-state-pension-age" min="60" max="75" value="67" inputmode="numeric" />
+              </div>
+            </div>
+            <div class="input-group">
+              <label>Expected annual State Pension</label>
+              <div class="input-wrapper">
+                <span class="currency-symbol">£</span>
+                <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-state-pension-amount" min="0" step="100" value="11973" inputmode="numeric" />
+              </div>
+              <p class="help-text">Full new State Pension is ~£11,973/year (2025/26)</p>
+            </div>
           </div>
         </div>
 
-        <div class="input-group">
-          <label>Annual ISA contribution</label>
-          <div class="input-wrapper">
-            <span class="currency-symbol">£</span>
-            <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-isa-contribution" min="0" step="500" placeholder="0" inputmode="numeric" />
-          </div>
-          <p class="help-text">ISA withdrawals are tax-free and pass to your spouse without IHT</p>
-        </div>
+        <!-- ═══ PARTNER'S ISA + SP (shown/hidden by JS) ═══ -->
+        <div id="partner-isa-section" class="pension-section pension-section--partner" style="display: none;">
+          <div class="pension-section-title">Partner's other income</div>
 
-        <div style="font-weight: 600; margin-top: 1.5rem; margin-bottom: 0.5rem; font-size: 0.9rem; padding-top: 1rem; border-top: 1px solid var(--color-border, #e2e8f0);">State Pension</div>
-        <div class="input-group">
-          <label>Your State Pension age</label>
-          <div class="input-wrapper">
-            <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-state-pension-age" min="60" max="75" value="67" inputmode="numeric" />
+          <div class="text-sm font-semibold mb-sm">ISA Savings</div>
+          <div class="input-group">
+            <label>Partner's ISA balance</label>
+            <div class="input-wrapper">
+              <span class="currency-symbol">£</span>
+              <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-partner-isa-balance" min="0" step="1000" placeholder="0" inputmode="numeric" />
+            </div>
+          </div>
+          <div class="input-group">
+            <label>Partner's annual ISA contribution</label>
+            <div class="input-wrapper">
+              <span class="currency-symbol">£</span>
+              <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-partner-isa-contribution" min="0" step="500" placeholder="0" inputmode="numeric" />
+            </div>
+          </div>
+
+          <div class="pt-md mt-md border-t">
+            <div class="text-sm font-semibold mb-sm">State Pension</div>
+            <div class="input-group">
+              <label>Partner's State Pension age</label>
+              <div class="input-wrapper">
+                <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-partner-state-pension-age" min="60" max="75" value="67" inputmode="numeric" />
+              </div>
+            </div>
+            <div class="input-group">
+              <label>Partner's expected annual State Pension</label>
+              <div class="input-wrapper">
+                <span class="currency-symbol">£</span>
+                <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-partner-state-pension-amount" min="0" step="100" value="11973" inputmode="numeric" />
+              </div>
+            </div>
           </div>
         </div>
-
-        <div class="input-group">
-          <label>Expected annual State Pension</label>
-          <div class="input-wrapper">
-            <span class="currency-symbol">£</span>
-            <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-state-pension-amount" min="0" step="100" value="11973" inputmode="numeric" />
-          </div>
-          <p class="help-text">Full new State Pension is ~11,973/year (2025/26). Check yours at gov.uk/check-state-pension</p>
-        </div>
-      </div>
-
       <div class="nav-buttons">
         <button type="button" class="btn btn-secondary" data-action="back">Back</button>
         <button type="button" class="btn btn-primary" data-action="next">Next</button>

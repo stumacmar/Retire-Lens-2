@@ -214,42 +214,8 @@
         return;
       }
 
+      // isa-savings: partner section is now permanent HTML, shown/hidden by showScreen
       if (screenId === 'isa-savings') {
-        const html = `
-          <div class="partner-input-group" style="margin-top: 1.5rem; padding-top: 1.5rem; border-top: 2px solid var(--color-primary-light, #e0e7ff);">
-            <div style="font-weight: 600; color: var(--color-primary, #4f46e5); margin-bottom: 0.75rem; font-size: 0.9rem;">Partner's ISA</div>
-            <div class="input-group">
-              <label>Partner's ISA balance</label>
-              <div class="input-wrapper">
-                <span class="currency-symbol">£</span>
-                <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-partner-isa-balance" min="0" step="1000" placeholder="0" inputmode="numeric" />
-              </div>
-            </div>
-            <div class="input-group">
-              <label>Partner's annual ISA contribution</label>
-              <div class="input-wrapper">
-                <span class="currency-symbol">£</span>
-                <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-partner-isa-contribution" min="0" step="500" placeholder="0" inputmode="numeric" />
-              </div>
-            </div>
-          </div>
-          <div class="partner-input-group" style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--color-border, #e2e8f0);">
-            <div style="font-weight: 600; color: var(--color-primary, #4f46e5); margin-bottom: 0.75rem; font-size: 0.9rem;">Partner's State Pension</div>
-            <div class="input-group">
-              <label>Partner's State Pension age</label>
-              <div class="input-wrapper">
-                <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-partner-state-pension-age" min="60" max="75" value="67" inputmode="numeric" />
-              </div>
-            </div>
-            <div class="input-group">
-              <label>Partner's expected annual State Pension</label>
-              <div class="input-wrapper">
-                <span class="currency-symbol">£</span>
-                <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-partner-state-pension-amount" min="0" step="100" value="11973" inputmode="numeric" />
-              </div>
-            </div>
-          </div>`;
-        content.insertAdjacentHTML('beforeend', html);
         return;
       }
 
@@ -358,10 +324,15 @@
         });
       }
 
-      // Show/hide partner pension section on pension-pot screen for couples
+      // Show/hide partner sections for couples
+      const isCouple = state.onboardingState?.householdType === HOUSEHOLD_TYPES.COUPLE;
       const partnerPensionSection = document.getElementById('partner-pension-section');
       if (partnerPensionSection) {
-        partnerPensionSection.style.display = (screenId === 'pension-pot' && state.onboardingState?.householdType === HOUSEHOLD_TYPES.COUPLE) ? 'block' : 'none';
+        partnerPensionSection.style.display = (screenId === 'pension-pot' && isCouple) ? 'block' : 'none';
+      }
+      const partnerIsaSection = document.getElementById('partner-isa-section');
+      if (partnerIsaSection) {
+        partnerIsaSection.style.display = (screenId === 'isa-savings' && isCouple) ? 'block' : 'none';
       }
 
       // Restore saved input values for this screen (including partner values)

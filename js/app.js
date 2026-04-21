@@ -2317,16 +2317,15 @@
             x: {
               title: { display: true, text: 'Age' },
               ticks: {
-                autoSkip: false,
-                maxRotation: 45,
-                minRotation: 0,
+                maxRotation: 0,
                 callback: function(val, index) {
                   const age = allYears[index]?.age;
                   const plan = projection.plan;
                   if (age === plan.retirementAge) return age + ' Retire';
                   if (age === plan.statePensionAge) return age + ' SP';
                   if (age === 80) return '80 -25%';
-                  return age;
+                  if (age % 5 === 0) return age;
+                  return '';
                 },
                 font: function(ctx) {
                   const age = allYears[ctx.index]?.age;
@@ -2883,14 +2882,16 @@
       if (!el) return;
 
       const partnerAgeDiff = (data.partnerCurrentAge || 0) > 0 ? data.partnerCurrentAge - data.currentAge : 0;
-      const thStyle = 'padding: 0.5rem 0.4rem; text-align: right; font-size: 0.7rem; white-space: nowrap;';
-      const tdStyle = 'padding: 0.4rem; text-align: right; font-size: 0.75rem;';
-      const ageStyle = 'padding: 0.4rem; text-align: center; font-weight: 600; position: sticky; left: 0; z-index: 1;';
+      const currentYear = new Date().getFullYear();
+      const birthYear = currentYear - (data.currentAge || 57);
+      const thStyle = 'padding: 0.5rem 0.3rem; text-align: right; font-size: 0.65rem; white-space: nowrap;';
+      const tdStyle = 'padding: 0.4rem 0.3rem; text-align: right; font-size: 0.7rem;';
+      const ageStyle = 'padding: 0.4rem 0.2rem; text-align: center; font-weight: 600; position: sticky; left: 0; z-index: 1; font-size: 0.7rem;';
 
       let html = '<table style="width: 100%; border-collapse: collapse;">';
       html += '<thead><tr style="background: var(--color-background, #f8fafc); border-bottom: 2px solid #e5e7eb;">';
       html += '<th style="' + ageStyle + ' background: var(--color-background, #f8fafc);">Age</th>';
-      if (partnerAgeDiff) html += '<th class="hide-mobile" style="' + thStyle + ' text-align: center;">Partner</th>';
+      if (partnerAgeDiff) html += '<th style="' + thStyle + ' text-align: center; font-size: 0.6rem;">Partner</th>';
       html += '<th style="' + thStyle + '">Start</th>';
       html += '<th style="' + thStyle + '">In/Out</th>';
       html += '<th style="' + thStyle + '">Return</th>';
@@ -2910,11 +2911,13 @@
         const invested = (y.contributions?.pension || 0) + (y.contributions?.isa || 0);
         const endBal = y.endBalances.total;
         runningTotal = endBal;
-        const partnerAge = partnerAgeDiff ? y.age + 1 + partnerAgeDiff : '';
+        const displayAge = y.age + 1;
+        const calYear = birthYear + displayAge;
+        const partnerAge = partnerAgeDiff ? displayAge + partnerAgeDiff : '';
 
         html += '<tr style="border-bottom: 1px solid #f1f5f9;">';
-        html += '<td style="' + ageStyle + ' background: white;">' + (y.age + 1) + '</td>';
-        if (partnerAgeDiff) html += '<td class="hide-mobile" style="' + tdStyle + ' text-align: center;">' + partnerAge + '</td>';
+        html += '<td style="' + ageStyle + ' background: white;"><div>' + displayAge + '</div><div style="font-size:0.55rem;font-weight:400;color:var(--color-text-light);">' + calYear + '</div></td>';
+        if (partnerAgeDiff) html += '<td style="' + tdStyle + ' text-align: center; font-size: 0.65rem; color: var(--color-text-light);">' + partnerAge + '</td>';
         html += '<td style="' + tdStyle + '">' + formatCurrency(startBal) + '</td>';
         html += '<td style="' + tdStyle + ' color: #059669;">+' + formatCurrency(invested) + '</td>';
         html += '<td style="' + tdStyle + ' color: #059669;">' + formatCurrency(growth) + '</td>';
@@ -2945,11 +2948,12 @@
         const endBal = (y.endBalances.pension || 0) + (y.endBalances.isa || 0);
         runningTotal = endBal;
         const partnerAge = partnerAgeDiff ? y.age + partnerAgeDiff : '';
+        const calYear = birthYear + y.age;
         const isReduced = (y.targetSpending || 60000) < data.targetNetIncome;
 
         html += '<tr style="border-bottom: 1px solid #f1f5f9;' + (isReduced ? ' background: #fffbeb;' : '') + '">';
-        html += '<td style="' + ageStyle + ' background:' + (isReduced ? '#fffbeb' : 'white') + ';">' + y.age + '</td>';
-        if (partnerAgeDiff) html += '<td class="hide-mobile" style="' + tdStyle + ' text-align: center;">' + partnerAge + '</td>';
+        html += '<td style="' + ageStyle + ' background:' + (isReduced ? '#fffbeb' : 'white') + ';"><div>' + y.age + '</div><div style="font-size:0.55rem;font-weight:400;color:var(--color-text-light);">' + calYear + '</div></td>';
+        if (partnerAgeDiff) html += '<td style="' + tdStyle + ' text-align: center; font-size: 0.65rem; color: var(--color-text-light);">' + partnerAge + '</td>';
         html += '<td style="' + tdStyle + '">' + formatCurrency(startBal) + '</td>';
         html += '<td style="' + tdStyle + ' color: #dc2626;">-' + formatCurrency(withdrawal) + '</td>';
         html += '<td style="' + tdStyle + ' color: #059669;">' + formatCurrency(growth) + '</td>';

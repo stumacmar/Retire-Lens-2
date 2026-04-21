@@ -1619,9 +1619,8 @@
 
           updateHeroFromProjection(altProjection, null);
 
-          renderIncomeGap(altProjection, data);
           renderSPBridge(altProjection, data);
-          renderContributionImpact(altProjection, data);
+          renderNarrativeSummary(altProjection, state.lastResults);
           renderCashflowChart(altProjection, data);
           renderCapitalChart(altProjection);
           renderDataTable(altProjection, data);
@@ -1855,7 +1854,7 @@
       const metrics = document.querySelectorAll('.metric-value[data-metric]');
       metrics.forEach(el => {
         const key = el.dataset.metric;
-        if (key === 'monthlyIncome') el.textContent = formatCurrency(monthly);
+        if (key === 'retirementPot') el.textContent = formatCurrency(summary.retirementPot);
         else if (key === 'confidence') { el.textContent = confidenceNum + '%'; el.style.color = confidenceColor; }
         else if (key === 'finalBalance') el.textContent = formatCurrency(summary.finalBalance);
         else if (key === 'pclsTaken') el.textContent = formatCurrency(summary.pclsTaken);
@@ -1902,8 +1901,8 @@
 
         <div class="results-metrics" style="margin-bottom: 0.5rem;">
           <div class="metric">
-            <span class="metric-label">Monthly Income</span>
-            <span class="metric-value" data-metric="monthlyIncome">${formatCurrency(monthly)}</span>
+            <span class="metric-label">Pension Fund</span>
+            <span class="metric-value" data-metric="retirementPot">${formatCurrency(summary.retirementPot)}</span>
           </div>
           <div class="metric">
             <span class="metric-label">Tax-Free Cash</span>
@@ -2199,24 +2198,26 @@
       const maxAge = Math.max(90, milestones[milestones.length - 1]?.age || 90);
       const range = maxAge - minAge || 1;
 
-      let html = `<h3 style="font-size: 1rem; margin-bottom: 1rem;">Your retirement journey</h3>`;
+      let html = `<h3 style="font-size: 1rem; margin-bottom: 0;">Your retirement journey</h3>`;
 
-      // Timeline bar
-      html += `<div style="position: relative; margin: 0.5rem 0 2.5rem 0; height: 4px; background: var(--color-border); border-radius: 2px;">`;
+      // Timeline: milestones as a horizontal scrollable strip
+      html += `<div style="margin-top: 1rem; overflow-x: auto; -webkit-overflow-scrolling: touch; padding-bottom: 0.5rem;">`;
+      html += `<div style="display: flex; gap: 0; min-width: ${milestones.length * 5.5}rem; position: relative;">`;
 
-      milestones.forEach((m, i) => {
-        const pct = ((m.age - minAge) / range) * 100;
-        const isTop = i % 2 === 0;
+      // Draw connecting line
+      html += `<div style="position: absolute; top: 1rem; left: 1.5rem; right: 1.5rem; height: 3px; background: var(--color-border); border-radius: 2px; z-index: 0;"></div>`;
+
+      milestones.forEach(m => {
         html += `
-          <div style="position: absolute; left: ${pct}%; transform: translateX(-50%); ${isTop ? 'bottom: 8px;' : 'top: 8px;'} text-align: center; width: max-content; max-width: 5.5rem;">
-            <div style="position: absolute; left: 50%; ${isTop ? 'bottom: -8px;' : 'top: -8px;'} width: 12px; height: 12px; border-radius: 50%; background: ${m.color}; border: 2px solid white; box-shadow: 0 1px 3px rgba(0,0,0,0.2); transform: translateX(-50%);"></div>
+          <div style="flex: 1; text-align: center; position: relative; z-index: 1; min-width: 4.5rem;">
             <div style="font-size: 0.6875rem; font-weight: 700; color: ${m.color};">${m.age}</div>
-            <div style="font-size: 0.625rem; font-weight: 600; color: var(--color-text); margin-top: 1px;">${m.label}</div>
-            <div style="font-size: 0.5625rem; color: var(--color-text-light); margin-top: 1px; line-height: 1.3;">${m.detail}</div>
+            <div style="width: 12px; height: 12px; border-radius: 50%; background: ${m.color}; border: 2px solid white; box-shadow: 0 1px 3px rgba(0,0,0,0.15); margin: 0.25rem auto;"></div>
+            <div style="font-size: 0.6875rem; font-weight: 600; color: var(--color-text); margin-top: 0.25rem; line-height: 1.2;">${m.label}</div>
+            <div style="font-size: 0.5625rem; color: var(--color-text-light); margin-top: 2px; line-height: 1.3; padding: 0 0.25rem;">${m.detail}</div>
           </div>`;
       });
 
-      html += `</div>`;
+      html += `</div></div>`;
 
       // Annuity + key insights as compact pills below
       const annuityRate = retireAge >= 67 ? 0.062 : retireAge >= 65 ? 0.058 : 0.050;
@@ -3886,9 +3887,11 @@
         nextScreen();
       });
       
-      // Slider event listeners (functions defined at module scope)
+      // Slider event listeners — both input (live drag) and change (Safari release)
       document.getElementById('slider-retirement-age')?.addEventListener('input', runSliderProjection);
+      document.getElementById('slider-retirement-age')?.addEventListener('change', runSliderProjection);
       document.getElementById('slider-monthly-contribution')?.addEventListener('input', runSliderProjection);
+      document.getElementById('slider-monthly-contribution')?.addEventListener('change', runSliderProjection);
 
       // Scenario cards on results page — tap to change scenario and recalculate
       document.querySelectorAll('.scenario-card').forEach(card => {

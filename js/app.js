@@ -1752,7 +1752,8 @@
             try {
               results.mcResult = runMonteCarloWithBands(plan, {
                 iterations: 1000, endAge: 90,
-                mean: scenarioPreset.growthRate || 0.04, volatility: scenarioPreset.volatility || 0.15
+                mean: scenarioPreset.growthRate || 0.04, volatility: scenarioPreset.volatility || 0.15,
+                seed: 42
               });
             } catch (e) { console.warn('Monte Carlo failed:', e); }
           }

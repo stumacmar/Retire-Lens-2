@@ -435,6 +435,7 @@
             personB.salarySacrifice = document.getElementById('input-partner-salary-sacrifice')?.checked || false;
             personB.flexiAccessed = document.getElementById('input-partner-flexi-accessed')?.checked || false;
             personB.pclsTaken = document.getElementById('input-partner-pcls-taken')?.checked || false;
+            personB.pclsAmount = getValue('input-partner-pcls-amount', 0);
             break;
           case 'isa-savings':
             personB.isaBalance = getValue('input-partner-isa-balance', 0);
@@ -508,7 +509,11 @@
             setInput('input-partner-pension-contribution', personB.dcMonthlyContrib);
             if (personB.salarySacrifice) { const el = document.getElementById('input-partner-salary-sacrifice'); if (el) el.checked = true; }
             if (personB.flexiAccessed) { const el = document.getElementById('input-partner-flexi-accessed'); if (el) el.checked = true; }
-            if (personB.pclsTaken) { const el = document.getElementById('input-partner-pcls-taken'); if (el) el.checked = true; }
+            if (personB.pclsTaken) {
+              const el = document.getElementById('input-partner-pcls-taken'); if (el) el.checked = true;
+              const sec = document.getElementById('partner-pcls-amount-section'); if (sec) sec.style.display = 'block';
+            }
+            setInput('input-partner-pcls-amount', personB.pclsAmount);
             break;
           case 'isa-savings':
             setInput('input-partner-isa-balance', personB.isaBalance);
@@ -1881,7 +1886,7 @@
 
         <div class="results-metrics mb-md">
           <div class="metric">
-            <span class="metric-label">Pension Fund</span>
+            <span class="metric-label">Total Wealth</span>
             <span class="metric-value" data-metric="retirementPot">${formatCurrency(summary.retirementPot)}</span>
           </div>
           <div class="metric">
@@ -3793,6 +3798,10 @@
       // PCLS toggle on pension pot screen
       document.getElementById('input-pcls-taken')?.addEventListener('change', (e) => {
         const section = document.getElementById('pcls-amount-section');
+        if (section) section.style.display = e.target.checked ? 'block' : 'none';
+      });
+      document.getElementById('input-partner-pcls-taken')?.addEventListener('change', (e) => {
+        const section = document.getElementById('partner-pcls-amount-section');
         if (section) section.style.display = e.target.checked ? 'block' : 'none';
       });
       // Legacy PCLS toggle (review screen, if still present)

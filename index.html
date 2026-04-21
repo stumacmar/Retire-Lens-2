@@ -486,7 +486,11 @@
             <div style="display: flex; align-items: flex-start; gap: 0.5rem;">
               <input type="checkbox" id="input-pcls-taken" style="margin-top: 3px;">
               <div>
-                <label for="input-pcls-taken" style="font-weight: 500; cursor: pointer;">I have already taken my 25% tax-free cash</label>
+                <div class="flex items-center gap-sm">
+                  <label for="input-pcls-taken" style="font-weight: 500; cursor: pointer;">I have already taken my 25% tax-free cash</label>
+                  <button type="button" class="info-btn" onclick="this.parentElement.nextElementSibling.style.display=this.parentElement.nextElementSibling.style.display==='none'?'block':'none'">?</button>
+                </div>
+                <div class="info-explainer">When you "crystallise" your pension, you can take 25% as a tax-free lump sum (PCLS). The remaining 75% stays invested and future withdrawals are taxed as income. The tax-free amount is capped at £268,275 (Lump Sum Allowance).</div>
                 <p class="help-text" style="margin-top: 2px;">If you have crystallised your pension and received a lump sum</p>
               </div>
             </div>
@@ -511,23 +515,29 @@
               <span class="currency-symbol">£</span>
               <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-partner-pension-pot" min="0" step="1000" placeholder="0" inputmode="numeric" />
             </div>
+            <p class="help-text">Include all pots partner plans to combine</p>
           </div>
 
           <div class="input-group">
-            <label>Monthly contribution</label>
+            <label style="font-weight: 500;">Monthly contribution</label>
             <div class="input-wrapper">
               <span class="currency-symbol">£</span>
               <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-partner-pension-contribution" min="0" step="50" placeholder="0" inputmode="numeric" />
             </div>
+            <p class="help-text">Total monthly including employer match</p>
             <div style="margin-top: 0.5rem; display: flex; align-items: center; gap: 0.5rem;">
               <input type="checkbox" id="input-partner-salary-sacrifice" style="margin: 0;">
-              <label for="input-partner-salary-sacrifice" style="font-size: 0.8rem; color: var(--color-text-secondary); cursor: pointer;">Via salary sacrifice (+13.8% employer NI saving)</label>
+              <label for="input-partner-salary-sacrifice" class="text-sm text-secondary" style="cursor: pointer;">Via salary sacrifice (+13.8% employer NI saving)</label>
             </div>
           </div>
 
           <!-- Partner DB -->
-          <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--color-border-light, #f1f5f9);">
-            <div style="font-weight: 600; font-size: 0.9rem; margin-bottom: 0.5rem;">Defined Benefit pension</div>
+          <div class="pt-md mt-md border-t">
+            <div class="flex items-center gap-sm mb-sm">
+              <span class="font-semibold text-base">Defined Benefit pension</span>
+              <button type="button" class="info-btn" onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'block':'none'">?</button>
+              <div class="info-explainer">A guaranteed income for life from an employer. Based on salary and years worked. Includes final salary and career average pensions.</div>
+            </div>
             <div class="input-group">
               <label>Annual income from scheme</label>
               <div class="input-wrapper">
@@ -535,7 +545,7 @@
                 <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-partner-db-income" min="0" step="500" placeholder="0 if none" inputmode="numeric" />
               </div>
             </div>
-            <div class="input-group" style="margin-top: 0.5rem;">
+            <div class="input-group mt-sm">
               <label>Start age</label>
               <div class="input-wrapper">
                 <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-partner-db-start" min="50" max="75" value="67" inputmode="numeric" />
@@ -544,12 +554,12 @@
           </div>
 
           <!-- Partner MPAA + PCLS -->
-          <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--color-border-light, #f1f5f9);">
+          <div class="pt-md mt-md border-t">
             <div style="display: flex; align-items: flex-start; gap: 0.5rem; margin-bottom: 0.75rem;">
               <input type="checkbox" id="input-partner-flexi-accessed" style="margin-top: 3px;">
               <div>
                 <label for="input-partner-flexi-accessed" style="font-weight: 500; cursor: pointer;">Partner has taken taxable income from pension</label>
-                <p class="help-text" style="margin-top: 2px;">Limits partner's contributions to £10,000/year (MPAA)</p>
+                <p class="help-text" style="margin-top: 2px;">This limits future contributions to £10,000/year (MPAA)</p>
               </div>
             </div>
 
@@ -557,6 +567,14 @@
               <input type="checkbox" id="input-partner-pcls-taken" style="margin-top: 3px;">
               <div>
                 <label for="input-partner-pcls-taken" style="font-weight: 500; cursor: pointer;">Partner has already taken 25% tax-free cash</label>
+                <p class="help-text" style="margin-top: 2px;">If partner has crystallised their pension and received a lump sum</p>
+              </div>
+            </div>
+            <div id="partner-pcls-amount-section" style="display: none; margin-top: 0.75rem; margin-left: 1.5rem;">
+              <label style="font-size: 0.875rem; font-weight: 500;">How much did they receive?</label>
+              <div class="input-wrapper" style="margin-top: 0.25rem;">
+                <span class="currency-symbol">£</span>
+                <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-partner-pcls-amount" min="0" step="1000" placeholder="e.g. 50000" inputmode="numeric" />
               </div>
             </div>
           </div>

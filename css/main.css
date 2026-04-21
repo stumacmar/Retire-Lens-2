@@ -734,6 +734,7 @@
       margin-top: var(--spacing-xs);
       line-height: 1.5;
     }
+    .info-explainer.open { display: block; }
 
     /* ═══ Action Buttons (bottom of results) ═══ */
     .btn-action-bar {

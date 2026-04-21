@@ -428,7 +428,7 @@
           <div class="input-group">
             <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.25rem;">
               <label style="font-weight: 600;">Defined Contribution pension pot</label>
-              <button type="button" class="pension-info-btn" onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'block':'none'" style="background: none; border: 1px solid var(--color-border); border-radius: 50%; width: 20px; height: 20px; font-size: 0.7rem; cursor: pointer; color: var(--color-text-light); flex-shrink: 0;">?</button>
+              <button type="button" class="pension-info-btn" onclick="this.nextElementSibling.classList.toggle('open')" style="background: none; border: 1px solid var(--color-border); border-radius: 50%; width: 20px; height: 20px; font-size: 0.7rem; cursor: pointer; color: var(--color-text-light); flex-shrink: 0;">?</button>
               <div style="display: none; font-size: 0.75rem; color: var(--color-text-light); background: var(--color-primary-subtle); padding: 0.5rem; border-radius: var(--radius-md); margin-top: 0.25rem;">A pot of money you and/or your employer pay into. The value goes up and down with investments. Includes workplace pensions, SIPPs, and personal pensions.</div>
             </div>
             <div class="input-wrapper">
@@ -455,7 +455,7 @@
           <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--color-border-light, #f1f5f9);">
             <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;">
               <span style="font-weight: 600; font-size: 0.9rem;">Defined Benefit pension</span>
-              <button type="button" class="pension-info-btn" onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'block':'none'" style="background: none; border: 1px solid var(--color-border); border-radius: 50%; width: 20px; height: 20px; font-size: 0.7rem; cursor: pointer; color: var(--color-text-light); flex-shrink: 0;">?</button>
+              <button type="button" class="pension-info-btn" onclick="this.nextElementSibling.classList.toggle('open')" style="background: none; border: 1px solid var(--color-border); border-radius: 50%; width: 20px; height: 20px; font-size: 0.7rem; cursor: pointer; color: var(--color-text-light); flex-shrink: 0;">?</button>
               <div style="display: none; font-size: 0.75rem; color: var(--color-text-light); background: var(--color-primary-subtle); padding: 0.5rem; border-radius: var(--radius-md); margin-top: 0.25rem;">A guaranteed income for life from an employer. Based on salary and years worked. Includes final salary and career average pensions.</div>
             </div>
             <div class="input-group">
@@ -488,7 +488,7 @@
               <div>
                 <div class="flex items-center gap-sm">
                   <label for="input-pcls-taken" style="font-weight: 500; cursor: pointer;">I have already taken my 25% tax-free cash</label>
-                  <button type="button" class="info-btn" onclick="this.parentElement.nextElementSibling.style.display=this.parentElement.nextElementSibling.style.display==='none'?'block':'none'">?</button>
+                  <button type="button" class="info-btn" onclick="this.parentElement.nextElementSibling.classList.toggle('open')">?</button>
                 </div>
                 <div class="info-explainer">When you "crystallise" your pension, you can take 25% as a tax-free lump sum (PCLS). The remaining 75% stays invested and future withdrawals are taxed as income. The tax-free amount is capped at £268,275 (Lump Sum Allowance).</div>
                 <p class="help-text" style="margin-top: 2px;">If you have crystallised your pension and received a lump sum</p>
@@ -535,7 +535,7 @@
           <div class="pt-md mt-md border-t">
             <div class="flex items-center gap-sm mb-sm">
               <span class="font-semibold text-base">Defined Benefit pension</span>
-              <button type="button" class="info-btn" onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'block':'none'">?</button>
+              <button type="button" class="info-btn" onclick="this.nextElementSibling.classList.toggle('open')">?</button>
               <div class="info-explainer">A guaranteed income for life from an employer. Based on salary and years worked. Includes final salary and career average pensions.</div>
             </div>
             <div class="input-group">
@@ -674,6 +674,8 @@
             </div>
           </div>
         </div>
+      </div>
+
       <div class="nav-buttons">
         <button type="button" class="btn btn-secondary" data-action="back">Back</button>
         <button type="button" class="btn btn-primary" data-action="next">Next</button>

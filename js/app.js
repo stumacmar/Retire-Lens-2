@@ -60,11 +60,11 @@
     // ═══ Global Chart.js Styling ═══
     if (typeof Chart !== 'undefined') {
       Chart.defaults.font.family = "'Inter', -apple-system, system-ui, sans-serif";
-      Chart.defaults.font.size = 11;
-      Chart.defaults.color = '#94a3b8';
+      Chart.defaults.font.size = 12;
+      Chart.defaults.color = '#475569';
       Chart.defaults.plugins.legend.labels.usePointStyle = true;
       Chart.defaults.plugins.legend.labels.pointStyle = 'circle';
-      Chart.defaults.plugins.legend.labels.padding = 16;
+      Chart.defaults.plugins.legend.labels.padding = 12;
       Chart.defaults.plugins.tooltip.backgroundColor = 'rgba(15, 23, 42, 0.9)';
       Chart.defaults.plugins.tooltip.cornerRadius = 8;
       Chart.defaults.plugins.tooltip.padding = 10;

@@ -1850,13 +1850,6 @@
 
       const monthly = Math.round(plan.targetNetIncome / 12);
 
-      // Update badge
-      const badge = document.querySelector('.answer-badge');
-      if (badge) {
-        badge.className = 'answer-badge ' + (isSuccess ? 'success' : 'danger');
-        badge.textContent = isSuccess ? 'YES' : 'AT RISK';
-      }
-
       // Update question
       const question = document.querySelector('.results-question');
       if (question) question.innerHTML = `Can I retire at ${plan.retirementAge} on <span id="hero-income-amount" data-annual="${plan.targetNetIncome}">${formatCurrency(monthly)}/mo</span>?`;
@@ -1892,10 +1885,6 @@
 
       const html = `
         <div class="results-hero" style="padding-bottom: 1rem;">
-          <div class="answer-badge ${isSuccess ? 'success' : 'danger'}">
-            ${isSuccess ? 'YES' : 'AT RISK'}
-          </div>
-
           <h2 class="results-question" style="margin-top: 0.5rem;">
             Can I retire at ${plan.retirementAge} on <span id="hero-income-amount" data-annual="${plan.targetNetIncome}">${formatCurrency(monthly)}/mo</span>?
           </h2>

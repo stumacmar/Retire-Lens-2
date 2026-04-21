@@ -68,10 +68,6 @@
       Chart.defaults.plugins.tooltip.backgroundColor = 'rgba(15, 23, 42, 0.9)';
       Chart.defaults.plugins.tooltip.cornerRadius = 8;
       Chart.defaults.plugins.tooltip.padding = 10;
-      Chart.defaults.plugins.tooltip.titleFont = { family: "'Inter'", size: 12, weight: '600' };
-      Chart.defaults.plugins.tooltip.bodyFont = { family: "'Inter'", size: 11 };
-      Chart.defaults.scale.grid = { color: 'rgba(226, 232, 240, 0.5)', drawBorder: false };
-      Chart.defaults.scale.ticks = { padding: 6 };
     }
     
     // ═══════════════════════════════════════════════════════════════

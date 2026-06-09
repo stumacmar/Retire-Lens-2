@@ -1,6 +1,6 @@
 {
   "name": "retirelens-2",
-  "version": "0.9.4",
+  "version": "1.0.0",
   "description": "Income-first retirement planning engine for UK pensions - RetireLens Pro",
   "type": "module",
   "main": "engine/projections.js",
@@ -16,7 +16,8 @@
     "test:all": "node tests/engine.test.js && node tests/newModules.test.js && node tests/phase4.test.js && node tests/pathfinder.test.js && node tests/couples.test.js && node tests/householdPlan.test.js && node tests/fixes-validation.test.js",
     "test:e2e": "npx playwright test",
     "dev": "npx http-server -p 8080 -c-1",
-    "lint": "echo 'No linter configured yet'"
+    "test:stress": "node tests/stress-test-100.js",
+    "lint": "npx eslint engine/ config/ src/"
   },
   "keywords": [
     "retirement",

@@ -9,6 +9,7 @@ build/
 coverage/
 test-results/
 playwright-report/
+test-artifacts/screenshots/*.png
 
 # IDE
 .idea/
@@ -23,6 +24,7 @@ Thumbs.db
 # Environment
 .env
 .env.local
+.env.*.local
 
 # Logs
 *.log

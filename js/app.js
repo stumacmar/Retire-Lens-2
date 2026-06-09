@@ -56,19 +56,6 @@
     // ═══════════════════════════════════════════════════════════════
     
     const MODEL_VERSION = 'v1.0.0';
-
-    // ═══ Global Chart.js Styling ═══
-    if (typeof Chart !== 'undefined') {
-      Chart.defaults.font.family = "'Inter', -apple-system, system-ui, sans-serif";
-      Chart.defaults.font.size = 12;
-      Chart.defaults.color = '#475569';
-      Chart.defaults.plugins.legend.labels.usePointStyle = true;
-      Chart.defaults.plugins.legend.labels.pointStyle = 'circle';
-      Chart.defaults.plugins.legend.labels.padding = 12;
-      Chart.defaults.plugins.tooltip.backgroundColor = 'rgba(15, 23, 42, 0.9)';
-      Chart.defaults.plugins.tooltip.cornerRadius = 8;
-      Chart.defaults.plugins.tooltip.padding = 10;
-    }
     
     // ═══════════════════════════════════════════════════════════════
     // State Management
@@ -214,13 +201,66 @@
         return;
       }
 
-      // isa-savings: partner section is now permanent HTML, shown/hidden by showScreen
       if (screenId === 'isa-savings') {
+        const html = `
+          <div class="partner-input-group" style="margin-top: 1.5rem; padding-top: 1.5rem; border-top: 2px solid var(--color-primary-light, #e0e7ff);">
+            <div style="font-weight: 600; color: var(--color-primary, #4f46e5); margin-bottom: 0.75rem; font-size: 0.9rem;">Partner's ISA</div>
+            <div class="input-group">
+              <label>Partner's ISA balance</label>
+              <div class="input-wrapper">
+                <span class="currency-symbol">£</span>
+                <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-partner-isa-balance" min="0" step="1000" placeholder="0" inputmode="numeric" />
+              </div>
+            </div>
+            <div class="input-group">
+              <label>Partner's annual ISA contribution</label>
+              <div class="input-wrapper">
+                <span class="currency-symbol">£</span>
+                <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-partner-isa-contribution" min="0" step="500" placeholder="0" inputmode="numeric" />
+              </div>
+            </div>
+          </div>
+          <div class="partner-input-group" style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--color-border, #e2e8f0);">
+            <div style="font-weight: 600; color: var(--color-primary, #4f46e5); margin-bottom: 0.75rem; font-size: 0.9rem;">Partner's State Pension</div>
+            <div class="input-group">
+              <label>Partner's State Pension age</label>
+              <div class="input-wrapper">
+                <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-partner-state-pension-age" min="60" max="75" value="67" inputmode="numeric" />
+              </div>
+            </div>
+            <div class="input-group">
+              <label>Partner's expected annual State Pension</label>
+              <div class="input-wrapper">
+                <span class="currency-symbol">£</span>
+                <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-partner-state-pension-amount" min="0" step="100" value="11973" inputmode="numeric" />
+              </div>
+            </div>
+          </div>`;
+        content.insertAdjacentHTML('beforeend', html);
         return;
       }
 
-      // pension-pot: partner section is now permanent HTML, shown/hidden by showScreen
+      // pension-pot: partner DC + contributions + DB
       if (screenId === 'pension-pot') {
+        const html = `
+          <div class="partner-input-group" style="margin-top: 1.5rem; padding-top: 1.5rem; border-top: 2px solid var(--color-primary-light, #e0e7ff);">
+            <div style="font-weight: 600; color: var(--color-primary, #4f46e5); margin-bottom: 0.75rem; font-size: 0.9rem;">Partner's Pensions</div>
+            <div class="input-group">
+              <label>Partner's DC pension pot</label>
+              <div class="input-wrapper">
+                <span class="currency-symbol">£</span>
+                <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-partner-pension-pot" min="0" step="1000" placeholder="0" inputmode="numeric" />
+              </div>
+            </div>
+            <div class="input-group" style="margin-top: 0.5rem;">
+              <label>Partner's monthly contribution</label>
+              <div class="input-wrapper">
+                <span class="currency-symbol">£</span>
+                <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-partner-pension-contribution" min="0" step="50" placeholder="0" inputmode="numeric" />
+              </div>
+            </div>
+          </div>`;
+        content.insertAdjacentHTML('beforeend', html);
         return;
       }
 
@@ -324,15 +364,10 @@
         });
       }
 
-      // Show/hide partner sections for couples
-      const isCouple = state.onboardingState?.householdType === HOUSEHOLD_TYPES.COUPLE;
-      const partnerPensionSection = document.getElementById('partner-pension-section');
-      if (partnerPensionSection) {
-        partnerPensionSection.style.display = (screenId === 'pension-pot' && isCouple) ? 'block' : 'none';
-      }
-      const partnerIsaSection = document.getElementById('partner-isa-section');
-      if (partnerIsaSection) {
-        partnerIsaSection.style.display = (screenId === 'isa-savings' && isCouple) ? 'block' : 'none';
+      // Show/hide partner DB section on pension-pot screen for couples
+      const partnerDbSection = document.getElementById('partner-db-section');
+      if (partnerDbSection) {
+        partnerDbSection.style.display = (screenId === 'pension-pot' && state.onboardingState?.householdType === HOUSEHOLD_TYPES.COUPLE) ? 'block' : 'none';
       }
 
       // Restore saved input values for this screen (including partner values)
@@ -429,13 +464,10 @@
             personB.dcPot = getValue('input-partner-pension-pot', 0);
             personB.dbAnnualIncome = getValue('input-partner-db-income', 0);
             personB.dbStartAge = getValue('input-partner-db-start', 67);
+            // Partner contribution now on same screen
             const pv = getValue('input-partner-pension-contribution', 0);
             personB.dcMonthlyContrib = pv;
             personB.dcAnnualContrib = pv * 12;
-            personB.salarySacrifice = document.getElementById('input-partner-salary-sacrifice')?.checked || false;
-            personB.flexiAccessed = document.getElementById('input-partner-flexi-accessed')?.checked || false;
-            personB.pclsTaken = document.getElementById('input-partner-pcls-taken')?.checked || false;
-            personB.pclsAmount = getValue('input-partner-pcls-amount', 0);
             break;
           case 'isa-savings':
             personB.isaBalance = getValue('input-partner-isa-balance', 0);
@@ -507,13 +539,6 @@
             setInput('input-partner-db-income', personB.dbAnnualIncome);
             setInput('input-partner-db-start', personB.dbStartAge);
             setInput('input-partner-pension-contribution', personB.dcMonthlyContrib);
-            if (personB.salarySacrifice) { const el = document.getElementById('input-partner-salary-sacrifice'); if (el) el.checked = true; }
-            if (personB.flexiAccessed) { const el = document.getElementById('input-partner-flexi-accessed'); if (el) el.checked = true; }
-            if (personB.pclsTaken) {
-              const el = document.getElementById('input-partner-pcls-taken'); if (el) el.checked = true;
-              const sec = document.getElementById('partner-pcls-amount-section'); if (sec) sec.style.display = 'block';
-            }
-            setInput('input-partner-pcls-amount', personB.pclsAmount);
             break;
           case 'isa-savings':
             setInput('input-partner-isa-balance', personB.isaBalance);
@@ -1351,9 +1376,9 @@
         // PCLS Strategy
         pclsStrategy: getSelectedValue('pcls-strategy', 'all_at_retirement'),
         pclsReinvest: getChecked('pcls-reinvest'),
-        pclsAlreadyTaken: getChecked('input-pcls-taken') || getChecked('pcls-already-taken') || (state.onboardingState?.personA?.pclsTaken || false),
-        useGuardrails: getChecked('input-guardrails') || getChecked('results-guardrails'),
-        pclsAmountTaken: getValue('input-pcls-amount', 0) || getValue('pcls-amount-taken', 0) || (state.onboardingState?.personA?.pclsAmount || 0),
+        pclsAlreadyTaken: getChecked('input-pcls-taken') || getChecked('pcls-already-taken'),
+        useGuardrails: getChecked('input-guardrails'),
+        pclsAmountTaken: getValue('input-pcls-amount', 0) || getValue('pcls-amount-taken', 0),
 
         // Tax jurisdiction
         taxJurisdiction: getSelectedValue('tax-jurisdiction', 'england')
@@ -1594,8 +1619,9 @@
 
           updateHeroFromProjection(altProjection, null);
 
+          renderIncomeGap(altProjection, data);
           renderSPBridge(altProjection, data);
-          renderNarrativeSummary(altProjection, state.lastResults);
+          renderContributionImpact(altProjection, data);
           renderCashflowChart(altProjection, data);
           renderCapitalChart(altProjection);
           renderDataTable(altProjection, data);
@@ -1727,8 +1753,7 @@
             try {
               results.mcResult = runMonteCarloWithBands(plan, {
                 iterations: 1000, endAge: 90,
-                mean: scenarioPreset.growthRate || 0.04, volatility: scenarioPreset.volatility || 0.15,
-                seed: 42
+                mean: scenarioPreset.growthRate || 0.04, volatility: scenarioPreset.volatility || 0.15
               });
             } catch (e) { console.warn('Monte Carlo failed:', e); }
           }
@@ -1800,30 +1825,21 @@
     // Surgical hero update from projection — used by sliders for instant feedback
     function updateHeroFromProjection(projection, results) {
       const { summary, plan } = projection;
-      const isSuccess = summary.finalBalance > 0 && summary.successRate >= 1.0;
+      const isSuccess = summary.successRate >= 1.0;
       const mcSuccess = results?.mcResult?.statistics?.successRate;
-      let confidenceNum;
-      if (mcSuccess != null) {
-        // Full MC result available — use directly
-        confidenceNum = Math.round(mcSuccess * 100);
-      } else if (originalFormData._mcConfidence != null && originalFormData._originalFinalBalance != null) {
-        // Slider change: scale MC confidence proportionally to balance change
-        const origBalance = originalFormData._originalFinalBalance;
-        const origConf = originalFormData._mcConfidence;
-        if (origBalance > 0) {
-          const ratio = summary.finalBalance / origBalance;
-          confidenceNum = Math.min(100, Math.max(0, Math.round(origConf * Math.pow(ratio, 0.3))));
-        } else {
-          confidenceNum = summary.finalBalance > 0 ? 100 : 0;
-        }
-      } else {
-        confidenceNum = summary.finalBalance > 0 ? 100 : Math.round(summary.successRate * 100);
-      }
+      const confidenceNum = mcSuccess != null ? Math.round(mcSuccess * 100) : Math.round(summary.successRate * 100);
       let confidenceColor = '#059669';
       if (confidenceNum < 60) confidenceColor = '#dc2626';
       else if (confidenceNum < 85) confidenceColor = '#d97706';
 
       const monthly = Math.round(plan.targetNetIncome / 12);
+
+      // Update badge
+      const badge = document.querySelector('.answer-badge');
+      if (badge) {
+        badge.className = 'answer-badge ' + (isSuccess ? 'success' : confidenceNum >= 60 ? 'partial' : 'danger');
+        badge.textContent = isSuccess ? 'YES' : confidenceNum >= 60 ? 'LIKELY' : 'AT RISK';
+      }
 
       // Update question
       const question = document.querySelector('.results-question');
@@ -1840,7 +1856,7 @@
       metrics.forEach(el => {
         const key = el.dataset.metric;
         if (key === 'retirementPot') el.textContent = formatCurrency(summary.retirementPot);
-        else if (key === 'confidence') { el.textContent = confidenceNum + '%'; el.style.color = confidenceColor; }
+        else if (key === 'yearsSupported') el.textContent = `${summary.yearsWithFullIncome}/${summary.totalYearsInRetirement}`;
         else if (key === 'finalBalance') el.textContent = formatCurrency(summary.finalBalance);
         else if (key === 'pclsTaken') el.textContent = formatCurrency(summary.pclsTaken);
       });
@@ -1848,10 +1864,10 @@
 
     function renderResults(projection, results = null) {
       const { summary, plan } = projection;
+      const isSuccess = summary.successRate >= 1.0;
 
       const mcSuccess = results?.mcResult?.statistics?.successRate;
       const confidenceNum = mcSuccess != null ? Math.round(mcSuccess * 100) : Math.round(summary.successRate * 100);
-      const isSuccess = confidenceNum >= 85;
       let confidenceColor = '#059669';
       if (confidenceNum < 60) { confidenceColor = '#dc2626'; }
       else if (confidenceNum < 85) { confidenceColor = '#d97706'; }
@@ -1859,60 +1875,48 @@
       const monthly = Math.round(plan.targetNetIncome / 12);
 
       const html = `
-        <div class="card-hero">
-          <h2 class="results-question tracking-tight">
-            Can I retire at ${plan.retirementAge} on <span id="hero-income-amount" data-annual="${plan.targetNetIncome}">${formatCurrency(monthly)}/mo</span>?
+        <div class="card-hero" style="padding: var(--spacing-md);">
+          <h2 class="text-lg font-bold tracking-tight text-center" style="margin: 0; color: var(--color-text);">
+            Retire at ${plan.retirementAge} on <span id="hero-income-amount" data-annual="${plan.targetNetIncome}" style="color: var(--color-primary);">${formatCurrency(monthly)}/mo</span>
           </h2>
-          <button id="toggle-monthly" class="text-xs text-muted mt-xs" style="padding: 0.25rem 0.75rem; border: 1px solid var(--color-border); border-radius: var(--radius-full); background: var(--color-surface); cursor: pointer; transition: all var(--transition-fast);">Show annual</button>
+          <div class="text-center" style="margin-top: 4px;"><button id="toggle-monthly" class="text-xs text-muted" style="padding: 2px 10px; border: 1px solid var(--color-border); border-radius: var(--radius-full); background: transparent; cursor: pointer;">annual</button></div>
 
-          <div class="gauge-wrapper">
-            <svg width="160" height="100" viewBox="0 0 160 100" style="overflow: visible;">
-              <defs>
-                <linearGradient id="gauge-grad" x1="0%" y1="0%" x2="100%" y2="0%">
-                  <stop offset="0%" stop-color="${confidenceColor}" stop-opacity="0.6"/>
-                  <stop offset="100%" stop-color="${confidenceColor}"/>
-                </linearGradient>
-              </defs>
-              <path d="M 15 90 A 65 65 0 0 1 145 90" fill="none" stroke="var(--color-border-light)" stroke-width="12" stroke-linecap="round"/>
-              <path id="confidence-arc" d="M 15 90 A 65 65 0 0 1 145 90" fill="none" stroke="url(#gauge-grad)" stroke-width="12" stroke-linecap="round"
-                stroke-dasharray="${confidenceNum * 2.04} 999"
-                style="transition: stroke-dasharray 0.8s cubic-bezier(0.16, 1, 0.3, 1);"/>
-              <text id="confidence-score" x="80" y="72" text-anchor="middle" font-size="36" font-weight="700" fill="${confidenceColor}" font-family="Inter, system-ui">${confidenceNum}</text>
-              <text x="80" y="92" text-anchor="middle" font-size="10" fill="var(--color-text-light)" font-family="Inter, system-ui" letter-spacing="0.03em">out of 100</text>
+          <div style="display: flex; align-items: center; justify-content: center; gap: var(--spacing-md); margin: var(--spacing-md) 0 0;">
+            <svg width="88" height="56" viewBox="0 0 160 100" style="overflow: visible; flex-shrink: 0;">
+              <defs><linearGradient id="gg" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stop-color="${confidenceColor}" stop-opacity="0.4"/><stop offset="100%" stop-color="${confidenceColor}"/></linearGradient></defs>
+              <path d="M 15 90 A 65 65 0 0 1 145 90" fill="none" stroke="var(--color-border-light)" stroke-width="14" stroke-linecap="round"/>
+              <path id="confidence-arc" d="M 15 90 A 65 65 0 0 1 145 90" fill="none" stroke="url(#gg)" stroke-width="14" stroke-linecap="round" stroke-dasharray="${confidenceNum * 2.04} 999" style="transition: stroke-dasharray 0.8s cubic-bezier(0.16,1,0.3,1);"/>
+              <text id="confidence-score" x="80" y="80" text-anchor="middle" font-size="42" font-weight="700" fill="${confidenceColor}" font-family="Inter,system-ui">${confidenceNum}</text>
             </svg>
-            <div class="gauge-label">market scenarios support your plan to age 90</div>
+            <div>
+              <div class="text-xs text-muted" style="line-height: 1.4;">of 1,000 market<br>scenarios support<br>your plan to 90</div>
+            </div>
           </div>
         </div>
 
-        <div class="results-metrics mb-md">
-          <div class="metric">
+        <div class="results-metrics" style="margin: 0 0 var(--spacing-xs);">
+          <div class="metric" style="padding: var(--spacing-sm);">
             <span class="metric-label">Total Wealth</span>
-            <span class="metric-value" data-metric="retirementPot">${formatCurrency(summary.retirementPot)}</span>
+            <span class="metric-value" data-metric="retirementPot" style="font-size: var(--font-size-lg);">${formatCurrency(summary.retirementPot)}</span>
           </div>
-          <div class="metric">
+          <div class="metric" style="padding: var(--spacing-sm);">
             <span class="metric-label">Tax-Free Cash</span>
-            <span class="metric-value" data-metric="pclsTaken">${formatCurrency(summary.pclsTaken)}</span>
+            <span class="metric-value" data-metric="pclsTaken" style="font-size: var(--font-size-lg);">${formatCurrency(summary.pclsTaken)}</span>
           </div>
-          <div class="metric">
+          <div class="metric" style="padding: var(--spacing-sm);">
             <span class="metric-label">Confidence</span>
-            <span class="metric-value text-${confidenceNum >= 85 ? 'success' : confidenceNum >= 60 ? 'warning' : 'danger'}" data-metric="confidence">${confidenceNum}%</span>
+            <span class="metric-value" data-metric="confidence" style="font-size: var(--font-size-lg); color: ${confidenceColor};">${confidenceNum}%</span>
           </div>
-          <div class="metric">
+          <div class="metric" style="padding: var(--spacing-sm);">
             <span class="metric-label">Surplus at 90</span>
-            <span class="metric-value" data-metric="finalBalance">${formatCurrency(summary.finalBalance)}</span>
+            <span class="metric-value" data-metric="finalBalance" style="font-size: var(--font-size-lg);">${formatCurrency(summary.finalBalance)}</span>
           </div>
         </div>
-
-        <p class="text-xs text-muted text-center mt-md">
-          For planning purposes only. Not regulated financial advice. Tax year 2025/26 rates.
+        <p class="text-xs text-muted text-center" style="margin: 2px 0 var(--spacing-sm);">Not financial advice. Tax year 2025/26.</p>
         </p>
       `;
 
       document.getElementById('results-container').innerHTML = html;
-
-      // Update sticky header with plan summary
-      const headerSummary = document.getElementById('results-header-summary');
-      if (headerSummary) headerSummary.textContent = `Age ${plan.retirementAge} · ${formatCurrency(monthly)}/mo · ${confidenceNum}%`;
 
       // Render narrative summary
       renderNarrativeSummary(projection, results);
@@ -1962,10 +1966,9 @@
         });
       });
 
-      // Initialize sliders and snapshot baseline for proportional slider confidence
+      // Initialize sliders with current values and snapshot original final balance
       if (typeof originalFormData !== 'undefined' && state.formData) {
         state.formData._originalFinalBalance = summary.finalBalance;
-        state.formData._mcConfidence = confidenceNum;
       }
       initSliders();
 
@@ -2109,118 +2112,198 @@
       const isCouple = data.isCouple || (plan.partnerCurrentAge > 0);
       const partnerDB = data.partnerDBPensionAmount || 0;
       const partnerSP = data.partnerExpectedStatePension || 0;
-      const yourSP = plan.expectedStatePension || data.expectedStatePension || 11973;
-      const yourDB = plan.dbPensionAmount || data.dbPensionAmount || 0;
+      const yourSP = plan.expectedStatePension || 0;
+      const yourDB = plan.dbPensionAmount || 0;
       const retireAge = plan.retirementAge;
-      const spAge = plan.statePensionAge || data.statePensionAge || 67;
 
-      const milestones = [];
-      const ageDiff = isCouple ? ((data.partnerCurrentAge || 0) - plan.currentAge) : 0;
-      function partnerAgeAt(userAge) { return isCouple ? userAge + ageDiff : null; }
-      function ageLabel(userAge) {
-        const pAge = partnerAgeAt(userAge);
-        return pAge ? `${userAge} (${pAge})` : `${userAge}`;
+      // Build event-based timeline
+      const events = [];
+      const evStyle = 'display: flex; gap: 0.75rem; margin-bottom: 0.75rem; font-size: 0.8125rem; line-height: 1.5;';
+      const ageStyle = 'min-width: 2.5rem; font-weight: 700; color: var(--color-primary, #4f46e5); flex-shrink: 0;';
+      const descStyle = 'flex: 1;';
+
+      // Event: Retirement
+      let retireDesc = `You retire on <strong>${formatCurrency(plan.targetNetIncome)}/year</strong>.`;
+      if (isCouple) {
+        const ageDiff = (data.partnerCurrentAge || 0) - plan.currentAge;
+        const partnerAgeAtRetire = retireAge + ageDiff;
+        const partnerSpStart = (data.partnerStatePensionAge || 67) - ageDiff;
+        if (partnerAgeAtRetire >= (data.partnerStatePensionAge || 67)) {
+          let partnerIncome = [];
+          if (partnerSP > 0) partnerIncome.push(`State Pension ${formatCurrency(partnerSP)}`);
+          if (partnerDB > 0) partnerIncome.push(`DB pension ${formatCurrency(partnerDB)}`);
+          retireDesc += ` Partner is ${partnerAgeAtRetire} -- ${partnerIncome.join(' and ')} start${partnerIncome.length > 0 ? '' : 's'} immediately.`;
+        }
       }
+      events.push({ age: retireAge, desc: retireDesc });
 
-      // Milestone: Retirement
-      milestones.push({
-        age: ageLabel(retireAge),
-        sortAge: retireAge,
-        label: 'Retire',
-        color: 'var(--color-primary, #4f46e5)',
-        detail: `${formatCurrency(Math.round(plan.targetNetIncome / 12))}/mo target`
-      });
-
-      // Milestone: DB starts (if after retirement)
+      // Event: Your DB starts (if applicable and after retirement)
       if (yourDB > 0 && plan.dbPensionStartAge > retireAge) {
-        milestones.push({
-          age: ageLabel(plan.dbPensionStartAge),
-          sortAge: plan.dbPensionStartAge,
-          label: 'DB starts',
-          color: 'var(--color-accent, #0d9488)',
-          detail: `+${formatCurrency(Math.round(yourDB / 12))}/mo guaranteed`
-        });
+        events.push({ age: plan.dbPensionStartAge, desc: `Your DB pension starts: <strong>${formatCurrency(yourDB)}/year</strong>. Pension withdrawal reduces.` });
       }
 
-      // Milestone: SP starts
-      if (spAge > retireAge) {
-        milestones.push({
-          age: ageLabel(spAge),
-          sortAge: spAge,
-          label: 'State Pension',
-          color: '#22c55e',
-          detail: `+${formatCurrency(Math.round(yourSP / 12))}/mo`
-        });
+      // Event: Your SP starts + deferral option
+      if (plan.statePensionAge > retireAge) {
+        const deferredSP = Math.round(yourSP * 1.058);
+        events.push({ age: plan.statePensionAge, desc: `Your State Pension starts: <strong>${formatCurrency(yourSP)}/year</strong>. Pension withdrawal drops significantly. <span style="color: var(--color-text-light); font-size: 0.75rem;">(Deferring 1 year would give ${formatCurrency(deferredSP)}/yr, +${formatCurrency(deferredSP - yourSP)} for life)</span>` });
       }
 
-      // Milestone: Spending cut at 80
-      milestones.push({
-        age: ageLabel(80),
-        sortAge: 80,
-        label: 'Spend -25%',
-        color: 'var(--color-warning, #d97706)',
-        detail: `Target drops to ${formatCurrency(Math.round(plan.targetNetIncome * 0.75 / 12))}/mo`
-      });
+      // Event: Spending reduction at 80
+      events.push({ age: 80, desc: `Spending reduces to <strong>${formatCurrency(plan.targetNetIncome * 0.75)}/year</strong> (-25%). Less pressure on your pot.` });
 
-      // Milestone: Outcome at 90
+      // Event: Outcome
       if (summary.successRate >= 1.0) {
-        milestones.push({
-          age: ageLabel(90),
-          sortAge: 90,
-          label: 'Plan succeeds',
-          color: 'var(--color-success, #059669)',
-          detail: `${formatCurrency(summary.finalBalance)} remaining`
-        });
+        events.push({ age: 90, desc: `<strong style="color: var(--color-success, #059669);">Plan succeeds.</strong> Final balance: <strong>${formatCurrency(summary.finalBalance)}</strong>.` });
       } else {
-        const deplAge = summary.depletionAge || 85;
-        milestones.push({
-          age: ageLabel(deplAge),
-          sortAge: deplAge,
-          label: 'Funds run out',
-          color: 'var(--color-danger, #dc2626)',
-          detail: 'Increase contributions or reduce target'
-        });
+        events.push({ age: summary.depletionAge || 85, desc: `<strong style="color: var(--color-danger, #dc2626);">Funds may run out.</strong> Consider increasing contributions or reducing target.` });
       }
 
-      // MC worst case
+      // Add risk context from MC results
       const mcStats = results?.mcResult?.statistics;
-      if (mcStats?.depletionAge?.earliest) {
-        milestones.push({
-          age: ageLabel(mcStats.depletionAge.earliest),
-          sortAge: mcStats.depletionAge.earliest,
-          label: 'Worst 10%',
-          color: 'var(--color-danger, #dc2626)',
-          detail: `Funds could run out in bad markets`
-        });
+      if (mcStats) {
+        if (mcStats.depletionAge?.earliest) {
+          events.push({ age: '!', desc: `<span style="color: var(--color-warning, #d97706);">In the worst 10% of market scenarios, funds could run out by age ${mcStats.depletionAge.earliest}.</span>` });
+        }
       }
 
-      milestones.sort((a, b) => a.sortAge - b.sortAge);
-
-      // Build horizontal timeline
-      const minAge = milestones[0]?.age || 55;
-      const maxAge = Math.max(90, milestones[milestones.length - 1]?.age || 90);
-      const range = maxAge - minAge || 1;
-
-      let html = `<h3 class="section-title">Your retirement journey</h3>`;
-
-      html += `<div class="timeline-scroll">`;
-      html += `<div class="timeline-track" style="min-width: ${milestones.length * 5.5}rem;">`;
-      html += `<div class="timeline-line"></div>`;
-
-      milestones.forEach(m => {
-        html += `
-          <div class="timeline-milestone">
-            <div class="timeline-age" style="color: ${m.color};">${m.age}</div>
-            <div class="timeline-dot" style="background: ${m.color}; box-shadow: 0 0 0 1px ${m.color};"></div>
-            <div class="timeline-label">${m.label}</div>
-            <div class="timeline-detail">${m.detail}</div>
-          </div>`;
-      });
-
-      html += `</div>`;
-      if (milestones.length > 3) {
-        html += `<div class="timeline-hint">Swipe →</div>`;
+      // Annuity comparison estimate (rough, based on typical rates)
+      // Standard annuity rate at 60: ~5.0%, at 65: ~5.8%, at 67: ~6.2%
+      const annuityRate = retireAge >= 67 ? 0.062 : retireAge >= 65 ? 0.058 : 0.050;
+      const potAfterPCLS = summary.retirementPot - summary.pclsTaken;
+      const annuityIncome = Math.round(potAfterPCLS * annuityRate);
+      if (annuityIncome > 0) {
+        const totalWithAnnuity = annuityIncome + (yourSP + partnerSP + partnerDB);
+        events.push({ age: '', desc: `<span style="color: var(--color-text-light);">Annuity alternative: buying a level annuity at ${retireAge} would provide ~${formatCurrency(annuityIncome)}/yr guaranteed for life (${(annuityRate*100).toFixed(1)}% rate). Drawdown offers flexibility but no guarantee.</span>` });
       }
+
+      // Tax wrapper optimization insight
+      try {
+        const firstYear = projection.decumulation.years[0];
+        if (firstYear && firstYear.withdrawals) {
+          const guaranteed = (firstYear.statePension || 0);
+          const pa = 12570;
+          const paUsed = Math.min(guaranteed, pa);
+          const paRemaining = pa - paUsed;
+          // If guaranteed income already fills PA, pension withdrawals start at 20%+ tax
+          // In this case, ISA withdrawals would be more tax-efficient
+          if (paRemaining === 0 && (firstYear.withdrawals.pension || 0) > 0) {
+            const pensionTaxed = firstYear.withdrawals.pension || 0;
+            const taxOnPension = firstYear.taxPaid || 0;
+            events.push({ age: '', desc: `<span style="color: var(--color-accent, #0d9488);">Tax wrapper insight: your guaranteed income already uses your Personal Allowance. Every pound drawn from pension is taxed at ${guaranteed > 50270 ? '40' : '20'}%. Consider drawing from ISA first in years where guaranteed income is high.</span>` });
+          } else if (paRemaining > 0) {
+            events.push({ age: '', desc: `<span style="color: var(--color-text-light);">Tax efficiency: ${formatCurrency(paRemaining)} of Personal Allowance used for tax-free pension withdrawal each year.</span>` });
+          }
+        }
+      } catch (e) { /* tax wrapper analysis failed */ }
+
+      // Sequence-of-returns risk
+      try {
+        const sor = illustrateSequenceOfReturns(projection.plan || state.planA);
+        if (sor && sor.badStart && sor.goodStart) {
+          const diff = Math.round(sor.goodStart.finalBalance - sor.badStart.finalBalance);
+          if (diff > 10000) {
+            events.push({ age: '!', desc: `<span style="color: var(--color-text-light);">Return timing matters: good early markets leave ${formatCurrency(sor.goodStart.finalBalance)}, poor early markets leave ${formatCurrency(sor.badStart.finalBalance)} (${formatCurrency(diff)} difference).</span>` });
+          }
+        }
+      } catch (e) { /* sequence illustration failed */ }
+
+      // Survivor scenario for couples
+      if (isCouple) {
+        const ageDiff = (data.partnerCurrentAge || 0) - plan.currentAge;
+        // What does partner have if you die at 75?
+        const deathAge = 75;
+        const yearAtDeath = projection.decumulation.years.find(y => y.age === deathAge);
+        if (yearAtDeath) {
+          const survivorPension = (yearAtDeath.endBalances?.pension || 0) + (yearAtDeath.endBalances?.isa || 0);
+          const partnerOwnSP = partnerSP > 0 ? partnerSP : 0;
+          const partnerOwnDB = partnerDB > 0 ? partnerDB : 0;
+          const survivorGuaranteed = partnerOwnSP + partnerOwnDB;
+          events.push({ age: '?',
+            desc: `<span style="color: var(--color-text-secondary);">If you were to die at ${deathAge}: partner inherits pension pot (${formatCurrency(survivorPension)}) via beneficiary drawdown, plus their own SP (${formatCurrency(partnerOwnSP)}) and DB (${formatCurrency(partnerOwnDB)}). ISA passes to spouse tax-free.</span>`
+          });
+        }
+      }
+
+      // Calculate minimum pot needed (binary search) -- before rendering events
+      try {
+        const scenarioPreset = SCENARIO_PRESETS[data.scenario] || SCENARIO_PRESETS.moderate;
+        let lo = 0, hi = (data.currentPension || 100000) * 3, minPot = data.currentPension || 0;
+        for (let i = 0; i < 12; i++) {
+          const mid = Math.round((lo + hi) / 2);
+          const testPlan = createPlan({ ...data, currentPension: mid,
+            assumptions: { projection: { defaultGrowthRate: scenarioPreset.growthRate || 0.04, defaultFeeRate: scenarioPreset.feeRate || 0.005 } } });
+          const testResult = runProjection(testPlan, { endAge: 90 });
+          if (testResult.summary.successRate >= 1.0) { hi = mid; minPot = mid; }
+          else { lo = mid; }
+        }
+        const currentPot = data.currentPension || 0;
+        if (minPot < currentPot * 0.95) {
+          events.push({ age: '', desc: `<span style="color: var(--color-success, #059669);">Minimum pot needed: <strong>${formatCurrency(minPot)}</strong>. You have ${formatCurrency(currentPot - minPot)} more than required.</span>` });
+        } else if (minPot > currentPot * 1.05) {
+          events.push({ age: '', desc: `<span style="color: var(--color-warning, #d97706);">Minimum pot for full success: <strong>${formatCurrency(minPot)}</strong>. You need ${formatCurrency(minPot - currentPot)} more.</span>` });
+        }
+      } catch (e) { console.warn('Min pot calc failed:', e.message); }
+
+      let html = '<div style="font-size: 0.875rem; font-weight: 600; margin-bottom: 0.75rem;">Your retirement timeline</div>';
+      for (const e of events) {
+        html += `<div style="${evStyle}"><span style="${ageStyle}">${e.age}</span><span style="${descStyle}">${e.desc}</span></div>`;
+      }
+
+      // Consider section
+      html += `<div style="margin-top: 1rem; padding: 0.75rem; background: var(--color-primary-subtle, #eef2ff); border-radius: var(--radius-md, 0.5rem); border-left: 3px solid var(--color-primary, #4f46e5);">`;
+      // Calculate best single action by testing levers
+      const actions = [];
+      try {
+        // Lever 1: +500/month contributions
+        const extraContribPlan = createPlan({ ...data, annualPensionContribution: (data.annualPensionContribution || 0) + 6000,
+          assumptions: { projection: { defaultGrowthRate: plan.assumptions?.projection?.defaultGrowthRate || 0.04, defaultFeeRate: plan.assumptions?.projection?.defaultFeeRate || 0.005 } } });
+        const extraContribResult = runProjection(extraContribPlan, { endAge: 90 });
+        const contribDelta = extraContribResult.summary.finalBalance - summary.finalBalance;
+        actions.push({ label: `Add 500/month to contributions`, delta: contribDelta, detail: `adds ${formatCurrency(contribDelta)} to your final balance` });
+
+        // Lever 2: Retire 1 year later
+        if (plan.retirementAge < 70) {
+          const laterPlan = createPlan({ ...data, retirementAge: plan.retirementAge + 1,
+            assumptions: { projection: { defaultGrowthRate: plan.assumptions?.projection?.defaultGrowthRate || 0.04, defaultFeeRate: plan.assumptions?.projection?.defaultFeeRate || 0.005 } } });
+          const laterResult = runProjection(laterPlan, { endAge: 90 });
+          const laterDelta = laterResult.summary.finalBalance - summary.finalBalance;
+          actions.push({ label: `Retire 1 year later (at ${plan.retirementAge + 1})`, delta: laterDelta, detail: `adds ${formatCurrency(laterDelta)} to your final balance` });
+        }
+
+        // Lever 3: Reduce target by 5k
+        const lessPlan = createPlan({ ...data, targetNetIncome: plan.targetNetIncome - 5000,
+          assumptions: { projection: { defaultGrowthRate: plan.assumptions?.projection?.defaultGrowthRate || 0.04, defaultFeeRate: plan.assumptions?.projection?.defaultFeeRate || 0.005 } } });
+        const lessResult = runProjection(lessPlan, { endAge: 90 });
+        const lessDelta = lessResult.summary.finalBalance - summary.finalBalance;
+        actions.push({ label: `Reduce income target by 5,000/year`, delta: lessDelta, detail: `adds ${formatCurrency(lessDelta)} to your final balance` });
+      } catch (e) { /* action calculation failed, show generic advice */ }
+
+      // Sort by impact and show the best
+      actions.sort((a, b) => b.delta - a.delta);
+
+      if (summary.successRate >= 1.0 && summary.finalBalance > plan.targetNetIncome * 3) {
+        // Strong plan
+        html += `<div style="font-weight: 600; margin-bottom: 0.5rem; font-size: 0.8125rem; color: var(--color-success, #059669);">Your plan is strong. No urgent action needed.</div>`;
+        html += `<ul style="margin: 0; padding-left: 1.25rem; font-size: 0.8125rem; line-height: 1.6;">`;
+        if (data.pclsAlreadyTaken && summary.pclsTaken > 0) {
+          html += `<li>You have ${formatCurrency(summary.pclsTaken)} additional tax-free cash available</li>`;
+        }
+        const reviewMonth = new Date().getMonth() >= 3 ? 'April ' + (new Date().getFullYear() + 1) : 'April ' + new Date().getFullYear();
+        html += `<li>Review this plan after your next pension statement (target: ${reviewMonth})</li>`;
+        html += `</ul>`;
+      } else if (actions.length > 0) {
+        const best = actions[0];
+        html += `<div style="font-weight: 600; margin-bottom: 0.5rem; font-size: 0.8125rem;">Most impactful action</div>`;
+        html += `<div style="padding: 0.5rem 0.75rem; background: white; border-radius: var(--radius-sm, 4px); margin-bottom: 0.5rem; font-size: 0.8125rem;">`;
+        html += `<strong>${best.label}</strong> -- ${best.detail}`;
+        html += `</div>`;
+        html += `<div style="font-size: 0.75rem; color: var(--color-text-light);">Other options: ${actions.slice(1).map(a => a.label).join(', ')}</div>`;
+      } else {
+        html += `<div style="font-size: 0.8125rem;">Review your plan annually</div>`;
+      }
+      // Always show review date
+      const reviewMonth = new Date().getMonth() >= 3 ? 'April ' + (new Date().getFullYear() + 1) : 'April ' + new Date().getFullYear();
+      html += `<div style="font-size: 0.75rem; color: var(--color-text-light); margin-top: 0.5rem;">Next review: ${reviewMonth} (after your pension statement)</div>`;
       html += `</div>`;
 
       el.innerHTML = html;
@@ -2317,15 +2400,13 @@
             x: {
               title: { display: true, text: 'Age' },
               ticks: {
-                maxRotation: 0,
                 callback: function(val, index) {
                   const age = allYears[index]?.age;
                   const plan = projection.plan;
                   if (age === plan.retirementAge) return age + ' Retire';
                   if (age === plan.statePensionAge) return age + ' SP';
                   if (age === 80) return '80 -25%';
-                  if (age % 5 === 0) return age;
-                  return '';
+                  return age;
                 },
                 font: function(ctx) {
                   const age = allYears[ctx.index]?.age;
@@ -2365,8 +2446,6 @@
 
     function renderIncomeGap(projection, data) {
       const el = document.getElementById('income-gap-section');
-      if (el) el.style.display = 'none';
-      return;
       if (!el) return;
 
       const target = data.targetNetIncome || projection.plan.targetNetIncome;
@@ -2402,8 +2481,6 @@
 
     function renderSPBridge(projection, data) {
       const el = document.getElementById('sp-bridge-section');
-      if (el) el.style.display = 'none';
-      return;
       if (!el) return;
 
       const plan = projection.plan;
@@ -2421,52 +2498,35 @@
       const ageDiff = partnerCurrentAge - plan.currentAge;
       const partnerSpUserAge = partnerSpAge - ageDiff;
 
+      // Income before SP
       const preSpDecYears = projection.decumulation.years.filter(y => y.age >= retireAge && y.age < spAge);
-      const avgPreWithdrawal = preSpDecYears.length > 0 ? Math.round(preSpDecYears.reduce((s, y) => s + (y.withdrawals?.pension || 0) + (y.withdrawals?.isa || 0), 0) / preSpDecYears.length) : 0;
+      const avgPreSP = preSpDecYears.length > 0 ? Math.round(preSpDecYears.reduce((s, y) => s + (y.netIncome || 0), 0) / preSpDecYears.length) : 0;
 
+      // Income after SP
       const postSpDecYears = projection.decumulation.years.filter(y => y.age >= spAge && y.age < spAge + 3);
-      const avgPostWithdrawal = postSpDecYears.length > 0 ? Math.round(postSpDecYears.reduce((s, y) => s + (y.withdrawals?.pension || 0) + (y.withdrawals?.isa || 0), 0) / postSpDecYears.length) : 0;
+      const avgPostSP = postSpDecYears.length > 0 ? Math.round(postSpDecYears.reduce((s, y) => s + (y.netIncome || 0), 0) / postSpDecYears.length) : 0;
 
       const totalSP = sp + (isCouple && partnerSpUserAge <= spAge ? partnerSP : 0);
-      const reduction = avgPreWithdrawal - avgPostWithdrawal;
-
-      // Drawdown rate: annual withdrawal as % of pot at retirement
-      const potAtRetire = projection.summary.retirementPot - projection.summary.pclsTaken;
-      const drawdownRate = potAtRetire > 0 ? ((avgPreWithdrawal / potAtRetire) * 100).toFixed(1) : 0;
-      const drawdownRatePost = potAtRetire > 0 ? ((avgPostWithdrawal / potAtRetire) * 100).toFixed(1) : 0;
-
-      // How much pot is consumed during bridge
-      const bridgeCost = avgPreWithdrawal * bridgeYears;
-      const pctPotConsumed = potAtRetire > 0 ? Math.round((bridgeCost / potAtRetire) * 100) : 0;
 
       el.style.display = 'block';
       el.innerHTML = `
-        <h3 style="font-size: 1rem; margin-bottom: 0.75rem;">Bridge: ${bridgeYears} years before State Pension</h3>
+        <h3 style="font-size: 1rem; margin-bottom: 0.75rem;">Bridge Period: ${bridgeYears} years without State Pension</h3>
         <div style="display: flex; gap: 0.5rem; margin-bottom: 0.75rem;">
           <div style="flex: 1; padding: 0.75rem; background: var(--color-warning-light, #fef3c7); border-radius: var(--radius-md, 0.5rem); text-align: center;">
             <div style="font-size: 0.65rem; text-transform: uppercase; color: var(--color-warning, #d97706); letter-spacing: 0.04em;">Age ${retireAge}-${spAge - 1}</div>
-            <div style="font-size: 1.125rem; font-weight: 700; margin-top: 0.25rem;">${formatCurrency(Math.round(avgPreWithdrawal / 12))}/mo</div>
-            <div style="font-size: 0.7rem; color: var(--color-text-light); margin-top: 0.125rem;">from pot (${drawdownRate}% drawdown)</div>
+            <div style="font-size: 1.125rem; font-weight: 700; margin-top: 0.25rem;">${formatCurrency(Math.round(avgPreSP / 12))}/mo</div>
+            <div style="font-size: 0.7rem; color: var(--color-text-light); margin-top: 0.125rem;">Pension + ISA only</div>
           </div>
           <div style="display: flex; align-items: center; font-size: 1.2rem; color: var(--color-text-light);">→</div>
           <div style="flex: 1; padding: 0.75rem; background: var(--color-success-light, #d1fae5); border-radius: var(--radius-md, 0.5rem); text-align: center;">
             <div style="font-size: 0.65rem; text-transform: uppercase; color: var(--color-success, #059669); letter-spacing: 0.04em;">Age ${spAge}+</div>
-            <div style="font-size: 1.125rem; font-weight: 700; margin-top: 0.25rem;">${formatCurrency(Math.round(avgPostWithdrawal / 12))}/mo</div>
-            <div style="font-size: 0.7rem; color: var(--color-text-light); margin-top: 0.125rem;">from pot (${drawdownRatePost}% drawdown)</div>
+            <div style="font-size: 1.125rem; font-weight: 700; margin-top: 0.25rem;">${formatCurrency(Math.round(avgPostSP / 12))}/mo</div>
+            <div style="font-size: 0.7rem; color: var(--color-text-light); margin-top: 0.125rem;">+ SP ${formatCurrency(Math.round(totalSP / 12))}/mo</div>
           </div>
         </div>
-        <div style="display: flex; gap: 0.5rem; font-size: 0.75rem; margin-bottom: 0.5rem;">
-          <div style="flex: 1; padding: 0.5rem; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-md, 0.5rem); text-align: center;">
-            <div style="color: var(--color-text-light);">Bridge cost</div>
-            <div style="font-weight: 700;">${formatCurrency(bridgeCost)}</div>
-            <div style="color: var(--color-warning); font-size: 0.6875rem;">${pctPotConsumed}% of your pot</div>
-          </div>
-          <div style="flex: 1; padding: 0.5rem; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-md, 0.5rem); text-align: center;">
-            <div style="color: var(--color-text-light);">SP relief</div>
-            <div style="font-weight: 700; color: var(--color-success);">${formatCurrency(Math.round(totalSP / 12))}/mo</div>
-            <div style="color: var(--color-success); font-size: 0.6875rem;">saves ${formatCurrency(totalSP * (90 - spAge))}/yr to 90</div>
-          </div>
-        </div>
+        <p style="font-size: 0.75rem; color: var(--color-text-light);">
+          During the bridge period, your pension pot must cover the full target. Once State Pension kicks in at ${spAge}, withdrawal pressure drops by ${formatCurrency(totalSP)}/yr.
+        </p>
       `;
     }
 
@@ -2482,6 +2542,7 @@
       const scenarioPreset = SCENARIO_PRESETS[data.scenario] || SCENARIO_PRESETS.moderate;
       const growthRate = scenarioPreset.growthRate || 0.04;
 
+      // Calculate impact of extra £100/mo and £250/mo
       function extraPotValue(extraMonthly) {
         let pot = 0;
         for (let y = 0; y < yearsToRetire; y++) {
@@ -2490,35 +2551,39 @@
         return Math.round(pot);
       }
 
-      // Dynamic: show +£200/mo and +£500/mo relative to CURRENT slider position
-      const bump1 = 200, bump2 = 500;
-      const extra1 = extraPotValue(bump1);
-      const extra2 = extraPotValue(bump2);
-      const income1 = Math.round(extra1 * 0.04 / 12);
-      const income2 = Math.round(extra2 * 0.04 / 12);
-      const isSalarySacrifice = document.getElementById('input-salary-sacrifice')?.checked;
+      const extra100 = extraPotValue(100);
+      const extra250 = extraPotValue(250);
+      const extra100Income = Math.round(extra100 * 0.04 / 12);
+      const extra250Income = Math.round(extra250 * 0.04 / 12);
+
+      // Tax relief: basic rate payer pays 80%, gov tops up 20%
+      const taxRelief100 = Math.round(100 * 0.25);
+      const taxRelief250 = Math.round(250 * 0.25);
+      const isSalarySacrifice = data.annualPensionContribution && document.getElementById('input-salary-sacrifice')?.checked;
 
       el.style.display = 'block';
       el.innerHTML = `
-        <h3 style="font-size: 1rem; margin-bottom: 0.25rem;">Add more to your pension?</h3>
-        <p style="font-size: 0.7rem; color: var(--color-text-light); margin-bottom: 0.75rem;">On top of your current ${formatCurrency(currentMonthly)}/mo over ${yearsToRetire} years</p>
+        <h3 style="font-size: 1rem; margin-bottom: 0.75rem;">What would extra contributions do?</h3>
         <div style="display: flex; gap: 0.5rem; margin-bottom: 0.75rem;">
           <div style="flex: 1; padding: 0.75rem; background: var(--color-primary-subtle, #eef2ff); border-radius: var(--radius-md, 0.5rem); text-align: center;">
-            <div style="font-size: 0.65rem; text-transform: uppercase; color: var(--color-primary); letter-spacing: 0.04em;">+${formatCurrency(bump1)}/mo</div>
-            <div style="font-size: 1.125rem; font-weight: 700; margin-top: 0.25rem;">+${formatCurrency(extra1)}</div>
-            <div style="font-size: 0.7rem; color: var(--color-text-light); margin-top: 0.125rem;">extra at retirement</div>
-            <div style="font-size: 0.75rem; font-weight: 600; color: var(--color-success); margin-top: 0.25rem;">+${formatCurrency(income1)}/mo income</div>
+            <div style="font-size: 0.65rem; text-transform: uppercase; color: var(--color-primary); letter-spacing: 0.04em;">+£100/mo</div>
+            <div style="font-size: 1.125rem; font-weight: 700; margin-top: 0.25rem;">+${formatCurrency(extra100)}</div>
+            <div style="font-size: 0.7rem; color: var(--color-text-light); margin-top: 0.125rem;">at retirement</div>
+            <div style="font-size: 0.75rem; font-weight: 600; color: var(--color-success); margin-top: 0.25rem;">+${formatCurrency(extra100Income)}/mo income</div>
           </div>
           <div style="flex: 1; padding: 0.75rem; background: var(--color-primary-subtle, #eef2ff); border-radius: var(--radius-md, 0.5rem); text-align: center;">
-            <div style="font-size: 0.65rem; text-transform: uppercase; color: var(--color-primary); letter-spacing: 0.04em;">+${formatCurrency(bump2)}/mo</div>
-            <div style="font-size: 1.125rem; font-weight: 700; margin-top: 0.25rem;">+${formatCurrency(extra2)}</div>
-            <div style="font-size: 0.7rem; color: var(--color-text-light); margin-top: 0.125rem;">extra at retirement</div>
-            <div style="font-size: 0.75rem; font-weight: 600; color: var(--color-success); margin-top: 0.25rem;">+${formatCurrency(income2)}/mo income</div>
+            <div style="font-size: 0.65rem; text-transform: uppercase; color: var(--color-primary); letter-spacing: 0.04em;">+£250/mo</div>
+            <div style="font-size: 1.125rem; font-weight: 700; margin-top: 0.25rem;">+${formatCurrency(extra250)}</div>
+            <div style="font-size: 0.7rem; color: var(--color-text-light); margin-top: 0.125rem;">at retirement</div>
+            <div style="font-size: 0.75rem; font-weight: 600; color: var(--color-success); margin-top: 0.25rem;">+${formatCurrency(extra250Income)}/mo income</div>
           </div>
         </div>
         <div style="padding: 0.5rem 0.625rem; background: var(--color-accent-light, #ccfbf1); border-radius: var(--radius-md, 0.5rem); font-size: 0.75rem; color: var(--color-accent, #0d9488);">
-          <strong>Tax relief:</strong> You pay £80, government adds £20 — £100 goes in.${isSalarySacrifice ? ' Salary sacrifice saves 13.8% employer NI too.' : ' Higher-rate taxpayers reclaim a further £20.'}
+          <strong>Tax relief:</strong> You pay £80, the government adds £20 — so £100 goes into your pension.${isSalarySacrifice ? ' Via salary sacrifice, your employer also saves 13.8% NI.' : ' Higher-rate taxpayers claim a further £20 via self-assessment.'}
         </div>
+        <p style="font-size: 0.65rem; color: var(--color-text-light); margin-top: 0.375rem;">
+          Based on ${yearsToRetire} years to retirement at ${(growthRate * 100).toFixed(0)}% real growth. Income estimate uses 4% sustainable withdrawal rate.
+        </p>
       `;
     }
 
@@ -2533,25 +2598,26 @@
       const decYears = projection.decumulation.years.filter(y => !y.fundsDepleted || y.netIncome > 0);
       const labels = decYears.map(y => y.age);
       
-      // Build year-by-year data — scale sources to sum to actual netIncome
+      // Build year-by-year data directly from projection results
       const yearlyData = decYears.map(y => {
         const statePension = y.statePension || 0;
         const dbPension = y.dbPension || 0;
         const pensionWithdrawal = y.withdrawals?.pension || 0;
         const isaWithdrawal = y.withdrawals?.isa || 0;
+        const taxPaid = y.taxPaid || 0;
         const netIncome = y.netIncome || 0;
-
-        // Total gross from all sources
-        const totalGross = statePension + dbPension + pensionWithdrawal + isaWithdrawal;
-        // Scale each source proportionally so stacked total = netIncome
-        const scale = totalGross > 0 ? netIncome / totalGross : 0;
-
+        
+        // Distribute tax proportionally across taxable sources for display
+        const totalTaxable = statePension + dbPension + pensionWithdrawal;
+        const effectiveRate = totalTaxable > 0 ? taxPaid / totalTaxable : 0;
+        
         return {
           age: y.age,
-          statePensionNet: Math.round(statePension * scale),
-          dbPensionNet: Math.round(dbPension * scale),
-          pensionWithdrawalNet: Math.round(pensionWithdrawal * scale),
-          isaNet: Math.round(isaWithdrawal * scale),
+          statePensionNet: statePension > 0 ? Math.max(0, statePension * (1 - effectiveRate)) : 0,
+          dbPensionNet: dbPension > 0 ? Math.max(0, dbPension * (1 - effectiveRate)) : 0,
+          pensionWithdrawalNet: pensionWithdrawal > 0 ? Math.max(0, pensionWithdrawal * (1 - effectiveRate)) : 0,
+          isaNet: isaWithdrawal, // Tax-free
+          taxPaid,
           netIncome
         };
       });
@@ -2882,19 +2948,18 @@
       if (!el) return;
 
       const partnerAgeDiff = (data.partnerCurrentAge || 0) > 0 ? data.partnerCurrentAge - data.currentAge : 0;
-      const currentYear = new Date().getFullYear();
-      const birthYear = currentYear - (data.currentAge || 57);
-      const thStyle = 'padding: 0.5rem 0.3rem; text-align: right; font-size: 0.65rem; white-space: nowrap;';
-      const tdStyle = 'padding: 0.4rem 0.3rem; text-align: right; font-size: 0.7rem;';
-      const ageStyle = 'padding: 0.4rem 0.2rem; text-align: center; font-weight: 600; position: sticky; left: 0; z-index: 1; font-size: 0.7rem;';
+      const thStyle = 'padding: 0.5rem 0.4rem; text-align: right; font-size: 0.7rem; white-space: nowrap;';
+      const tdStyle = 'padding: 0.4rem; text-align: right; font-size: 0.75rem;';
+      const ageStyle = 'padding: 0.4rem; text-align: center; font-weight: 600; position: sticky; left: 0; z-index: 1;';
 
       let html = '<table style="width: 100%; border-collapse: collapse;">';
       html += '<thead><tr style="background: var(--color-background, #f8fafc); border-bottom: 2px solid #e5e7eb;">';
       html += '<th style="' + ageStyle + ' background: var(--color-background, #f8fafc);">Age</th>';
-      if (partnerAgeDiff) html += '<th style="' + thStyle + ' text-align: center; font-size: 0.6rem;">Partner</th>';
+      if (partnerAgeDiff) html += '<th class="hide-mobile" style="' + thStyle + ' text-align: center;">Partner</th>';
       html += '<th style="' + thStyle + '">Start</th>';
-      html += '<th style="' + thStyle + '">In/Out</th>';
-      html += '<th style="' + thStyle + '">Return</th>';
+      html += '<th class="hide-mobile" style="' + thStyle + '">Invested</th>';
+      html += '<th class="hide-mobile" style="' + thStyle + '">Growth</th>';
+      html += '<th class="hide-mobile" style="' + thStyle + '">Drawn</th>';
       html += '<th class="hide-mobile" style="' + thStyle + '">SP+DB</th>';
       html += '<th class="hide-mobile" style="' + thStyle + '">Tax</th>';
       html += '<th class="hide-mobile" style="' + thStyle + '">Net</th>';
@@ -2911,16 +2976,15 @@
         const invested = (y.contributions?.pension || 0) + (y.contributions?.isa || 0);
         const endBal = y.endBalances.total;
         runningTotal = endBal;
-        const displayAge = y.age + 1;
-        const calYear = birthYear + displayAge;
-        const partnerAge = partnerAgeDiff ? displayAge + partnerAgeDiff : '';
+        const partnerAge = partnerAgeDiff ? y.age + 1 + partnerAgeDiff : '';
 
         html += '<tr style="border-bottom: 1px solid #f1f5f9;">';
-        html += '<td style="' + ageStyle + ' background: white;"><div>' + displayAge + '</div><div style="font-size:0.55rem;font-weight:400;color:var(--color-text-light);">' + calYear + '</div></td>';
-        if (partnerAgeDiff) html += '<td style="' + tdStyle + ' text-align: center; font-size: 0.65rem; color: var(--color-text-light);">' + partnerAge + '</td>';
+        html += '<td style="' + ageStyle + ' background: white;">' + (y.age + 1) + '</td>';
+        if (partnerAgeDiff) html += '<td class="hide-mobile" style="' + tdStyle + ' text-align: center;">' + partnerAge + '</td>';
         html += '<td style="' + tdStyle + '">' + formatCurrency(startBal) + '</td>';
-        html += '<td style="' + tdStyle + ' color: #059669;">+' + formatCurrency(invested) + '</td>';
-        html += '<td style="' + tdStyle + ' color: #059669;">' + formatCurrency(growth) + '</td>';
+        html += '<td class="hide-mobile" style="' + tdStyle + ' color: #059669;">' + formatCurrency(invested) + '</td>';
+        html += '<td class="hide-mobile" style="' + tdStyle + ' color: #059669;">' + formatCurrency(growth) + '</td>';
+        html += '<td class="hide-mobile" style="' + tdStyle + '">—</td>';
         html += '<td class="hide-mobile" style="' + tdStyle + '">—</td>';
         html += '<td class="hide-mobile" style="' + tdStyle + '">—</td>';
         html += '<td class="hide-mobile" style="' + tdStyle + '">—</td>';
@@ -2930,7 +2994,7 @@
 
       // Retirement row
       const pclsText = projection.decumulation.pclsTaken > 0 ? ' | PCLS: ' + formatCurrency(projection.decumulation.pclsTaken) : '';
-      const colSpan = partnerAgeDiff ? 9 : 8;
+      const colSpan = partnerAgeDiff ? 10 : 9;
       html += '<tr style="border: 3px solid var(--color-primary, #4f46e5); background: var(--color-primary-subtle, #eef2ff);">';
       html += '<td colspan="' + colSpan + '" style="padding: 0.5rem; text-align: center; font-weight: 700; color: var(--color-primary, #4f46e5);">RETIREMENT — Age ' + data.retirementAge + pclsText + '</td>';
       html += '</tr>';
@@ -2948,15 +3012,15 @@
         const endBal = (y.endBalances.pension || 0) + (y.endBalances.isa || 0);
         runningTotal = endBal;
         const partnerAge = partnerAgeDiff ? y.age + partnerAgeDiff : '';
-        const calYear = birthYear + y.age;
         const isReduced = (y.targetSpending || 60000) < data.targetNetIncome;
 
         html += '<tr style="border-bottom: 1px solid #f1f5f9;' + (isReduced ? ' background: #fffbeb;' : '') + '">';
-        html += '<td style="' + ageStyle + ' background:' + (isReduced ? '#fffbeb' : 'white') + ';"><div>' + y.age + '</div><div style="font-size:0.55rem;font-weight:400;color:var(--color-text-light);">' + calYear + '</div></td>';
-        if (partnerAgeDiff) html += '<td style="' + tdStyle + ' text-align: center; font-size: 0.65rem; color: var(--color-text-light);">' + partnerAge + '</td>';
+        html += '<td style="' + ageStyle + ' background:' + (isReduced ? '#fffbeb' : 'white') + ';">' + y.age + '</td>';
+        if (partnerAgeDiff) html += '<td class="hide-mobile" style="' + tdStyle + ' text-align: center;">' + partnerAge + '</td>';
         html += '<td style="' + tdStyle + '">' + formatCurrency(startBal) + '</td>';
-        html += '<td style="' + tdStyle + ' color: #dc2626;">-' + formatCurrency(withdrawal) + '</td>';
-        html += '<td style="' + tdStyle + ' color: #059669;">' + formatCurrency(growth) + '</td>';
+        html += '<td class="hide-mobile" style="' + tdStyle + '">—</td>';
+        html += '<td class="hide-mobile" style="' + tdStyle + ' color: #059669;">' + formatCurrency(growth) + '</td>';
+        html += '<td class="hide-mobile" style="' + tdStyle + ' color: #dc2626;">-' + formatCurrency(withdrawal) + '</td>';
         html += '<td class="hide-mobile" style="' + tdStyle + ' color: #059669;">' + formatCurrency(spDb) + '</td>';
         html += '<td class="hide-mobile" style="' + tdStyle + ' color: #dc2626;">-' + formatCurrency(y.taxPaid || 0) + '</td>';
         html += '<td class="hide-mobile" style="' + tdStyle + ' font-weight: 600; color: ' + (isReduced ? '#d97706' : '#111827') + ';">' + formatCurrency(y.netIncome || 0) + '</td>';
@@ -3817,10 +3881,6 @@
         const section = document.getElementById('pcls-amount-section');
         if (section) section.style.display = e.target.checked ? 'block' : 'none';
       });
-      document.getElementById('input-partner-pcls-taken')?.addEventListener('change', (e) => {
-        const section = document.getElementById('partner-pcls-amount-section');
-        if (section) section.style.display = e.target.checked ? 'block' : 'none';
-      });
       // Legacy PCLS toggle (review screen, if still present)
       document.getElementById('pcls-already-taken')?.addEventListener('change', (e) => {
         const inputs = document.getElementById('pcls-amount-taken-input');
@@ -3886,11 +3946,9 @@
         nextScreen();
       });
       
-      // Slider event listeners — both input (live drag) and change (Safari release)
+      // Slider event listeners (functions defined at module scope)
       document.getElementById('slider-retirement-age')?.addEventListener('input', runSliderProjection);
-      document.getElementById('slider-retirement-age')?.addEventListener('change', runSliderProjection);
       document.getElementById('slider-monthly-contribution')?.addEventListener('input', runSliderProjection);
-      document.getElementById('slider-monthly-contribution')?.addEventListener('change', runSliderProjection);
 
       // Scenario cards on results page — tap to change scenario and recalculate
       document.querySelectorAll('.scenario-card').forEach(card => {
@@ -3920,30 +3978,7 @@
       document.getElementById('results-guardrails')?.addEventListener('change', (e) => {
         const reviewGuardrails = document.getElementById('input-guardrails');
         if (reviewGuardrails) reviewGuardrails.checked = e.target.checked;
-        // Show before/after comparison
-        if (state.formData && state.projectionA) {
-          try {
-            const prevBalance = state.projectionA.summary.finalBalance;
-            const prevDepletion = state.projectionA.summary.fundsDepleted;
-            state.formData.useGuardrails = e.target.checked;
-            runFullCalculation();
-            setTimeout(() => {
-              if (state.projectionA) {
-                const newBalance = state.projectionA.summary.finalBalance;
-                const delta = newBalance - prevBalance;
-                const impactEl = document.getElementById('slider-impact');
-                if (impactEl && Math.abs(delta) > 100) {
-                  const sign = delta >= 0 ? '+' : '';
-                  impactEl.style.display = 'block';
-                  impactEl.innerHTML = `Guardrails ${e.target.checked ? 'on' : 'off'}: <span style="color: ${delta >= 0 ? 'var(--color-success)' : 'var(--color-danger)'}; font-weight: 700;">${sign}${formatCurrency(delta)}</span> to final balance`;
-                  setTimeout(() => { impactEl.style.display = 'none'; }, 5000);
-                }
-              }
-            }, 500);
-          } catch (err) { runFullCalculation(); }
-        } else {
-          runFullCalculation();
-        }
+        runFullCalculation();
       });
 
       // Save/load scenarios

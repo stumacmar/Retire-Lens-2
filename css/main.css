@@ -386,14 +386,14 @@
       grid-template-columns: repeat(2, 1fr);
       gap: 1px;
       background: var(--color-border-light);
-      border-radius: var(--radius-lg);
+      border-radius: var(--radius-md);
       overflow: hidden;
-      box-shadow: var(--shadow-md);
+      box-shadow: var(--shadow-sm);
     }
 
     .metric {
       text-align: center;
-      padding: var(--spacing-xl) var(--spacing-md);
+      padding: var(--spacing-md) var(--spacing-sm);
       background: var(--color-surface);
     }
 

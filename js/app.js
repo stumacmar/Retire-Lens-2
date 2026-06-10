@@ -50,6 +50,9 @@
 
     // Import persistence layer for auto-save
     import { initPersistence, startAutoSave, loadAutoSave } from '../ui/persistence.js';
+
+    // Single source of truth for display formatting
+    import { formatGBP } from '../ui/utils/formatting.js';
     
     // ═══════════════════════════════════════════════════════════════
     // Configuration Constants
@@ -1543,11 +1546,9 @@
     // ═══════════════════════════════════════════════════════════════
     
     function formatCurrency(amount) {
-      // Guard against null, undefined, NaN, and non-numbers
-      if (amount === null || amount === undefined || typeof amount !== 'number' || isNaN(amount)) {
-        return '—';
-      }
-      return '£' + Math.round(amount).toLocaleString();
+      // Delegates to the shared formatter (ui/utils/formatting.js) so every
+      // £ figure in the app is formatted identically.
+      return formatGBP(amount);
     }
     
     // ═══════════════════════════════════════════════════════════════
@@ -1822,6 +1823,32 @@
       }, 50);
     }
 
+    // Plain-English verdict for the headline answer.
+    // One palette everywhere: >=85 good (green), 60-84 caution (amber), <60 at risk (red).
+    function getHeroVerdict(confidenceNum, isSuccess, plan, monthly) {
+      const age = plan.retirementAge;
+      const income = formatCurrency(monthly);
+      if (isSuccess && confidenceNum >= 85) {
+        return {
+          badge: 'YES', cls: 'success',
+          verdict: `Your plan works. ${income} a month after tax from age ${age} is on track to last to age 90, even through most weak markets.`,
+          guidance: `<strong>What this score means:</strong> in ${confidenceNum} of 1,000 simulated futures your money lasts to 90. Planners treat 75–90 as the healthy zone — above that you may even have room to spend more or retire earlier.`
+        };
+      }
+      if (confidenceNum >= 60) {
+        return {
+          badge: 'LIKELY', cls: 'partial',
+          verdict: `Your plan is close. ${income} a month from age ${age} works in most simulated markets, but a long run of poor returns could leave a shortfall before 90.`,
+          guidance: `<strong>What this score means:</strong> in ${1000 - confidenceNum * 10} of 1,000 simulated futures you'd need to adjust along the way — that means trimming spending for a while, not going broke. Try the sliders below: one more year of work or a small contribution rise often lifts the score sharply.`
+        };
+      }
+      return {
+        badge: 'AT RISK', cls: 'danger',
+        verdict: `Not yet. On current savings, ${income} a month from age ${age} runs out before age 90 in most simulated markets.`,
+        guidance: `<strong>What to do:</strong> use the sliders below to test retiring later, contributing more, or aiming for a lower income — each one improves the score. Small changes made now compound; a regulated financial adviser can help you weigh the options.`
+      };
+    }
+
     // Surgical hero update from projection — used by sliders for instant feedback
     function updateHeroFromProjection(projection, results) {
       const { summary, plan } = projection;
@@ -1834,16 +1861,24 @@
 
       const monthly = Math.round(plan.targetNetIncome / 12);
 
+      const v = getHeroVerdict(confidenceNum, isSuccess, plan, monthly);
+
       // Update badge
       const badge = document.querySelector('.answer-badge');
       if (badge) {
-        badge.className = 'answer-badge ' + (isSuccess ? 'success' : confidenceNum >= 60 ? 'partial' : 'danger');
-        badge.textContent = isSuccess ? 'YES' : confidenceNum >= 60 ? 'LIKELY' : 'AT RISK';
+        badge.className = 'answer-badge ' + v.cls;
+        badge.textContent = v.badge;
       }
 
       // Update question
       const question = document.querySelector('.results-question');
       if (question) question.innerHTML = `Can I retire at ${plan.retirementAge} on <span id="hero-income-amount" data-annual="${plan.targetNetIncome}">${formatCurrency(monthly)}/mo</span>?`;
+
+      // Update plain-English verdict + guidance
+      const verdictEl = document.getElementById('hero-verdict');
+      if (verdictEl) verdictEl.textContent = v.verdict;
+      const guidanceEl = document.getElementById('hero-guidance');
+      if (guidanceEl) guidanceEl.innerHTML = v.guidance;
 
       // Update gauge arc and score
       const arcEl = document.getElementById('confidence-arc');
@@ -1874,24 +1909,31 @@
 
       const monthly = Math.round(plan.targetNetIncome / 12);
 
+      const v = getHeroVerdict(confidenceNum, isSuccess, plan, monthly);
+
       const html = `
-        <div class="card-hero" style="padding: var(--spacing-md);">
-          <h2 class="text-lg font-bold tracking-tight text-center" style="margin: 0; color: var(--color-text);">
+        <div class="card-hero results-hero" style="padding: var(--spacing-lg) var(--spacing-md);">
+          <div class="answer-badge ${v.cls}">${v.badge}</div>
+          <h2 class="text-xl font-bold tracking-tight text-center" style="margin: 0; color: var(--color-text);">
             Retire at ${plan.retirementAge} on <span id="hero-income-amount" data-annual="${plan.targetNetIncome}" style="color: var(--color-primary);">${formatCurrency(monthly)}/mo</span>
           </h2>
-          <div class="text-center" style="margin-top: 4px;"><button id="toggle-monthly" class="text-xs text-muted" style="padding: 2px 10px; border: 1px solid var(--color-border); border-radius: var(--radius-full); background: transparent; cursor: pointer;">annual</button></div>
+          <div class="text-center" style="margin-top: 4px;"><button id="toggle-monthly" class="text-xs text-muted" style="padding: 2px 10px; border: 1px solid var(--color-border); border-radius: var(--radius-full); background: transparent; cursor: pointer;">Show annual</button></div>
+
+          <p class="hero-verdict" id="hero-verdict">${v.verdict}</p>
 
           <div style="display: flex; align-items: center; justify-content: center; gap: var(--spacing-md); margin: var(--spacing-md) 0 0;">
-            <svg width="88" height="56" viewBox="0 0 160 100" style="overflow: visible; flex-shrink: 0;">
+            <svg width="88" height="56" viewBox="0 0 160 100" style="overflow: visible; flex-shrink: 0;" role="img" aria-label="Confidence score ${confidenceNum} out of 100">
               <defs><linearGradient id="gg" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stop-color="${confidenceColor}" stop-opacity="0.4"/><stop offset="100%" stop-color="${confidenceColor}"/></linearGradient></defs>
               <path d="M 15 90 A 65 65 0 0 1 145 90" fill="none" stroke="var(--color-border-light)" stroke-width="14" stroke-linecap="round"/>
               <path id="confidence-arc" d="M 15 90 A 65 65 0 0 1 145 90" fill="none" stroke="url(#gg)" stroke-width="14" stroke-linecap="round" stroke-dasharray="${confidenceNum * 2.04} 999" style="transition: stroke-dasharray 0.8s cubic-bezier(0.16,1,0.3,1);"/>
               <text id="confidence-score" x="80" y="80" text-anchor="middle" font-size="42" font-weight="700" fill="${confidenceColor}" font-family="Inter,system-ui">${confidenceNum}</text>
             </svg>
             <div>
-              <div class="text-xs text-muted" style="line-height: 1.4;">of 1,000 market<br>scenarios support<br>your plan to 90</div>
+              <div class="text-xs text-muted" style="line-height: 1.4; text-align: left;">of 1,000 simulated<br>markets support<br>your plan to age 90</div>
             </div>
           </div>
+
+          <div class="hero-guidance" id="hero-guidance">${v.guidance}</div>
         </div>
 
         <div class="results-metrics" style="margin: 0 0 var(--spacing-xs);">
@@ -1912,8 +1954,7 @@
             <span class="metric-value" data-metric="finalBalance" style="font-size: var(--font-size-lg);">${formatCurrency(summary.finalBalance)}</span>
           </div>
         </div>
-        <p class="text-xs text-muted text-center" style="margin: 2px 0 var(--spacing-sm);">Not financial advice. Tax year 2025/26.</p>
-        </p>
+        <p class="text-xs text-muted text-center" style="margin: 2px 0 var(--spacing-sm);">Not financial advice. Tax year 2025/26. All figures in today's money.</p>
       `;
 
       document.getElementById('results-container').innerHTML = html;
@@ -3307,6 +3348,7 @@
                 isProvisional: state.isProvisionalPlan,
                 provisionalReason: state.provisionalReason
               });
+              explainerContainer.style.display = 'block';
             } catch (e) {
               console.warn('Confidence explainer render failed:', e);
               const successRate = mcResult.statistics ? mcResult.statistics.successRate : 0;

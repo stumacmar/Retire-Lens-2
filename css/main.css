@@ -19,7 +19,8 @@
       --color-danger-light: #fee2e2;
       --color-text: #0f172a;
       --color-text-secondary: #475569;
-      --color-text-light: #94a3b8;
+      /* WCAG AA: 4.8:1 on white, 4.4:1 on --color-background */
+      --color-text-light: #64748b;
       --color-background: #f8fafc;
       --color-surface: #ffffff;
       --color-border: #e2e8f0;
@@ -68,6 +69,53 @@
       box-sizing: border-box;
       margin: 0;
       padding: 0;
+    }
+
+    /* ═══ Accessibility: skip link, focus rings, reduced motion ═══ */
+    .skip-link {
+      position: absolute;
+      top: -100px;
+      left: var(--spacing-md);
+      z-index: 300;
+      padding: var(--spacing-sm) var(--spacing-md);
+      background: var(--color-primary);
+      color: #fff;
+      font-weight: 600;
+      border-radius: var(--radius-sm);
+      text-decoration: none;
+      transition: top var(--transition-fast);
+    }
+    .skip-link:focus {
+      top: var(--spacing-sm);
+    }
+
+    /* Visible focus for keyboard users, without flashing rings on mouse clicks */
+    :focus-visible {
+      outline: 3px solid var(--color-primary);
+      outline-offset: 2px;
+      border-radius: var(--radius-sm);
+    }
+    .input-wrapper input:focus-visible {
+      outline: none; /* wrapper's :focus-within ring covers these */
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+      }
+      html { scroll-behavior: auto; }
+    }
+
+    /* ═══ Numbers: tabular figures so monetary values align and don't jitter ═══ */
+    .metric-value, .preview-value, .plsa-card, .scenario-card,
+    .comparison-table td, #inputs-summary, #assumptions-detail,
+    #data-table-container, #slider-retirement-age-value, #slider-contribution-value,
+    #hero-income-amount, .inline-edit, .detail-value, .confidence-explainer,
+    input[inputmode="numeric"], .tabular-nums {
+      font-variant-numeric: tabular-nums;
+      font-feature-settings: 'tnum' 1;
     }
 
     /* Base */
@@ -356,6 +404,43 @@
       background: var(--color-danger-light);
       color: var(--color-danger);
       box-shadow: 0 0 0 1px rgba(220, 38, 38, 0.15);
+    }
+
+    /* Compact verdict pill used inside the results hero card */
+    .card-hero .answer-badge {
+      font-size: var(--font-size-sm);
+      font-weight: 700;
+      padding: 4px 14px;
+      border-radius: var(--radius-full);
+      margin-bottom: var(--spacing-sm);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    /* Plain-English verdict sentence under the headline */
+    .hero-verdict {
+      font-size: var(--font-size-base);
+      color: var(--color-text-secondary);
+      line-height: 1.55;
+      max-width: 36rem;
+      margin: var(--spacing-sm) auto 0;
+    }
+
+    /* One-line guidance: what the score means / what to do about it */
+    .hero-guidance {
+      font-size: var(--font-size-sm);
+      color: var(--color-text-secondary);
+      line-height: 1.55;
+      margin: var(--spacing-md) auto 0;
+      padding: var(--spacing-sm) var(--spacing-md);
+      max-width: 34rem;
+      background: rgba(255, 255, 255, 0.6);
+      border: 1px solid var(--color-border-light);
+      border-radius: var(--radius-md);
+      text-align: left;
+    }
+    @media (prefers-color-scheme: dark) {
+      .hero-guidance { background: rgba(15, 23, 42, 0.4); }
     }
 
     .results-question {
@@ -1856,6 +1941,14 @@
     /* Mobile-responsive data table */
     @media (max-width: 600px) {
       .hide-mobile { display: none !important; }
+    }
+
+    /* Narrow phones (375px and below): keep preset cards from overflowing */
+    .plsa-card { min-width: 0; }
+    @media (max-width: 400px) {
+      #plsa-presets { flex-wrap: wrap; }
+      #plsa-presets .plsa-card { flex: 1 1 30%; }
+      .btn-action-bar .btn { min-width: 0; }
     }
 
     /* Number animation on results */

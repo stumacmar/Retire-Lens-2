@@ -1197,7 +1197,7 @@
           annualPensionContribution: (getValue('input-pension-contribution', 0) * 12) + partnerContrib,
           currentIsa: getValue('input-isa-balance', 0) + getValue('input-partner-isa-balance', 0),
           annualIsaContribution: getValue('input-isa-contribution', 0),
-          expectedStatePension: getValue('input-state-pension-amount', 0) + partnerSP + partnerDB,
+          expectedStatePension: getValue('input-state-pension-amount', 0) + partnerSP,
           statePensionAge: getValue('input-state-pension-age', 67)
         };
         
@@ -2430,8 +2430,8 @@
       const totalSP = sp + (isCouple && partnerSpUserAge <= spAge ? partnerSP : 0);
       const reduction = avgPreWithdrawal - avgPostWithdrawal;
 
-      // Drawdown rate: annual withdrawal as % of pot at retirement
-      const potAtRetire = projection.summary.retirementPot - projection.summary.pclsTaken;
+      // Drawdown rate: annual withdrawal as % of pot at retirement (PCLS is a transfer, not a loss)
+      const potAtRetire = projection.summary.retirementPot;
       const drawdownRate = potAtRetire > 0 ? ((avgPreWithdrawal / potAtRetire) * 100).toFixed(1) : 0;
       const drawdownRatePost = potAtRetire > 0 ? ((avgPostWithdrawal / potAtRetire) * 100).toFixed(1) : 0;
 
@@ -2935,8 +2935,7 @@
       html += '<td colspan="' + colSpan + '" style="padding: 0.5rem; text-align: center; font-weight: 700; color: var(--color-primary, #4f46e5);">RETIREMENT — Age ' + data.retirementAge + pclsText + '</td>';
       html += '</tr>';
 
-      // After PCLS, adjust running total
-      runningTotal -= (projection.decumulation.pclsTaken || 0);
+      // PCLS is already reflected in decumulation pension balances — do not double-deduct
 
       // Decumulation years
       for (const y of projection.decumulation.years) {

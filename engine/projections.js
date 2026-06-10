@@ -105,9 +105,9 @@ export function createPlan(inputs) {
     partnerCurrentAge: partnerCurrentAge || 0,
     partnerStatePensionAge: partnerStatePensionAge || 0,
     partnerExpectedStatePension: partnerExpectedStatePension || 0,
-    partnerDBPensionAmount: partnerDBPensionAmount || 0,
-    partnerDBPensionStartAge,
-    partnerDBPensionEscalationRate,
+    partnerDBPensionAmount: (partnerDBPensionAmount > 0 && (partnerCurrentAge || 0) > 0) ? partnerDBPensionAmount : (partnerDBPensionAmount || 0),
+    partnerDBPensionStartAge: partnerDBPensionStartAge || 67,
+    partnerDBPensionEscalationRate: partnerDBPensionEscalationRate || 0.02,
     pclsStrategy,
     pclsReinvest,
     pclsAlreadyTaken: Boolean(pclsAlreadyTaken),
@@ -265,41 +265,14 @@ export function projectDecumulation(plan, accumulationResult, endAge = 90) {
   let pensionBalance = accumulationResult.finalBalances.pension;
   let isaBalance = accumulationResult.finalBalances.isa;
 
-  const pclsByAge = new Map();
-  let taxFreeCash = 0;
-
-  // LSA cap: max tax-free lump sum is 268,275 (post-LTA regime)
+  // Marginal PCLS: each pension withdrawal has 25% tax-free (UFPLS treatment).
+  // Track remaining entitlement — capped at Lump Sum Allowance minus already taken.
+  const pclsRate = plan.assumptions?.pension?.pclsRate || 0.25;
   const lsaCap = plan.assumptions?.pension?.lumpSumAllowance || 268275;
   const priorPCLS = plan.pclsAmountTaken || 0;
-  const remainingLSA = Math.max(0, lsaCap - priorPCLS);
-
-  if (pclsAlreadyTaken) {
-    const uncrystallised = accumulationResult.uncrystallisedPension || 0;
-    const pclsRate = plan.assumptions?.pension?.pclsRate || 0.25;
-    taxFreeCash = Math.min(uncrystallised * pclsRate, remainingLSA);
-    pensionBalance -= taxFreeCash;
-  } else {
-    // FIX 1.4: Use strategy-aware PCLS calculation
-    const pclsScheduleResult = calculatePCLSStrategy(pensionBalance, {
-      strategy: pclsStrategy || 'all_at_retirement',
-      retirementAge,
-      deferredAge: statePensionAge,
-      reinvest: pclsReinvest !== false,
-      phaseYears: 5
-    });
-
-    pclsScheduleResult.schedule.forEach(entry => {
-      pclsByAge.set(entry.age, entry.amount);
-    });
-
-    taxFreeCash = Math.min(pclsScheduleResult.totalPCLS, remainingLSA);
-    if (pclsStrategy === 'all_at_retirement' || !pclsStrategy) {
-      pensionBalance -= taxFreeCash;
-      pclsByAge.clear();
-    } else {
-      taxFreeCash = 0;
-    }
-  }
+  const maxPclsEntitlement = Math.min(pensionBalance * pclsRate, Math.max(0, lsaCap - priorPCLS));
+  let pclsRemainingEntitlement = maxPclsEntitlement;
+  let taxFreeCash = 0;
 
   const years = [];
   let fundsDepleted = false;
@@ -335,21 +308,6 @@ export function projectDecumulation(plan, accumulationResult, endAge = 90) {
     // Apply guardrail adjustment
     if (plan.useGuardrails) {
       ageAdjustedSpending = Math.round(ageAdjustedSpending * guardrailSpendingAdjustment);
-    }
-
-    // FIX 1.4: Apply PCLS for non-immediate strategies
-    const pclsThisYear = pclsByAge.get(age) || 0;
-    if (pclsThisYear > 0) {
-      pensionBalance = Math.max(0, pensionBalance - pclsThisYear);
-      taxFreeCash += pclsThisYear;
-      // If reinvesting, add to ISA balance (capped at annual ISA limit £20k; excess held as cash)
-      if (pclsReinvest !== false) {
-        const isaAnnualCap = 20000;
-        const toIsa = Math.min(pclsThisYear, isaAnnualCap);
-        isaBalance += toIsa;
-        // Excess beyond ISA cap is not modelled separately in this projection
-        // (use projectPCLSReinvestment() for full ISA cap enforcement)
-      }
     }
 
     if (fundsDepleted) {
@@ -396,9 +354,14 @@ export function projectDecumulation(plan, accumulationResult, endAge = 90) {
       : 0;
 
     // Partner's DB pension — starts when PARTNER reaches their DB start age
-    const partnerDbStartUserAge = partnerCurrentAge > 0 ? (partnerDBPensionStartAge || 67) - ageDiff : (partnerDBPensionStartAge || 67);
+    // partnerDBPensionStartAge is the partner's own age (e.g. 65), translate to user's age
+    const partnerDbStartAge = partnerDBPensionStartAge || 67;
+    const partnerDbStartUserAge = partnerCurrentAge > 0
+      ? partnerDbStartAge - ageDiff
+      : partnerDbStartAge;
+    const partnerDbYearsInPayment = Math.max(0, age - partnerDbStartUserAge);
     const partnerDbPension = (partnerDBPensionAmount > 0 && age >= partnerDbStartUserAge)
-      ? partnerDBPensionAmount * Math.pow(1 + (partnerDBPensionEscalationRate || 0.02), Math.max(0, age - partnerDbStartUserAge))
+      ? partnerDBPensionAmount * Math.pow(1 + (partnerDBPensionEscalationRate || 0.02), partnerDbYearsInPayment)
       : 0;
 
     // Total guaranteed income from all sources
@@ -455,6 +418,32 @@ export function projectDecumulation(plan, accumulationResult, endAge = 90) {
         { pension: pensionBalance, isa: isaAvailableThisYear },
         { statePensionIncome: totalGuaranteedIncome, taxConfig }
       );
+    }
+
+    // Marginal PCLS: 25% of pension withdrawals are tax-free (up to remaining entitlement)
+    const pensionWithdrawn = withdrawalResult.withdrawals.pension;
+    if (pensionWithdrawn > 0 && pclsRemainingEntitlement > 0) {
+      const pclsThisYear = Math.min(pensionWithdrawn * pclsRate, pclsRemainingEntitlement);
+      pclsRemainingEntitlement -= pclsThisYear;
+      taxFreeCash += pclsThisYear;
+
+      // Recalculate tax: only (pensionWithdrawn - pclsThisYear) is taxable
+      const taxablePension = pensionWithdrawn - pclsThisYear;
+      const guaranteedIncome = (partnerCurrentAge > 0)
+        ? (statePension + dbPension)
+        : totalGuaranteedIncome;
+      const recalcTax = calculateTaxFromGross(guaranteedIncome + taxablePension, taxConfig);
+      const taxSaving = (withdrawalResult.taxPaid || 0) - recalcTax.total;
+
+      if (partnerCurrentAge > 0) {
+        const personBIncome = partnerStatePension + partnerDbPension;
+        const personBTax = calculateTaxFromGross(personBIncome, taxConfig);
+        withdrawalResult.taxPaid = recalcTax.total + personBTax.total;
+        withdrawalResult.netIncome = recalcTax.netIncome + withdrawalResult.withdrawals.isa + personBTax.netIncome;
+      } else {
+        withdrawalResult.taxPaid = recalcTax.total;
+        withdrawalResult.netIncome = recalcTax.netIncome + withdrawalResult.withdrawals.isa;
+      }
     }
 
     // Update balances after withdrawal — deduct actual ISA used from real balance

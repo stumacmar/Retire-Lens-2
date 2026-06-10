@@ -12,6 +12,7 @@
 import { runProjection, createPlan } from './projections.js';
 import { PROJECTION_DEFAULTS } from '../config/defaults.js';
 import { calculateOptimalWithdrawal } from './withdrawals.js';
+import { calculateTaxFromGross } from './tax.js';
 
 /**
  * Generate a random return using normal distribution
@@ -113,23 +114,14 @@ export function runSingleSimulation(plan, accumulationReturns, decumulationRetur
     }
   }
   
-  // Take PCLS — match deterministic logic
+  // Marginal PCLS: don't deduct lump sum — apply 25% tax-free to each withdrawal instead
   const pclsRate = plan.assumptions.pension?.pclsRate || 0.25;
+  const lsaCap = plan.assumptions?.pension?.lumpSumAllowance || 268275;
+  const priorPCLS = plan.pclsAmountTaken || 0;
+  const maxPclsEntitlement = Math.min(pensionBalance * pclsRate, Math.max(0, lsaCap - priorPCLS));
+  let pclsRemainingEntitlement = maxPclsEntitlement;
   let taxFreeCash = 0;
-  if (plan.pclsAlreadyTaken) {
-    // Only take PCLS on uncrystallised portion
-    const pclsAmountTaken = plan.pclsAmountTaken || 0;
-    if (pclsAmountTaken > 0) {
-      const origSipp = pclsAmountTaken / 0.25;
-      const crystallised = origSipp * 0.75;
-      const uncrystallised = Math.max(0, pensionBalance - crystallised);
-      taxFreeCash = uncrystallised * pclsRate;
-    }
-  } else {
-    taxFreeCash = pensionBalance * pclsRate;
-  }
-  pensionBalance = pensionBalance - taxFreeCash;
-  const totalRetirementAssets = pensionBalance + isaBalance + taxFreeCash;
+  const totalRetirementAssets = pensionBalance + isaBalance;
   
   // Decumulation phase
   let fundsDepleted = false;
@@ -206,13 +198,25 @@ export function runSingleSimulation(plan, accumulationReturns, decumulationRetur
       balances,
       { statePensionIncome: totalGuaranteed, taxConfig: effectiveTaxConfig }
     );
-    
+
+    // Marginal PCLS: 25% of pension withdrawals are tax-free (up to remaining entitlement)
+    const pensionWithdrawn = withdrawalResult.withdrawals.pension;
+    if (pensionWithdrawn > 0 && pclsRemainingEntitlement > 0) {
+      const pclsThisYear = Math.min(pensionWithdrawn * pclsRate, pclsRemainingEntitlement);
+      pclsRemainingEntitlement -= pclsThisYear;
+      taxFreeCash += pclsThisYear;
+      const taxablePension = pensionWithdrawn - pclsThisYear;
+      const recalcTax = calculateTaxFromGross(totalGuaranteed + taxablePension, effectiveTaxConfig);
+      withdrawalResult.taxPaid = recalcTax.total;
+      withdrawalResult.netIncome = recalcTax.netIncome + withdrawalResult.withdrawals.isa;
+    }
+
     let targetMetThisYear = true;
-    
+
     // Check if withdrawal exceeds available balances
     const totalBalance = pensionBalance + isaBalance;
     const totalWithdrawal = withdrawalResult.withdrawals.total;
-    
+
     if (totalBalance <= 0 || (totalWithdrawal > totalBalance && totalBalance < plan.targetNetIncome * 0.1)) {
       pensionBalance = 0;
       isaBalance = 0;

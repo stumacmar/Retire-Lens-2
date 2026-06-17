@@ -803,7 +803,7 @@
       } else {
         personB.statePensionUnknown = false;
         personB.statePensionAge = getValue('input-partner-sp-age', 67);
-        personB.expectedStatePension = getValue('input-partner-sp-amount', 11500);
+        personB.expectedStatePension = getValue('input-partner-sp-amount', 11973);
       }
       
       debugLog('ONBOARDING', 'Saved partner follow-up values', personB);
@@ -1334,7 +1334,7 @@
           ? (cVal(personA?.isaAnnualContrib, cpA?.isaAnnualContrib, 0) + cVal(state.onboardingState?.personB?.isaAnnualContrib, couplesLiveData?.personB?.isaAnnualContrib, 0))
           : getValue('input-isa-contribution', 0),
         statePensionAge: isCouplesFlow ? cVal(personA?.statePensionAge, cpA?.statePensionAge, 67) : getValue('input-state-pension-age', 67),
-        expectedStatePension: isCouplesFlow ? cVal(personA?.expectedStatePension, cpA?.expectedStatePension, 11500) : getValue('input-state-pension-amount', 11973),
+        expectedStatePension: isCouplesFlow ? cVal(personA?.expectedStatePension, cpA?.expectedStatePension, 11973) : getValue('input-state-pension-amount', 11973),
 
         // Advanced options
         scenario: getSelectedValue('scenario-select', 'moderate'),
@@ -1387,9 +1387,9 @@
         taxJurisdiction: getSelectedValue('tax-jurisdiction', 'england')
       };
 
-      // Salary sacrifice: employer saves 13.8% NI and often passes it on
+      // Salary sacrifice: employer saves 15% NI and often passes it on
       if (getChecked('input-salary-sacrifice')) {
-        result.annualPensionContribution = Math.round(result.annualPensionContribution * 1.138);
+        result.annualPensionContribution = Math.round(result.annualPensionContribution * 1.15);
       }
 
       // MPAA enforcement: if user has flexibly accessed pension, cap contributions at 10,000/year

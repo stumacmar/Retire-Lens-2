@@ -12,20 +12,19 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 
   <!-- Chart.js from CDN -->
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js" integrity="sha384-6BSKDO3lCO3bIG7SQMEYNBPNCkCLErGSqScKceGAIMJiJFLBNPkxK8mBzYZOYlea" crossorigin="anonymous"></script>
 
   <link rel="stylesheet" href="css/main.css">
 </head>
 <body>
-  <a href="#main-content" class="skip-link">Skip to main content</a>
-
+  <a href="#screen-results" class="skip-link" style="position:absolute;left:-9999px;top:auto;width:1px;height:1px;overflow:hidden;z-index:999;">Skip to content</a>
   <!-- Progress bar -->
   <div class="progress-container">
-    <div id="progress-bar" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100" aria-label="Progress through planner"></div>
+    <div id="progress-bar" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
   </div>
-
+  
   <!-- Main app container -->
-  <div class="app-container" id="main-content" role="main">
+  <div class="app-container">
     
     <!-- Welcome/Splash screen removed - household type is now entry point -->
     
@@ -251,14 +250,14 @@
             <div class="input-group">
               <label for="input-partner-age">Partner's current age *</label>
               <div class="input-wrapper">
-                <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-partner-age" min="18" max="100" placeholder="45" aria-required="true" />
+                <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-partner-age" min="18" max="100" placeholder="45" inputmode="numeric" aria-required="true" />
               </div>
               <p class="help-text">Partner's age in years</p>
             </div>
             <div class="input-group">
               <label for="input-partner-retirement-age">Partner's target retirement age *</label>
               <div class="input-wrapper">
-                <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-partner-retirement-age" min="50" max="100" placeholder="65" aria-required="true" />
+                <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-partner-retirement-age" min="50" max="100" placeholder="65" inputmode="numeric" aria-required="true" />
               </div>
               <p class="help-text">When partner plans to stop working</p>
             </div>
@@ -270,7 +269,7 @@
               <label>Partner's DC pension pot</label>
               <div class="input-wrapper">
                 <span class="currency-symbol">£</span>
-                <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-partner-dc-pot" min="0" step="1000" placeholder="0" />
+                <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-partner-dc-pot" min="0" step="1000" placeholder="0" inputmode="numeric" />
               </div>
               <p class="help-text">Enter 0 if unknown - results will be provisional</p>
             </div>
@@ -278,7 +277,7 @@
               <label>Partner's monthly DC contributions</label>
               <div class="input-wrapper">
                 <span class="currency-symbol">£</span>
-                <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-partner-dc-contrib" min="0" step="50" placeholder="0" />
+                <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-partner-dc-contrib" min="0" step="50" placeholder="0" inputmode="numeric" />
               </div>
               <p class="help-text">Optional - monthly amount including employer</p>
             </div>
@@ -290,14 +289,14 @@
               <label>Partner's annual DB pension amount *</label>
               <div class="input-wrapper">
                 <span class="currency-symbol">£</span>
-                <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-partner-db-amount" min="0" step="500" placeholder="15000" />
+                <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-partner-db-amount" min="0" step="500" placeholder="15000" inputmode="numeric" />
               </div>
               <p class="help-text">Guaranteed yearly income from DB scheme</p>
             </div>
             <div class="input-group">
               <label>Partner's DB pension start age</label>
               <div class="input-wrapper">
-                <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-partner-db-start-age" min="50" max="75" value="67" />
+                <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-partner-db-start-age" min="50" max="75" value="67" inputmode="numeric" />
               </div>
               <p class="help-text">When DB payments begin (usually retirement age)</p>
             </div>
@@ -308,14 +307,14 @@
             <div class="input-group">
               <label>Partner's State Pension age</label>
               <div class="input-wrapper">
-                <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-partner-sp-age" min="60" max="75" value="67" />
+                <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-partner-sp-age" min="60" max="75" value="67" inputmode="numeric" />
               </div>
             </div>
             <div class="input-group">
               <label>Partner's expected State Pension (annual)</label>
               <div class="input-wrapper">
                 <span class="currency-symbol">£</span>
-                <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-partner-sp-amount" min="0" step="100" value="11500" />
+                <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-partner-sp-amount" min="0" step="100" value="11500" inputmode="numeric" />
               </div>
               <p class="help-text">Full new State Pension is ~£11,500/year</p>
             </div>
@@ -368,13 +367,13 @@
         <div class="input-group">
           <label style="font-weight: 500;">Your current age</label>
           <div class="input-wrapper">
-            <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-current-age" min="18" max="100" placeholder="56" aria-label="Current age" />
+            <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-current-age" min="18" max="100" placeholder="56" inputmode="numeric" aria-label="Current age" />
           </div>
         </div>
         <div class="input-group" style="margin-top: 1rem;">
           <label style="font-weight: 500;">Target retirement age</label>
           <div class="input-wrapper">
-            <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-retirement-age" min="50" max="100" placeholder="60" aria-label="Retirement age" />
+            <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-retirement-age" min="50" max="100" placeholder="60" inputmode="numeric" aria-label="Retirement age" />
           </div>
           <p class="help-text">UK State Pension starts at 67. Each extra year of work adds 8-12% to your retirement income.</p>
         </div>
@@ -401,9 +400,8 @@
           <label style="font-weight: 600;">Target annual income (after tax)</label>
           <div class="input-wrapper">
             <span class="currency-symbol">£</span>
-            <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-target-income" min="0" step="1000" placeholder="30000" aria-label="Target annual income" />
+            <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-target-income" min="0" step="1000" placeholder="30000" inputmode="numeric" aria-label="Target annual income" />
           </div>
-          <p class="help-text">What you want to live on each year, after tax, in today's money — or pick a benchmark below</p>
         </div>
         <!-- PLSA preset cards -->
         <div id="plsa-presets" style="display: flex; gap: 0.5rem; margin-bottom: 1.25rem;">
@@ -421,7 +419,7 @@
           </button>
         </div>
 
-        <p style="font-size: var(--font-size-xs); color: var(--color-text-light); margin-bottom: 0.75rem; text-align: center;">Annual benchmarks from the PLSA Retirement Living Standards 2023/24</p>
+        <p style="font-size: 0.6rem; color: var(--color-text-light); margin-bottom: 0.75rem; text-align: center;">PLSA Retirement Living Standards 2023/24</p>
 
         <!-- ═══ YOUR PENSIONS ═══ -->
         <div class="pension-section">
@@ -436,7 +434,7 @@
             </div>
             <div class="input-wrapper">
               <span class="currency-symbol">£</span>
-              <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-pension-pot" min="0" step="1000" placeholder="100000" aria-label="Pension pot value" />
+              <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-pension-pot" min="0" step="1000" placeholder="100000" inputmode="numeric" aria-label="Pension pot value" />
             </div>
             <p class="help-text">Include all pots you plan to combine</p>
           </div>
@@ -445,7 +443,7 @@
             <label style="font-weight: 500;">Monthly contribution</label>
             <div class="input-wrapper">
               <span class="currency-symbol">£</span>
-              <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-pension-contribution" min="0" step="50" placeholder="500" />
+              <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-pension-contribution" min="0" step="50" placeholder="500" inputmode="numeric" />
             </div>
             <p class="help-text">Total monthly including employer match</p>
             <div style="margin-top: 0.5rem; display: flex; align-items: center; gap: 0.5rem;">
@@ -465,13 +463,13 @@
               <label>Annual income from scheme</label>
               <div class="input-wrapper">
                 <span class="currency-symbol">£</span>
-                <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-your-db-income" min="0" step="500" placeholder="0 if none" />
+                <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-your-db-income" min="0" step="500" placeholder="0 if none" inputmode="numeric" />
               </div>
             </div>
             <div class="input-group" style="margin-top: 0.5rem;">
               <label>Start age</label>
               <div class="input-wrapper">
-                <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-your-db-start" min="50" max="75" value="65" />
+                <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-your-db-start" min="50" max="75" value="65" inputmode="numeric" />
               </div>
             </div>
           </div>
@@ -501,7 +499,7 @@
               <label style="font-size: 0.875rem; font-weight: 500;">How much did you receive?</label>
               <div class="input-wrapper" style="margin-top: 0.25rem;">
                 <span class="currency-symbol">£</span>
-                <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-pcls-amount" min="0" step="1000" placeholder="e.g. 167000" />
+                <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-pcls-amount" min="0" step="1000" placeholder="e.g. 167000" inputmode="numeric" />
               </div>
             </div>
           </div>
@@ -516,7 +514,7 @@
             <label style="font-weight: 600;">Defined Contribution pension pot</label>
             <div class="input-wrapper">
               <span class="currency-symbol">£</span>
-              <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-partner-pension-pot" min="0" step="1000" placeholder="0" />
+              <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-partner-pension-pot" min="0" step="1000" placeholder="0" inputmode="numeric" />
             </div>
             <p class="help-text">Include all pots partner plans to combine</p>
           </div>
@@ -525,7 +523,7 @@
             <label style="font-weight: 500;">Monthly contribution</label>
             <div class="input-wrapper">
               <span class="currency-symbol">£</span>
-              <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-partner-pension-contribution" min="0" step="50" placeholder="0" />
+              <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-partner-pension-contribution" min="0" step="50" placeholder="0" inputmode="numeric" />
             </div>
             <p class="help-text">Total monthly including employer match</p>
             <div style="margin-top: 0.5rem; display: flex; align-items: center; gap: 0.5rem;">
@@ -545,13 +543,13 @@
               <label>Annual income from scheme</label>
               <div class="input-wrapper">
                 <span class="currency-symbol">£</span>
-                <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-partner-db-income" min="0" step="500" placeholder="0 if none" />
+                <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-partner-db-income" min="0" step="500" placeholder="0 if none" inputmode="numeric" />
               </div>
             </div>
             <div class="input-group mt-sm">
               <label>Start age</label>
               <div class="input-wrapper">
-                <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-partner-db-start" min="50" max="75" value="67" />
+                <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-partner-db-start" min="50" max="75" value="67" inputmode="numeric" />
               </div>
             </div>
           </div>
@@ -577,7 +575,7 @@
               <label style="font-size: 0.875rem; font-weight: 500;">How much did they receive?</label>
               <div class="input-wrapper" style="margin-top: 0.25rem;">
                 <span class="currency-symbol">£</span>
-                <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-partner-pcls-amount" min="0" step="1000" placeholder="e.g. 50000" />
+                <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-partner-pcls-amount" min="0" step="1000" placeholder="e.g. 50000" inputmode="numeric" />
               </div>
             </div>
           </div>
@@ -609,14 +607,14 @@
             <label>Current ISA balance</label>
             <div class="input-wrapper">
               <span class="currency-symbol">£</span>
-              <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-isa-balance" min="0" step="1000" placeholder="0" />
+              <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-isa-balance" min="0" step="1000" placeholder="0" inputmode="numeric" />
             </div>
           </div>
           <div class="input-group">
             <label>Annual ISA contribution</label>
             <div class="input-wrapper">
               <span class="currency-symbol">£</span>
-              <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-isa-contribution" min="0" step="500" placeholder="0" />
+              <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-isa-contribution" min="0" step="500" placeholder="0" inputmode="numeric" />
             </div>
             <p class="help-text">ISA withdrawals are tax-free and pass to your spouse without IHT</p>
           </div>
@@ -626,14 +624,14 @@
             <div class="input-group">
               <label>Your State Pension age</label>
               <div class="input-wrapper">
-                <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-state-pension-age" min="60" max="75" value="67" />
+                <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-state-pension-age" min="60" max="75" value="67" inputmode="numeric" />
               </div>
             </div>
             <div class="input-group">
               <label>Expected annual State Pension</label>
               <div class="input-wrapper">
                 <span class="currency-symbol">£</span>
-                <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-state-pension-amount" min="0" step="100" value="11973" />
+                <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-state-pension-amount" min="0" step="100" value="11973" inputmode="numeric" />
               </div>
               <p class="help-text">Full new State Pension is ~£11,973/year (2025/26)</p>
             </div>
@@ -649,14 +647,14 @@
             <label>Partner's ISA balance</label>
             <div class="input-wrapper">
               <span class="currency-symbol">£</span>
-              <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-partner-isa-balance" min="0" step="1000" placeholder="0" />
+              <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-partner-isa-balance" min="0" step="1000" placeholder="0" inputmode="numeric" />
             </div>
           </div>
           <div class="input-group">
             <label>Partner's annual ISA contribution</label>
             <div class="input-wrapper">
               <span class="currency-symbol">£</span>
-              <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-partner-isa-contribution" min="0" step="500" placeholder="0" />
+              <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-partner-isa-contribution" min="0" step="500" placeholder="0" inputmode="numeric" />
             </div>
           </div>
 
@@ -665,14 +663,14 @@
             <div class="input-group">
               <label>Partner's State Pension age</label>
               <div class="input-wrapper">
-                <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-partner-state-pension-age" min="60" max="75" value="67" />
+                <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-partner-state-pension-age" min="60" max="75" value="67" inputmode="numeric" />
               </div>
             </div>
             <div class="input-group">
               <label>Partner's expected annual State Pension</label>
               <div class="input-wrapper">
                 <span class="currency-symbol">£</span>
-                <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-partner-state-pension-amount" min="0" step="100" value="11973" />
+                <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-partner-state-pension-amount" min="0" step="100" value="11973" inputmode="numeric" />
               </div>
             </div>
           </div>
@@ -846,8 +844,8 @@
         <span id="provisional-banner-message">Provisional results.</span>
       </div>
 
-      <!-- Hero Answer (announced to screen readers once computed) -->
-      <div id="results-container" aria-live="polite"></div>
+      <!-- Hero Answer -->
+      <div id="results-container"></div>
 
       <!-- What-if Sliders + Income Chart (connected) -->
       <div class="card-primary" id="whatif-sliders-section" style="margin-bottom: 0; border-bottom-left-radius: 0; border-bottom-right-radius: 0; border-bottom: none;">
@@ -892,7 +890,7 @@
           </div>
         </div>
 
-        <div id="slider-impact" role="status" aria-live="polite" class="text-sm font-semibold text-center mt-sm" style="display: none; padding: var(--spacing-sm); background: var(--color-primary-subtle); border-radius: var(--radius-md);"></div>
+        <div id="slider-impact" class="text-sm font-semibold text-center mt-sm" style="display: none; padding: var(--spacing-sm); background: var(--color-primary-subtle); border-radius: var(--radius-md);"></div>
       </div>
 
       <div class="card-primary" id="cashflow-section" style="border-top-left-radius: 0; border-top-right-radius: 0; padding-top: var(--spacing-md);">
@@ -1026,7 +1024,7 @@
   <!-- Live Estimate removed — created anxiety during data entry -->
   
   <!-- Error message toast -->
-  <div id="error-message"></div>
+  <div id="error-message" role="alert" aria-live="polite"></div>
   
   <!-- Version footer -->
   <footer id="version-footer" style="text-align: center; font-size: 0.6875rem; color: var(--color-text-light); padding: 12px 0; background: var(--color-background); letter-spacing: 0.02em;">

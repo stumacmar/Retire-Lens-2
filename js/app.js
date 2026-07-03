@@ -177,6 +177,16 @@
       // Remove any previously injected partner inputs
       screen.querySelectorAll('.partner-input-group').forEach(el => el.remove());
 
+      // The pension-pot screen carries a static partner section in the HTML
+      // (DC pot, contributions, DB, flexi-access, PCLS). Toggle that section
+      // instead of injecting a parallel set of inputs: injecting created
+      // duplicate IDs, so getElementById read the hidden static inputs and
+      // silently dropped whatever the user typed into the visible copies.
+      if (screenId === 'pension-pot') {
+        const staticSection = document.getElementById('partner-pension-section');
+        if (staticSection) staticSection.style.display = isCouple ? '' : 'none';
+      }
+
       if (!isCouple || !partnerInputConfig.hasOwnProperty(screenId)) return;
 
       const content = screen.querySelector('.screen-content');
@@ -243,29 +253,8 @@
         return;
       }
 
-      // pension-pot: partner DC + contributions + DB
-      if (screenId === 'pension-pot') {
-        const html = `
-          <div class="partner-input-group" style="margin-top: 1.5rem; padding-top: 1.5rem; border-top: 2px solid var(--color-primary-light, #e0e7ff);">
-            <div style="font-weight: 600; color: var(--color-primary, #4f46e5); margin-bottom: 0.75rem; font-size: 0.9rem;">Partner's Pensions</div>
-            <div class="input-group">
-              <label>Partner's DC pension pot</label>
-              <div class="input-wrapper">
-                <span class="currency-symbol">£</span>
-                <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-partner-pension-pot" min="0" step="1000" placeholder="0" inputmode="numeric" />
-              </div>
-            </div>
-            <div class="input-group" style="margin-top: 0.5rem;">
-              <label>Partner's monthly contribution</label>
-              <div class="input-wrapper">
-                <span class="currency-symbol">£</span>
-                <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-partner-pension-contribution" min="0" step="50" placeholder="0" inputmode="numeric" />
-              </div>
-            </div>
-          </div>`;
-        content.insertAdjacentHTML('beforeend', html);
-        return;
-      }
+      // pension-pot is handled above via the static partner section.
+      if (screenId === 'pension-pot') return;
 
       if (screenId === 'state-pension') {
         const html = `

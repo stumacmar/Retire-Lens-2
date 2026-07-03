@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="description" content="RetireLens 3: UK drawdown tax topology for couples. What is the least tax you can legally pay, and where does HMRC take the most from each partner?">
+  <title>RetireLens 3, Tax Topology</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <a href="#vessels" class="skip-link">Skip to content</a>
+
+  <div class="wrap">
+    <header class="site">
+      <div class="brand">Retire<em>Lens</em> 3 <span class="pill">2026/27</span></div>
+      <div class="hdr-actions">
+        <button id="btn-edit" class="ghost">Inputs</button>
+        <button id="btn-drawer" class="ghost">Assumptions</button>
+      </div>
+    </header>
+
+    <!-- HERO 1: Molten Tax-Band Vessels. Tax topology leads, not a fan chart. -->
+    <section class="card" id="vessels">
+      <div class="kicker">Tax topology</div>
+      <h2>Where HMRC takes it: molten tax-band vessels</h2>
+      <p class="sub">Drag income and watch it pour through each band. The tapered allowance trap glows red. The silver PCLS stream bypasses every vessel: tax-free cash uses no allowance and never counts toward the £100,000 taper.</p>
+      <div class="partner-tabs" id="vessel-tabs"></div>
+      <div class="slider-row">
+        <label for="v-income">Taxable income for this partner</label>
+        <output id="v-income-out">£0</output>
+      </div>
+      <input type="range" id="v-income" min="0" max="160000" step="500" value="44000">
+      <div class="slider-row">
+        <label for="v-pcls">PCLS taken this year, tax-free stream</label>
+        <output id="v-pcls-out">£0</output>
+      </div>
+      <input type="range" id="v-pcls" min="0" max="60000" step="1000" value="12000">
+      <div class="vessel-svg-wrap" id="vessel-stage"></div>
+      <p class="vessel-readout" id="vessel-proof"></p>
+    </section>
+
+    <!-- HERO 2: Tax Efficiency Frontier, the centrepiece. -->
+    <section class="card" id="frontier-card">
+      <div class="kicker">Strategy space</div>
+      <h2>Tax Efficiency Frontier</h2>
+      <p class="sub">Every viable withdrawal-sequencing strategy plotted by lifetime tax paid against what your money buys you: residual estate, or pot longevity when nothing survives. The glowing curve is the efficient frontier. Walk the strategies with the slider, cheapest first, the whole plan below re-renders to your pick.</p>
+      <div id="frontier-stage"></div>
+      <div class="slider-row">
+        <label for="frontier-slider">Walk the strategies, cheapest first</label>
+        <output id="frontier-slider-out"></output>
+      </div>
+      <input type="range" id="frontier-slider" min="0" max="1" step="1" value="0">
+      <div class="frontier-pick" id="frontier-pick"></div>
+    </section>
+
+    <!-- HERO 3: Crossover Horizon. -->
+    <section class="card" id="crossover-card">
+      <div class="kicker">Longevity</div>
+      <h2>Crossover Horizon</h2>
+      <p class="sub">One life-lane per partner. Lamps dim as confidence fades with age. The marked age is where household success drops below your threshold.</p>
+      <div id="crossover-stage"></div>
+    </section>
+
+    <!-- Demoted by design: projection detail and Monte Carlo. -->
+    <section class="card">
+      <div class="kicker">Supporting detail</div>
+      <h2>Year by year, selected strategy</h2>
+      <p class="sub">Both partners taxed separately: two allowances, two band ladders. NI is not charged on pension income.</p>
+      <div class="tbl-wrap" id="plan-table"></div>
+    </section>
+
+    <section class="card" id="mc-card">
+      <div class="kicker">Uncertainty, demoted on purpose</div>
+      <h2>Monte Carlo, 1000 live paths</h2>
+      <p class="sub" id="mc-status">Running 1000 correlated market paths in a Web Worker...</p>
+      <div class="mc-stats" id="mc-stats"></div>
+      <div id="mc-envelope"></div>
+      <p class="mc-note">Confidence Age is the age at which the probability of fully funding your target first drops below the threshold. It is a better decision anchor than a bare success percentage. The 1000 paths here are live simulations, separate from the dev-time stress harness of 1152 deterministic combinations described in stress.md.</p>
+    </section>
+  </div>
+
+  <!-- Intake overlay -->
+  <div class="overlay" id="intake" hidden>
+    <div class="panel">
+      <div class="card">
+        <div class="kicker">Set up</div>
+        <h2>Your household</h2>
+        <p class="sub">Everything is editable later. Or skip and load the built-in defaults.</p>
+        <div id="intake-fields"></div>
+        <div style="display:flex; gap:0.6rem; margin-top:1rem;">
+          <button class="primary" id="intake-apply" style="flex:1;">Build my plan</button>
+          <button id="intake-skip" style="flex:1;">Skip, use my defaults</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Assumptions drawer -->
+  <aside class="drawer" id="drawer" aria-label="Assumptions">
+    <div style="display:flex; justify-content:space-between; align-items:center;">
+      <h3>Assumptions</h3>
+      <button id="drawer-close" class="ghost">Close</button>
+    </div>
+    <div id="drawer-body"></div>
+  </aside>
+
+  <footer class="honesty">
+    This is a modelling tool, not regulated financial advice. Tax year 2026/27 figures. All values in real terms.
+  </footer>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>

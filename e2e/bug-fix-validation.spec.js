@@ -83,12 +83,13 @@ test.describe('Critical Bug Fix - Navigation', () => {
     await partnerInputs.nth(1).fill('63');
     await page.click('#screen-age.active [data-action="next"]');
 
-    // Income screen should be next (retirement-age screen no longer exists)
-    await page.waitForSelector('#screen-income-target.active', { timeout: 5000 });
-    await expect(page.locator('#screen-income-target.active')).toBeVisible();
+    // Pension pot screen is next (income target now lives on this screen)
+    await page.waitForSelector('#screen-pension-pot.active', { timeout: 5000 });
+    await expect(page.locator('#screen-pension-pot.active')).toBeVisible();
+    await expect(page.locator('#input-partner-pension-pot')).toBeVisible();
 
     await page.screenshot({
-      path: './test-artifacts/screenshots/test04-couple-income-screen.png',
+      path: './test-artifacts/screenshots/test04-couple-pension-screen.png',
       fullPage: true
     });
 
@@ -116,9 +117,9 @@ test.describe('Critical Bug Fix - Navigation', () => {
     await page.waitForSelector('#screen-age.active', { timeout: 5000 });
     await page.click('#screen-age.active [data-action="next"]');
 
-    // Should advance to income (retirement-age is now on the same screen)
-    await page.waitForSelector('#screen-income-target.active', { timeout: 5000 });
-    await expect(page.locator('#screen-income-target.active')).toBeVisible();
+    // Should advance to pension pot (income target is now on that screen)
+    await page.waitForSelector('#screen-pension-pot.active', { timeout: 5000 });
+    await expect(page.locator('#screen-pension-pot.active')).toBeVisible();
 
     console.log('✓ TEST 6 PASSED: Navigation works even with empty inputs');
   });
@@ -139,13 +140,9 @@ test.describe('Single Household Full Flow', () => {
     await page.fill('#input-retirement-age', '65');
     await page.click('#screen-age.active [data-action="next"]');
 
-    // Income
-    await page.waitForSelector('#screen-income-target.active');
-    await page.fill('#input-target-income', '30000');
-    await page.click('#screen-income-target.active [data-action="next"]');
-
-    // Pension pot + contributions (combined screen)
+    // Pension pot + income target + contributions (combined screen)
     await page.waitForSelector('#screen-pension-pot.active');
+    await page.fill('#input-target-income', '30000');
     await page.fill('#input-pension-pot', '200000');
     await page.fill('#input-pension-contribution', '500');
     await page.click('#screen-pension-pot.active [data-action="next"]');
@@ -155,16 +152,16 @@ test.describe('Single Household Full Flow', () => {
     await page.fill('#input-isa-balance', '50000');
     await page.click('#screen-isa-savings.active [data-action="next"]');
 
-    // Review
-    await page.waitForSelector('#screen-review.active', { timeout: 5000 });
-    await expect(page.locator('#screen-review.active')).toBeVisible();
+    // Results (review screen is no longer part of the flow)
+    await page.waitForSelector('#screen-results.active', { timeout: 10000 });
+    await expect(page.locator('#screen-results.active')).toBeVisible();
 
     await page.screenshot({
-      path: './test-artifacts/screenshots/test07-step8-review.png',
+      path: './test-artifacts/screenshots/test07-results.png',
       fullPage: true
     });
 
-    console.log('✓ TEST 7 PASSED: Single household completes full flow to review');
+    console.log('✓ TEST 7 PASSED: Single household completes full flow to results');
   });
 });
 
@@ -188,33 +185,29 @@ test.describe('Couple Household Full Flow', () => {
     await partnerAgeInputs.nth(1).fill('63');
     await page.click('#screen-age.active [data-action="next"]');
 
-    // 3. Income
-    await page.waitForSelector('#screen-income-target.active');
-    await page.fill('#input-target-income', '50000');
-    await page.click('#screen-income-target.active [data-action="next"]');
-
-    // 4. Pension + Contributions + Partner DC (combined)
+    // 3. Pension + income target + contributions + partner DC (combined)
     await page.waitForSelector('#screen-pension-pot.active');
+    await page.fill('#input-target-income', '50000');
     await page.fill('#input-pension-pot', '300000');
     await page.fill('#input-pension-contribution', '800');
     await page.fill('#input-partner-pension-pot', '150000');
     await page.click('#screen-pension-pot.active [data-action="next"]');
 
-    // 5. ISA + State Pension (combined)
+    // 4. ISA + State Pension (combined)
     await page.waitForSelector('#screen-isa-savings.active', { timeout: 5000 });
     await page.fill('#input-isa-balance', '30000');
     await page.click('#screen-isa-savings.active [data-action="next"]');
 
-    // 6. Review
-    await page.waitForSelector('#screen-review.active', { timeout: 5000 });
-    await expect(page.locator('#screen-review.active')).toBeVisible();
+    // 5. Results (review screen is no longer part of the flow)
+    await page.waitForSelector('#screen-results.active', { timeout: 10000 });
+    await expect(page.locator('#screen-results.active')).toBeVisible();
 
     await page.screenshot({
-      path: './test-artifacts/screenshots/test08-couple-review.png',
+      path: './test-artifacts/screenshots/test08-couple-results.png',
       fullPage: true
     });
 
-    console.log('✓ TEST 8 PASSED: Couple household completes unified wizard to review');
+    console.log('✓ TEST 8 PASSED: Couple household completes unified wizard to results');
   });
 });
 

@@ -66,7 +66,9 @@ The whole app is static files, so GitHub Pages serves it as-is.
 4. Under "Build and deployment", set Source to "Deploy from a branch", pick
    your default branch and the root folder, and Save.
 5. Wait about a minute, then visit
-   `https://YOUR-USERNAME.github.io/YOUR-REPO/v3/`.
+   `https://YOUR-USERNAME.github.io/YOUR-REPO/`. In this repository the root
+   `index.html` serves this app from the `v3/` assets; the previous
+   RetireLens 2 app remains available at `/v2/`.
 6. Updates are just new commits; Pages redeploys automatically.
 
 Add it to your home screen from Safari's share sheet for an app-like feel.

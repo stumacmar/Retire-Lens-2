@@ -213,6 +213,26 @@ table.data td.neg { color: var(--rose); }
 /* Sensitivity heat cells */
 td.heat { font-weight: 700; border-radius: 4px; }
 
+/* Sticky first column for long tables */
+table.sticky-first td:first-child, table.sticky-first th:first-child {
+  position: sticky; left: 0; background: var(--card); z-index: 2;
+}
+
+/* ── Scenario cards ─────────────────────────────── */
+.scenario-grid { display: grid; grid-template-columns: 1fr; gap: 0.6rem; }
+@media (min-width: 640px) { .scenario-grid { grid-template-columns: repeat(3, 1fr); } }
+.scenario-card {
+  border: 1px solid var(--card-edge); border-radius: 13px; padding: 0.8rem 0.9rem;
+  background: var(--input-bg);
+}
+.scenario-card.live { border-color: var(--accent); background: var(--accent-soft); }
+.sc-head { display: flex; justify-content: space-between; align-items: baseline; font-size: 0.78rem; margin-bottom: 0.35rem; }
+.sc-head span { color: var(--ink-dim); font-size: 0.7rem; }
+.sc-main { display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; }
+.sc-v { font-family: var(--mono); font-weight: 800; font-size: 1.3rem; letter-spacing: -0.02em; }
+.sc-k { font-size: 0.64rem; color: var(--ink-dim); }
+.sc-sub { font-size: 0.66rem; color: var(--ink-faint); margin-top: 0.4rem; }
+
 /* ── Spending builder ───────────────────────────── */
 .spend-row { display: grid; grid-template-columns: 1fr 108px; gap: 0.5rem; align-items: center; padding: 0.28rem 0; border-bottom: 1px solid color-mix(in srgb, var(--card-edge) 50%, transparent); }
 .spend-row label { font-size: 0.8rem; color: var(--ink); }

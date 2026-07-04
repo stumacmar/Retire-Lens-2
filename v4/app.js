@@ -1,6 +1,9 @@
 /**
  * RetireLens 4 UI. Tabs mirror the Marshall workbook. Engine is pure and
  * lives in engine.js; everything here is rendering and state.
+ * Display convention: with the Today's £ toggle on, every figure shown is
+ * deflated to 2026 money, including aggregates. Lifetime tax uses the
+ * engine's per-year deflated sum; horizon values deflate at the horizon year.
  */
 import { createEngine } from './engine.js';
 
@@ -12,13 +15,13 @@ const S = {
   P: E.defaults(),
   tab: 'dashboard',
   todayMoney: false,
-  pinned: null,          // snapshot of KPIs for plan A vs B comparison
-  mc: null,              // latest Monte Carlo result
+  pinned: null,
+  mc: null,
   mcBusy: false,
   cache: {},
+  flowIdx: 0,
 };
 
-// Load saved state
 try {
   const saved = localStorage.getItem('rl4-state');
   if (saved) {
@@ -35,13 +38,20 @@ function mergeParams(base, incoming) {
   const out = JSON.parse(JSON.stringify(base));
   const deep = (dst, src) => {
     for (const k of Object.keys(src || {})) {
-      if (src[k] && typeof src[k] === 'object' && !Array.isArray(src[k]) && dst[k]) deep(dst[k], src[k]);
-      else dst[k] = src[k];
+      try {
+        if (src[k] && typeof src[k] === 'object' && !Array.isArray(src[k])
+          && dst[k] && typeof dst[k] === 'object' && !Array.isArray(dst[k])) deep(dst[k], src[k]);
+        else dst[k] = src[k];
+      } catch (e) { /* keep default on shape mismatch */ }
     }
   };
   deep(out, incoming);
-  if (Array.isArray(incoming.spending)) out.spending = incoming.spending;
+  if (Array.isArray(incoming.spending)) {
+    // Migrate away any legacy mortgage line; the mortgage is modelled directly
+    out.spending = incoming.spending.filter(r => r.key !== 'mortgage');
+  }
   if (Array.isArray(incoming.lifeEvents)) out.lifeEvents = incoming.lifeEvents;
+  if (out.strategy === 'blend') out.strategy = 'sippfirst';
   return out;
 }
 
@@ -55,30 +65,38 @@ function deflate(v, year) {
   if (!S.todayMoney || year == null) return v;
   return v / Math.pow(1 + S.P.inflation, year - S.P.startYear);
 }
+const horizonYear = () => S.P.partnerA.birthYear + S.P.horizonAge;
 const fmt = (v, year) => GBP.format(Math.round(deflate(v, year)));
 const fmtK = (v, year) => {
   const x = deflate(v, year);
-  if (Math.abs(x) >= 1e6) return '£' + (x / 1e6).toFixed(2) + 'm';
-  if (Math.abs(x) >= 1e3) return '£' + Math.round(x / 1e3) + 'k';
-  return '£' + Math.round(x);
+  const sign = x < 0 ? '-' : '';
+  const a = Math.abs(x);
+  if (a >= 1e6) return sign + '£' + (a / 1e6).toFixed(2) + 'm';
+  if (a >= 1e3) return sign + '£' + Math.round(a / 1e3) + 'k';
+  return sign + '£' + Math.round(a);
 };
 const pct = (v, dp) => (v * 100).toFixed(dp == null ? 0 : dp) + '%';
+const lifetimeTaxShown = (dd) => S.todayMoney ? dd.lifetimeTaxReal : dd.lifetimeTax;
 
 // ── Recompute ───────────────────────────────────────────────────────────
 function recompute() {
   const P = S.P;
   const c = {};
-  c.accBase = E.accumulate(P);
+  c.accBase = E.accumulate(P, P.growthBase);
   c.accBear = E.accumulate(P, P.growthBear);
   c.accBull = E.accumulate(P, P.growthBull);
-  c.dd = E.drawdown(P);
+  c.accLive = Math.abs(P.growth - P.growthBase) < 1e-9 ? c.accBase : E.accumulate(P);
+  c.dd = E.drawdown(P, { startPots: c.accLive.atRetirement });
   c.strategies = E.compareStrategies(P);
   c.estate = E.estate(P);
+  c.stress = E.stressTests(P);
+  c.grid = E.sensitivityGrid(P);
+  c.tornado = E.tornado(P);
+  c.totals = E.lifetimeTotals(P);
   S.cache = c;
   scheduleMC();
 }
 
-// Monte Carlo in a Web Worker, debounced
 let mcTimer = null, worker = null;
 function makeWorker() {
   const src = `
@@ -106,7 +124,6 @@ function scheduleMC() {
       }
       worker.postMessage({ P: JSON.parse(JSON.stringify(S.P)), n: S.P.mcPaths, seed: S.P.mcSeed });
     } catch (e) {
-      // Fall back to main thread if workers are unavailable
       S.mc = E.runMonteCarlo(S.P, Math.min(400, S.P.mcPaths), S.P.mcSeed);
       S.mcBusy = false;
       if (S.tab === 'dashboard' || S.tab === 'risk') renderTab();
@@ -114,9 +131,10 @@ function scheduleMC() {
   }, 350);
 }
 
-function changed(rerenderAll) {
+function changed() {
   save();
   recompute();
+  syncGrowthUI();
   renderTab();
 }
 
@@ -128,7 +146,6 @@ function chart(opts) {
   const X = (x) => padL + (x - xs[0]) / (xs[1] - xs[0] || 1) * (W - padL - padR);
   const Y = (y) => H - padB - (y - ys[0]) / (ys[1] - ys[0] || 1) * (H - padT - padB);
   let svg = `<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="${opts.label || 'chart'}">`;
-  // y grid
   const ticks = opts.yTicks || 4;
   for (let i = 0; i <= ticks; i++) {
     const v = ys[0] + (ys[1] - ys[0]) * i / ticks;
@@ -136,20 +153,17 @@ function chart(opts) {
     svg += `<line x1="${padL}" y1="${y}" x2="${W - padR}" y2="${y}" stroke="var(--card-edge)" stroke-width="1"/>`;
     svg += `<text x="${padL - 5}" y="${y + 3}" text-anchor="end" font-size="9" fill="var(--ink-faint)">${opts.yFmt ? opts.yFmt(v) : Math.round(v)}</text>`;
   }
-  // x labels
   const xt = opts.xTicks || 6;
   for (let i = 0; i <= xt; i++) {
     const v = Math.round(xs[0] + (xs[1] - xs[0]) * i / xt);
     svg += `<text x="${X(v)}" y="${H - 8}" text-anchor="middle" font-size="9" fill="var(--ink-faint)">${opts.xFmt ? opts.xFmt(v) : v}</text>`;
   }
-  return { svg, X, Y, W, H, close: () => svg + '</svg>', add: (s) => { svg += s; }, get: () => svg + '</svg>' };
+  return { svg, X, Y, W, H, add: (s) => { svg += s; }, get: () => svg + '</svg>' };
 }
-
 function linePath(pts, X, Y) {
   return pts.map((p, i) => (i ? 'L' : 'M') + X(p[0]).toFixed(1) + ',' + Y(p[1]).toFixed(1)).join(' ');
 }
 function areaPath(pts, base, X, Y) {
-  // pts and base are arrays of [x, y], base traversed in reverse
   let d = linePath(pts, X, Y);
   for (let i = base.length - 1; i >= 0; i--) {
     d += ' L' + X(base[i][0]).toFixed(1) + ',' + Y(base[i][1]).toFixed(1);
@@ -161,6 +175,7 @@ const COLORS = {
   db: '#8b5cf6', spB: '#0ea5e9', spA: '#1d4ed8',
   pension: '#0e7a6e', pcls: '#94a3b8', isa: '#b45309',
   bear: '#be123c', base: '#0e7a6e', bull: '#1d4ed8',
+  tax: '#be123c', spend: '#0e7a6e', mort: '#64748b', event: '#8b5cf6',
 };
 
 // ── Field helpers ───────────────────────────────────────────────────────
@@ -191,7 +206,6 @@ function setPath(path, v) {
   for (let i = 0; i < ks.length - 1; i++) o = o[ks[i]];
   o[ks[ks.length - 1]] = v;
 }
-
 function wireInputs(root) {
   root.querySelectorAll('input[data-path], select[data-path]').forEach(el => {
     el.addEventListener('change', () => {
@@ -199,40 +213,135 @@ function wireInputs(root) {
       if (el.dataset.pct) v = (parseFloat(v) || 0) / 100;
       else if (el.type === 'number' || el.inputMode === 'decimal') v = parseFloat(String(v).replace(/[£,\s]/g, '')) || 0;
       setPath(el.dataset.path, v);
+      if (el.dataset.path === 'growthBase') S.P.growth = S.P.growthBase;
       changed();
     });
   });
+}
+
+// ── Money flow Sankey for one year ──────────────────────────────────────
+function sankeyFor(row) {
+  // Spent windfalls only: invested windfalls never enter this year's income.
+  // netIncome = guaranteed + draws + tfc - tax + isa + cash + spent windfalls,
+  // so the spent portion falls out exactly by conservation.
+  const spentWindfall = Math.max(0, row.netIncome -
+    (row.guaranteed + row.grossA + row.grossB + row.tfcA + row.tfcB - row.tax + row.isaDraw + row.cashDraw));
+  const cleanSources = [
+    { name: 'State pensions', v: row.spA + row.spB, color: COLORS.spA },
+    { name: 'DB pension', v: row.dbA + row.dbB, color: COLORS.db },
+    { name: 'Pension draws', v: row.grossA + row.grossB, color: COLORS.pension },
+    { name: 'Tax-free cash', v: row.tfcA + row.tfcB, color: COLORS.pcls },
+    { name: 'ISA and cash', v: row.isaDraw + row.cashDraw, color: COLORS.isa },
+    { name: 'Windfalls', v: spentWindfall, color: COLORS.event },
+  ].filter(s => s.v > 0.5);
+  const everyday = Math.max(0, row.netIncome - row.mortgagePay - row.eventCost);
+  const sinks = [
+    { name: 'Everyday spending', v: everyday, color: COLORS.spend },
+    { name: 'HMRC', v: row.tax, color: COLORS.tax },
+    { name: 'Mortgage', v: row.mortgagePay, color: COLORS.mort },
+    { name: 'One-off events', v: row.eventCost, color: COLORS.event },
+  ].filter(s => s.v > 0.5);
+
+  const totalIn = cleanSources.reduce((s, x) => s + x.v, 0);
+  const totalOut = sinks.reduce((s, x) => s + x.v, 0);
+  const total = Math.max(totalIn, totalOut, 1);
+
+  const W = 720, H = 300, colL = 178, colR = 540, barW = 10, gap = 8, top = 16;
+  const usable = H - top - 16 - gap * 3;
+  let svg = `<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Money flow for the year">`;
+  let y = top;
+  const lpos = [];
+  for (const s of cleanSources) {
+    const h = Math.max(3, s.v / total * usable);
+    lpos.push({ ...s, y0: y, h });
+    svg += `<rect x="${colL - barW}" y="${y}" width="${barW}" height="${h}" rx="3" fill="${s.color}"/>`;
+    svg += `<text x="${colL - barW - 7}" y="${y + h / 2 + 3}" text-anchor="end" font-size="10" fill="var(--ink-dim)">${s.name}</text>`;
+    svg += `<text x="${colL - barW - 7}" y="${y + h / 2 + 14}" text-anchor="end" font-size="9" fill="var(--ink-faint)">${fmtK(s.v, row.year)}</text>`;
+    y += h + gap;
+  }
+  y = top;
+  const rpos = [];
+  for (const s of sinks) {
+    const h = Math.max(3, s.v / total * usable);
+    rpos.push({ ...s, y0: y, h, fill: 0 });
+    svg += `<rect x="${colR}" y="${y}" width="${barW}" height="${h}" rx="3" fill="${s.color}"/>`;
+    svg += `<text x="${colR + barW + 7}" y="${y + h / 2 + 3}" font-size="10" fill="var(--ink-dim)">${s.name}</text>`;
+    svg += `<text x="${colR + barW + 7}" y="${y + h / 2 + 14}" font-size="9" fill="var(--ink-faint)">${fmtK(s.v, row.year)}</text>`;
+    y += h + gap;
+  }
+  // Ribbons: each source splits across sinks pro-rata to sink size
+  for (const s of lpos) {
+    let sy = s.y0;
+    for (const k of rpos) {
+      const share = s.v * (k.v / totalOut);
+      if (share < 0.5) continue;
+      const sh = share / total * usable;
+      const kh = share / total * usable;
+      const y1 = sy, y2 = sy + sh;
+      const y3 = k.y0 + k.fill, y4 = k.y0 + k.fill + kh;
+      const mx = (colL + colR) / 2;
+      svg += `<path d="M${colL},${y1} C${mx},${y1} ${mx},${y3} ${colR},${y3}
+        L${colR},${y4} C${mx},${y4} ${mx},${y2} ${colL},${y2} Z"
+        fill="${s.color}" opacity="0.30"/>`;
+      sy += sh; k.fill += kh;
+    }
+  }
+  return svg + '</svg>';
 }
 
 // ── Views ───────────────────────────────────────────────────────────────
 
 function renderDashboard(el) {
   const c = S.cache, P = S.P;
-  const acc = c.accBase.atRetirement;
+  const acc = c.accLive.atRetirement;
   const potsAtRet = acc.pensionA + acc.pensionB + acc.isaA + acc.isaB;
   const dd = c.dd;
   const y1 = dd.rows[0];
-  const endYear = P.partnerA.birthYear + P.horizonAge;
+  const endYear = horizonYear();
   const mc = S.mc;
-  const kpiDelta = (key, val) => {
+  const totals = c.totals;
+
+  const kpiDelta = (key, val, year) => {
     if (!S.pinned) return '';
     const d = val - S.pinned[key];
     if (Math.abs(d) < 1) return '<div class="d">no change vs plan A</div>';
     const good = (key === 'lifetimeTax') ? d < 0 : d > 0;
-    return `<div class="d ${good ? 'up' : 'down'}">${d > 0 ? '+' : ''}${fmtK(d)} vs plan A</div>`;
+    return `<div class="d ${good ? 'up' : 'down'}">${d > 0 ? '+' : ''}${fmtK(d, year)} vs plan A</div>`;
   };
-
   const survives = dd.exhaustedAgeA == null;
+
+  // Scenario cards, no horizontal scroll: the key number is unmissable
+  const scenarioRows = [
+    ['🔴 Bear', P.growthBear, c.accBear],
+    ['🟡 Base', P.growthBase, c.accBase],
+    ['🟢 Bull', P.growthBull, c.accBull],
+  ];
+  const isCustom = ![P.growthBear, P.growthBase, P.growthBull].some(g => Math.abs(g - P.growth) < 1e-9);
+  if (isCustom) scenarioRows.push(['🎚️ Your slider', P.growth, c.accLive]);
+  const scenarioHtml = scenarioRows.map(([name, g, a]) => {
+    const r = (Math.abs(g - P.growth) < 1e-9)
+      ? dd : E.drawdown(P, { growth: g, startPots: a.atRetirement });
+    const live = Math.abs(g - P.growth) < 1e-9;
+    return `<div class="scenario-card${live ? ' live' : ''}">
+      <div class="sc-head"><b>${name}</b> <span>${pct(g, 1)} growth</span></div>
+      <div class="sc-main">
+        <div><div class="sc-v">${fmtK(r.endWealth, endYear)}</div><div class="sc-k">wealth at ${P.horizonAge}</div></div>
+        <span class="pill ${r.exhaustedAgeA == null ? 'good' : 'bad'}">${r.exhaustedAgeA == null ? 'lasts to ' + P.horizonAge + '+' : 'runs dry at ' + r.exhaustedAgeA}</span>
+      </div>
+      <div class="sc-sub">Pensions + ISAs at ${P.retireYear}: ${fmtK(a.atRetirement.pensionA + a.atRetirement.pensionB + a.atRetirement.isaA + a.atRetirement.isaB, P.retireYear)}</div>
+    </div>`;
+  }).join('');
+
   el.innerHTML = `
   <div class="card">
     <div class="kicker">${P.partnerA.name} and ${P.partnerB.name}, retiring April ${P.retireYear}</div>
     <h2>Where the plan stands</h2>
-    <p class="sub">Base scenario at ${pct(P.growth, 1)} growth, ${pct(P.inflation, 1)} inflation. Drag the slider in the header and everything recomputes.</p>
+    <p class="sub">At ${pct(P.growth, 1)} growth and ${pct(P.inflation, 1)} inflation. ${S.todayMoney ? "All figures in today's money." : 'Nominal figures.'} Drag the header slider and everything recomputes.</p>
     <div class="kpis">
-      <div class="kpi good"><div class="v">${fmtK(potsAtRet, P.retireYear)}</div><div class="k">Pensions + ISAs at ${P.retireYear}</div>${kpiDelta('pots', potsAtRet)}</div>
-      <div class="kpi ${y1.shortfall > 1 ? 'bad' : 'good'}"><div class="v">${fmtK(y1.netIncome, y1.year)}</div><div class="k">Net income in year one, target ${fmtK(y1.target, y1.year)}</div></div>
-      <div class="kpi ${survives ? 'good' : 'bad'}"><div class="v">${survives ? 'To ' + P.horizonAge + '+' : 'Age ' + dd.exhaustedAgeA}</div><div class="k">${survives ? 'Pot survives the full plan' : 'Pot exhausted'}</div>${kpiDelta('endWealth', dd.endWealth)}</div>
-      <div class="kpi"><div class="v">${fmtK(dd.lifetimeTax)}</div><div class="k">Income tax to age ${P.horizonAge}</div>${kpiDelta('lifetimeTax', dd.lifetimeTax)}</div>
+      <div class="kpi good"><div class="v">${fmtK(potsAtRet, P.retireYear)}</div><div class="k">Pensions + ISAs at ${P.retireYear}</div>${kpiDelta('pots', potsAtRet, P.retireYear)}</div>
+      <div class="kpi ${y1.shortfall > 1 ? 'bad' : 'good'}"><div class="v">${fmtK(y1.netIncome, y1.year)}</div><div class="k">Net income in year one, need ${fmtK(y1.target + y1.mortgagePay, y1.year)}</div></div>
+      <div class="kpi ${survives ? 'good' : 'bad'}"><div class="v">${survives ? 'To ' + P.horizonAge + '+' : 'Age ' + dd.exhaustedAgeA}</div><div class="k">${survives ? 'Pot survives the full plan' : 'Pot exhausted'}</div>${kpiDelta('endWealth', dd.endWealth, endYear)}</div>
+      <div class="kpi"><div class="v">${fmtK(lifetimeTaxShown(dd))}</div><div class="k">Income tax to age ${P.horizonAge}${S.todayMoney ? ", today's money" : ''}</div>${kpiDelta('lifetimeTax', dd.lifetimeTax)}</div>
       <div class="kpi ${mc ? (mc.successProb >= 0.85 ? 'good' : mc.successProb >= 0.6 ? 'warn' : 'bad') : ''}">
         <div class="v">${mc ? pct(mc.successProb) : '…'}</div><div class="k">Monte Carlo success, ${P.mcPaths} paths${S.mcBusy ? ', running' : ''}</div></div>
       <div class="kpi"><div class="v">${mc ? mc.confidenceAge : '…'}</div><div class="k">Confidence age, 85% threshold</div></div>
@@ -247,21 +356,41 @@ function renderDashboard(el) {
 
   <div class="card">
     <div class="kicker">Scenario comparison</div>
-    <h2>Bear ${pct(P.growthBear)}, Base ${pct(P.growth, 1)}, Bull ${pct(P.growthBull)}</h2>
-    <div class="tbl-wrap"><table class="data">
-      <tr><th>Scenario</th><th>${P.partnerA.name} pension at ${P.retireYear}</th><th>${P.partnerB.name} pension</th><th>ISAs</th><th>Wealth at ${P.horizonAge}</th><th>Lasts to</th></tr>
-      ${[['🔴 Bear', c.accBear, P.growthBear], ['🟡 Base', c.accBase, P.growth], ['🟢 Bull', c.accBull, P.growthBull]].map(([name, a, g]) => {
-        const r = E.drawdown(P, { growth: g, startPots: a.atRetirement });
-        return `<tr${g === P.growth ? ' class="hl"' : ''}><td>${name} ${pct(g, 1)}</td>
-          <td>${fmt(a.atRetirement.pensionA, P.retireYear)}</td>
-          <td>${fmt(a.atRetirement.pensionB, P.retireYear)}</td>
-          <td>${fmt(a.atRetirement.isaA + a.atRetirement.isaB, P.retireYear)}</td>
-          <td>${fmt(r.endWealth, endYear)}</td>
-          <td>${r.exhaustedAgeA == null ? P.horizonAge + '+' : 'age ' + r.exhaustedAgeA}</td></tr>`;
-      }).join('')}
-    </table></div>
-    <p class="note">The 2030 pot figures line up with your workbook's Accumulation tab. Tax here is computed per partner, which saves roughly ${fmt(E.taxOn(y1.guaranteed + y1.grossA + y1.grossB) - y1.tax)} in year one alone versus taxing the household as one person.</p>
+    <h2>Bear, Base, Bull</h2>
+    <div class="scenario-grid">${scenarioHtml}</div>
+    <p class="note">Pot figures at ${P.retireYear} line up with your workbook's Accumulation tab. Tax is per partner: this year that saves ${fmt(E.taxOn(y1.guaranteed + y1.grossA + y1.grossB, P.tax) - y1.tax, y1.year)} versus taxing the household as one person.</p>
+  </div>
+
+  <div class="card">
+    <div class="kicker">Follow the money</div>
+    <h2>One year, every pound</h2>
+    <p class="sub">Where the year's money comes from and where it goes. Slide across the plan.</p>
+    <div class="slider-row"><label for="flow-year">Plan year</label><output id="flow-year-out"></output></div>
+    <input type="range" id="flow-year" min="0" max="${dd.rows.length - 1}" step="1" value="${Math.min(S.flowIdx, dd.rows.length - 1)}">
+    <div id="flow-stage"></div>
+  </div>
+
+  <div class="card">
+    <div class="kicker">The whole plan in four numbers</div>
+    <h2>Lifetime totals to age ${P.horizonAge}</h2>
+    <div class="kpis">
+      <div class="kpi"><div class="v">${fmtK(totals.spend)}</div><div class="k">Total net income funded</div></div>
+      <div class="kpi"><div class="v">${fmtK(totals.growthInRetirement)}</div><div class="k">Investment growth earned in retirement</div></div>
+      <div class="kpi warn"><div class="v">${fmtK(totals.tax)}</div><div class="k">Income tax paid</div></div>
+      <div class="kpi"><div class="v">£${totals.taxPer100Drawn.toFixed(2)}</div><div class="k">HMRC's cut of every £100 drawn from pensions</div></div>
+    </div>
+    <p class="note">Nominal totals, exact by conservation: end wealth equals start wealth plus growth and windfalls, minus everything drawn. Guaranteed income covered ${fmtK(totals.guaranteed)} of the lifetime need; the mortgage cost ${fmtK(totals.mortgage)} before it cleared.</p>
   </div>`;
+
+  const drawFlow = (idx) => {
+    S.flowIdx = idx;
+    const r = dd.rows[idx];
+    $('flow-year-out').textContent = r.year + ' (age ' + r.ageA + '/' + r.ageB + ')';
+    $('flow-stage').innerHTML = sankeyFor(r);
+  };
+  const fs = $('flow-year');
+  fs.addEventListener('input', () => drawFlow(Number(fs.value)));
+  drawFlow(Math.min(S.flowIdx, dd.rows.length - 1));
 
   $('btn-pin') && ($('btn-pin').onclick = () => {
     S.pinned = { pots: potsAtRet, endWealth: dd.endWealth, lifetimeTax: dd.lifetimeTax };
@@ -282,7 +411,7 @@ function renderAssumptions(el) {
   <div class="card">
     <div class="kicker">Central control panel</div>
     <h2>Assumptions</h2>
-    <p class="sub">Every figure driving the model, exactly like the ⚙️ tab of your spreadsheet. Change anything; all tabs update.</p>
+    <p class="sub">Every figure driving the model, exactly like the ⚙️ tab of your spreadsheet. All money inputs are today's money.</p>
 
     <h3>👤 ${P.partnerA.name}</h3>
     <div class="grid2">
@@ -292,7 +421,7 @@ function renderAssumptions(el) {
       ${moneyField('ISA today', 'partnerA.isa')}
       ${moneyField('Monthly pension investing', 'partnerA.monthlyPension', 'Until retirement')}
       ${moneyField('Monthly ISA investing', 'partnerA.monthlyIsa')}
-      ${moneyField('State pension per year', 'partnerA.spAmount', "Today's money, indexed from ${P.startYear}")}
+      ${moneyField('State pension per year', 'partnerA.spAmount', 'Indexed from ' + P.startYear)}
       ${moneyField('DB pension per year', 'partnerA.db')}
     </div>
 
@@ -304,9 +433,10 @@ function renderAssumptions(el) {
       ${moneyField('ISA today', 'partnerB.isa')}
       ${moneyField('Monthly pension investing', 'partnerB.monthlyPension')}
       ${moneyField('Monthly ISA investing', 'partnerB.monthlyIsa')}
-      ${moneyField('State pension per year', 'partnerB.spAmount')}
+      ${moneyField('State pension per year', 'partnerB.spAmount', 'Indexed from ' + P.startYear)}
       ${moneyField('DB pension per year', 'partnerB.db', 'Starts ' + P.partnerB.dbStartYear)}
     </div>
+    <label class="switch" style="margin-top:0.4rem;"><input type="checkbox" id="dbb-indexed" ${P.partnerB.dbIndexed ? 'checked' : ''}> ${P.partnerB.name}'s DB pension rises with inflation (off matches your workbook)</label>
 
     <h3>📅 Timing</h3>
     <div class="grid2">
@@ -316,7 +446,7 @@ function renderAssumptions(el) {
 
     <h3>📊 Growth and inflation</h3>
     <div class="grid2">
-      ${pctField('Base growth rate', 'growth', 'Also on the header slider')}
+      ${pctField('Base growth rate', 'growthBase', 'Sets the header slider too')}
       ${pctField('Inflation', 'inflation')}
       ${pctField('Bear rate', 'growthBear')}
       ${pctField('Bull rate', 'growthBull')}
@@ -327,11 +457,19 @@ function renderAssumptions(el) {
       ${moneyField('Target net income per year', 'targetNet', "Today's money. The 🛒 Spending tab can drive this instead")}
     </div>
 
+    <h3>🎁 Inheritance</h3>
+    <label class="switch"><input type="checkbox" id="inherit-on" ${P.inherit.on ? 'checked' : ''}> Expect an inheritance</label>
+    <div class="grid2" style="margin-top:0.5rem;">
+      ${numField('Year received', 'inherit.year')}
+      ${moneyField('Amount', 'inherit.amount', "Today's money, indexed to the year")}
+    </div>
+    <label class="switch"><input type="checkbox" id="inherit-invest" ${P.inherit.invest ? 'checked' : ''}> Invest it when it arrives (compounds at your growth rate)</label>
+
     <h3>🏠 Property and other assets</h3>
     <div class="grid2">
       ${moneyField('House value', 'house')}
       ${pctField('House growth per year', 'houseGrowth')}
-      ${moneyField('Mortgage outstanding', 'mortgage')}
+      ${moneyField('Mortgage outstanding', 'mortgage', 'Paid at the monthly amount until cleared, then stops')}
       ${moneyField('Mortgage monthly payment', 'mortgageMonthly')}
       ${moneyField('Motorhome value', 'motorhome')}
       ${moneyField('Motorhome depreciation per year', 'motorhomeDepPerYear')}
@@ -363,6 +501,9 @@ function renderAssumptions(el) {
     <input type="file" id="import-file" accept=".json" style="display:none">
   </div>`;
   wireInputs(el);
+  $('dbb-indexed').onchange = (e) => { P.partnerB.dbIndexed = e.target.checked; changed(); };
+  $('inherit-on').onchange = (e) => { P.inherit.on = e.target.checked; changed(); };
+  $('inherit-invest').onchange = (e) => { P.inherit.invest = e.target.checked; changed(); };
   $('btn-export').onclick = () => {
     const blob = new Blob([JSON.stringify(S.P, null, 2)], { type: 'application/json' });
     const a = document.createElement('a');
@@ -381,9 +522,9 @@ function renderAssumptions(el) {
 function renderAccumulation(el) {
   const P = S.P, c = S.cache;
   const series = [
-    { name: 'Bear ' + pct(P.growthBear), color: COLORS.bear, acc: c.accBear },
-    { name: 'Base ' + pct(P.growth, 1), color: COLORS.base, acc: c.accBase },
-    { name: 'Bull ' + pct(P.growthBull), color: COLORS.bull, acc: c.accBull },
+    { name: 'Bear ' + pct(P.growthBear, 1), color: COLORS.bear, acc: c.accBear },
+    { name: 'Base ' + pct(P.growthBase, 1), color: COLORS.base, acc: c.accBase },
+    { name: 'Bull ' + pct(P.growthBull, 1), color: COLORS.bull, acc: c.accBull },
   ];
   const total = (y) => y.pensionA + y.pensionB + y.isaA + y.isaB;
   const startTotal = P.partnerA.pension + P.partnerB.pension + P.partnerA.isa + P.partnerB.isa;
@@ -392,7 +533,7 @@ function renderAccumulation(el) {
 
   const ch = chart({
     xDomain: [P.startYear, P.retireYear], yDomain: [0, maxV * 1.05],
-    yFmt: (v) => fmtK(v), xTicks: Math.min(6, P.retireYear - P.startYear), label: 'Accumulation to retirement',
+    yFmt: (v) => fmtK(v), xTicks: Math.min(6, Math.max(1, P.retireYear - P.startYear)), label: 'Accumulation to retirement',
   });
   for (const s of series) {
     const pts = [[P.startYear, startTotal], ...s.acc.years.map(y => [y.year, total(y)])];
@@ -402,6 +543,7 @@ function renderAccumulation(el) {
   const contribA = P.partnerA.monthlyPension * 12 * (P.retireYear - P.startYear);
   const contribB = P.partnerB.monthlyPension * 12 * (P.retireYear - P.startYear);
   const at = c.accBase.atRetirement;
+  const warns = c.accBase.warnings || [];
   el.innerHTML = `
   <div class="card">
     <div class="kicker">Getting to April ${P.retireYear}</div>
@@ -414,7 +556,8 @@ function renderAccumulation(el) {
       <div class="kpi"><div class="v">${fmtK(at.pensionB, P.retireYear)}</div><div class="k">${P.partnerB.name} pension</div></div>
       <div class="kpi"><div class="v">${fmtK(at.isaA + at.isaB, P.retireYear)}</div><div class="k">ISAs combined</div></div>
     </div>
-    <p class="note">You will have paid in ${fmt(contribA)} (${P.partnerA.name}) and ${fmt(contribB)} (${P.partnerB.name}) of contributions by retirement. Mortgage remaining at ${P.retireYear}: ${fmt(c.accBase.atRetirement.mortgage)}.</p>
+    ${warns.map(w => `<div class="callout">⚠️ ${w}</div>`).join('')}
+    <p class="note">You will have paid in ${fmt(contribA)} (${P.partnerA.name}) and ${fmt(contribB)} (${P.partnerB.name}) of contributions by retirement. Mortgage remaining at ${P.retireYear}: ${fmt(at.mortgage, P.retireYear)}, paid off from retirement income until it clears.</p>
   </div>
 
   <div class="card">
@@ -422,7 +565,7 @@ function renderAccumulation(el) {
     <h2>The path, base scenario</h2>
     <div class="tbl-wrap"><table class="data">
       <tr><th>Year</th><th>${P.partnerA.name} pension</th><th>${P.partnerB.name} pension</th><th>ISAs</th><th>Mortgage left</th><th>Total investable</th></tr>
-      ${c.accBase.years.map(y => `<tr><td>${y.year}</td><td>${fmt(y.pensionA, y.year)}</td><td>${fmt(y.pensionB, y.year)}</td><td>${fmt(y.isaA + y.isaB, y.year)}</td><td>${fmt(y.mortgage)}</td><td>${fmt(total(y), y.year)}</td></tr>`).join('')}
+      ${c.accBase.years.map(y => `<tr><td>${y.year}</td><td>${fmt(y.pensionA, y.year)}</td><td>${fmt(y.pensionB, y.year)}</td><td>${fmt(y.isaA + y.isaB, y.year)}</td><td>${fmt(y.mortgage, y.year)}</td><td>${fmt(total(y), y.year)}</td></tr>`).join('')}
     </table></div>
   </div>`;
 }
@@ -434,7 +577,7 @@ function renderSpending(el) {
   <div class="card">
     <div class="kicker">Expenditure builder</div>
     <h2>What does a month cost?</h2>
-    <p class="sub">Build your real monthly spend from the headings below, then flip the switch to use it as the plan's income target instead of the single figure.</p>
+    <p class="sub">Today's money. Build your real monthly spend, then flip the switch to use it as the plan's income target. The mortgage is not a line here: the model pays the real balance automatically from retirement income until it clears, then stops.</p>
     ${P.spending.map((r, i) => `
       <div class="spend-row">
         <label>${r.label}</label>
@@ -463,14 +606,13 @@ function renderSpending(el) {
     <p class="note">Shown in today's money so the phase steps are visible without inflation on top.</p>
   </div>`;
 
-  // Spending curve, today's money
   const retAge = P.retireYear - P.partnerA.birthYear;
   const pts = [];
   for (let a = retAge; a <= P.horizonAge; a++) {
     pts.push([a, E.spendingAnnual(P) * E.phaseFactor(P, a)]);
   }
   const maxY = Math.max(...pts.map(p => p[1])) * 1.15 + 1;
-  const ch = chart({ xDomain: [retAge, P.horizonAge], yDomain: [0, maxY], yFmt: fmtK, label: 'Spending by age', h: 200 });
+  const ch = chart({ xDomain: [retAge, P.horizonAge], yDomain: [0, maxY], yFmt: (v) => fmtK(v), label: 'Spending by age', h: 200 });
   ch.add(`<path d="${areaPath(pts, [[P.horizonAge, 0], [retAge, 0]], ch.X, ch.Y)}" fill="var(--accent-soft)"/>`);
   ch.add(`<path d="${linePath(pts, ch.X, ch.Y)}" fill="none" stroke="var(--accent)" stroke-width="2.5"/>`);
   if (P.phase1On) ch.add(`<line x1="${ch.X(P.phase1Age)}" y1="16" x2="${ch.X(P.phase1Age)}" y2="${200 - 26}" stroke="var(--amber)" stroke-dasharray="4 4"/><text x="${ch.X(P.phase1Age) + 4}" y="24" font-size="9" fill="var(--amber)">age ${P.phase1Age}</text>`);
@@ -492,9 +634,7 @@ function renderSpending(el) {
 function renderDrawdown(el) {
   const P = S.P, dd = S.cache.dd;
   const rows = dd.rows;
-  const retAge = P.retireYear - P.partnerA.birthYear;
 
-  // Stacked income layers vs target
   const layers = [
     { key: (r) => r.dbA + r.dbB, name: 'DB pension', color: COLORS.db },
     { key: (r) => r.spB, name: P.partnerB.name + ' state pension', color: COLORS.spB },
@@ -505,31 +645,31 @@ function renderDrawdown(el) {
   ];
   const dv = (v, r) => deflate(v, r.year);
   let maxY = 0;
-  for (const r of rows) maxY = Math.max(maxY, dv(r.netIncome, r), dv(r.target, r));
-  const ch = chart({ xDomain: [rows[0].year, rows[rows.length - 1].year], yDomain: [0, maxY * 1.12 + 1], yFmt: fmtK, label: 'Income layers by year', h: 280 });
+  for (const r of rows) maxY = Math.max(maxY, dv(r.netIncome, r), dv(r.target + r.mortgagePay, r));
+  const ch = chart({ xDomain: [rows[0].year, rows[rows.length - 1].year], yDomain: [0, maxY * 1.12 + 1], yFmt: (v) => fmtK(v), label: 'Income layers by year', h: 280 });
   let baseline = rows.map(r => [r.year, 0]);
   for (const L of layers) {
     const top = rows.map((r, i) => [r.year, baseline[i][1] + dv(Math.max(0, L.key(r)), r)]);
     ch.add(`<path d="${areaPath(top, baseline, ch.X, ch.Y)}" fill="${L.color}" opacity="0.82"/>`);
     baseline = top;
   }
-  ch.add(`<path d="${linePath(rows.map(r => [r.year, dv(r.target, r)]), ch.X, ch.Y)}" fill="none" stroke="var(--ink)" stroke-width="2" stroke-dasharray="6 4"/>`);
+  ch.add(`<path d="${linePath(rows.map(r => [r.year, dv(r.target + r.mortgagePay, r)]), ch.X, ch.Y)}" fill="none" stroke="var(--ink)" stroke-width="2" stroke-dasharray="6 4"/>`);
 
-  // Pot balances
   let maxW = 0;
   for (const r of rows) maxW = Math.max(maxW, dv(r.potA, r), dv(r.isaA + r.isaB + r.cash, r), dv(r.potB, r));
-  const ch2 = chart({ xDomain: [rows[0].year, rows[rows.length - 1].year], yDomain: [0, maxW * 1.08 + 1], yFmt: fmtK, label: 'Pot balances', h: 220 });
+  const ch2 = chart({ xDomain: [rows[0].year, rows[rows.length - 1].year], yDomain: [0, maxW * 1.08 + 1], yFmt: (v) => fmtK(v), label: 'Pot balances', h: 220 });
   ch2.add(`<path d="${linePath(rows.map(r => [r.year, dv(r.potA, r)]), ch2.X, ch2.Y)}" fill="none" stroke="${COLORS.pension}" stroke-width="2.5"/>`);
   ch2.add(`<path d="${linePath(rows.map(r => [r.year, dv(r.potB, r)]), ch2.X, ch2.Y)}" fill="none" stroke="${COLORS.spB}" stroke-width="2"/>`);
   ch2.add(`<path d="${linePath(rows.map(r => [r.year, dv(r.isaA + r.isaB + r.cash, r)]), ch2.X, ch2.Y)}" fill="none" stroke="${COLORS.isa}" stroke-width="2"/>`);
 
+  const anyMortgage = rows.some(r => r.mortgagePay > 0);
   el.innerHTML = `
   <div class="card">
     <div class="kicker">Income layering, ${P.retireYear} to ${rows[rows.length - 1].year}</div>
     <h2>Who pays for each year</h2>
-    <p class="sub">Guaranteed income first, pensions filled to the basic rate band, ISAs for the excess. The dashed line is your target.</p>
+    <p class="sub">Guaranteed income first, pensions allocated by marginal rate so both allowances are used, ISAs for the excess. The dashed line is your need including the mortgage while it lasts.</p>
     ${ch.get()}
-    <div class="legend">${layers.map(L => `<span><i style="background:${L.color}"></i>${L.name}</span>`).join('')}<span><i style="background:var(--ink)"></i>Target</span></div>
+    <div class="legend">${layers.map(L => `<span><i style="background:${L.color}"></i>${L.name}</span>`).join('')}<span><i style="background:var(--ink)"></i>Need</span></div>
   </div>
 
   <div class="card">
@@ -548,41 +688,57 @@ function renderDrawdown(el) {
     <div class="kicker">Year by year</div>
     <h2>The full table</h2>
     <p class="sub">Your workbook's Drawdown tab, with per-partner tax. ${S.todayMoney ? "Today's money." : 'Nominal figures.'}</p>
-    <div class="tbl-wrap"><table class="data">
-      <tr><th>Year</th><th>Age ${P.partnerA.name[0]}/${P.partnerB.name[0]}</th><th>Guaranteed</th><th>Pension draw</th><th>Tax-free</th><th>Tax</th><th>ISA draw</th><th>Net income</th><th>Target</th><th>Pension pots</th><th>ISAs</th></tr>
-      ${rows.map(r => `<tr${r.eventLabels.length ? ' class="hl" title="' + r.eventLabels.join(', ') + '"' : ''}${r.shortfall > 1 ? ' class="warn"' : ''}>
+    <div style="margin-bottom:0.5rem;" class="no-print"><button id="btn-csv" class="small">Download CSV</button></div>
+    <div class="tbl-wrap"><table class="data sticky-first">
+      <tr><th>Year</th><th>Age ${P.partnerA.name[0]}/${P.partnerB.name[0]}</th><th>Guaranteed</th><th>Pension draw</th><th>Tax-free</th><th>Tax</th><th>ISA draw</th>${anyMortgage ? '<th>Mortgage</th>' : ''}<th>Net income</th><th>Need</th><th>Pension pots</th><th>ISAs</th></tr>
+      ${rows.map(r => `<tr${r.shortfall > 1 ? ' class="warn"' : (r.eventLabels.length ? ' class="hl" title="' + r.eventLabels.join(', ') + '"' : '')}>
         <td>${r.year}${r.eventLabels.length ? ' 🎉' : ''}</td><td>${r.ageA}/${r.ageB}</td>
         <td>${fmt(r.guaranteed, r.year)}</td>
         <td>${fmt(r.grossA + r.grossB, r.year)}</td>
         <td>${fmt(r.tfcA + r.tfcB, r.year)}</td>
         <td>${fmt(r.tax, r.year)}</td>
         <td>${fmt(r.isaDraw + r.cashDraw, r.year)}</td>
+        ${anyMortgage ? `<td>${fmt(r.mortgagePay, r.year)}</td>` : ''}
         <td>${fmt(r.netIncome, r.year)}</td>
-        <td>${fmt(r.target, r.year)}</td>
+        <td>${fmt(r.target + r.mortgagePay + r.eventCost, r.year)}</td>
         <td>${fmt(r.potA + r.potB, r.year)}</td>
         <td>${fmt(r.isaA + r.isaB + r.cash, r.year)}</td>
       </tr>`).join('')}
     </table></div>
   </div>`;
+
+  $('btn-csv').onclick = () => {
+    const head = ['year', 'ageA', 'ageB', 'guaranteed', 'pensionDrawGross', 'taxFreeCash', 'tax', 'isaDraw', 'mortgagePay', 'netIncome', 'need', 'pensionPots', 'isas'];
+    const lines = [head.join(',')];
+    for (const r of rows) {
+      lines.push([r.year, r.ageA, r.ageB, r.guaranteed, r.grossA + r.grossB, r.tfcA + r.tfcB, r.tax,
+        r.isaDraw + r.cashDraw, r.mortgagePay, r.netIncome, r.target + r.mortgagePay + r.eventCost,
+        r.potA + r.potB, r.isaA + r.isaB + r.cash].map(v => Math.round(v)).join(','));
+    }
+    const blob = new Blob([lines.join('\n')], { type: 'text/csv' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob); a.download = 'retirelens-drawdown.csv'; a.click();
+  };
 }
 
 function renderTax(el) {
   const P = S.P, dd = S.cache.dd;
   const strategies = S.cache.strategies;
   const best = strategies.reduce((a, b) => (b.lifetimeTax < a.lifetimeTax ? b : a));
+  const endYear = horizonYear();
 
   el.innerHTML = `
   <div class="card">
     <div class="kicker">Drawdown order</div>
     <h2>Three ways to fund the same life</h2>
-    <p class="sub">Your workbook's Tax Optimisation tab, live. Tap a strategy to adopt it; every tab recomputes.</p>
+    <p class="sub">Your workbook's Tax Optimisation tab, live. Tap a strategy to adopt it; every tab recomputes. Lifetime tax shown nominal.</p>
     <div class="strategies">
       ${strategies.map(s => `
         <div class="strategy ${P.strategy === s.id ? 'on' : ''}" data-strat="${s.id}" role="button" tabindex="0">
           ${s.id === best.id ? '<span class="badge">LOWEST TAX</span>' : ''}
           <div class="name">${s.label}</div>
           <div class="stat">Lifetime tax <b>${fmtK(s.lifetimeTax)}</b></div>
-          <div class="stat">Wealth at ${P.horizonAge}: <b>${fmtK(s.endWealth)}</b></div>
+          <div class="stat">Wealth at ${P.horizonAge}: <b>${fmtK(s.endWealth, endYear)}</b></div>
           <div class="stat">${s.exhaustedAgeA == null ? 'Never exhausts' : 'Runs dry at ' + s.exhaustedAgeA}</div>
         </div>`).join('')}
     </div>
@@ -592,7 +748,7 @@ function renderTax(el) {
       <button data-pcls="phased" class="${P.pclsMode === 'phased' ? 'on' : ''}">Phased 25%</button>
       <button data-pcls="upfront" class="${P.pclsMode === 'upfront' ? 'on' : ''}">Upfront 25%</button>
     </div>
-    <p class="note">Phased takes a quarter of each year's withdrawal tax-free until the ${fmt(P.tax.pclsCap)} cap. Upfront crystallises everything at retirement.</p>
+    <p class="note">Phased takes a quarter of each year's withdrawal tax-free until the ${fmt(P.tax.pclsCap)} cap. Upfront crystallises everything at retirement and the proceeds are modelled as staying invested; tax on growth outside wrappers is not modelled.</p>
   </div>
 
   <div class="card">
@@ -625,7 +781,7 @@ function renderTax(el) {
       const W = 340, H = 150, bx = 10;
       const segW = (W - 2 * bx);
       const scale = Math.max(income, T.higherThreshold * 1.15);
-      const seg = (x, w, color, label, amt) => w < 0.5 ? '' : `
+      const seg = (x, w, color, label) => w < 0.5 ? '' : `
         <rect x="${x}" y="56" width="${w}" height="34" rx="6" fill="${color}" opacity="0.9"/>
         ${w > 46 ? `<text x="${x + w / 2}" y="77" text-anchor="middle" font-size="9" fill="#fff" font-weight="700">${label}</text>` : ''}`;
       let x = bx;
@@ -634,10 +790,9 @@ function renderTax(el) {
       svg += `<text x="${bx}" y="34" font-size="9.5" fill="var(--ink-dim)">Taxable income ${fmt(income, r.year)}, tax ${fmt(tax, r.year)}, marginal ${pct(marginal)}</text>`;
       svg += `<text x="${bx}" y="48" font-size="9.5" fill="var(--ink-faint)">Allowance ${fmt(pa)}${tfc > 0 ? ' plus ' + fmt(tfc, r.year) + ' PCLS outside the bands' : ''}</text>`;
       const wPA = inPA / scale * segW, wB = inBasic / scale * segW, wH = inHigher / scale * segW;
-      svg += seg(x, wPA, 'var(--ink-faint)', '0%', inPA); x += wPA;
-      svg += seg(x, wB, '#0e7a6e', '20%', inBasic); x += wB;
-      svg += seg(x, wH, '#b45309', '40%', inHigher); x += wH;
-      // Band edge markers
+      svg += seg(x, wPA, 'var(--ink-faint)', '0%'); x += wPA;
+      svg += seg(x, wB, '#0e7a6e', '20%'); x += wB;
+      svg += seg(x, wH, '#b45309', '40%'); x += wH;
       const paX = bx + pa / scale * segW, hiX = bx + T.higherThreshold / scale * segW;
       svg += `<line x1="${paX}" y1="52" x2="${paX}" y2="96" stroke="var(--ink-faint)" stroke-dasharray="3 3"/>`;
       svg += `<line x1="${hiX}" y1="52" x2="${hiX}" y2="96" stroke="var(--amber)" stroke-dasharray="3 3"/>`;
@@ -681,36 +836,38 @@ function renderEvents(el) {
   <div class="card">
     <div class="kicker">One-off moments</div>
     <h2>Life events</h2>
-    <p class="sub">New car, a wedding, the big trip, a house deposit gift, an inheritance. Costs are met from ISAs first, then pensions. Incomes can be spent that year or invested.</p>
+    <p class="sub">New car, a wedding, the big trip, a house deposit gift. Amounts are today's money and are indexed to the year they happen. Costs are met from ISAs first, then pensions. Your expected inheritance has its own line on the ⚙️ Assumptions tab${P.inherit.on ? ' and is switched on: ' + fmt(P.inherit.amount) + ' in ' + P.inherit.year : ''}.</p>
     ${rows || '<p class="note">Nothing yet. Add your first event below.</p>'}
-    <div style="display:flex; gap:0.5rem; margin-top:0.7rem;" class="no-print">
+    <div style="display:flex; gap:0.5rem; margin-top:0.7rem; flex-wrap:wrap;" class="no-print">
       <button id="ev-add-cost" class="small">+ Add a cost</button>
       <button id="ev-add-income" class="small">+ Add income</button>
-      <button id="ev-add-inherit" class="small primary">+ Inheritance, invested</button>
     </div>
   </div>
   <div class="card" id="ev-impact"></div>`;
 
   const impact = () => {
-    const base = E.drawdown({ ...JSON.parse(JSON.stringify(P)), lifeEvents: [] });
+    const bareP = JSON.parse(JSON.stringify(P));
+    bareP.lifeEvents = []; bareP.inherit = { ...bareP.inherit, on: false };
+    const base = E.drawdown(bareP);
     const withEv = S.cache.dd;
     const d = withEv.endWealth - base.endWealth;
+    const endYear = horizonYear();
+    const nEvents = P.lifeEvents.length + (P.inherit.on ? 1 : 0);
     $('ev-impact').innerHTML = `
       <div class="kicker">Impact</div>
       <h2>What your events do to the plan</h2>
       <div class="kpis">
-        <div class="kpi"><div class="v">${P.lifeEvents.length}</div><div class="k">Events</div></div>
-        <div class="kpi ${d >= 0 ? 'good' : 'bad'}"><div class="v">${d >= 0 ? '+' : ''}${fmtK(d)}</div><div class="k">Wealth at ${P.horizonAge} vs no events</div></div>
+        <div class="kpi"><div class="v">${nEvents}</div><div class="k">Events including inheritance</div></div>
+        <div class="kpi ${d >= 0 ? 'good' : 'bad'}"><div class="v">${d >= 0 ? '+' : ''}${fmtK(d, endYear)}</div><div class="k">Wealth at ${P.horizonAge} vs no events</div></div>
         <div class="kpi ${withEv.exhaustedAgeA ? 'bad' : 'good'}"><div class="v">${withEv.exhaustedAgeA == null ? P.horizonAge + '+' : withEv.exhaustedAgeA}</div><div class="k">Pot lasts to</div></div>
       </div>
-      <p class="note">An invested inheritance compounds at your growth rate inside the ISA pot; spent as cash it only offsets that year's need.</p>`;
+      <p class="note">An invested windfall compounds at your growth rate inside the ISA pot; spent as cash it only offsets that year's need.</p>`;
   };
   impact();
 
   const add = (ev) => { P.lifeEvents.push(ev); changed(); };
   $('ev-add-cost').onclick = () => add({ year: P.retireYear + 2, label: 'New car', amount: 25000, kind: 'cost' });
   $('ev-add-income').onclick = () => add({ year: P.retireYear + 1, label: 'Downsize or windfall', amount: 50000, kind: 'income', invest: false });
-  $('ev-add-inherit').onclick = () => add({ year: P.retireYear + 5, label: 'Inheritance', amount: 100000, kind: 'income', invest: true });
   el.querySelectorAll('[data-del]').forEach(b => b.onclick = () => { P.lifeEvents.splice(Number(b.dataset.del), 1); changed(); });
   el.querySelectorAll('[data-ev]').forEach(inp => {
     inp.addEventListener('change', () => {
@@ -727,9 +884,11 @@ function renderEvents(el) {
 
 function renderRisk(el) {
   const P = S.P;
-  const st = E.stressTests(P);
-  const grid = E.sensitivityGrid(P);
+  const st = S.cache.stress;
+  const grid = S.cache.grid;
+  const tor = S.cache.tornado;
   const mc = S.mc;
+  const endYear = horizonYear();
 
   const heatColor = (age) => {
     if (age == null) return 'var(--accent-soft)';
@@ -738,43 +897,68 @@ function renderRisk(el) {
   };
   const heatText = (age) => age == null ? 'Never' : 'age ' + age;
 
+  // Tornado chart
+  const maxAbs = Math.max(...tor.bars.map(b => Math.max(Math.abs(b.up), Math.abs(b.down)))) || 1;
+  const TW = 720, rowH = 34, TH = tor.bars.length * rowH + 30;
+  const cx = TW * 0.55, half = TW * 0.40;
+  let tsvg = `<svg class="chart" viewBox="0 0 ${TW} ${TH}" role="img" aria-label="Sensitivity tornado">`;
+  tsvg += `<line x1="${cx}" y1="8" x2="${cx}" y2="${TH - 20}" stroke="var(--ink-faint)" stroke-width="1"/>`;
+  tor.bars.forEach((b, i) => {
+    const y = 12 + i * rowH;
+    const wUp = Math.abs(b.up) / maxAbs * half, wDn = Math.abs(b.down) / maxAbs * half;
+    const xUp = b.up >= 0 ? cx : cx - wUp;
+    const xDn = b.down >= 0 ? cx : cx - wDn;
+    tsvg += `<rect x="${xDn}" y="${y}" width="${Math.max(1, wDn)}" height="10" rx="3" fill="var(--rose)" opacity="0.8"/>`;
+    tsvg += `<rect x="${xUp}" y="${y + 11}" width="${Math.max(1, wUp)}" height="10" rx="3" fill="var(--accent)" opacity="0.9"/>`;
+    tsvg += `<text x="8" y="${y + 14}" font-size="10" fill="var(--ink-dim)">${b.label}</text>`;
+    tsvg += `<text x="${cx + half + 2}" y="${y + 9}" font-size="8.5" fill="var(--rose)" text-anchor="end">${fmtK(b.down)}</text>`;
+    tsvg += `<text x="${cx + half + 2}" y="${y + 20}" font-size="8.5" fill="var(--accent-strong)" text-anchor="end">+${fmtK(b.up)}</text>`;
+  });
+  tsvg += '</svg>';
+
   let mcHtml = '<p class="sub">Running ' + P.mcPaths + ' market paths in the background…</p>';
   if (mc) {
-    // Fan chart of sample tracks
     const nY = mc.tracks[0] ? mc.tracks[0].length : 0;
     let maxY = 1;
-    for (const t of mc.tracks) for (const v of t) maxY = Math.max(maxY, v);
+    for (const t of mc.tracks) for (const v of t) maxY = Math.max(maxY, deflate(v, endYear));
     const retY = P.retireYear;
-    const ch = chart({ xDomain: [retY, retY + nY - 1], yDomain: [0, maxY], yFmt: fmtK, h: 230, label: 'Monte Carlo paths' });
+    const ch = chart({ xDomain: [retY, retY + nY - 1], yDomain: [0, maxY], yFmt: (v) => fmtK(v), h: 230, label: 'Monte Carlo paths' });
     for (const t of mc.tracks) {
-      ch.add(`<path d="${linePath(t.map((v, i) => [retY + i, v]), ch.X, ch.Y)}" fill="none" stroke="var(--accent)" stroke-width="0.7" opacity="0.16"/>`);
+      ch.add(`<path d="${linePath(t.map((v, i) => [retY + i, deflate(v, retY + i)]), ch.X, ch.Y)}" fill="none" stroke="var(--accent)" stroke-width="0.7" opacity="0.16"/>`);
     }
-    // Solvency by age line rescaled onto the chart
     mcHtml = `
       <div class="kpis" style="margin-bottom:0.8rem;">
         <div class="kpi ${mc.successProb >= 0.85 ? 'good' : mc.successProb >= 0.6 ? 'warn' : 'bad'}"><div class="v">${pct(mc.successProb)}</div><div class="k">Paths fully funded to ${P.horizonAge}</div></div>
         <div class="kpi"><div class="v">${mc.confidenceAge}</div><div class="k">Confidence age, 85% threshold</div></div>
-        <div class="kpi"><div class="v">${fmtK(mc.finalP50)}</div><div class="k">Median wealth at ${P.horizonAge} (p10 ${fmtK(mc.finalP10)}, p90 ${fmtK(mc.finalP90)})</div></div>
+        <div class="kpi"><div class="v">${fmtK(mc.finalP50, endYear)}</div><div class="k">Median wealth at ${P.horizonAge} (p10 ${fmtK(mc.finalP10, endYear)}, p90 ${fmtK(mc.finalP90, endYear)})</div></div>
       </div>
       ${ch.get()}
-      <p class="note">${Math.min(60, P.mcPaths)} of the ${mc.nPaths} simulated paths shown. If a path fails, the median income trim needed is ${pct(mc.medianTrim)}. Volatility ${pct(P.mcSd)} around a ${pct(P.mcMean)} mean, your workbook's Monte Carlo settings.</p>`;
+      <p class="note">${Math.min(60, P.mcPaths)} of the ${mc.nPaths} simulated paths shown${S.todayMoney ? ", deflated to today's money" : ''}. The funding each year mirrors the main model: per-partner tax, pensions to the basic band, ISAs for the excess, mortgage and events included. If a path fails, the median income trim needed is ${pct(mc.medianTrim)}.</p>`;
   }
 
   el.innerHTML = `
   <div class="card">
     <div class="kicker">Monte Carlo</div>
-    <h2>1000 possible markets</h2>
+    <h2>${P.mcPaths} possible markets</h2>
     ${mcHtml}
+  </div>
+
+  <div class="card">
+    <div class="kicker">What actually moves the answer</div>
+    <h2>Sensitivity tornado</h2>
+    <p class="sub">Each assumption nudged both ways; bars show the change in wealth at ${P.horizonAge}, in today's money. The longest bars deserve your attention first.</p>
+    ${tsvg}
+    <div class="legend"><span><i style="background:var(--accent)"></i>favourable move</span><span><i style="background:var(--rose)"></i>unfavourable move</span></div>
   </div>
 
   <div class="card">
     <div class="kicker">Stress tests</div>
     <h2>How the plan bends</h2>
-    <p class="sub">Your workbook's scenarios, recomputed through the full model rather than a single formula.</p>
+    <p class="sub">Your workbook's scenarios through the full model. Compared in today's money so different inflation assumptions stay honest.</p>
     <div class="tbl-wrap"><table class="data">
-      <tr><th>Scenario</th><th>Wealth at ${P.horizonAge}</th><th>Change</th><th>Lasts to</th></tr>
-      <tr class="hl"><td>Base plan</td><td>${fmtK(st.base.endWealth)}</td><td></td><td>${st.base.exhaustedAgeA == null ? P.horizonAge + '+' : st.base.exhaustedAgeA}</td></tr>
-      ${st.tests.map(t => `<tr><td title="${t.note}">${t.label}</td><td>${fmtK(t.endWealth)}</td>
+      <tr><th>Scenario</th><th>Wealth at ${P.horizonAge}, today's £</th><th>Change</th><th>Lasts to</th></tr>
+      <tr class="hl"><td>Base plan</td><td>${fmtK(st.baseReal)}</td><td></td><td>${st.base.exhaustedAgeA == null ? P.horizonAge + '+' : st.base.exhaustedAgeA}</td></tr>
+      ${st.tests.map(t => `<tr><td title="${t.note}">${t.label}</td><td>${fmtK(t.endWealthReal)}</td>
         <td class="${t.delta >= 0 ? 'pos' : 'neg'}">${t.delta >= 0 ? '+' : ''}${fmtK(t.delta)}</td>
         <td>${t.exhaustedAgeA == null ? P.horizonAge + '+' : 'age ' + t.exhaustedAgeA}</td></tr>`).join('')}
     </table></div>
@@ -799,16 +983,17 @@ function renderEstate(el) {
   <div class="card">
     <div class="kicker">Inheritance tax</div>
     <h2>Estate at age ${P.horizonAge} (${es.year})</h2>
-    <p class="sub">Base scenario. Pensions ${es.pensionsIn ? 'are inside' : 'stay outside'} the estate under the ${P.iht.pensionsInEstateFrom} rule change.</p>
+    <p class="sub">Base scenario. Pensions ${es.pensionsIn ? 'are inside' : 'stay outside'} the estate under the ${P.iht.pensionsInEstateFrom} rule change. ${S.todayMoney ? "Today's money." : 'Nominal figures.'}</p>
     <div class="tbl-wrap"><table class="data">
       <tr><th>Component</th><th>Value</th><th>In IHT scope</th></tr>
       <tr><td>House at ${pct(P.houseGrowth)} a year</td><td>${fmt(es.house, es.year)}</td><td>Yes</td></tr>
-      <tr><td>Less mortgage remaining</td><td>−${fmt(es.mortLeft)}</td><td></td></tr>
+      <tr><td>Less mortgage remaining</td><td>−${fmt(es.mortLeft, es.year)}</td><td></td></tr>
       <tr><td>Motorhome</td><td>${fmt(es.motorhome, es.year)}</td><td>Yes</td></tr>
       <tr><td>ISAs and cash</td><td>${fmt(es.isas, es.year)}</td><td>Yes</td></tr>
       <tr><td>Pensions remaining</td><td>${fmt(es.pensions, es.year)}</td><td>${es.pensionsIn ? 'Yes, from ' + P.iht.pensionsInEstateFrom : 'No'}</td></tr>
       <tr class="hl"><td>Estate in scope</td><td>${fmt(es.inScope, es.year)}</td><td></td></tr>
-      <tr><td>Nil-rate bands (${P.iht.couple ? 'couple' : 'single'}, incl. residence)</td><td>−${fmt(es.nrb)}</td><td></td></tr>
+      <tr><td>Nil-rate bands (${P.iht.couple ? 'couple' : 'single'})</td><td>−${fmt(es.nrb, es.year)}</td><td></td></tr>
+      ${es.rnrb < es.rnrbFull ? `<tr><td colspan="3" style="color:var(--amber); font-size:0.66rem;">Residence band tapered from ${fmt(es.rnrbFull, es.year)} to ${fmt(es.rnrb, es.year)}: the estate is over £2m</td></tr>` : ''}
       <tr><td>Taxable estate</td><td>${fmt(es.taxable, es.year)}</td><td></td></tr>
       <tr class="${es.iht > 0 ? 'warn' : ''}"><td>IHT at ${pct(P.iht.rate)}</td><td>${fmt(es.iht, es.year)}</td><td></td></tr>
       <tr class="hl"><td>Net to your heirs</td><td>${fmt(es.netToHeirs, es.year)}</td><td></td></tr>
@@ -821,7 +1006,7 @@ function renderEstate(el) {
       ${numField('Pensions join the estate from', 'iht.pensionsInEstateFrom', 'Announced for April 2027')}
       <div class="field"><label class="switch" style="margin-top:1.2rem;"><input type="checkbox" id="iht-pens" ${P.iht.includePensions ? 'checked' : ''}> Apply the pension rule change</label></div>
     </div>
-    <p class="note">The residence band tapers away for estates over £2m; this model does not yet apply that taper, so large estates may owe more than shown. Gifting, trusts and insurance are for a conversation with an adviser, not a slider.</p>
+    <p class="note">The residence nil-rate band taper above £2m is applied. Beneficiary income tax on inherited pensions after age 75 is not modelled: pensions shown passing gross. Gifting, trusts and insurance are for a conversation with an adviser, not a slider.</p>
   </div>`;
   wireInputs(el);
   $('iht-pens').onchange = (e) => { P.iht.includePensions = e.target.checked; changed(); };
@@ -839,7 +1024,6 @@ function renderTab() {
   const el = $('tab-' + S.tab);
   VIEWS[S.tab](el);
 }
-
 function renderAllForPrint() {
   for (const t of Object.keys(VIEWS)) VIEWS[t]($('tab-' + t));
 }
@@ -861,7 +1045,7 @@ function syncGrowthUI() {
   $('growth-out').textContent = (S.P.growth * 100).toFixed(2).replace(/\.?0+$/, '') + '%';
   gs.style.setProperty('--fill', (Number(gs.value) / 12 * 100) + '%');
   document.querySelectorAll('.scenario-chips button').forEach(b => {
-    const map = { bear: S.P.growthBear, base: 0.07, bull: S.P.growthBull };
+    const map = { bear: S.P.growthBear, base: S.P.growthBase, bull: S.P.growthBull };
     b.classList.toggle('on', Math.abs(S.P.growth - map[b.dataset.scen]) < 0.0001);
   });
 }
@@ -872,7 +1056,7 @@ gs.addEventListener('input', () => {
 });
 document.querySelectorAll('.scenario-chips button').forEach(b => {
   b.onclick = () => {
-    const map = { bear: S.P.growthBear, base: 0.07, bull: S.P.growthBull };
+    const map = { bear: S.P.growthBear, base: S.P.growthBase, bull: S.P.growthBull };
     S.P.growth = map[b.dataset.scen];
     syncGrowthUI(); save(); recompute(); renderTab();
   };

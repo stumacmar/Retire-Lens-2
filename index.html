@@ -43,17 +43,24 @@
     </nav>
   </header>
 
-  <main id="main" class="wrap">
-    <section id="tab-dashboard" role="tabpanel"></section>
-    <section id="tab-assumptions" role="tabpanel" hidden></section>
-    <section id="tab-accumulation" role="tabpanel" hidden></section>
-    <section id="tab-spending" role="tabpanel" hidden></section>
-    <section id="tab-drawdown" role="tabpanel" hidden></section>
-    <section id="tab-tax" role="tabpanel" hidden></section>
-    <section id="tab-events" role="tabpanel" hidden></section>
-    <section id="tab-risk" role="tabpanel" hidden></section>
-    <section id="tab-estate" role="tabpanel" hidden></section>
-  </main>
+  <div id="money-banner" class="money-banner" hidden>
+    <span>⚠️ Nominal figures: inflation is baked in, so future pounds buy less than they look. Tap "Today's £" to compare in 2026 money.</span>
+  </div>
+
+  <div class="layout">
+    <main id="main" class="wrap">
+      <section id="tab-dashboard" role="tabpanel"></section>
+      <section id="tab-assumptions" role="tabpanel" hidden></section>
+      <section id="tab-accumulation" role="tabpanel" hidden></section>
+      <section id="tab-spending" role="tabpanel" hidden></section>
+      <section id="tab-drawdown" role="tabpanel" hidden></section>
+      <section id="tab-tax" role="tabpanel" hidden></section>
+      <section id="tab-events" role="tabpanel" hidden></section>
+      <section id="tab-risk" role="tabpanel" hidden></section>
+      <section id="tab-estate" role="tabpanel" hidden></section>
+    </main>
+    <aside id="kpi-rail" class="kpi-rail" aria-label="Live plan summary"></aside>
+  </div>
 
   <footer class="honesty">
     A modelling tool, not regulated financial advice. Nominal figures with your inflation assumption unless "Today's £" is on.

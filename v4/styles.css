@@ -274,6 +274,47 @@ table.sticky-first td:first-child, table.sticky-first th:first-child {
 .note { font-size: 0.7rem; color: var(--ink-faint); margin-top: 0.5rem; }
 .callout { background: var(--blue-soft); border: 1px solid color-mix(in srgb, var(--blue) 25%, transparent); border-radius: 11px; padding: 0.65rem 0.8rem; font-size: 0.76rem; margin: 0.6rem 0; }
 
+/* ── Nominal figures banner ─────────────────────── */
+.money-banner {
+  max-width: 880px; margin: 0.6rem auto -0.2rem; padding: 0.45rem 0.9rem;
+  border-radius: 11px; font-size: 0.72rem; font-weight: 600;
+  background: var(--amber-soft); color: var(--amber);
+  border: 1px solid color-mix(in srgb, var(--amber) 30%, transparent);
+}
+@media (max-width: 912px) { .money-banner { margin-left: 1rem; margin-right: 1rem; } }
+
+/* ── Desktop layout with live KPI rail ──────────── */
+.layout { max-width: 880px; margin: 0 auto; }
+.kpi-rail { display: none; }
+@media (min-width: 1160px) {
+  .layout {
+    max-width: 1240px;
+    display: grid; grid-template-columns: minmax(0, 880px) 320px;
+    gap: 1.2rem; align-items: start; padding: 0 1rem;
+  }
+  .layout .wrap { padding: 0; max-width: none; }
+  .money-banner { max-width: 1208px; }
+  .kpi-rail {
+    display: block; position: sticky; top: 118px;
+    margin-top: 1rem;
+  }
+  .kpi-rail .rail-card {
+    background: var(--card); border: 1px solid var(--card-edge);
+    border-radius: var(--radius); padding: 1rem 1.05rem; box-shadow: var(--shadow);
+  }
+  .kpi-rail .rail-kicker { font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.13em; color: var(--accent-strong); font-weight: 800; margin-bottom: 0.7rem; }
+  .kpi-rail .rail-row { display: flex; justify-content: space-between; align-items: baseline; padding: 0.42rem 0; border-bottom: 1px solid color-mix(in srgb, var(--card-edge) 55%, transparent); }
+  .kpi-rail .rail-row:last-child { border-bottom: none; }
+  .kpi-rail .rail-k { font-size: 0.7rem; color: var(--ink-dim); font-weight: 600; }
+  .kpi-rail .rail-v { font-family: var(--mono); font-weight: 800; font-size: 0.95rem; }
+  .kpi-rail .rail-v.good { color: var(--accent-strong); }
+  .kpi-rail .rail-v.warn { color: var(--amber); }
+  .kpi-rail .rail-v.bad { color: var(--rose); }
+  .kpi-rail .rail-bar { height: 5px; border-radius: 3px; background: var(--card-edge); overflow: hidden; margin: 0.3rem 0 0.1rem; }
+  .kpi-rail .rail-bar i { display: block; height: 100%; background: var(--accent); border-radius: 3px; transition: width 300ms ease; }
+}
+@media print { .kpi-rail, .money-banner { display: none !important; } }
+
 /* ── Footer ─────────────────────────────────────── */
 footer.honesty {
   position: fixed; left: 0; right: 0; bottom: 0; z-index: 30;

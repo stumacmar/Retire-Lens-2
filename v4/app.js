@@ -1023,6 +1023,40 @@ const VIEWS = {
 function renderTab() {
   const el = $('tab-' + S.tab);
   VIEWS[S.tab](el);
+  renderRail();
+  syncMoneyBanner();
+}
+
+// ── Live KPI rail (wide screens) and nominal banner ────────────────────
+function renderRail() {
+  const rail = $('kpi-rail');
+  if (!rail) return;
+  const c = S.cache, P = S.P;
+  if (!c.dd) { rail.innerHTML = ''; return; }
+  const dd = c.dd;
+  const acc = c.accLive.atRetirement;
+  const pots = acc.pensionA + acc.pensionB + acc.isaA + acc.isaB;
+  const endYear = horizonYear();
+  const mc = S.mc;
+  const survives = dd.exhaustedAgeA == null;
+  const row = (k, v, cls) => `<div class="rail-row"><span class="rail-k">${k}</span><span class="rail-v ${cls || ''}">${v}</span></div>`;
+  rail.innerHTML = `<div class="rail-card">
+    <div class="rail-kicker">Live plan, ${pct(P.growth, 1)} growth</div>
+    ${row('Pots at ' + P.retireYear, fmtK(pots, P.retireYear))}
+    ${row('Wealth at ' + P.horizonAge, fmtK(dd.endWealth, endYear), survives ? 'good' : '')}
+    ${row('Pot lasts to', survives ? P.horizonAge + '+' : 'age ' + dd.exhaustedAgeA, survives ? 'good' : 'bad')}
+    ${row('Lifetime tax', fmtK(lifetimeTaxShown(dd)), 'warn')}
+    ${row('Year one income', fmtK(dd.rows[0].netIncome, dd.rows[0].year))}
+    ${row('MC success', mc ? pct(mc.successProb) : '…', mc ? (mc.successProb >= 0.85 ? 'good' : mc.successProb >= 0.6 ? 'warn' : 'bad') : '')}
+    <div class="rail-bar"><i style="width:${mc ? Math.round(mc.successProb * 100) : 0}%"></i></div>
+    ${row('Confidence age', mc ? mc.confidenceAge : '…')}
+    ${row('IHT estimate', fmtK(c.estate.iht, c.estate.year), c.estate.iht > 0 ? 'warn' : 'good')}
+  </div>`;
+}
+
+function syncMoneyBanner() {
+  const b = $('money-banner');
+  if (b) b.hidden = S.todayMoney;
 }
 function renderAllForPrint() {
   for (const t of Object.keys(VIEWS)) VIEWS[t]($('tab-' + t));

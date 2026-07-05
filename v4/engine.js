@@ -114,6 +114,21 @@ export function createEngine() {
     };
   }
 
+  // ── Fresh start: what a NEW visitor sees ──────────────────────────────
+  // Same shape as defaults(), but with no personal data — generic names and
+  // zeroed pots/savings/property — so nobody lands on someone else's plan.
+  // defaults() stays the Marshall workbook, which the test suites pin to.
+  function freshStart() {
+    const P = defaults();
+    P.partnerA = { ...P.partnerA, name: 'You',     pension: 0, isa: 0, monthlyPension: 0, monthlyIsa: 0, db: 0 };
+    P.partnerB = { ...P.partnerB, name: 'Partner', pension: 0, isa: 0, monthlyPension: 0, monthlyIsa: 0, db: 0 };
+    P.house = 0; P.houseGrowth = 0.03; P.mortgage = 0; P.mortgageMonthly = 0;
+    P.motorhome = 0; P.motorhomeDepPerYear = 0; P.cash = 0;
+    P.inherit = { on: false, year: 2035, amount: 0, invest: true };
+    P.lifeEvents = [];
+    return P;
+  }
+
   function defaultSpending() {
     // Suite of monthly headings, all today's money, all editable.
     // No mortgage line: the mortgage is modelled explicitly and stops
@@ -868,7 +883,7 @@ export function createEngine() {
   }
 
   return {
-    defaults, defaultSpending,
+    defaults, freshStart, defaultSpending,
     taxOn, personalAllowanceFor, grossForNet, marginalRate,
     spendingAnnual, phaseFactor, targetForYear, effectiveEvents, eventNominal,
     accumulate, drawdown, compareStrategies,

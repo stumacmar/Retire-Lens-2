@@ -12,8 +12,11 @@ const $ = (id) => document.getElementById(id);
 
 // ── State ───────────────────────────────────────────────────────────────
 const S = {
-  P: E.defaults(),
-  tab: 'dashboard',
+  // New visitors start with a blank, generic plan ("You" / "Partner", zeroed
+  // pots) — never someone else's data. A returning visitor's saved plan is
+  // loaded below. E.defaults() (the Marshall workbook) is reserved for tests.
+  P: E.freshStart(),
+  tab: 'assumptions',  // land on "Your details" first, not the dashboard
   todayMoney: true,   // open in today's money — clearer for people, matches the workbook view
   pinned: null,
   mc: null,
@@ -26,11 +29,16 @@ try {
   const saved = localStorage.getItem('rl4-state');
   if (saved) {
     const obj = JSON.parse(saved);
-    if (obj && obj.P) { S.P = mergeParams(E.defaults(), obj.P); S.todayMoney = !!obj.todayMoney; }
+    if (obj && obj.P) {
+      // Returning visitor: restore their plan and take them to the dashboard.
+      S.P = mergeParams(E.freshStart(), obj.P);
+      S.todayMoney = !!obj.todayMoney;
+      S.tab = 'dashboard';
+    }
   }
   if (location.hash.startsWith('#plan=')) {
     const obj = JSON.parse(decodeURIComponent(escape(atob(location.hash.slice(6)))));
-    if (obj) S.P = mergeParams(E.defaults(), obj);
+    if (obj) { S.P = mergeParams(E.freshStart(), obj); S.tab = 'dashboard'; }
   }
 } catch (e) { /* fresh start on any parse problem */ }
 
@@ -179,6 +187,13 @@ const COLORS = {
 };
 
 // ── Field helpers ───────────────────────────────────────────────────────
+function textField(label, path, hint) {
+  const val = String(getPath(path) ?? '');
+  const esc = val.replace(/"/g, '&quot;');
+  return `<div class="field"><label>${label}</label>
+    <input type="text" data-path="${path}" data-text="1" value="${esc}">
+    ${hint ? `<div class="hint">${hint}</div>` : ''}</div>`;
+}
 function moneyField(label, path, hint) {
   const val = getPath(path);
   return `<div class="field"><label>${label}</label>
@@ -210,7 +225,8 @@ function wireInputs(root) {
   root.querySelectorAll('input[data-path], select[data-path]').forEach(el => {
     el.addEventListener('change', () => {
       let v = el.value;
-      if (el.dataset.pct) v = (parseFloat(v) || 0) / 100;
+      if (el.dataset.text) v = String(v).trim();
+      else if (el.dataset.pct) v = (parseFloat(v) || 0) / 100;
       else if (el.type === 'number' || el.inputMode === 'decimal') v = parseFloat(String(v).replace(/[£,\s]/g, '')) || 0;
       setPath(el.dataset.path, v);
       if (el.dataset.path === 'growthBase') S.P.growth = S.P.growthBase;
@@ -411,10 +427,11 @@ function renderAssumptions(el) {
   <div class="card">
     <div class="kicker">Central control panel</div>
     <h2>Assumptions</h2>
-    <p class="sub">Every figure driving the model, exactly like the ⚙️ tab of your spreadsheet. All money inputs are today's money.</p>
+    <p class="sub">Start by putting your own names and figures in below — this is your plan, on your device only. Every figure here drives the model, exactly like the ⚙️ tab of your spreadsheet. All money inputs are today's money.</p>
 
-    <h3>👤 ${P.partnerA.name}</h3>
+    <h3>👤 You</h3>
     <div class="grid2">
+      ${textField('Your name', 'partnerA.name', 'What we call you across the plan')}
       ${numField('Birth year', 'partnerA.birthYear')}
       ${numField('State pension age', 'partnerA.spAge', 'Usually 67')}
       ${moneyField('Pension pot today', 'partnerA.pension', 'Total value of your pensions now')}
@@ -425,8 +442,10 @@ function renderAssumptions(el) {
       ${moneyField('Defined-benefit pension per year', 'partnerA.db', 'Guaranteed income from a company/final-salary scheme (0 if none)')}
     </div>
 
-    <h3>👤 ${P.partnerB.name}</h3>
+    <h3>👤 Your partner</h3>
+    <p class="sub" style="margin-top:-0.4rem;">Planning solo? Leave the name as “Partner” and set their pots to 0.</p>
     <div class="grid2">
+      ${textField('Partner’s name', 'partnerB.name', 'Leave as “Partner” if planning alone')}
       ${numField('Birth year', 'partnerB.birthYear')}
       ${numField('State pension age', 'partnerB.spAge', 'Usually 67')}
       ${moneyField('Pension pot today', 'partnerB.pension', 'Total value of their pensions now')}
@@ -1123,6 +1142,10 @@ for (const a of E.runAssertions()) {
   console.log((a.pass ? 'PASS ' : 'FAIL ') + a.name + ' [got ' + a.got + ']');
 }
 $('btn-money').textContent = S.todayMoney ? 'Nominal £' : "Today's £";
+// Reflect the starting tab (assumptions for new visitors, dashboard for returning)
+// in the DOM, since the markup defaults to the dashboard being active.
+document.querySelectorAll('#tabs button').forEach(x => x.classList.toggle('on', x.dataset.tab === S.tab));
+document.querySelectorAll('main section').forEach(sec => sec.hidden = sec.id !== 'tab-' + S.tab);
 syncGrowthUI();
 recompute();
 renderTab();

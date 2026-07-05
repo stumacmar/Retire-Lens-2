@@ -27,11 +27,18 @@ const row2050 = dd.rows.find(r => r.year === 2050) || {};
 
 const f = n => '£' + Math.round(n).toLocaleString();
 const pct = (a, b) => b === 0 ? 0 : ((a - b) / b) * 100;
+const inflAt = year => Math.pow(1 + P.inflation, year - P.startYear);
+
+// Compare like-for-like with the workbook: the workbook's £60,000 is SPENDING
+// (mortgage handled separately) in today's money. RetireLens 4 keeps spending
+// power from today, so its year-1 spending is that same £60,000 once we strip
+// inflation and the separate mortgage line out.
+const year1SpendingTodays = dd.rows[0].target / inflAt(dd.rows[0].year);
 
 const checks = [
   ['Total pension at retirement', acc.pensionA + acc.pensionB, EXCEL.pensionTotalAtRetire, 2],
   ['Total ISA at retirement',     acc.isaA + acc.isaB,          EXCEL.isaTotalAtRetire,     2],
-  ['Year-1 net income',           dd.rows[0].netIncome,         EXCEL.year1NetIncome,       2],
+  ['Year-1 spending (today\'s £)', year1SpendingTodays,         EXCEL.year1NetIncome,       0.5],
   ['Pension pot in 2050',         (row2050.potA || 0) + (row2050.potB || 0), EXCEL.pension2050, 3],
 ];
 
@@ -65,6 +72,7 @@ console.log('\n─────────────────────�
 console.log(flagged === 0
   ? '  ✓ All headline figures agree with the Marshall workbook.'
   : `  ⚠ ${flagged} figure(s) disagree with the workbook — to fix during the redo.`);
-console.log('  Note: small pot differences reflect contribution-timing (Excel uses');
-console.log('  46 months from Jul-26 + transfers; TODAY()-based year fraction).');
+console.log('  Notes: year-1 spending is compared in today\'s money with the mortgage');
+console.log('  shown separately (as the workbook does). Small pot differences reflect');
+console.log('  contribution-timing (Excel: 46 months from Jul-26 + transfers).');
 console.log('═══════════════════════════════════════════════════════════════');

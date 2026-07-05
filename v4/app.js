@@ -416,40 +416,40 @@ function renderAssumptions(el) {
     <h3>👤 ${P.partnerA.name}</h3>
     <div class="grid2">
       ${numField('Birth year', 'partnerA.birthYear')}
-      ${numField('State pension age', 'partnerA.spAge')}
-      ${moneyField('Pension pot today', 'partnerA.pension', 'Pot value now')}
-      ${moneyField('ISA today', 'partnerA.isa')}
-      ${moneyField('Monthly pension investing', 'partnerA.monthlyPension', 'Until retirement')}
-      ${moneyField('Monthly ISA investing', 'partnerA.monthlyIsa')}
-      ${moneyField('State pension per year', 'partnerA.spAmount', 'Indexed from ' + P.startYear)}
-      ${moneyField('Defined-benefit pension per year', 'partnerA.db')}
+      ${numField('State pension age', 'partnerA.spAge', 'Usually 67')}
+      ${moneyField('Pension pot today', 'partnerA.pension', 'Total value of your pensions now')}
+      ${moneyField('ISA today', 'partnerA.isa', 'Your ISA value now (withdrawals are tax-free)')}
+      ${moneyField('Monthly pension investing', 'partnerA.monthlyPension', 'What you pay in each month until you retire')}
+      ${moneyField('Monthly ISA investing', 'partnerA.monthlyIsa', 'What you add to ISAs each month')}
+      ${moneyField('State pension per year', 'partnerA.spAmount', 'Standard full new State Pension. Change if yours differs')}
+      ${moneyField('Defined-benefit pension per year', 'partnerA.db', 'Guaranteed income from a company/final-salary scheme (0 if none)')}
     </div>
 
     <h3>👤 ${P.partnerB.name}</h3>
     <div class="grid2">
       ${numField('Birth year', 'partnerB.birthYear')}
-      ${numField('State pension age', 'partnerB.spAge')}
-      ${moneyField('Pension pot today', 'partnerB.pension', 'SASS value now')}
-      ${moneyField('ISA today', 'partnerB.isa')}
-      ${moneyField('Monthly pension investing', 'partnerB.monthlyPension')}
-      ${moneyField('Monthly ISA investing', 'partnerB.monthlyIsa')}
-      ${moneyField('State pension per year', 'partnerB.spAmount', 'Indexed from ' + P.startYear)}
-      ${moneyField('Defined-benefit pension per year', 'partnerB.db', 'Starts ' + P.partnerB.dbStartYear)}
+      ${numField('State pension age', 'partnerB.spAge', 'Usually 67')}
+      ${moneyField('Pension pot today', 'partnerB.pension', 'Total value of their pensions now')}
+      ${moneyField('ISA today', 'partnerB.isa', 'Their ISA value now (withdrawals are tax-free)')}
+      ${moneyField('Monthly pension investing', 'partnerB.monthlyPension', 'What they pay in each month until retirement')}
+      ${moneyField('Monthly ISA investing', 'partnerB.monthlyIsa', 'What they add to ISAs each month')}
+      ${moneyField('State pension per year', 'partnerB.spAmount', 'Standard full new State Pension. Change if theirs differs')}
+      ${moneyField('Defined-benefit pension per year', 'partnerB.db', 'Guaranteed company/final-salary income (0 if none). Starts ' + P.partnerB.dbStartYear)}
     </div>
     <label class="switch" style="margin-top:0.4rem;"><input type="checkbox" id="dbb-indexed" ${P.partnerB.dbIndexed ? 'checked' : ''}> ${P.partnerB.name}'s defined-benefit pension rises with inflation (off matches your workbook)</label>
 
     <h3>📅 Timing</h3>
     <div class="grid2">
-      ${numField('Retirement year', 'retireYear')}
+      ${numField('Retirement year', 'retireYear', 'The year you stop paying in and start drawing an income')}
       ${numField('Plan to age', 'horizonAge', P.partnerA.name + "'s age the plan runs to")}
     </div>
 
     <h3>📊 Growth and inflation</h3>
     <div class="grid2">
-      ${pctField('Base growth rate', 'growthBase', 'Sets the header slider too')}
-      ${pctField('Inflation', 'inflation')}
-      ${pctField('Bear rate', 'growthBear')}
-      ${pctField('Bull rate', 'growthBull')}
+      ${pctField('Base growth rate', 'growthBase', 'Your central assumption for investment returns')}
+      ${pctField('Inflation', 'inflation', 'How fast prices rise (2% is the long-run average)')}
+      ${pctField('Bear rate', 'growthBear', 'A poor decade for markets')}
+      ${pctField('Bull rate', 'growthBull', 'A strong decade for markets')}
     </div>
 
     <h3>💰 Income need</h3>

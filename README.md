@@ -4,7 +4,22 @@
 
 > "Can I retire at age X with £Y net income, and how robust is that outcome?"
 
-100% private — all calculations run in-browser. No data leaves your device.
+100% private — all calculations run in-browser. Your planning data never leaves your device, and the app makes **no third-party requests** (Chart.js and the Inter font are self-hosted in `vendor/`).
+
+## Product / going live
+
+RetireLens ships as a sellable product with a marketing site, legal pages and a
+soft access gate:
+
+- `landing.html` — marketing page with pricing
+- `guide.html` — how-to guide
+- `legal.html` — disclaimer, terms & privacy
+- `config/product.js` — single place to set branding, price, domain, Stripe link and the paywall switch
+- `js/access.js` — disclaimer gate (always on) + optional access-code paywall
+- **`LAUNCH.md`** — step-by-step go-live checklist (domain, DNS, Stripe, codes)
+
+The disclaimer must be accepted once; the paywall is **off by default** until you
+add a Stripe link and flip `paywallEnabled` in `config/product.js`.
 
 ## Quick Start
 

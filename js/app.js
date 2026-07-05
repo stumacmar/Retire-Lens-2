@@ -150,6 +150,9 @@
 
       screens.push('household-type');
 
+      // Names come first — they personalise the whole plan (You/Partner → real names)
+      screens.push('names');
+
       // Same wizard screens for BOTH singles and couples
       // For couples, each screen shows doubled-up inputs (you + partner)
       // Consolidated: age+retirement, income, pension+contributions, isa+state-pension
@@ -349,6 +352,11 @@
       // Update ticker for onboarding screens
       updateTicker();
       
+      // Names screen: adapt labels to household type and prefill saved names
+      if (screenId === 'names') {
+        updateNamesScreen();
+      }
+
       // Update pension types screen content when shown
       if (screenId === 'pension-types') {
         updatePensionTypesScreen();
@@ -600,7 +608,79 @@
         nextScreen();
       }, 400);
     }
-    
+
+    // ═══════════════════════════════════════════════════════════════
+    // Names — first assumption, personalises the whole plan
+    // ═══════════════════════════════════════════════════════════════
+
+    /**
+     * Resolve a display name for a person, falling back to sensible defaults.
+     * @param {'personA'|'personB'} personKey
+     */
+    function personName(personKey) {
+      const raw = state.onboardingState?.[personKey]?.name;
+      const name = (typeof raw === 'string') ? raw.trim() : '';
+      if (name && name.toLowerCase() !== 'you' && name.toLowerCase() !== 'partner') {
+        return name;
+      }
+      return personKey === 'personB' ? 'Partner' : 'You';
+    }
+
+    /** Possessive form of a name, e.g. "Alex's" or "Your". */
+    function personPossessive(personKey) {
+      const name = personName(personKey);
+      if (name === 'You') return 'Your';
+      if (name === 'Partner') return "Partner's";
+      return name.endsWith('s') ? `${name}'` : `${name}'s`;
+    }
+
+    function updateNamesScreen() {
+      const isCouple = state.onboardingState?.householdType === HOUSEHOLD_TYPES.COUPLE;
+      const title = document.getElementById('names-title');
+      const subtitle = document.getElementById('names-subtitle');
+      const nameBGroup = document.getElementById('name-b-group');
+      const partnerHint = document.getElementById('names-partner-hint');
+      const nameALabel = document.getElementById('name-a-label');
+      const inputA = document.getElementById('input-name-a');
+      const inputB = document.getElementById('input-name-b');
+
+      if (title) title.textContent = isCouple ? 'What are your names?' : 'What should we call you?';
+      if (subtitle) subtitle.textContent = isCouple
+        ? "We'll use your names throughout your plan. First names are fine."
+        : "We'll use your name throughout your plan. First names are fine.";
+      if (nameALabel) nameALabel.textContent = isCouple ? 'Your name (Partner 1)' : 'Your name';
+      if (nameBGroup) nameBGroup.style.display = isCouple ? 'block' : 'none';
+      if (partnerHint) partnerHint.style.display = isCouple ? 'inline' : 'none';
+
+      // Prefill from saved state (ignore the defaults so the box shows empty)
+      if (inputA) {
+        const a = state.onboardingState?.personA?.name;
+        inputA.value = (a && a.toLowerCase() !== 'you') ? a : '';
+      }
+      if (inputB) {
+        const b = state.onboardingState?.personB?.name;
+        inputB.value = (b && b.toLowerCase() !== 'partner') ? b : '';
+      }
+    }
+
+    function saveNames() {
+      const isCouple = state.onboardingState?.householdType === HOUSEHOLD_TYPES.COUPLE;
+      const inputA = document.getElementById('input-name-a');
+      const inputB = document.getElementById('input-name-b');
+
+      if (!state.onboardingState.personA) state.onboardingState.personA = { pensionTypes: [] };
+      state.onboardingState.personA.name = (inputA?.value || '').trim() || 'You';
+
+      if (isCouple) {
+        if (!state.onboardingState.personB) state.onboardingState.personB = { pensionTypes: [] };
+        state.onboardingState.personB.name = (inputB?.value || '').trim() || 'Partner';
+      }
+      debugLog('ONBOARDING', 'Names saved', {
+        a: state.onboardingState.personA.name,
+        b: state.onboardingState.personB?.name
+      });
+    }
+
     function updatePensionTypesScreen() {
       const title = document.getElementById('pension-types-title');
       const subtitle = document.getElementById('pension-types-subtitle');
@@ -2814,16 +2894,16 @@
       ];
 
       if (yourSP > 0) {
-        sources.push({ name: 'Your State Pension', amount: yourSP, taxable: true, color: '#059669' });
+        sources.push({ name: `${personPossessive('personA')} State Pension`, amount: yourSP, taxable: true, color: '#059669' });
       }
       if (partnerSP > 0) {
-        sources.push({ name: 'Partner State Pension', amount: partnerSP, taxable: true, color: '#34d399' });
+        sources.push({ name: `${personPossessive('personB')} State Pension`, amount: partnerSP, taxable: true, color: '#34d399' });
       }
       if (yourDB > 0) {
-        sources.push({ name: 'Your DB Pension', amount: yourDB, taxable: true, color: '#2563eb' });
+        sources.push({ name: `${personPossessive('personA')} DB Pension`, amount: yourDB, taxable: true, color: '#2563eb' });
       }
       if (partnerDB > 0) {
-        sources.push({ name: 'Partner DB Pension', amount: partnerDB, taxable: true, color: '#7c3aed' });
+        sources.push({ name: `${personPossessive('personB')} DB Pension`, amount: partnerDB, taxable: true, color: '#7c3aed' });
       }
       
       // PCLS is shown separately in the summary metrics, not as annual income
@@ -3783,6 +3863,25 @@
       
       // Pension types next button
       document.getElementById('pension-types-next-btn')?.addEventListener('click', advancePensionTypesScreen);
+
+      // Names screen: save names then advance
+      document.getElementById('names-next-btn')?.addEventListener('click', () => {
+        saveNames();
+        SCREEN_ORDER = getActiveScreenOrder();
+        nextScreen();
+      });
+      // Pressing Enter in a name field advances too.
+      // stopPropagation prevents the document-level Enter handler from ALSO
+      // advancing (which would skip the very next screen).
+      ['input-name-a', 'input-name-b'].forEach(id => {
+        document.getElementById(id)?.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            e.stopPropagation();
+            document.getElementById('names-next-btn')?.click();
+          }
+        });
+      });
       
       // ═══════════════════════════════════════════════════════════════
       // Preview Card Event Handlers

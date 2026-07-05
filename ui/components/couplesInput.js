@@ -28,7 +28,23 @@ export function renderCouplesInputTabs(containerEl, onUpdate, initialData = {}) 
   };
   
   let activeTab = 'you'; // 'you' or 'partner'
-  
+
+  /** Display name for a tab, falling back to You / Partner. */
+  function displayName(tab) {
+    const person = tab === 'you' ? householdData.personA : householdData.personB;
+    const n = (person?.name || '').trim();
+    if (n && n.toLowerCase() !== 'you' && n.toLowerCase() !== 'partner') return n;
+    return tab === 'you' ? 'You' : 'Partner';
+  }
+
+  /** Possessive form, e.g. "Alex's" / "Your". */
+  function possessive(tab) {
+    const n = displayName(tab);
+    if (n === 'You') return 'your';
+    if (n === 'Partner') return "your partner's";
+    return n.endsWith('s') ? `${n}'` : `${n}'s`;
+  }
+
   // Render the component
   render();
   
@@ -40,19 +56,19 @@ export function renderCouplesInputTabs(containerEl, onUpdate, initialData = {}) 
       <div class="couples-input-container">
         <!-- Tab Headers -->
         <div class="couples-tabs">
-          <button 
-            class="couples-tab ${activeTab === 'you' ? 'tab-active' : ''}" 
+          <button
+            class="couples-tab ${activeTab === 'you' ? 'tab-active' : ''}"
             data-tab="you"
             type="button"
           >
-            👤 You
+            👤 ${displayName('you')}
           </button>
-          <button 
-            class="couples-tab ${activeTab === 'partner' ? 'tab-active' : ''}" 
+          <button
+            class="couples-tab ${activeTab === 'partner' ? 'tab-active' : ''}"
             data-tab="partner"
             type="button"
           >
-            👥 Partner
+            👥 ${displayName('partner')}
           </button>
         </div>
         
@@ -92,7 +108,7 @@ export function renderCouplesInputTabs(containerEl, onUpdate, initialData = {}) 
   function renderTabContent(tab) {
     const person = tab === 'you' ? householdData.personA : householdData.personB;
     const personKey = tab === 'you' ? 'personA' : 'personB';
-    const label = tab === 'you' ? 'your' : "your partner's";
+    const label = possessive(tab);
     
     return `
       <!-- Ages Section -->
@@ -527,6 +543,7 @@ export function renderCouplesInputTabs(containerEl, onUpdate, initialData = {}) 
  */
 function createDefaultPerson(data = {}) {
   return {
+    name: (typeof data.name === 'string' ? data.name.trim() : '') || '',
     currentAge: safeNumber(data.currentAge, null),
     retirementAge: safeNumber(data.retirementAge, null),
     lifeExpectancy: safeNumber(data.lifeExpectancy, 90),

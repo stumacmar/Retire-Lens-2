@@ -27,9 +27,10 @@ jobs:
       - name: Prepare deployment
         run: |
           mkdir -p _site
-          cp -r index.html css/ js/ engine/ config/ src/ ui/ _site/
-          # Include node_modules for runtime deps (jspdf, html2canvas, xlsx, qrcode)
-          # These are loaded via import maps or script tags
+          # App + product pages + self-hosted vendor assets (Chart.js, Inter font)
+          cp -r index.html landing.html guide.html legal.html css/ js/ engine/ config/ src/ ui/ vendor/ _site/
+          # Custom domain (GitHub Pages reads CNAME from the site root)
+          cp CNAME _site/CNAME
 
       - name: Setup Pages
         uses: actions/configure-pages@v4

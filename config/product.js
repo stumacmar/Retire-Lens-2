@@ -1,9 +1,13 @@
 /**
  * RetireLens - Product & Commercial Configuration
  *
- * Single source of truth for pricing, branding, the access gate, and
- * external links. Everything a non-developer needs to change to go live
+ * Single source of truth for branding, donations, pricing, the access gate,
+ * and external links. Everything a non-developer needs to change to go live
  * lives here. See LAUNCH.md for the step-by-step launch checklist.
+ *
+ * DEFAULT MODEL: free to use, with a "pay what you think it's worth" donation
+ * ask (`model: 'donation'`). The fixed-fee paywall below is an optional
+ * alternative, off unless you set `model: 'paywall'` and `paywallEnabled: true`.
  *
  * IMPORTANT: This is a 100% client-side static app with no backend, so the
  * paywall is a "soft" gate — it deters casual users and supports honest

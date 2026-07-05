@@ -1,31 +1,36 @@
-# Launching RetireLens as a paid product
+# Launching RetireLens (free, with donations)
 
-This is your go-live checklist. The app is built and works today — the steps
-below turn it into a website on your own domain that charges a small fee.
-Everything a non-developer needs to change lives in **`config/product.js`**.
+This is your go-live checklist. The app is built and works today. By **default
+it is free to use, with a "pay what you think it's worth" donation ask** — no
+paywall. Everything a non-developer needs to change lives in
+**`config/product.js`**.
 
 Nothing here touches the calculation engine. All steps are reversible.
 
+> Prefer to charge a fixed fee instead of asking for donations? That's fully
+> supported — skip to *Optional: charge a fixed fee (paywall)* near the end.
+
 ---
 
-## Overview
+## The short version (free + donations)
 
-RetireLens is a 100% client-side static site (no server). That keeps it cheap,
-fast and private, but it means the paywall is a **soft gate**: it's based on an
-access code checked in the browser. This is the normal trade-off for indie
-static tools. It's enough to support honest buyers and deter casual sharing.
-If you later want hard enforcement, see *Hardening the paywall* at the end.
+1. Set your details in `config/product.js` (Step 1).
+2. Buy a domain and point it at GitHub Pages (Steps 2–3).
+3. Add a donations link — Buy Me a Coffee / Ko-fi / PayPal (Step 4a).
+4. Fill in your real name/contact in `legal.html` (Step 7 — required by law even
+   for a free site, because the host keeps server logs).
+5. Push. Done.
 
 The pieces:
 
 | Piece | Where | You do it? |
 |---|---|---|
-| Branding, price, email | `config/product.js` | ✅ edit values |
+| Branding, email, donation link | `config/product.js` | ✅ edit values |
 | Domain name | `CNAME` + `config/product.js` | ✅ buy + set |
-| Payment | Stripe Payment Link | ✅ create, paste URL |
-| Access codes | generated in-browser | ✅ mint, email to buyers |
+| Donations (default) | Buy Me a Coffee / Ko-fi / PayPal | ✅ create, paste URL |
 | Hosting | GitHub Pages (already set up) | ✅ enable custom domain |
-| Legal pages | `legal.html` | ⚠️ review wording |
+| Legal + controller identity | `legal.html` | ⚠️ fill in + review |
+| Fixed-fee paywall (optional) | Stripe + access codes | ⏭️ only if charging |
 
 ---
 
@@ -87,7 +92,11 @@ the custom domain sticks across deploys.
 
 ---
 
-## Step 4 — Create your Stripe Payment Link
+> ⏭️ **Steps 4–6 are only for the fixed-fee paywall.** If you're launching
+> free-with-donations (the default), skip to **Step 7** and see the
+> *Donations* section below for the one thing you need to add.
+
+## Optional (paywall only) · Step 4 — Create your Stripe Payment Link
 
 1. Create a free [Stripe](https://stripe.com) account.
 2. **Products → Payment links → New**. Create a product "RetireLens — Lifetime

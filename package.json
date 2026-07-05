@@ -22,7 +22,8 @@
     "beta:excel": "node tests/generate-excel-model.js",
     "lint": "npx eslint engine/ config/ src/",
     "test:parity": "node tests/marshall-parity.js",
-    "test:multiparity": "node tests/marshall-multi-parity.js"
+    "test:multiparity": "node tests/marshall-multi-parity.js",
+    "test:reconcile": "node tests/ui-excel-reconcile.mjs"
   },
   "keywords": [
     "retirement",

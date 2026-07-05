@@ -228,7 +228,7 @@ function sankeyFor(row) {
     (row.guaranteed + row.grossA + row.grossB + row.tfcA + row.tfcB - row.tax + row.isaDraw + row.cashDraw));
   const cleanSources = [
     { name: 'State pensions', v: row.spA + row.spB, color: COLORS.spA },
-    { name: 'DB pension', v: row.dbA + row.dbB, color: COLORS.db },
+    { name: 'defined-benefit pension', v: row.dbA + row.dbB, color: COLORS.db },
     { name: 'Pension draws', v: row.grossA + row.grossB, color: COLORS.pension },
     { name: 'Tax-free cash', v: row.tfcA + row.tfcB, color: COLORS.pcls },
     { name: 'ISA and cash', v: row.isaDraw + row.cashDraw, color: COLORS.isa },
@@ -417,12 +417,12 @@ function renderAssumptions(el) {
     <div class="grid2">
       ${numField('Birth year', 'partnerA.birthYear')}
       ${numField('State pension age', 'partnerA.spAge')}
-      ${moneyField('Pension pot today', 'partnerA.pension', 'SIPP value now')}
+      ${moneyField('Pension pot today', 'partnerA.pension', 'Pot value now')}
       ${moneyField('ISA today', 'partnerA.isa')}
       ${moneyField('Monthly pension investing', 'partnerA.monthlyPension', 'Until retirement')}
       ${moneyField('Monthly ISA investing', 'partnerA.monthlyIsa')}
       ${moneyField('State pension per year', 'partnerA.spAmount', 'Indexed from ' + P.startYear)}
-      ${moneyField('DB pension per year', 'partnerA.db')}
+      ${moneyField('Defined-benefit pension per year', 'partnerA.db')}
     </div>
 
     <h3>👤 ${P.partnerB.name}</h3>
@@ -434,9 +434,9 @@ function renderAssumptions(el) {
       ${moneyField('Monthly pension investing', 'partnerB.monthlyPension')}
       ${moneyField('Monthly ISA investing', 'partnerB.monthlyIsa')}
       ${moneyField('State pension per year', 'partnerB.spAmount', 'Indexed from ' + P.startYear)}
-      ${moneyField('DB pension per year', 'partnerB.db', 'Starts ' + P.partnerB.dbStartYear)}
+      ${moneyField('Defined-benefit pension per year', 'partnerB.db', 'Starts ' + P.partnerB.dbStartYear)}
     </div>
-    <label class="switch" style="margin-top:0.4rem;"><input type="checkbox" id="dbb-indexed" ${P.partnerB.dbIndexed ? 'checked' : ''}> ${P.partnerB.name}'s DB pension rises with inflation (off matches your workbook)</label>
+    <label class="switch" style="margin-top:0.4rem;"><input type="checkbox" id="dbb-indexed" ${P.partnerB.dbIndexed ? 'checked' : ''}> ${P.partnerB.name}'s defined-benefit pension rises with inflation (off matches your workbook)</label>
 
     <h3>📅 Timing</h3>
     <div class="grid2">
@@ -489,7 +489,7 @@ function renderAssumptions(el) {
       ${moneyField('Higher rate from', 'tax.higherThreshold')}
       ${pctField('Basic rate', 'tax.basicRate')}
       ${pctField('Higher rate', 'tax.higherRate')}
-      ${moneyField('PCLS lifetime cap', 'tax.pclsCap')}
+      ${moneyField('Tax-free cash limit', 'tax.pclsCap')}
       ${moneyField('Allowance taper starts', 'tax.taperStart')}
     </div>
 
@@ -636,10 +636,10 @@ function renderDrawdown(el) {
   const rows = dd.rows;
 
   const layers = [
-    { key: (r) => r.dbA + r.dbB, name: 'DB pension', color: COLORS.db },
+    { key: (r) => r.dbA + r.dbB, name: 'defined-benefit pension', color: COLORS.db },
     { key: (r) => r.spB, name: P.partnerB.name + ' state pension', color: COLORS.spB },
     { key: (r) => r.spA, name: P.partnerA.name + ' state pension', color: COLORS.spA },
-    { key: (r) => r.grossA + r.grossB - r.taxA - r.taxB, name: 'Pension drawdown, net', color: COLORS.pension },
+    { key: (r) => r.grossA + r.grossB - r.taxA - r.taxB, name: 'Pension income after tax', color: COLORS.pension },
     { key: (r) => r.tfcA + r.tfcB, name: 'Tax-free cash', color: COLORS.pcls },
     { key: (r) => r.isaDraw + r.cashDraw, name: 'ISA and cash', color: COLORS.isa },
   ];
@@ -687,7 +687,7 @@ function renderDrawdown(el) {
   <div class="card">
     <div class="kicker">Year by year</div>
     <h2>The full table</h2>
-    <p class="sub">Your workbook's Drawdown tab, with per-partner tax. ${S.todayMoney ? "Today's money." : 'Nominal figures.'}</p>
+    <p class="sub">Your income year by year, with each partner's tax. ${S.todayMoney ? "Today's money." : 'Nominal figures.'}</p>
     <div style="margin-bottom:0.5rem;" class="no-print"><button id="btn-csv" class="small">Download CSV</button></div>
     <div class="tbl-wrap"><table class="data sticky-first">
       <tr><th>Year</th><th>Age ${P.partnerA.name[0]}/${P.partnerB.name[0]}</th><th>Guaranteed</th><th>Pension draw</th><th>Tax-free</th><th>Tax</th><th>ISA draw</th>${anyMortgage ? '<th>Mortgage</th>' : ''}<th>Net income</th><th>Need</th><th>Pension pots</th><th>ISAs</th></tr>
@@ -729,7 +729,7 @@ function renderTax(el) {
 
   el.innerHTML = `
   <div class="card">
-    <div class="kicker">Drawdown order</div>
+    <div class="kicker">Where the money comes from</div>
     <h2>Three ways to fund the same life</h2>
     <p class="sub">Your workbook's Tax Optimisation tab, live. Tap a strategy to adopt it; every tab recomputes. Lifetime tax shown nominal.</p>
     <div class="strategies">
@@ -743,12 +743,12 @@ function renderTax(el) {
         </div>`).join('')}
     </div>
     <h3>Tax-free cash</h3>
-    <div class="seg" role="group" aria-label="PCLS mode">
-      <button data-pcls="none" class="${P.pclsMode === 'none' ? 'on' : ''}">No PCLS</button>
-      <button data-pcls="phased" class="${P.pclsMode === 'phased' ? 'on' : ''}">Phased 25%</button>
-      <button data-pcls="upfront" class="${P.pclsMode === 'upfront' ? 'on' : ''}">Upfront 25%</button>
+    <div class="seg" role="group" aria-label="Tax-free cash choice">
+      <button data-pcls="none" class="${P.pclsMode === 'none' ? 'on' : ''}">Take none</button>
+      <button data-pcls="phased" class="${P.pclsMode === 'phased' ? 'on' : ''}">A little each year</button>
+      <button data-pcls="upfront" class="${P.pclsMode === 'upfront' ? 'on' : ''}">All at retirement</button>
     </div>
-    <p class="note">Phased takes a quarter of each year's withdrawal tax-free until the ${fmt(P.tax.pclsCap)} cap. Upfront crystallises everything at retirement and the proceeds are modelled as staying invested; tax on growth outside wrappers is not modelled.</p>
+    <p class="note">Phased takes a quarter of each year's withdrawal tax-free until the ${fmt(P.tax.pclsCap)} cap. Upfront takes all your tax-free cash at retirement and the proceeds are modelled as staying invested; tax on growth outside wrappers is not modelled.</p>
   </div>
 
   <div class="card">
@@ -788,7 +788,7 @@ function renderTax(el) {
       let svg = `<svg viewBox="0 0 ${W} ${H}" class="chart" role="img" aria-label="${name} tax bands">`;
       svg += `<text x="${bx}" y="16" font-size="11" font-weight="800" fill="var(--ink)">${name}</text>`;
       svg += `<text x="${bx}" y="34" font-size="9.5" fill="var(--ink-dim)">Taxable income ${fmt(income, r.year)}, tax ${fmt(tax, r.year)}, marginal ${pct(marginal)}</text>`;
-      svg += `<text x="${bx}" y="48" font-size="9.5" fill="var(--ink-faint)">Allowance ${fmt(pa)}${tfc > 0 ? ' plus ' + fmt(tfc, r.year) + ' PCLS outside the bands' : ''}</text>`;
+      svg += `<text x="${bx}" y="48" font-size="9.5" fill="var(--ink-faint)">Allowance ${fmt(pa)}${tfc > 0 ? ' plus ' + fmt(tfc, r.year) + ' tax-free cash outside the bands' : ''}</text>`;
       const wPA = inPA / scale * segW, wB = inBasic / scale * segW, wH = inHigher / scale * segW;
       svg += seg(x, wPA, 'var(--ink-faint)', '0%'); x += wPA;
       svg += seg(x, wB, '#0e7a6e', '20%'); x += wB;

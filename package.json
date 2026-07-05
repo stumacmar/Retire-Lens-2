@@ -20,7 +20,8 @@
     "test:stress": "node tests/stress-test-100.js",
     "test:crosscheck": "node tests/beta-cross-check.js",
     "beta:excel": "node tests/generate-excel-model.js",
-    "lint": "npx eslint engine/ config/ src/"
+    "lint": "npx eslint engine/ config/ src/",
+    "test:parity": "node tests/marshall-parity.js"
   },
   "keywords": [
     "retirement",

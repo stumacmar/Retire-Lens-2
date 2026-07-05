@@ -94,7 +94,7 @@ export function createHouseholdPerson(options = {}) {
     
     // State Pension
     statePensionAge: safeNumber(options.statePensionAge, PENSION_CONFIG.statePensionAge),
-    expectedStatePension: safeNumber(options.expectedStatePension, 11973),
+    expectedStatePension: safeNumber(options.expectedStatePension, 11500),
     
     // DC pension (if applicable)
     dcPot: safeNumber(options.dcPot, 0),

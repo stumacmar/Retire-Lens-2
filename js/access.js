@@ -85,48 +85,6 @@ function accessGranted() {
   }
 }
 
-// ── Self-contained styles ───────────────────────────────────
-// Injected once so the gate looks right on ANY page (e.g. RetireLens 4),
-// without depending on the app's stylesheet.
-function injectGateStyles() {
-  if (document.getElementById('rl-gate-styles')) return;
-  const style = document.createElement('style');
-  style.id = 'rl-gate-styles';
-  style.textContent = `
-  .rl-gate-overlay{position:fixed;inset:0;z-index:99999;display:flex;align-items:center;justify-content:center;
-    padding:1rem;background:rgba(15,23,42,.6);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);overflow-y:auto;
-    font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;line-height:1.5;color:#0f172a;}
-  .rl-gate-card{width:100%;max-width:460px;background:#fff;border-radius:16px;box-shadow:0 20px 50px rgba(0,0,0,.25);
-    padding:2rem 1.75rem;margin:auto;}
-  .rl-gate-brand{font-size:1.4rem;font-weight:800;letter-spacing:-.03em;color:#0e7a6e;margin-bottom:1rem;}
-  .rl-gate-brand span{color:#0e7a6e;}
-  .rl-gate-title{font-size:1.35rem;font-weight:700;margin:0 0 .5rem;}
-  .rl-gate-lead{color:#475569;margin:0 0 1rem;}
-  .rl-gate-lead a,.rl-gate-fine a{color:#0e7a6e;}
-  .rl-gate-list{list-style:none;padding:0;margin:0 0 1.25rem;}
-  .rl-gate-list li{position:relative;padding-left:1.5rem;margin-bottom:.6rem;font-size:.92rem;color:#334155;}
-  .rl-gate-list li::before{content:'';position:absolute;left:0;top:.5rem;width:8px;height:8px;border-radius:50%;background:#0e7a6e;}
-  .rl-gate-check{display:flex;align-items:flex-start;gap:.6rem;margin-bottom:1.25rem;cursor:pointer;font-size:.92rem;color:#334155;}
-  .rl-gate-check input{margin-top:.2rem;width:18px;height:18px;flex-shrink:0;}
-  .rl-gate-btn{display:block;width:100%;text-align:center;background:#0e7a6e;color:#fff;border:none;border-radius:10px;
-    padding:.85rem 1rem;font-size:1rem;font-weight:600;cursor:pointer;text-decoration:none;}
-  .rl-gate-btn:hover:not(:disabled){background:#0b6459;}
-  .rl-gate-btn:disabled{opacity:.45;cursor:not-allowed;}
-  .rl-gate-btn:focus-visible{outline:3px solid #99f6e4;outline-offset:2px;}
-  .rl-gate-btn-secondary{width:auto;flex-shrink:0;background:#1f2937;}
-  .rl-gate-fine{font-size:.78rem;color:#64748b;margin-top:1rem;text-align:center;}
-  .rl-gate-divider{display:flex;align-items:center;text-align:center;margin:1.25rem 0 1rem;color:#94a3b8;font-size:.72rem;
-    text-transform:uppercase;letter-spacing:.05em;}
-  .rl-gate-divider::before,.rl-gate-divider::after{content:'';flex:1;height:1px;background:#e2e8f0;}
-  .rl-gate-divider span{padding:0 .75rem;}
-  .rl-gate-label{display:block;font-size:.85rem;font-weight:600;margin-bottom:.4rem;color:#334155;}
-  .rl-gate-coderow{display:flex;gap:.5rem;}
-  .rl-gate-coderow input{flex:1;min-width:0;padding:.75rem;border:1px solid #e2e8f0;border-radius:10px;font-size:1rem;
-    text-transform:uppercase;letter-spacing:.05em;}
-  .rl-gate-error{color:#dc2626;font-size:.82rem;margin-top:.6rem;}`;
-  document.head.appendChild(style);
-}
-
 // ── Overlay UI ──────────────────────────────────────────────
 function overlayShell(innerHTML) {
   const el = document.createElement('div');
@@ -236,7 +194,6 @@ function isAutomated() {
  */
 export async function initAccessGate() {
   if (isAutomated()) return; // don't block automated tests
-  injectGateStyles();
   if (!disclaimerAccepted()) {
     await showDisclaimerGate();
   }

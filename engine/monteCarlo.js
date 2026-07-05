@@ -13,7 +13,6 @@ import { runProjection, createPlan } from './projections.js';
 import { PROJECTION_DEFAULTS } from '../config/defaults.js';
 import { calculateOptimalWithdrawal } from './withdrawals.js';
 import { calculateTaxFromGross } from './tax.js';
-import { calculateSpendingAtAge } from './spendingPolicy.js';
 
 /**
  * Generate a random return using normal distribution
@@ -115,23 +114,14 @@ export function runSingleSimulation(plan, accumulationReturns, decumulationRetur
     }
   }
   
-  // Take PCLS — match deterministic logic
+  // Marginal PCLS: don't deduct lump sum — apply 25% tax-free to each withdrawal instead
   const pclsRate = plan.assumptions.pension?.pclsRate || 0.25;
+  const lsaCap = plan.assumptions?.pension?.lumpSumAllowance || 268275;
+  const priorPCLS = plan.pclsAmountTaken || 0;
+  const maxPclsEntitlement = Math.min(pensionBalance * pclsRate, Math.max(0, lsaCap - priorPCLS));
+  let pclsRemainingEntitlement = maxPclsEntitlement;
   let taxFreeCash = 0;
-  if (plan.pclsAlreadyTaken) {
-    // Only take PCLS on uncrystallised portion
-    const pclsAmountTaken = plan.pclsAmountTaken || 0;
-    if (pclsAmountTaken > 0) {
-      const origSipp = pclsAmountTaken / 0.25;
-      const crystallised = origSipp * 0.75;
-      const uncrystallised = Math.max(0, pensionBalance - crystallised);
-      taxFreeCash = uncrystallised * pclsRate;
-    }
-  } else {
-    taxFreeCash = pensionBalance * pclsRate;
-  }
-  pensionBalance = pensionBalance - taxFreeCash;
-  const totalRetirementAssets = pensionBalance + isaBalance + taxFreeCash;
+  const totalRetirementAssets = pensionBalance + isaBalance;
   
   // Decumulation phase
   let fundsDepleted = false;
@@ -178,54 +168,56 @@ export function runSingleSimulation(plan, accumulationReturns, decumulationRetur
       ? plan.partnerDBPensionAmount * Math.pow(1 + 0.02, Math.max(0, age - partnerDbStartUserAge)) : 0;
 
     const totalGuaranteed = statePension + partnerSP + partnerDB;
-    const taxConfig = plan.assumptions.tax;
 
-    // Apply age-based spending reductions via spending policy module
-    let targetThisYear = calculateSpendingAtAge(plan.targetNetIncome, age, {
-      applyDefaultReductions: plan.spendingRules?.applyDefaultReductions === true
-    });
-
-    // Per-person tax for couples: Person B's income is taxed separately
-    // Person A draws from combined pot to cover the household shortfall
-    let withdrawalResult;
+    // For couples: doubled personal allowance and tax bands
+    let effectiveTaxConfig = plan.assumptions.tax;
     if ((plan.partnerCurrentAge || 0) > 0) {
-      // Person B's own income (taxed independently)
-      const personBIncome = partnerSP + partnerDB;
-      const personBTax = calculateTaxFromGross(personBIncome, taxConfig);
-      const personBNet = personBTax.netIncome;
-
-      // Person A's guaranteed income (their own SP only — MC doesn't model Person A DB)
-      const personAGuaranteed = statePension;
-
-      // Household needs from Person A = target - what Person B already covers
-      const personATargetNet = Math.max(0, targetThisYear - personBNet);
-
-      // Person A withdraws from pension using their own PA and bands
-      const balances = { pension: pensionBalance, isa: isaBalance };
-      withdrawalResult = calculateOptimalWithdrawal(
-        personATargetNet,
-        balances,
-        { statePensionIncome: personAGuaranteed, taxConfig }
-      );
-
-      // Report combined household tax and net income
-      withdrawalResult.taxPaid = (withdrawalResult.taxPaid || 0) + personBTax.total;
-      withdrawalResult.netIncome = (withdrawalResult.netIncome || 0) + personBNet;
-    } else {
-      const balances = { pension: pensionBalance, isa: isaBalance };
-      withdrawalResult = calculateOptimalWithdrawal(
-        targetThisYear,
-        balances,
-        { statePensionIncome: totalGuaranteed, taxConfig }
-      );
+      effectiveTaxConfig = {
+        ...plan.assumptions.tax,
+        personalAllowance: plan.assumptions.tax.personalAllowance * 2,
+        bands: plan.assumptions.tax.bands.map(b => ({
+          ...b,
+          threshold: b.threshold === Infinity ? Infinity : b.threshold * 2
+        }))
+      };
     }
-    
+
+    // Apply age-based spending reductions only when explicitly enabled
+    let targetThisYear = plan.targetNetIncome;
+    if (plan.spendingRules?.applyDefaultReductions === true) {
+      if (age >= 90) {
+        targetThisYear = plan.targetNetIncome * 0.65;
+      } else if (age >= 80) {
+        targetThisYear = plan.targetNetIncome * 0.75;
+      }
+    }
+
+    const balances = { pension: pensionBalance, isa: isaBalance };
+    const withdrawalResult = calculateOptimalWithdrawal(
+      targetThisYear,
+      balances,
+      { statePensionIncome: totalGuaranteed, taxConfig: effectiveTaxConfig }
+    );
+
+    // Marginal PCLS: 25% of pension withdrawals are tax-free (up to remaining entitlement)
+    const pensionWithdrawn = withdrawalResult.withdrawals.pension;
+    if (pensionWithdrawn > 0 && pclsRemainingEntitlement > 0) {
+      const pclsThisYear = Math.min(pensionWithdrawn * pclsRate, pclsRemainingEntitlement);
+      pclsRemainingEntitlement -= pclsThisYear;
+      taxFreeCash += pclsThisYear;
+      const taxablePension = pensionWithdrawn - pclsThisYear;
+      const recalcTax = calculateTaxFromGross(totalGuaranteed + taxablePension, effectiveTaxConfig);
+      withdrawalResult.taxPaid = recalcTax.total;
+      // + pclsThisYear: the retiree receives the tax-free cash too, not just the taxed slice
+      withdrawalResult.netIncome = recalcTax.netIncome + withdrawalResult.withdrawals.isa + pclsThisYear;
+    }
+
     let targetMetThisYear = true;
-    
+
     // Check if withdrawal exceeds available balances
     const totalBalance = pensionBalance + isaBalance;
     const totalWithdrawal = withdrawalResult.withdrawals.total;
-    
+
     if (totalBalance <= 0 || (totalWithdrawal > totalBalance && totalBalance < plan.targetNetIncome * 0.1)) {
       pensionBalance = 0;
       isaBalance = 0;

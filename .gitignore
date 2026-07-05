@@ -9,6 +9,7 @@ build/
 coverage/
 test-results/
 playwright-report/
+test-artifacts/screenshots/*.png
 
 # IDE
 .idea/
@@ -23,6 +24,7 @@ Thumbs.db
 # Environment
 .env
 .env.local
+.env.*.local
 
 # Logs
 *.log
@@ -32,3 +34,11 @@ npm-debug.log*
 tmp/
 temp/
 *.tmp
+
+# Generated Excel model (regenerate with npm run beta:excel)
+RetireLens-Reference-Model.xlsx
+
+# Beta E2E artifacts (regenerate with node tests/beta-e2e-bot.mjs)
+test-artifacts/beta-*.png
+test-artifacts/summary-*.png
+test-artifacts/beta-results.json

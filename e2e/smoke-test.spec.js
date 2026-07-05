@@ -28,7 +28,7 @@ test.describe('Smoke Test - App Initialization & Screen 1', () => {
     });
     
     // Navigate to app
-    await page.goto('http://localhost:8080/v2/');
+    await page.goto('http://localhost:8080/app.html');
     
     // Wait for app to initialize
     await page.waitForLoadState('domcontentloaded');
@@ -48,7 +48,7 @@ test.describe('Smoke Test - App Initialization & Screen 1', () => {
   });
 
   test('SMOKE 2: Screen 1 (household-type) renders correctly', async ({ page }) => {
-    await page.goto('http://localhost:8080/v2/');
+    await page.goto('http://localhost:8080/app.html');
     
     // Wait for Screen 1 to be active
     const householdScreen = page.locator('#screen-household-type.active');
@@ -79,7 +79,7 @@ test.describe('Smoke Test - App Initialization & Screen 1', () => {
   });
 
   test('SMOKE 3: Clicking "Just me" (Single) advances to next screen', async ({ page }) => {
-    await page.goto('http://localhost:8080/v2/');
+    await page.goto('http://localhost:8080/app.html');
     
     // Wait for Screen 1
     await page.waitForSelector('#screen-household-type.active', { timeout: 5000 });
@@ -108,7 +108,7 @@ test.describe('Smoke Test - App Initialization & Screen 1', () => {
   });
 
   test('SMOKE 4: Clicking "Me and my partner" (Couple) advances to next screen', async ({ page }) => {
-    await page.goto('http://localhost:8080/v2/');
+    await page.goto('http://localhost:8080/app.html');
     
     // Wait for Screen 1
     await page.waitForSelector('#screen-household-type.active', { timeout: 5000 });
@@ -137,7 +137,7 @@ test.describe('Smoke Test - App Initialization & Screen 1', () => {
   });
 
   test('SMOKE 5: Verify state is properly initialized', async ({ page }) => {
-    await page.goto('http://localhost:8080/v2/');
+    await page.goto('http://localhost:8080/app.html');
     await page.waitForSelector('#screen-household-type.active', { timeout: 5000 });
     
     // Check that the state object exists and has the expected structure

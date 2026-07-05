@@ -1,0 +1,1093 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="RetireLens 2 - Income-first retirement planning for UK pensions">
+  <title>RetireLens 2 | Retirement Planning</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%233b82f6'/%3E%3Ccircle cx='16' cy='16' r='8' fill='none' stroke='white' stroke-width='2.5'/%3E%3Ccircle cx='16' cy='16' r='2.5' fill='white'/%3E%3C/svg%3E">
+  
+  <!-- Inter font — self-hosted so no third-party requests are made (privacy) -->
+  <link rel="stylesheet" href="vendor/fonts/inter.css">
+
+  <!-- Chart.js — self-hosted (vendored) so the page makes no external requests -->
+  <script src="vendor/chart.umd.min.js"></script>
+
+  <link rel="stylesheet" href="css/main.css">
+</head>
+<body>
+  <!-- Progress bar -->
+  <div class="progress-container">
+    <div id="progress-bar" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
+  </div>
+  
+  <!-- Main app container -->
+  <div class="app-container">
+    
+    <!-- Welcome/Splash screen removed - household type is now entry point -->
+    
+    <!-- ═══════════════════════════════════════════════════════════════
+         Screen: Pathfinder (Triage Questions)
+         ═══════════════════════════════════════════════════════════════ -->
+    <div id="screen-pathfinder" class="screen" aria-hidden="true">
+      <div class="screen-header">
+        <h2 class="screen-title">Let's personalize your plan</h2>
+        <p class="screen-subtitle">~30 seconds to get started</p>
+      </div>
+      
+      <div class="screen-content">
+        <!-- Progress dots -->
+        <div class="pathfinder-progress" id="pathfinder-progress">
+          <div class="pathfinder-dot active"></div>
+          <div class="pathfinder-dot"></div>
+          <div class="pathfinder-dot"></div>
+          <div class="pathfinder-dot"></div>
+        </div>
+        
+        <!-- Question container -->
+        <div id="pathfinder-question-container">
+          <p class="pathfinder-question" id="pathfinder-question-text"></p>
+          <div id="pathfinder-options"></div>
+        </div>
+      </div>
+      
+      <div class="nav-buttons">
+        <button type="button" class="btn btn-secondary" id="pathfinder-back-btn" style="visibility: hidden;">Back</button>
+        <button type="button" class="btn btn-primary" id="pathfinder-next-btn" disabled>Next</button>
+      </div>
+    </div>
+    
+    <!-- ═══════════════════════════════════════════════════════════════
+         Screen: Mode Select
+         ═══════════════════════════════════════════════════════════════ -->
+    <div id="screen-mode-select" class="screen" aria-hidden="true">
+      <div class="screen-header">
+        <div class="journey-badge" id="journey-badge">
+          <span id="journey-emoji">🌱</span>
+          <span id="journey-title">Getting Started</span>
+        </div>
+        <h2 class="screen-title">How deep do you want to go?</h2>
+        <p class="screen-subtitle">Choose your planning mode</p>
+      </div>
+      
+      <div class="screen-content">
+        <div class="mode-cards">
+          <!-- Quick Mode -->
+          <div class="mode-card" data-mode="quick">
+            <div class="mode-card-header">
+              <span class="mode-card-emoji">⚡</span>
+              <span class="mode-card-title">Quick Estimate</span>
+            </div>
+            <p class="mode-card-description">~1 minute • Get a fast answer</p>
+            <p class="mode-card-features">Basic inputs only. Perfect for a quick check.</p>
+          </div>
+          
+          <!-- Guided Mode -->
+          <div class="mode-card" data-mode="guided">
+            <div class="mode-card-header">
+              <span class="mode-card-emoji">📋</span>
+              <span class="mode-card-title">Guided Plan</span>
+            </div>
+            <p class="mode-card-description">3-5 minutes • Add ISA & State Pension</p>
+            <p class="mode-card-features">Includes ISA savings, State Pension, and scenario planning.</p>
+          </div>
+          
+          <!-- Full Mode -->
+          <div class="mode-card" data-mode="full">
+            <div class="mode-card-header">
+              <span class="mode-card-emoji">🔬</span>
+              <span class="mode-card-title">Full Analysis</span>
+            </div>
+            <p class="mode-card-description">~10 minutes • All advanced options</p>
+            <p class="mode-card-features">Monte Carlo, DB pension, couple planning, care costs & more.</p>
+          </div>
+        </div>
+      </div>
+      
+      <div class="nav-buttons">
+        <button type="button" class="btn btn-secondary" data-action="back">Back</button>
+        <button type="button" class="btn btn-primary" id="mode-select-next-btn" disabled>Continue</button>
+      </div>
+    </div>
+    
+    <!-- ═══════════════════════════════════════════════════════════════
+         Screen: Household Type Selection (ENTRY POINT)
+         ═══════════════════════════════════════════════════════════════ -->
+    <div id="screen-household-type" class="screen active" aria-hidden="false">
+      <div class="screen-header" style="padding-top: 3rem;">
+        <div class="brand-mark" style="margin-bottom: 1.5rem;">
+          <span style="font-size: 2.25rem; font-weight: 700; color: var(--color-text); letter-spacing: -0.03em;">Retire<span style="color: var(--color-primary);">Lens</span></span>
+          <span style="display: block; font-size: 0.75rem; font-weight: 500; color: var(--color-text-light); letter-spacing: 0.08em; text-transform: uppercase; margin-top: 2px;">UK Retirement Planner</span>
+        </div>
+        <h2 class="screen-title">Who are you planning for?</h2>
+        <p class="screen-subtitle">Get a clear picture of your retirement in minutes</p>
+      </div>
+
+      <div class="screen-content">
+        <div class="mode-cards">
+          <!-- Single -->
+          <div class="mode-card household-type-card" data-household-type="single">
+            <div class="mode-card-header">
+              <span class="mode-card-emoji">👤</span>
+              <span class="mode-card-title">Just me</span>
+            </div>
+            <p class="mode-card-description">Individual retirement planning</p>
+          </div>
+
+          <!-- Couple -->
+          <div class="mode-card household-type-card" data-household-type="couple">
+            <div class="mode-card-header">
+              <span class="mode-card-emoji">👥</span>
+              <span class="mode-card-title">Me and my partner</span>
+            </div>
+            <p class="mode-card-description">Joint household retirement planning</p>
+          </div>
+        </div>
+
+        <!-- Trust signals — research shows these are critical for financial tools -->
+        <div class="trust-strip" style="display: flex; justify-content: center; gap: 1.5rem; margin-top: 2rem; padding: 1rem; color: var(--color-text-light); font-size: 0.8rem;">
+          <span style="display: flex; align-items: center; gap: 0.35rem;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+            100% private
+          </span>
+          <span style="display: flex; align-items: center; gap: 0.35rem;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+            No data sent
+          </span>
+          <span style="display: flex; align-items: center; gap: 0.35rem;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            ~2 min
+          </span>
+        </div>
+      </div>
+
+      <div class="nav-buttons">
+        <button type="button" class="btn btn-secondary" data-action="back">Back</button>
+        <button type="button" class="btn btn-primary" id="household-type-next-btn" disabled style="display: none;">Next</button>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════════════
+         Screen: Names (first assumption — personalises the whole plan)
+         ═══════════════════════════════════════════════════════════════ -->
+    <div id="screen-names" class="screen" aria-hidden="true">
+      <div class="screen-header">
+        <h2 class="screen-title" id="names-title">What should we call you?</h2>
+        <p class="screen-subtitle" id="names-subtitle">We'll use your name(s) throughout your plan. First names are fine.</p>
+      </div>
+
+      <div class="screen-content">
+        <div class="input-group">
+          <label class="input-label" for="input-name-a" id="name-a-label">Your name</label>
+          <input type="text" id="input-name-a" class="text-input" placeholder="e.g. Alex"
+                 maxlength="30" autocomplete="given-name" spellcheck="false"
+                 style="width:100%; padding:0.85rem; font-size:1.05rem; border:1px solid var(--color-border); border-radius: var(--radius-md, 0.5rem);">
+        </div>
+
+        <div class="input-group" id="name-b-group" style="display:none; margin-top:1rem;">
+          <label class="input-label" for="input-name-b" id="name-b-label">Your partner's name</label>
+          <input type="text" id="input-name-b" class="text-input" placeholder="e.g. Sam"
+                 maxlength="30" autocomplete="off" spellcheck="false"
+                 style="width:100%; padding:0.85rem; font-size:1.05rem; border:1px solid var(--color-border); border-radius: var(--radius-md, 0.5rem);">
+        </div>
+
+        <p class="help-text" style="margin-top:0.75rem; color: var(--color-text-light); font-size:0.82rem;">
+          Optional — leave blank and we'll just say “You”<span id="names-partner-hint"> and “Partner”</span>.
+        </p>
+      </div>
+
+      <div class="nav-buttons">
+        <button type="button" class="btn btn-secondary" data-action="back">Back</button>
+        <button type="button" class="btn btn-primary" id="names-next-btn">Next</button>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════════════
+         Screen: Pension Types Selection
+         ═══════════════════════════════════════════════════════════════ -->
+    <div id="screen-pension-types" class="screen" aria-hidden="true">
+      <div class="screen-header">
+        <h2 class="screen-title" id="pension-types-title">What type of pension do you have?</h2>
+        <p class="screen-subtitle" id="pension-types-subtitle">Select all that apply</p>
+      </div>
+      
+      <div class="screen-content">
+        <div class="pension-type-options">
+          <!-- DC Pension -->
+          <label class="pension-type-option" for="pension-dc">
+            <input type="checkbox" id="pension-dc" name="pension-type" value="dc">
+            <div class="pension-type-content">
+              <div class="pension-type-header">
+                <span class="pension-type-emoji">💰</span>
+                <span class="pension-type-title">Defined Contribution (DC)</span>
+              </div>
+              <p class="pension-type-description">Pension pot that I or my employer pays into</p>
+              <button type="button" class="pension-explainer-toggle" data-explainer="dc">
+                ⓘ What's this?
+              </button>
+              <div id="explainer-dc" class="pension-explainer-content">
+                Defined Contribution pensions are pots of money. You and/or your employer pay in, the money is invested, and the value can go up or down. In retirement, you decide how and when to take money out. Examples include workplace pensions, SIPPs, and personal pensions.
+              </div>
+            </div>
+          </label>
+          
+          <!-- DB Pension -->
+          <label class="pension-type-option" for="pension-db">
+            <input type="checkbox" id="pension-db" name="pension-type" value="db">
+            <div class="pension-type-content">
+              <div class="pension-type-header">
+                <span class="pension-type-emoji">🏛️</span>
+                <span class="pension-type-title">Defined Benefit (DB)</span>
+              </div>
+              <p class="pension-type-description">Guaranteed income for life from employer</p>
+              <button type="button" class="pension-explainer-toggle" data-explainer="db">
+                ⓘ What's this?
+              </button>
+              <div id="explainer-db" class="pension-explainer-content">
+                Defined Benefit pensions pay a guaranteed income for life. The amount is usually based on your salary and how long you worked for an employer. It normally increases each year and is paid until you die. Examples include final salary and career-average pensions.
+              </div>
+            </div>
+          </label>
+          
+          <!-- Both -->
+          <label class="pension-type-option" for="pension-both">
+            <input type="checkbox" id="pension-both" name="pension-type" value="both">
+            <div class="pension-type-content">
+              <div class="pension-type-header">
+                <span class="pension-type-emoji">🔄</span>
+                <span class="pension-type-title">Both DC and DB</span>
+              </div>
+              <p class="pension-type-description">I have both types of pension</p>
+            </div>
+          </label>
+          
+          <!-- Not Sure -->
+          <label class="pension-type-option warning-option" for="pension-notsure">
+            <input type="checkbox" id="pension-notsure" name="pension-type" value="notSure">
+            <div class="pension-type-content">
+              <div class="pension-type-header">
+                <span class="pension-type-emoji">❓</span>
+                <span class="pension-type-title">Not sure / None</span>
+              </div>
+              <p class="pension-type-description">We'll use default assumptions</p>
+            </div>
+          </label>
+        </div>
+        
+        <!-- Partner Follow-up Fields (shown when collecting partner pension types) -->
+        <div id="partner-followup-fields" class="partner-followup-fields">
+          <h3 id="partner-followup-title">Partner's details</h3>
+          
+          <!-- Partner Age and Retirement Age (always shown for partner) -->
+          <div id="partner-basic-fields">
+            <div class="input-group">
+              <label for="input-partner-age">Partner's current age *</label>
+              <div class="input-wrapper">
+                <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-partner-age" min="18" max="100" placeholder="45" inputmode="numeric" aria-required="true" />
+              </div>
+              <p class="help-text">Partner's age in years</p>
+            </div>
+            <div class="input-group">
+              <label for="input-partner-retirement-age">Partner's target retirement age *</label>
+              <div class="input-wrapper">
+                <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-partner-retirement-age" min="50" max="100" placeholder="65" inputmode="numeric" aria-required="true" />
+              </div>
+              <p class="help-text">When partner plans to stop working</p>
+            </div>
+          </div>
+          
+          <!-- Partner DC Fields -->
+          <div id="partner-dc-fields" style="display: none;">
+            <div class="input-group">
+              <label>Partner's DC pension pot</label>
+              <div class="input-wrapper">
+                <span class="currency-symbol">£</span>
+                <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-partner-dc-pot" min="0" step="1000" placeholder="0" inputmode="numeric" />
+              </div>
+              <p class="help-text">Enter 0 if unknown - results will be provisional</p>
+            </div>
+            <div class="input-group">
+              <label>Partner's monthly DC contributions</label>
+              <div class="input-wrapper">
+                <span class="currency-symbol">£</span>
+                <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-partner-dc-contrib" min="0" step="50" placeholder="0" inputmode="numeric" />
+              </div>
+              <p class="help-text">Optional - monthly amount including employer</p>
+            </div>
+          </div>
+          
+          <!-- Partner DB Fields -->
+          <div id="partner-db-fields" style="display: none;">
+            <div class="input-group">
+              <label>Partner's annual DB pension amount *</label>
+              <div class="input-wrapper">
+                <span class="currency-symbol">£</span>
+                <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-partner-db-amount" min="0" step="500" placeholder="15000" inputmode="numeric" />
+              </div>
+              <p class="help-text">Guaranteed yearly income from DB scheme</p>
+            </div>
+            <div class="input-group">
+              <label>Partner's DB pension start age</label>
+              <div class="input-wrapper">
+                <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-partner-db-start-age" min="50" max="75" value="67" inputmode="numeric" />
+              </div>
+              <p class="help-text">When DB payments begin (usually retirement age)</p>
+            </div>
+          </div>
+          
+          <!-- Partner State Pension Fields -->
+          <div id="partner-sp-fields" style="display: none;">
+            <div class="input-group">
+              <label>Partner's State Pension age</label>
+              <div class="input-wrapper">
+                <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-partner-sp-age" min="60" max="75" value="67" inputmode="numeric" />
+              </div>
+            </div>
+            <div class="input-group">
+              <label>Partner's expected State Pension (annual)</label>
+              <div class="input-wrapper">
+                <span class="currency-symbol">£</span>
+                <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-partner-sp-amount" min="0" step="100" value="11500" inputmode="numeric" />
+              </div>
+              <p class="help-text">Full new State Pension is ~£11,500/year</p>
+            </div>
+            <div class="input-group" style="margin-top: var(--spacing-sm);">
+              <label style="display: flex; align-items: center; gap: var(--spacing-sm); cursor: pointer;">
+                <input type="checkbox" id="partner-sp-unknown" style="width: auto; position: static; opacity: 1;">
+                <span style="font-size: var(--font-size-sm); color: var(--color-text-light);">Not sure about partner's State Pension</span>
+              </label>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <div class="nav-buttons">
+        <button type="button" class="btn btn-secondary" data-action="back">Back</button>
+        <button type="button" class="btn btn-primary" id="pension-types-next-btn" disabled>Next</button>
+      </div>
+    </div>
+    
+    <!-- ═══════════════════════════════════════════════════════════════
+         Screen: Couples Input (Tab-based)
+         ═══════════════════════════════════════════════════════════════ -->
+    <div id="screen-couples-input" class="screen" aria-hidden="true">
+      <div class="screen-header">
+        <h2 class="screen-title">Your household details</h2>
+        <p class="screen-subtitle">Complete both tabs to continue</p>
+      </div>
+      
+      <div class="screen-content">
+        <!-- Couples input component will be rendered here -->
+        <div id="couples-input-container"></div>
+      </div>
+      
+      <div class="nav-buttons">
+        <button type="button" class="btn btn-secondary" data-action="back">Back</button>
+        <button type="button" class="btn btn-primary" id="couples-input-next-btn">Next</button>
+      </div>
+    </div>
+    
+    <!-- ═══════════════════════════════════════════════════════════════
+         Screen: Current Age
+         ═══════════════════════════════════════════════════════════════ -->
+    <div id="screen-age" class="screen" aria-hidden="true">
+      <div class="screen-header">
+        <h2 class="screen-title">Your age and retirement</h2>
+        <p class="screen-subtitle">When do you want to stop working?</p>
+      </div>
+
+      <div class="screen-content">
+        <div class="input-group">
+          <label style="font-weight: 500;">Your current age</label>
+          <div class="input-wrapper">
+            <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-current-age" min="18" max="100" placeholder="56" inputmode="numeric" aria-label="Current age" />
+          </div>
+        </div>
+        <div class="input-group" style="margin-top: 1rem;">
+          <label style="font-weight: 500;">Target retirement age</label>
+          <div class="input-wrapper">
+            <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-retirement-age" min="50" max="100" placeholder="60" inputmode="numeric" aria-label="Retirement age" />
+          </div>
+          <p class="help-text">UK State Pension starts at 67. Each extra year of work adds 8-12% to your retirement income.</p>
+        </div>
+      </div>
+      
+      <div class="nav-buttons">
+        <button type="button" class="btn btn-secondary" data-action="back">Back</button>
+        <button type="button" class="btn btn-primary" data-action="next">Next</button>
+      </div>
+    </div>
+    
+    <!-- ═══════════════════════════════════════════════════════════════
+         Screen: Pension Pot
+         ═══════════════════════════════════════════════════════════════ -->
+    <div id="screen-pension-pot" class="screen" aria-hidden="true">
+      <div class="screen-header">
+        <h2 class="screen-title">How much do you need and have?</h2>
+        <p class="screen-subtitle" id="pension-pot-subtitle">Target income and pension details</p>
+      </div>
+
+      <div class="screen-content">
+        <!-- Target Income (merged from income-target screen) -->
+        <div class="input-group">
+          <label style="font-weight: 600;">Target annual income (after tax)</label>
+          <div class="input-wrapper">
+            <span class="currency-symbol">£</span>
+            <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-target-income" min="0" step="1000" placeholder="30000" inputmode="numeric" aria-label="Target annual income" />
+          </div>
+        </div>
+        <!-- PLSA preset cards -->
+        <div id="plsa-presets" style="display: flex; gap: 0.5rem; margin-bottom: 1.25rem;">
+          <button type="button" class="plsa-card" data-plsa="minimum" style="flex: 1; padding: 0.75rem 0.5rem; border: 2px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-surface); cursor: pointer; text-align: center; transition: all var(--transition-base);">
+            <div style="font-size: 0.7rem; color: var(--color-text-light); text-transform: uppercase; letter-spacing: 0.05em;">Minimum</div>
+            <div style="font-size: 1.05rem; font-weight: 700; margin-top: 0.2rem;" id="plsa-min-val">14,400</div>
+          </button>
+          <button type="button" class="plsa-card" data-plsa="moderate" style="flex: 1; padding: 0.75rem 0.5rem; border: 2px solid var(--color-primary); border-radius: var(--radius-md); background: var(--color-primary-subtle); cursor: pointer; text-align: center; transition: all var(--transition-base);">
+            <div style="font-size: 0.7rem; color: var(--color-text-light); text-transform: uppercase; letter-spacing: 0.05em;">Moderate</div>
+            <div style="font-size: 1.05rem; font-weight: 700; margin-top: 0.2rem;" id="plsa-mod-val">31,300</div>
+          </button>
+          <button type="button" class="plsa-card" data-plsa="comfortable" style="flex: 1; padding: 0.75rem 0.5rem; border: 2px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-surface); cursor: pointer; text-align: center; transition: all var(--transition-base);">
+            <div style="font-size: 0.7rem; color: var(--color-text-light); text-transform: uppercase; letter-spacing: 0.05em;">Comfortable</div>
+            <div style="font-size: 1.05rem; font-weight: 700; margin-top: 0.2rem;" id="plsa-comf-val">43,100</div>
+          </button>
+        </div>
+
+        <p style="font-size: 0.6rem; color: var(--color-text-light); margin-bottom: 0.75rem; text-align: center;">PLSA Retirement Living Standards 2023/24</p>
+
+        <!-- ═══ YOUR PENSIONS ═══ -->
+        <div class="pension-section">
+          <div class="pension-section-title">Your pensions</div>
+
+          <!-- Defined Contribution -->
+          <div class="input-group">
+            <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.25rem;">
+              <label style="font-weight: 600;">Defined Contribution pension pot</label>
+              <button type="button" class="pension-info-btn" onclick="this.nextElementSibling.classList.toggle('open')" style="background: none; border: 1px solid var(--color-border); border-radius: 50%; width: 20px; height: 20px; font-size: 0.7rem; cursor: pointer; color: var(--color-text-light); flex-shrink: 0;">?</button>
+              <div style="display: none; font-size: 0.75rem; color: var(--color-text-light); background: var(--color-primary-subtle); padding: 0.5rem; border-radius: var(--radius-md); margin-top: 0.25rem;">A pot of money you and/or your employer pay into. The value goes up and down with investments. Includes workplace pensions, SIPPs, and personal pensions.</div>
+            </div>
+            <div class="input-wrapper">
+              <span class="currency-symbol">£</span>
+              <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-pension-pot" min="0" step="1000" placeholder="100000" inputmode="numeric" aria-label="Pension pot value" />
+            </div>
+            <p class="help-text">Include all pots you plan to combine</p>
+          </div>
+
+          <div class="input-group">
+            <label style="font-weight: 500;">Monthly contribution</label>
+            <div class="input-wrapper">
+              <span class="currency-symbol">£</span>
+              <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-pension-contribution" min="0" step="50" placeholder="500" inputmode="numeric" />
+            </div>
+            <p class="help-text">Total monthly including employer match</p>
+            <div style="margin-top: 0.5rem; display: flex; align-items: center; gap: 0.5rem;">
+              <input type="checkbox" id="input-salary-sacrifice" style="margin: 0;">
+              <label for="input-salary-sacrifice" style="font-size: 0.8rem; color: var(--color-text-secondary); cursor: pointer;">Via salary sacrifice (+13.8% employer NI saving)</label>
+            </div>
+          </div>
+
+          <!-- Defined Benefit -->
+          <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--color-border-light, #f1f5f9);">
+            <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;">
+              <span style="font-weight: 600; font-size: 0.9rem;">Defined Benefit pension</span>
+              <button type="button" class="pension-info-btn" onclick="this.nextElementSibling.classList.toggle('open')" style="background: none; border: 1px solid var(--color-border); border-radius: 50%; width: 20px; height: 20px; font-size: 0.7rem; cursor: pointer; color: var(--color-text-light); flex-shrink: 0;">?</button>
+              <div style="display: none; font-size: 0.75rem; color: var(--color-text-light); background: var(--color-primary-subtle); padding: 0.5rem; border-radius: var(--radius-md); margin-top: 0.25rem;">A guaranteed income for life from an employer. Based on salary and years worked. Includes final salary and career average pensions.</div>
+            </div>
+            <div class="input-group">
+              <label>Annual income from scheme</label>
+              <div class="input-wrapper">
+                <span class="currency-symbol">£</span>
+                <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-your-db-income" min="0" step="500" placeholder="0 if none" inputmode="numeric" />
+              </div>
+            </div>
+            <div class="input-group" style="margin-top: 0.5rem;">
+              <label>Start age</label>
+              <div class="input-wrapper">
+                <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-your-db-start" min="50" max="75" value="65" inputmode="numeric" />
+              </div>
+            </div>
+          </div>
+
+          <!-- MPAA + PCLS -->
+          <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--color-border-light, #f1f5f9);">
+            <div style="display: flex; align-items: flex-start; gap: 0.5rem; margin-bottom: 0.75rem;">
+              <input type="checkbox" id="input-flexi-accessed" style="margin-top: 3px;">
+              <div>
+                <label for="input-flexi-accessed" style="font-weight: 500; cursor: pointer;">I have taken taxable income from my pension</label>
+                <p class="help-text" style="margin-top: 2px;">This limits future contributions to £10,000/year (MPAA)</p>
+              </div>
+            </div>
+
+            <div style="display: flex; align-items: flex-start; gap: 0.5rem;">
+              <input type="checkbox" id="input-pcls-taken" style="margin-top: 3px;">
+              <div>
+                <div class="flex items-center gap-sm">
+                  <label for="input-pcls-taken" style="font-weight: 500; cursor: pointer;">I have already taken my 25% tax-free cash</label>
+                  <button type="button" class="info-btn" onclick="this.parentElement.nextElementSibling.classList.toggle('open')">?</button>
+                </div>
+                <div class="info-explainer">When you "crystallise" your pension, you can take 25% as a tax-free lump sum (PCLS). The remaining 75% stays invested and future withdrawals are taxed as income. The tax-free amount is capped at £268,275 (Lump Sum Allowance).</div>
+                <p class="help-text" style="margin-top: 2px;">If you have crystallised your pension and received a lump sum</p>
+              </div>
+            </div>
+            <div id="pcls-amount-section" style="display: none; margin-top: 0.75rem; margin-left: 1.5rem;">
+              <label style="font-size: 0.875rem; font-weight: 500;">How much did you receive?</label>
+              <div class="input-wrapper" style="margin-top: 0.25rem;">
+                <span class="currency-symbol">£</span>
+                <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-pcls-amount" min="0" step="1000" placeholder="e.g. 167000" inputmode="numeric" />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ═══ PARTNER'S PENSIONS (shown/hidden by JS) ═══ -->
+        <div id="partner-pension-section" class="pension-section pension-section--partner" style="display: none;">
+          <div class="pension-section-title">Partner's pensions</div>
+
+          <!-- Partner DC -->
+          <div class="input-group">
+            <label style="font-weight: 600;">Defined Contribution pension pot</label>
+            <div class="input-wrapper">
+              <span class="currency-symbol">£</span>
+              <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-partner-pension-pot" min="0" step="1000" placeholder="0" inputmode="numeric" />
+            </div>
+            <p class="help-text">Include all pots partner plans to combine</p>
+          </div>
+
+          <div class="input-group">
+            <label style="font-weight: 500;">Monthly contribution</label>
+            <div class="input-wrapper">
+              <span class="currency-symbol">£</span>
+              <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-partner-pension-contribution" min="0" step="50" placeholder="0" inputmode="numeric" />
+            </div>
+            <p class="help-text">Total monthly including employer match</p>
+            <div style="margin-top: 0.5rem; display: flex; align-items: center; gap: 0.5rem;">
+              <input type="checkbox" id="input-partner-salary-sacrifice" style="margin: 0;">
+              <label for="input-partner-salary-sacrifice" class="text-sm text-secondary" style="cursor: pointer;">Via salary sacrifice (+13.8% employer NI saving)</label>
+            </div>
+          </div>
+
+          <!-- Partner DB -->
+          <div class="pt-md mt-md border-t">
+            <div class="flex items-center gap-sm mb-sm">
+              <span class="font-semibold text-base">Defined Benefit pension</span>
+              <button type="button" class="info-btn" onclick="this.nextElementSibling.classList.toggle('open')">?</button>
+              <div class="info-explainer">A guaranteed income for life from an employer. Based on salary and years worked. Includes final salary and career average pensions.</div>
+            </div>
+            <div class="input-group">
+              <label>Annual income from scheme</label>
+              <div class="input-wrapper">
+                <span class="currency-symbol">£</span>
+                <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-partner-db-income" min="0" step="500" placeholder="0 if none" inputmode="numeric" />
+              </div>
+            </div>
+            <div class="input-group mt-sm">
+              <label>Start age</label>
+              <div class="input-wrapper">
+                <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-partner-db-start" min="50" max="75" value="67" inputmode="numeric" />
+              </div>
+            </div>
+          </div>
+
+          <!-- Partner MPAA + PCLS -->
+          <div class="pt-md mt-md border-t">
+            <div style="display: flex; align-items: flex-start; gap: 0.5rem; margin-bottom: 0.75rem;">
+              <input type="checkbox" id="input-partner-flexi-accessed" style="margin-top: 3px;">
+              <div>
+                <label for="input-partner-flexi-accessed" style="font-weight: 500; cursor: pointer;">Partner has taken taxable income from pension</label>
+                <p class="help-text" style="margin-top: 2px;">This limits future contributions to £10,000/year (MPAA)</p>
+              </div>
+            </div>
+
+            <div style="display: flex; align-items: flex-start; gap: 0.5rem;">
+              <input type="checkbox" id="input-partner-pcls-taken" style="margin-top: 3px;">
+              <div>
+                <label for="input-partner-pcls-taken" style="font-weight: 500; cursor: pointer;">Partner has already taken 25% tax-free cash</label>
+                <p class="help-text" style="margin-top: 2px;">If partner has crystallised their pension and received a lump sum</p>
+              </div>
+            </div>
+            <div id="partner-pcls-amount-section" style="display: none; margin-top: 0.75rem; margin-left: 1.5rem;">
+              <label style="font-size: 0.875rem; font-weight: 500;">How much did they receive?</label>
+              <div class="input-wrapper" style="margin-top: 0.25rem;">
+                <span class="currency-symbol">£</span>
+                <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-partner-pcls-amount" min="0" step="1000" placeholder="e.g. 50000" inputmode="numeric" />
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="nav-buttons">
+        <button type="button" class="btn btn-secondary" data-action="back">Back</button>
+        <button type="button" class="btn btn-primary" data-action="next">Next</button>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════════════
+         Screen: ISA Savings
+         ═══════════════════════════════════════════════════════════════ -->
+    <div id="screen-isa-savings" class="screen" aria-hidden="true">
+      <div class="screen-header">
+        <h2 class="screen-title">Other income and savings</h2>
+        <p class="screen-subtitle">ISA and State Pension details</p>
+      </div>
+
+      <div class="screen-content">
+        <!-- ═══ YOUR ISA + SP ═══ -->
+        <div class="pension-section">
+          <div class="pension-section-title">Your other income</div>
+
+          <div class="text-sm font-semibold mb-sm">ISA Savings</div>
+          <div class="input-group">
+            <label>Current ISA balance</label>
+            <div class="input-wrapper">
+              <span class="currency-symbol">£</span>
+              <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-isa-balance" min="0" step="1000" placeholder="0" inputmode="numeric" />
+            </div>
+          </div>
+          <div class="input-group">
+            <label>Annual ISA contribution</label>
+            <div class="input-wrapper">
+              <span class="currency-symbol">£</span>
+              <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-isa-contribution" min="0" step="500" placeholder="0" inputmode="numeric" />
+            </div>
+            <p class="help-text">ISA withdrawals are tax-free and pass to your spouse without IHT</p>
+          </div>
+
+          <div class="pt-md mt-md border-t">
+            <div class="text-sm font-semibold mb-sm">State Pension</div>
+            <div class="input-group">
+              <label>Your State Pension age</label>
+              <div class="input-wrapper">
+                <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-state-pension-age" min="60" max="75" value="67" inputmode="numeric" />
+              </div>
+            </div>
+            <div class="input-group">
+              <label>Expected annual State Pension</label>
+              <div class="input-wrapper">
+                <span class="currency-symbol">£</span>
+                <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-state-pension-amount" min="0" step="100" value="11973" inputmode="numeric" />
+              </div>
+              <p class="help-text">Full new State Pension is ~£11,973/year (2025/26)</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- ═══ PARTNER'S ISA + SP (shown/hidden by JS) ═══ -->
+        <div id="partner-isa-section" class="pension-section pension-section--partner" style="display: none;">
+          <div class="pension-section-title">Partner's other income</div>
+
+          <div class="text-sm font-semibold mb-sm">ISA Savings</div>
+          <div class="input-group">
+            <label>Partner's ISA balance</label>
+            <div class="input-wrapper">
+              <span class="currency-symbol">£</span>
+              <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-partner-isa-balance" min="0" step="1000" placeholder="0" inputmode="numeric" />
+            </div>
+          </div>
+          <div class="input-group">
+            <label>Partner's annual ISA contribution</label>
+            <div class="input-wrapper">
+              <span class="currency-symbol">£</span>
+              <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-partner-isa-contribution" min="0" step="500" placeholder="0" inputmode="numeric" />
+            </div>
+          </div>
+
+          <div class="pt-md mt-md border-t">
+            <div class="text-sm font-semibold mb-sm">State Pension</div>
+            <div class="input-group">
+              <label>Partner's State Pension age</label>
+              <div class="input-wrapper">
+                <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-partner-state-pension-age" min="60" max="75" value="67" inputmode="numeric" />
+              </div>
+            </div>
+            <div class="input-group">
+              <label>Partner's expected annual State Pension</label>
+              <div class="input-wrapper">
+                <span class="currency-symbol">£</span>
+                <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-partner-state-pension-amount" min="0" step="100" value="11973" inputmode="numeric" />
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="nav-buttons">
+        <button type="button" class="btn btn-secondary" data-action="back">Back</button>
+        <button type="button" class="btn btn-primary" data-action="next">Next</button>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════════════
+         Screen: Review
+         ═══════════════════════════════════════════════════════════════ -->
+    <div id="screen-review" class="screen" aria-hidden="true">
+      <div class="screen-header">
+        <h2 class="screen-title">Here's your plan</h2>
+        <p class="screen-subtitle">Review your details, then let's see if it works</p>
+      </div>
+      
+      <div class="screen-content">
+        <div id="review-summary">
+          <!-- Populated by JavaScript -->
+        </div>
+        
+        <div id="assumptions-panel">
+          <!-- Populated by JavaScript -->
+        </div>
+        
+        <!-- Advanced Planning Options -->
+        <div style="margin-top: 2rem; padding: 1.25rem; background: var(--color-background); border-radius: var(--radius-lg); border: 1px solid var(--color-border-light);">
+          <h3 style="margin-bottom: 1rem; font-size: 1rem; font-weight: 600; color: var(--color-text-secondary);">Planning Options</h3>
+          
+          <!-- Scenario Selector -->
+          <div class="input-group">
+            <label for="scenario-select" style="font-weight: 500; color: var(--color-text-secondary);">Planning Scenario</label>
+            <select id="scenario-select" class="form-control" style="width: 100%; padding: 0.625rem; border: 2px solid var(--color-border); border-radius: var(--radius-md); font-size: 0.875rem; background: var(--color-surface); color: var(--color-text); cursor: pointer;">
+              <option value="conservative">Below Average markets - 3% real</option>
+              <option value="moderate" selected>Average markets - 4% real</option>
+              <option value="optimistic">Above Average markets - 6% real</option>
+            </select>
+            <p class="help-text">Select planning assumptions - affects growth rates, volatility, and inflation</p>
+          </div>
+
+          <!-- Guardrails toggle -->
+          <div style="margin-top: 1rem; display: flex; align-items: flex-start; gap: 0.5rem;">
+            <input type="checkbox" id="input-guardrails" style="margin-top: 3px;">
+            <div>
+              <label for="input-guardrails" style="font-weight: 500; cursor: pointer; font-size: 0.875rem;">Spending guardrails</label>
+              <p class="help-text" style="margin-top: 2px;">If your pot drops 20%, reduce spending 10%. If it rises 20%, increase 5%. Evidence-based strategy that extends fund life.</p>
+            </div>
+          </div>
+
+          <!-- Advanced Options with Accordion (shown only in Full mode) -->
+          <div id="advanced-options-container" class="advanced-accordion" style="margin-top: 1.5rem;">
+            <h4 style="font-size: 0.8125rem; font-weight: 600; margin-bottom: 0.75rem; color: var(--color-text-light); text-transform: uppercase; letter-spacing: 0.05em;">Advanced Analysis</h4>
+            
+            <!-- Risk & Uncertainty Group -->
+            <div class="accordion-group">
+              <button type="button" class="accordion-header" onclick="toggleAccordion(this)">
+                <span>📊</span>
+                <span>Risk & Uncertainty</span>
+                <span class="accordion-arrow">▼</span>
+              </button>
+              <div class="accordion-content">
+                <div class="accordion-option">
+                  <input type="checkbox" id="enable-monte-carlo" checked>
+                  <div class="accordion-option-content">
+                    <label class="accordion-option-label" for="enable-monte-carlo">Monte Carlo simulation (1000 scenarios)</label>
+                    <p class="accordion-option-helper">Models market uncertainty with statistical analysis</p>
+                  </div>
+                </div>
+                <div class="accordion-option">
+                  <input type="checkbox" id="enable-benchmarking" checked>
+                  <div class="accordion-option-content">
+                    <label class="accordion-option-label" for="enable-benchmarking">Compare to peer benchmarks</label>
+                    <p class="accordion-option-helper">See how your savings compare to others your age</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <!-- Tax & Household Group -->
+            <div class="accordion-group">
+              <button type="button" class="accordion-header" onclick="toggleAccordion(this)">
+                <span>💷</span>
+                <span>Tax & Household</span>
+                <span class="accordion-arrow">▼</span>
+              </button>
+              <div class="accordion-content">
+                <div class="accordion-option">
+                  <input type="checkbox" id="enable-tax-optimization" checked>
+                  <div class="accordion-option-content">
+                    <label class="accordion-option-label" for="enable-tax-optimization">Optimize tax efficiency</label>
+                    <p class="accordion-option-helper">Maximize after-tax retirement income</p>
+                  </div>
+                </div>
+
+                <!-- PCLS moved above accordion for visibility -->
+                
+                <!-- Tax Jurisdiction -->
+                <div class="accordion-option" style="margin-top: 0.5rem;">
+                  <div class="accordion-option-content" style="width: 100%;">
+                    <label class="accordion-option-label">🏴 Tax Jurisdiction</label>
+                    <select id="tax-jurisdiction" style="width: 100%; padding: 0.5rem; border: 1px solid #e5e7eb; border-radius: 4px;">
+                      <option value="england" selected>England, Wales &amp; Northern Ireland</option>
+                      <option value="scotland">Scotland</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <!-- Life Events Group -->
+            <div class="accordion-group">
+              <button type="button" class="accordion-header" onclick="toggleAccordion(this)">
+                <span>🏥</span>
+                <span>Life Events</span>
+                <span class="accordion-arrow">▼</span>
+              </button>
+              <div class="accordion-content">
+                <div class="accordion-option">
+                  <input type="checkbox" id="model-care-costs" checked>
+                  <div class="accordion-option-content">
+                    <label class="accordion-option-label" for="model-care-costs">Model potential care costs</label>
+                    <p class="accordion-option-helper">Later-life care need probability and costs</p>
+                  </div>
+                </div>
+                <div class="accordion-option">
+                  <input type="checkbox" id="is-phased-retirement">
+                  <div class="accordion-option-content">
+                    <label class="accordion-option-label" for="is-phased-retirement">Model phased/graduated retirement</label>
+                    <p class="accordion-option-helper">Gradual transition from full-time work</p>
+                  </div>
+                </div>
+                <div id="phased-inputs" style="display: none; margin-left: 1.5rem; margin-top: 0.5rem;">
+                  <div class="input-group" style="margin-bottom: 0.5rem;">
+                    <input type="text" inputmode="numeric" pattern="[0-9]*" id="phase-start-age" placeholder="Phased retirement start age" style="width: 100%; padding: 0.5rem; border: 1px solid #e5e7eb; border-radius: 4px;">
+                  </div>
+                  <div class="input-group">
+                    <input type="text" inputmode="numeric" pattern="[0-9]*" id="reduced-hours" placeholder="Reduced hours (%)" value="50" style="width: 100%; padding: 0.5rem; border: 1px solid #e5e7eb; border-radius: 4px;">
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <div class="nav-buttons">
+        <button type="button" class="btn btn-secondary" data-action="back">Edit</button>
+        <button type="button" class="btn btn-primary btn-cta" id="calculate-btn">Calculate my retirement</button>
+        <button type="button" class="btn btn-primary" id="view-results-btn" style="display: none;">View Results</button>
+      </div>
+      <p id="calculate-disabled-reason" class="calculate-disabled-reason"></p>
+    </div>
+    
+    <!-- ═══════════════════════════════════════════════════════════════
+         Screen: Results — Tabbed Layout
+         ═══════════════════════════════════════════════════════════════ -->
+    <div id="screen-results" class="screen" aria-hidden="true">
+      <!-- Sticky branded header -->
+      <div class="results-sticky-header" id="results-header">
+        <span class="text-sm font-bold tracking-tight">Retire<span class="text-primary">Lens</span></span>
+        <span class="text-xs text-muted" id="results-header-summary"></span>
+      </div>
+
+      <div id="provisional-banner" class="provisional-banner" style="display: none;">
+        <span class="banner-icon">⚠️</span>
+        <span id="provisional-banner-message">Provisional results.</span>
+      </div>
+
+      <!-- Hero Answer -->
+      <div id="results-container"></div>
+
+      <!-- "What could I change?" — gentle, guided nudges (rendered by app.js) -->
+      <div id="what-if-nudges"></div>
+
+      <!-- Your summary — a calm one-pager to print or share -->
+      <div id="summary-cta" style="text-align:center; margin: 0.5rem 0 1.25rem;">
+        <button type="button" id="open-summary-btn" class="btn btn-secondary" style="min-height:48px; font-size:1.02rem;">
+          📄 Your summary — to print or share
+        </button>
+      </div>
+
+      <!-- What-if Sliders + Income Chart (connected) -->
+      <div class="card-primary" id="whatif-sliders-section" style="margin-bottom: 0; border-bottom-left-radius: 0; border-bottom-right-radius: 0; border-bottom: none;">
+        <h3 class="section-title mb-sm">What if I change...</h3>
+        <p class="text-xs text-muted mb-md">Drag to see instant impact on the chart below</p>
+
+        <div class="mb-lg">
+          <div class="flex justify-between items-baseline mb-sm">
+            <label for="slider-retirement-age" class="text-sm font-medium text-secondary">Retirement age</label>
+            <span id="slider-retirement-age-value" class="text-lg font-bold text-primary">60</span>
+          </div>
+          <input type="range" id="slider-retirement-age" min="50" max="75" step="1" value="60">
+        </div>
+
+        <div class="mb-sm">
+          <div class="flex justify-between items-baseline mb-sm">
+            <label for="slider-monthly-contribution" class="text-sm font-medium text-secondary">Monthly contribution</label>
+            <span id="slider-contribution-value" class="text-lg font-bold text-primary">£500</span>
+          </div>
+          <input type="range" id="slider-monthly-contribution" min="0" max="10000" step="100" value="500">
+        </div>
+
+        <div class="pt-md mt-md border-t">
+          <label class="text-sm font-medium text-secondary mb-sm" style="display: block;">Market outlook</label>
+          <div id="scenario-cards" class="flex gap-sm mb-sm">
+            <button type="button" class="scenario-card" data-scenario="conservative">
+              <div class="font-bold">3%</div>
+              <div class="text-xs text-muted">Cautious</div>
+            </button>
+            <button type="button" class="scenario-card selected" data-scenario="moderate">
+              <div class="font-bold">4%</div>
+              <div class="text-xs text-muted">Average</div>
+            </button>
+            <button type="button" class="scenario-card" data-scenario="optimistic">
+              <div class="font-bold">6%</div>
+              <div class="text-xs text-muted">Growth</div>
+            </button>
+          </div>
+          <div class="flex items-center gap-sm">
+            <input type="checkbox" id="results-guardrails" style="margin: 0;">
+            <label for="results-guardrails" class="text-xs text-muted" style="cursor: pointer;">Guardrails (cut 10% if pot drops 20%)</label>
+          </div>
+        </div>
+
+        <div id="slider-impact" class="text-sm font-semibold text-center mt-sm" style="display: none; padding: var(--spacing-sm); background: var(--color-primary-subtle); border-radius: var(--radius-md);"></div>
+      </div>
+
+      <div class="card-primary" id="cashflow-section" style="border-top-left-radius: 0; border-top-right-radius: 0; padding-top: var(--spacing-md);">
+        <h3 class="section-title">Income by Source</h3>
+        <div class="chart-container" style="height: 260px;">
+          <canvas id="cashflow-chart"></canvas>
+        </div>
+      </div>
+
+      <!-- Retirement Timeline (horizontal) -->
+      <div id="narrative-summary" class="result-card" style="margin-bottom: 1rem;"></div>
+
+      <!-- Bridge and Income Gap removed -->
+      <div id="sp-bridge-section" style="display: none;"></div>
+      <div id="income-gap-section" style="display: none;"></div>
+
+      <!-- Income Breakdown (hidden) -->
+      <div id="income-sources-section" style="display: none;">
+        <div id="income-sources-breakdown"></div>
+      </div>
+
+      <!-- ═══ Detailed Analysis (collapsed — cuts ~60% scroll) ═══ -->
+      <details class="result-card" id="detailed-analysis-section" style="margin-bottom: 1rem;">
+        <summary style="cursor: pointer; font-size: 1rem; font-weight: 600;">See detailed analysis</summary>
+        <div style="margin-top: 1rem;">
+
+          <!-- Cash Flow (Sankey) -->
+          <div style="margin-bottom: 1.5rem;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
+              <h3 style="font-size: 1rem; margin: 0;">Cash Flow</h3>
+              <div style="display: flex; align-items: center; gap: 0.5rem;">
+                <button id="sankey-prev" style="padding: 0.25rem 0.5rem; border: 1px solid var(--color-border); border-radius: 4px; background: var(--color-surface); cursor: pointer; font-size: 0.8rem;">&lt;</button>
+                <span id="sankey-year-label" style="font-weight: 600; font-size: 0.875rem; min-width: 4rem; text-align: center;">Age 60</span>
+                <button id="sankey-next" style="padding: 0.25rem 0.5rem; border: 1px solid var(--color-border); border-radius: 4px; background: var(--color-surface); cursor: pointer; font-size: 0.8rem;">&gt;</button>
+              </div>
+            </div>
+            <div id="sankey-container" style="width: 100%; min-height: 250px;"></div>
+          </div>
+
+          <!-- Wealth Chart -->
+          <div style="margin-bottom: 1.5rem;">
+            <h3 style="font-size: 1rem; margin-bottom: 0.75rem;">Pension & ISA Balances</h3>
+            <div class="chart-container" style="height: 260px;">
+              <canvas id="capital-chart"></canvas>
+            </div>
+          </div>
+
+          <!-- Monte Carlo (simplified) -->
+          <div id="monte-carlo-section" style="margin-bottom: 1.5rem;">
+            <div id="confidence-explainer-container" style="display: none;"></div>
+            <div id="fan-chart-container" style="position: relative; height: 260px;">
+              <canvas id="fan-chart"></canvas>
+            </div>
+            <div id="depletion-histogram-container" style="position: relative; height: 160px; margin-top: 1rem; display: none;">
+              <canvas id="depletion-histogram"></canvas>
+            </div>
+          </div>
+
+          <!-- Data Table -->
+          <details id="data-table-section">
+            <summary style="cursor: pointer; font-size: 1rem; font-weight: 600;">Year-by-Year Projection</summary>
+            <div id="data-table-container" style="overflow-x: auto; -webkit-overflow-scrolling: touch; margin-top: 0.75rem;"></div>
+          </details>
+        </div>
+      </details>
+
+      <!-- Hidden elements for JS compatibility -->
+      <div style="display:none;">
+        <canvas id="tax-chart"></canvas>
+        <canvas id="guaranteed-income-chart"></canvas>
+        <div id="guaranteed-income-details"></div>
+        <div id="assumptions-results-panel"></div>
+        <div id="readiness-section"></div>
+        <div id="insights-section"></div>
+        <div id="benchmarking-section"></div>
+        <div id="tax-optimization-section"></div>
+        <div id="risk-section"></div>
+        <div id="spending-policy-section"></div>
+        <div id="milestones-section"></div>
+        <div id="legacy-section"></div>
+        <div id="household-section"></div>
+        <div id="db-pension-section"></div>
+        <div id="care-costs-section"></div>
+        <div id="phased-retirement-section"></div>
+      </div>
+
+      <!-- Your inputs (collapsible) -->
+      <details style="margin-top: 1.5rem; border-top: 1px solid var(--color-border-light, #f1f5f9); padding-top: 0.75rem;">
+        <summary style="cursor: pointer; font-size: 0.8125rem; font-weight: 600; color: var(--color-text-light);">Your inputs</summary>
+        <div id="inputs-summary" style="margin-top: 0.5rem; font-size: 0.75rem; color: var(--color-text-light); line-height: 1.6;"></div>
+      </details>
+
+      <!-- Assumptions (collapsible) -->
+      <details style="margin-top: 1.5rem; border-top: 1px solid var(--color-border-light, #f1f5f9); padding-top: 0.75rem;">
+        <summary style="cursor: pointer; font-size: 0.8125rem; font-weight: 600; color: var(--color-text-light);">Assumptions used in this projection</summary>
+        <div id="assumptions-detail" style="margin-top: 0.5rem; font-size: 0.75rem; color: var(--color-text-light); line-height: 1.6;"></div>
+      </details>
+
+      <!-- Share card removed -->
+      <div id="share-card" style="display:none;"><div id="share-card-content"></div></div>
+
+      <!-- Disclaimer -->
+      <div style="margin-top: 1rem; padding: 0.75rem; font-size: 0.7rem; color: var(--color-text-light); line-height: 1.5;">
+        This tool provides estimates for planning purposes only. It is not regulated financial advice. Based on HMRC tax year 2025/26 rates. Tax rules may change. Consider consulting a qualified financial adviser. All figures in today's money (real terms, after assumed inflation).
+      </div>
+
+      <div class="btn-action-bar">
+        <button type="button" class="btn btn-primary" data-action="back">Edit Inputs</button>
+        <button type="button" class="btn btn-secondary" onclick="window.print()">Print</button>
+        <button type="button" class="btn btn-secondary" id="save-scenario-btn">Save</button>
+        <button type="button" class="btn btn-secondary" onclick="if(confirm('Clear all data and start fresh?')){localStorage.clear();indexedDB.deleteDatabase('RetireLensDB');location.reload();}">Reset</button>
+      </div>
+      <!-- Saved scenarios list -->
+      <div id="saved-scenarios" style="margin-top: 0.75rem; font-size: 0.75rem;"></div>
+
+      <div id="debug-output" style="display: none;"></div>
+    </div>
+
+    <!-- Loading overlay -->
+    <div id="loading-overlay" style="display: none; position: fixed; inset: 0; background: rgba(255,255,255,0.9); z-index: 1000; display: none; align-items: center; justify-content: center; flex-direction: column;">
+      <div style="width: 40px; height: 40px; border: 4px solid var(--color-border, #e2e8f0); border-top-color: var(--color-primary, #4f46e5); border-radius: 50%; animation: spin 0.8s linear infinite;"></div>
+      <p style="margin-top: 1rem; font-size: 0.875rem; color: var(--color-text-secondary, #374151);">Running 1,000 market scenarios...</p>
+    </div>
+    <style>@keyframes spin { to { transform: rotate(360deg); } }</style>
+    
+    <!-- Compare Plans removed — can be re-added later -->
+    <div id="screen-compare" class="screen" aria-hidden="true" style="display:none;"></div>
+    
+  </div>
+  
+  <!-- Live Estimate removed — created anxiety during data entry -->
+  
+  <!-- Error message toast -->
+  <div id="error-message"></div>
+  
+  <!-- Version footer -->
+  <footer id="version-footer" style="text-align: center; font-size: 0.6875rem; color: var(--color-text-light); padding: 12px 0; background: var(--color-background); letter-spacing: 0.02em;">
+    <span id="model-version">RetireLens Pro v1.0.0</span> &middot; Your data never leaves this device
+    <br>
+    <nav style="margin-top: 8px; display: flex; gap: 0.9rem; justify-content: center; flex-wrap: wrap;">
+      <a href="index.html" style="color: var(--color-text-light); text-decoration: none;">About</a>
+      <a href="guide.html" style="color: var(--color-text-light); text-decoration: none;">How-to guide</a>
+      <a href="index.html#support" style="color: var(--color-text-light); text-decoration: none;">Support this project ♥</a>
+      <a href="legal.html" style="color: var(--color-text-light); text-decoration: none;">Disclaimer &amp; terms</a>
+    </nav>
+    <button onclick="if(confirm('Clear all saved data and start fresh?')){localStorage.clear();indexedDB.deleteDatabase('RetireLensDB');location.reload();}" style="margin-top: 8px; background: none; border: 1px solid var(--color-border); border-radius: var(--radius-sm, 4px); padding: 4px 12px; font-size: 0.6875rem; color: var(--color-text-light); cursor: pointer;">Reset &amp; Start Over</button>
+  </footer>
+
+  <!-- One-page summary overlay (top-level so it prints cleanly; filled by app.js) -->
+  <div id="summary-view" class="summary-overlay" role="dialog" aria-modal="true" aria-labelledby="summary-title" hidden></div>
+
+  <!-- Access gate (disclaimer + optional paywall) — runs before the planner -->
+  <script type="module" src="js/access.js"></script>
+  <!-- Main application script -->
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>

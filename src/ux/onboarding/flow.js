@@ -339,7 +339,7 @@ export const HOUSEHOLD_TYPE_OPTIONS = [
  */
 export const STATE_PENSION_DEFAULTS = {
   age: 67,
-  fullAmount: 11973,  // ~£230/week rounded to annual
+  fullAmount: 11500,  // ~£221/week rounded to annual
   minAge: 66,
   maxAge: 68
 };

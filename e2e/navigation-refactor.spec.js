@@ -14,7 +14,7 @@ import { test, expect } from '@playwright/test';
 test.describe('Navigation Refactor', () => {
   
   test.beforeEach(async ({ page }) => {
-    await page.goto('/');
+    await page.goto('/app.html');
     // Wait for app to initialize - household-type should be active
     await page.waitForSelector('#screen-household-type.active', { timeout: 5000 });
   });
@@ -260,7 +260,7 @@ test.describe('Navigation Refactor', () => {
 test.describe('Single Household Happy Path', () => {
   
   test('completes full single household flow', async ({ page }) => {
-    await page.goto('/');
+    await page.goto('/app.html');
     await page.waitForSelector('#screen-household-type.active');
     
     // 1. Select single household
@@ -306,7 +306,7 @@ test.describe('Single Household Happy Path', () => {
 test.describe('Couple Household Happy Path', () => {
   
   test('completes full couple household flow', async ({ page }) => {
-    await page.goto('/');
+    await page.goto('/app.html');
     await page.waitForSelector('#screen-household-type.active');
     
     // 1. Select couple household

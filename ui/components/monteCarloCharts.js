@@ -552,62 +552,64 @@ export function renderConfidenceExplainer(mcResult, containerSelector, options =
   const { isProvisional = false, provisionalReason = null } = options;
   
   const successRate = mcResult.statistics.successRate;
-
-  // One consistent palette across the app:
-  // >=85 good (green), 60-84 caution (amber), <60 at risk (red)
-  let confidenceLevel = 'At risk';
-  let confidenceColor = 'var(--color-danger, #dc2626)';
-  let plainMeaning = 'In most simulated markets your money runs out before the target age. Retiring later, saving more, or a lower income target would all improve this.';
-
-  if (successRate >= 0.85) {
-    confidenceLevel = 'Strong';
-    confidenceColor = 'var(--color-success, #059669)';
-    plainMeaning = 'Your plan holds up even through most poor market runs. Planners treat 75–90 out of 100 as the healthy zone.';
-  } else if (successRate >= 0.6) {
-    confidenceLevel = 'Borderline';
-    confidenceColor = 'var(--color-warning, #d97706)';
-    plainMeaning = 'A miss here doesn’t mean going broke — it means you’d need to trim spending for a while if markets disappoint. Small changes now can lift this score sharply.';
+  const successPct = mcResult.statistics.successProbability || (successRate * 100).toFixed(1);
+  
+  // Determine confidence level
+  let confidenceLevel = 'Low';
+  let confidenceColor = '#ef4444'; // red
+  let confidenceEmoji = '⚠️';
+  
+  if (successRate >= 0.9) {
+    confidenceLevel = 'Very High';
+    confidenceColor = '#22c55e';
+    confidenceEmoji = '✅';
+  } else if (successRate >= 0.8) {
+    confidenceLevel = 'High';
+    confidenceColor = '#84cc16';
+    confidenceEmoji = '✅';
+  } else if (successRate >= 0.7) {
+    confidenceLevel = 'Moderate';
+    confidenceColor = '#f59e0b';
+    confidenceEmoji = '⚠️';
+  } else if (successRate >= 0.5) {
+    confidenceLevel = 'Low';
+    confidenceColor = '#f97316';
+    confidenceEmoji = '⚠️';
   }
-
+  
   // Build success probability display
   const successNum = Math.round(successRate * 100);
   let successDisplay = `<span style="font-size: 2rem; font-weight: bold; color: ${confidenceColor};">${successNum}</span><span style="font-size: 1rem; color: ${confidenceColor};"> out of 100</span>`;
-
+  
   if (isProvisional) {
-    successDisplay = `<span style="font-size: 2rem; font-weight: bold; color: var(--color-text-light, #64748b);">— (provisional)</span>`;
+    successDisplay = `<span style="font-size: 2rem; font-weight: bold; color: #6b7280;">— (provisional)</span>`;
   }
-
-  const mutedColor = 'var(--color-text-light, #64748b)';
+  
   const html = `
-    <div class="confidence-explainer" style="padding: 1rem; background: var(--color-background, #f8fafc); border-radius: 8px; margin-bottom: 1rem;">
+    <div class="confidence-explainer" style="padding: 1rem; background: #f8fafc; border-radius: 8px; margin-bottom: 1rem;">
       <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem;">
         <div>
-          <h4 style="font-size: 0.875rem; color: ${mutedColor}; margin: 0 0 0.25rem 0;">Market Scenario Success</h4>
+          <h4 style="font-size: 0.875rem; color: #6b7280; margin: 0 0 0.25rem 0;">Market Scenario Success</h4>
           ${successDisplay}
           ${!isProvisional ? `
-            <p style="font-size: 0.75rem; color: ${confidenceColor}; font-weight: 600; margin: 0.25rem 0 0 0;">
-              ${confidenceLevel}
+            <p style="font-size: 0.75rem; color: #6b7280; margin: 0.25rem 0 0 0;">
+              ${confidenceEmoji} ${confidenceLevel} confidence
             </p>
           ` : `
-            <p style="font-size: 0.75rem; color: ${mutedColor}; margin: 0.25rem 0 0 0;">
+            <p style="font-size: 0.75rem; color: #6b7280; margin: 0.25rem 0 0 0;">
               ${provisionalReason || 'Some income amounts not specified'}
             </p>
           `}
         </div>
-        <div style="text-align: right; font-size: 0.75rem; color: ${mutedColor};">
+        <div style="text-align: right; font-size: 0.75rem; color: #6b7280;">
           <p style="margin: 0;">Based on ${mcResult.iterations.toLocaleString()} simulations</p>
           <p style="margin: 0.25rem 0 0 0;">Target met every year + wealth > £0 through age ${mcResult.endAge}</p>
         </div>
       </div>
-      ${!isProvisional ? `
-        <p style="font-size: 0.8125rem; color: var(--color-text-secondary, #475569); margin: 0.75rem 0 0 0; line-height: 1.5;">
-          <strong>In plain English:</strong> in ${successNum} of every 100 simulated futures, your money lasted to age ${mcResult.endAge}. ${plainMeaning}
-        </p>
-      ` : ''}
       ${!isProvisional && mcResult.statistics.depletionAge ? `
-        <div style="margin-top: 0.75rem; padding-top: 0.75rem; border-top: 1px solid var(--color-border, #e5e7eb);">
-          <p style="font-size: 0.75rem; color: ${mutedColor}; margin: 0;">
-            In ${mcResult.statistics.depletionAge.count} scenarios (${((mcResult.statistics.depletionAge.count / mcResult.iterations) * 100).toFixed(1)}%),
+        <div style="margin-top: 0.75rem; padding-top: 0.75rem; border-top: 1px solid #e5e7eb;">
+          <p style="font-size: 0.75rem; color: #6b7280; margin: 0;">
+            In ${mcResult.statistics.depletionAge.count} scenarios (${((mcResult.statistics.depletionAge.count / mcResult.iterations) * 100).toFixed(1)}%), 
             funds ran out between ages ${mcResult.statistics.depletionAge.earliest} and ${mcResult.statistics.depletionAge.latest}.
           </p>
         </div>

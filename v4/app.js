@@ -187,30 +187,37 @@ const COLORS = {
 };
 
 // ── Field helpers ───────────────────────────────────────────────────────
+// Every field's <label> is tied to its <input> by id (clicking the label
+// focuses the control, and screen readers announce the name); the hint is
+// linked via aria-describedby.
+const fieldId = (path) => 'f-' + String(path).replace(/[^a-z0-9]+/gi, '-');
+function hintFor(id, hint) {
+  return hint ? `<div class="hint" id="${id}-h">${hint}</div>` : '';
+}
+const describedBy = (id, hint) => hint ? ` aria-describedby="${id}-h"` : '';
 function textField(label, path, hint) {
-  const val = String(getPath(path) ?? '');
-  const esc = val.replace(/"/g, '&quot;');
-  return `<div class="field"><label>${label}</label>
-    <input type="text" data-path="${path}" data-text="1" value="${esc}">
-    ${hint ? `<div class="hint">${hint}</div>` : ''}</div>`;
+  const id = fieldId(path), val = String(getPath(path) ?? '').replace(/"/g, '&quot;');
+  return `<div class="field"><label for="${id}">${label}</label>
+    <input id="${id}" type="text" data-path="${path}" data-text="1" value="${val}"${describedBy(id, hint)}>
+    ${hintFor(id, hint)}</div>`;
 }
 function moneyField(label, path, hint) {
-  const val = getPath(path);
-  return `<div class="field"><label>${label}</label>
-    <input type="text" inputmode="decimal" data-path="${path}" value="${val}">
-    ${hint ? `<div class="hint">${hint}</div>` : ''}</div>`;
+  const id = fieldId(path), val = getPath(path);
+  return `<div class="field"><label for="${id}">${label}</label>
+    <input id="${id}" type="text" inputmode="decimal" data-path="${path}" value="${val}"${describedBy(id, hint)}>
+    ${hintFor(id, hint)}</div>`;
 }
 function numField(label, path, hint, step) {
-  const val = getPath(path);
-  return `<div class="field"><label>${label}</label>
-    <input type="number" ${step ? `step="${step}"` : ''} data-path="${path}" value="${val}">
-    ${hint ? `<div class="hint">${hint}</div>` : ''}</div>`;
+  const id = fieldId(path), val = getPath(path);
+  return `<div class="field"><label for="${id}">${label}</label>
+    <input id="${id}" type="number" ${step ? `step="${step}"` : ''} data-path="${path}" value="${val}"${describedBy(id, hint)}>
+    ${hintFor(id, hint)}</div>`;
 }
 function pctField(label, path, hint) {
-  const val = Math.round(getPath(path) * 10000) / 100;
-  return `<div class="field"><label>${label}</label>
-    <input type="number" step="0.25" data-path="${path}" data-pct="1" value="${val}">
-    ${hint ? `<div class="hint">${hint}</div>` : ''}</div>`;
+  const id = fieldId(path), val = Math.round(getPath(path) * 10000) / 100;
+  return `<div class="field"><label for="${id}">${label}</label>
+    <input id="${id}" type="number" step="0.25" data-path="${path}" data-pct="1" value="${val}"${describedBy(id, hint)}>
+    ${hintFor(id, hint)}</div>`;
 }
 function getPath(path) {
   return path.split('.').reduce((o, k) => o[k], S.P);
@@ -424,9 +431,9 @@ function renderAssumptions(el) {
   const P = S.P;
   el.innerHTML = `
   <div class="card">
-    <div class="kicker">Central control panel</div>
-    <h2>Assumptions</h2>
-    <p class="sub">Start by putting your own names and figures in below — this is your plan, on your device only. Every figure here drives the model, exactly like the ⚙️ tab of your spreadsheet. All money inputs are today's money.</p>
+    <div class="kicker">Start here</div>
+    <h2>Your details</h2>
+    <p class="sub">Put your own names and figures in below — this is your plan, on your device only. When you're ready, tap <strong>Dashboard</strong> to see your answer. All money inputs are in today's money.</p>
 
     <h3>👤 You</h3>
     <div class="grid2">
@@ -853,7 +860,7 @@ function renderEvents(el) {
   <div class="card">
     <div class="kicker">One-off moments</div>
     <h2>Life events</h2>
-    <p class="sub">New car, a wedding, the big trip, a house deposit gift. Amounts are today's money and are indexed to the year they happen. Costs are met from ISAs first, then pensions. Your expected inheritance has its own line on the ⚙️ Assumptions tab${P.inherit.on ? ' and is switched on: ' + fmt(P.inherit.amount) + ' in ' + P.inherit.year : ''}.</p>
+    <p class="sub">New car, a wedding, the big trip, a house deposit gift. Amounts are today's money and are indexed to the year they happen. Costs are met from ISAs first, then pensions. Your expected inheritance has its own line on the ⚙️ Your details tab${P.inherit.on ? ' and is switched on: ' + fmt(P.inherit.amount) + ' in ' + P.inherit.year : ''}.</p>
     ${rows || '<p class="note">Nothing yet. Add your first event below.</p>'}
     <div style="display:flex; gap:0.5rem; margin-top:0.7rem; flex-wrap:wrap;" class="no-print">
       <button id="ev-add-cost" class="small">+ Add a cost</button>
@@ -1077,14 +1084,46 @@ function renderAllForPrint() {
   for (const t of Object.keys(VIEWS)) VIEWS[t]($('tab-' + t));
 }
 
+// Reflect the active tab everywhere: pill highlight, ARIA selection state,
+// roving tabindex (only the active tab is in the tab order), panel visibility,
+// the body[data-tab] hook for context-specific chrome, and keep the active
+// pill in view on a narrow phone.
+function activateTab(name, focusBtn) {
+  S.tab = name;
+  document.querySelectorAll('#tabs button').forEach(x => {
+    const on = x.dataset.tab === name;
+    x.classList.toggle('on', on);
+    x.setAttribute('aria-selected', on ? 'true' : 'false');
+    x.tabIndex = on ? 0 : -1;
+    if (on) {
+      if (focusBtn) x.focus();
+      x.scrollIntoView({ inline: 'center', block: 'nearest' });
+    }
+  });
+  document.querySelectorAll('main section').forEach(sec => { sec.hidden = sec.id !== 'tab-' + name; });
+  document.body.dataset.tab = name;
+  renderTab();
+}
+
 $('tabs').addEventListener('click', (e) => {
   const b = e.target.closest('button[data-tab]');
   if (!b) return;
-  S.tab = b.dataset.tab;
-  document.querySelectorAll('#tabs button').forEach(x => x.classList.toggle('on', x === b));
-  document.querySelectorAll('main section').forEach(sec => sec.hidden = sec.id !== 'tab-' + S.tab);
-  renderTab();
+  activateTab(b.dataset.tab, false);
   window.scrollTo({ top: 0 });
+});
+
+// Keyboard tablist: arrows move and activate, Home/End jump to the ends.
+$('tabs').addEventListener('keydown', (e) => {
+  const btns = [...document.querySelectorAll('#tabs button')];
+  const i = btns.findIndex(x => x.dataset.tab === S.tab);
+  let j = -1;
+  if (e.key === 'ArrowRight') j = (i + 1) % btns.length;
+  else if (e.key === 'ArrowLeft') j = (i - 1 + btns.length) % btns.length;
+  else if (e.key === 'Home') j = 0;
+  else if (e.key === 'End') j = btns.length - 1;
+  if (j < 0) return;
+  e.preventDefault();
+  activateTab(btns[j].dataset.tab, true);
 });
 
 // ── Header controls ─────────────────────────────────────────────────────
@@ -1133,13 +1172,11 @@ for (const a of E.runAssertions()) {
   console.log((a.pass ? 'PASS ' : 'FAIL ') + a.name + ' [got ' + a.got + ']');
 }
 $('btn-money').textContent = S.todayMoney ? 'Nominal £' : "Today's £";
-// Reflect the starting tab (assumptions for new visitors, dashboard for returning)
-// in the DOM, since the markup defaults to the dashboard being active.
-document.querySelectorAll('#tabs button').forEach(x => x.classList.toggle('on', x.dataset.tab === S.tab));
-document.querySelectorAll('main section').forEach(sec => sec.hidden = sec.id !== 'tab-' + S.tab);
+// Reflect the starting tab (Your details for new visitors, Dashboard for
+// returning) across pills, ARIA, panels and the body[data-tab] hook.
 syncGrowthUI();
 recompute();
-renderTab();
+activateTab(S.tab, false);
 
 if ('serviceWorker' in navigator && location.protocol === 'https:') {
   navigator.serviceWorker.register('sw.js').catch(() => {});

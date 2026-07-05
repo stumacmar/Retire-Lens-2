@@ -8,8 +8,6 @@
  * no external CSS, and shown once (remembered in local storage).
  */
 
-import { PRODUCT } from '../config/product.js';
-
 const SEEN_KEY = 'rl_welcomed_v1';
 
 function alreadyWelcomed() {
@@ -47,13 +45,7 @@ function injectStyles() {
   .rl-wel-btn:focus-visible{outline:3px solid #99f6e4;outline-offset:2px;}
   .rl-wel-skip{display:block;width:100%;text-align:center;background:none;border:none;color:#64748b;
     margin-top:.75rem;font-size:.9rem;cursor:pointer;text-decoration:underline;}
-  .rl-wel-note{margin-top:1rem;font-size:.8rem;color:#94a3b8;text-align:center;}
-  .rl-wel-give{margin-top:1.15rem;padding-top:1.05rem;border-top:1px solid #e2e8f0;}
-  .rl-wel-give b{display:block;font-size:.95rem;color:#0f172a;margin-bottom:.2rem;}
-  .rl-wel-give p{margin:0 0 .7rem;font-size:.86rem;color:#64748b;line-height:1.5;}
-  .rl-wel-give a{display:inline-block;background:#f59e0b;color:#1f2937;font-weight:700;text-decoration:none;
-    border-radius:10px;padding:.55rem .95rem;font-size:.9rem;}
-  .rl-wel-give a:hover{background:#d97706;}`;
+  .rl-wel-note{margin-top:1rem;font-size:.8rem;color:#94a3b8;text-align:center;}`;
   document.head.appendChild(s);
 }
 
@@ -61,19 +53,6 @@ function goToDetails() {
   // Send them straight to their details in plain-English form.
   const tab = document.querySelector('[data-tab="assumptions"]');
   if (tab) tab.click();
-}
-
-function donationBlock() {
-  const headline = PRODUCT.donationHeadline || 'Pay what you think it’s worth';
-  const blurb = PRODUCT.donationBlurb ||
-    'Someday is free. If it helped you, a small contribution funds the next idea — no pressure, no paywall.';
-  const link = /^https:\/\//i.test(PRODUCT.donationLink || '') ? PRODUCT.donationLink : '';
-  // Always tell the story; show the button only once a real link is configured.
-  return `<div class="rl-wel-give">
-      <b>♥ ${headline}</b>
-      <p>${blurb}</p>
-      ${link ? `<a href="${link}" target="_blank" rel="noopener">Support Someday</a>` : ''}
-    </div>`;
 }
 
 function show() {
@@ -93,7 +72,6 @@ function show() {
       <button class="rl-wel-btn" id="rl-wel-start">Start with my details →</button>
       <button class="rl-wel-skip" id="rl-wel-skip">Skip — take me straight to the numbers</button>
       <p class="rl-wel-note">You can change anything later. Your figures stay on this device.</p>
-      ${donationBlock()}
     </div>`;
   document.body.appendChild(el);
 
@@ -107,13 +85,24 @@ function show() {
   el.querySelector('#rl-wel-start').focus();
 }
 
+function disclaimerAccepted() {
+  // Mirrors js/access.js: once the gate is accepted this key is set, so we can
+  // proceed even if the overlay element lingers for a frame.
+  try { return !!localStorage.getItem('rl_disclaimer_accepted_v'); } catch { return false; }
+}
+
 function init() {
   if (isAutomated() || alreadyWelcomed()) return;
-  // Wait until the app's tabs exist AND the disclaimer gate has been dismissed,
-  // so we never cover it. Then greet.
+  // Wait until the app's tabs exist AND the disclaimer gate is out of the way,
+  // so we never cover it. Time-bounded: after ~6s (or once the disclaimer is
+  // recorded as accepted) greet anyway, so a gate glitch can never permanently
+  // suppress the only guided way in.
+  let tries = 0;
   const start = () => {
-    const ready = document.getElementById('tabs') && !document.querySelector('.rl-gate-overlay');
-    if (ready) show(); else setTimeout(start, 200);
+    const tabsReady = !!document.getElementById('tabs');
+    const gateClear = !document.querySelector('.rl-gate-overlay') || disclaimerAccepted();
+    if (tabsReady && (gateClear || tries > 30)) show();
+    else { tries++; setTimeout(start, 200); }
   };
   start();
 }

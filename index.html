@@ -31,15 +31,15 @@
       </div>
     </div>
     <nav class="tabs" role="tablist" aria-label="Sections" id="tabs">
-      <button role="tab" data-tab="dashboard" class="on">📊 Dashboard</button>
-      <button role="tab" data-tab="assumptions">⚙️ Assumptions</button>
-      <button role="tab" data-tab="accumulation">🏦 Saving up</button>
-      <button role="tab" data-tab="spending">🛒 Spending</button>
-      <button role="tab" data-tab="drawdown">💰 Taking income</button>
-      <button role="tab" data-tab="tax">🧮 Tax</button>
-      <button role="tab" data-tab="events">🎉 Life events</button>
-      <button role="tab" data-tab="risk">⚠️ Risk</button>
-      <button role="tab" data-tab="estate">🏛️ Estate</button>
+      <button role="tab" id="tab-btn-assumptions" data-tab="assumptions" class="on" aria-selected="true">⚙️ Your details</button>
+      <button role="tab" id="tab-btn-dashboard" data-tab="dashboard" aria-selected="false" tabindex="-1">📊 Dashboard</button>
+      <button role="tab" id="tab-btn-accumulation" data-tab="accumulation" aria-selected="false" tabindex="-1">🏦 Saving up</button>
+      <button role="tab" id="tab-btn-spending" data-tab="spending" aria-selected="false" tabindex="-1">🛒 Spending</button>
+      <button role="tab" id="tab-btn-drawdown" data-tab="drawdown" aria-selected="false" tabindex="-1">💰 Taking income</button>
+      <button role="tab" id="tab-btn-tax" data-tab="tax" aria-selected="false" tabindex="-1">🧮 Tax</button>
+      <button role="tab" id="tab-btn-events" data-tab="events" aria-selected="false" tabindex="-1">🎉 Life events</button>
+      <button role="tab" id="tab-btn-risk" data-tab="risk" aria-selected="false" tabindex="-1">⚠️ Risk</button>
+      <button role="tab" id="tab-btn-estate" data-tab="estate" aria-selected="false" tabindex="-1">🏛️ Estate</button>
     </nav>
   </header>
 
@@ -49,15 +49,15 @@
 
   <div class="layout">
     <main id="main" class="wrap">
-      <section id="tab-dashboard" role="tabpanel"></section>
-      <section id="tab-assumptions" role="tabpanel" hidden></section>
-      <section id="tab-accumulation" role="tabpanel" hidden></section>
-      <section id="tab-spending" role="tabpanel" hidden></section>
-      <section id="tab-drawdown" role="tabpanel" hidden></section>
-      <section id="tab-tax" role="tabpanel" hidden></section>
-      <section id="tab-events" role="tabpanel" hidden></section>
-      <section id="tab-risk" role="tabpanel" hidden></section>
-      <section id="tab-estate" role="tabpanel" hidden></section>
+      <section id="tab-assumptions" role="tabpanel" aria-labelledby="tab-btn-assumptions" tabindex="0"></section>
+      <section id="tab-dashboard" role="tabpanel" aria-labelledby="tab-btn-dashboard" tabindex="0" hidden></section>
+      <section id="tab-accumulation" role="tabpanel" aria-labelledby="tab-btn-accumulation" tabindex="0" hidden></section>
+      <section id="tab-spending" role="tabpanel" aria-labelledby="tab-btn-spending" tabindex="0" hidden></section>
+      <section id="tab-drawdown" role="tabpanel" aria-labelledby="tab-btn-drawdown" tabindex="0" hidden></section>
+      <section id="tab-tax" role="tabpanel" aria-labelledby="tab-btn-tax" tabindex="0" hidden></section>
+      <section id="tab-events" role="tabpanel" aria-labelledby="tab-btn-events" tabindex="0" hidden></section>
+      <section id="tab-risk" role="tabpanel" aria-labelledby="tab-btn-risk" tabindex="0" hidden></section>
+      <section id="tab-estate" role="tabpanel" aria-labelledby="tab-btn-estate" tabindex="0" hidden></section>
     </main>
     <aside id="kpi-rail" class="kpi-rail" aria-label="Live plan summary"></aside>
   </div>

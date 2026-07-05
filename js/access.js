@@ -86,10 +86,67 @@ function accessGranted() {
 }
 
 // ── Overlay UI ──────────────────────────────────────────────
+// The gate is a full-screen FRONT PAGE: it must be the only thing on screen on
+// a first visit. It ships its own styles (index.html loads only v4/styles.css,
+// which has no .rl-gate rules) so it can never fall back to an unstyled block.
+function injectGateStyles() {
+  if (document.getElementById('rl-gate-styles')) return;
+  const s = document.createElement('style');
+  s.id = 'rl-gate-styles';
+  s.textContent = `
+  .rl-gate-overlay{position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;
+    padding:1rem;overflow-y:auto;background:rgba(15,23,42,.6);backdrop-filter:blur(5px);-webkit-backdrop-filter:blur(5px);
+    font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#0f172a;line-height:1.55;}
+  .rl-gate-card{width:100%;max-width:460px;margin:auto;background:#fff;border-radius:18px;
+    box-shadow:0 24px 60px rgba(0,0,0,.28);padding:2rem 1.9rem;}
+  .rl-gate-brand{font-size:1.5rem;font-weight:800;letter-spacing:-.02em;margin-bottom:1rem;}
+  .rl-gate-brand span{color:#0e7a6e;}
+  .rl-gate-card h1.rl-gate-title{font-size:1.5rem;font-weight:800;letter-spacing:-.02em;margin:0 0 .6rem;}
+  .rl-gate-lead{color:#475569;margin:0 0 1rem;font-size:1.02rem;}
+  .rl-gate-list{list-style:none;padding:0;margin:0 0 1.25rem;display:grid;gap:.6rem;}
+  .rl-gate-list li{position:relative;padding-left:1.5rem;color:#475569;font-size:.9rem;}
+  .rl-gate-list li::before{content:"✓";position:absolute;left:0;top:0;color:#0e7a6e;font-weight:800;}
+  .rl-gate-check{display:flex;gap:.65rem;align-items:flex-start;cursor:pointer;margin:0 0 1.25rem;
+    background:#f0fdfa;border:1px solid #99f6e4;border-radius:12px;padding:.85rem .95rem;}
+  .rl-gate-check input{margin-top:.15rem;width:1.15rem;height:1.15rem;accent-color:#0e7a6e;flex:0 0 auto;}
+  .rl-gate-check span{font-size:.92rem;color:#0f172a;}
+  .rl-gate-btn{display:block;width:100%;text-align:center;background:#0e7a6e;color:#fff;border:none;border-radius:12px;
+    padding:.9rem 1rem;font-size:1.05rem;font-weight:700;cursor:pointer;text-decoration:none;box-sizing:border-box;}
+  .rl-gate-btn:hover:not(:disabled){background:#0b6459;}
+  .rl-gate-btn:disabled{background:#94a3b8;cursor:not-allowed;}
+  .rl-gate-btn:focus-visible{outline:3px solid #99f6e4;outline-offset:2px;}
+  .rl-gate-btn-secondary{background:#0f172a;}
+  .rl-gate-fine{margin:1rem 0 0;font-size:.8rem;color:#94a3b8;text-align:center;}
+  .rl-gate-fine a{color:#64748b;}
+  .rl-gate-divider{display:flex;align-items:center;gap:.75rem;margin:1.1rem 0;color:#94a3b8;font-size:.78rem;}
+  .rl-gate-divider::before,.rl-gate-divider::after{content:"";flex:1;height:1px;background:#e2e8f0;}
+  .rl-gate-label{display:block;font-size:.85rem;font-weight:600;margin-bottom:.4rem;}
+  .rl-gate-coderow{display:flex;gap:.5rem;}
+  .rl-gate-coderow input{flex:1;border:1px solid #cbd5e1;border-radius:10px;padding:.7rem .8rem;font-size:1rem;}
+  .rl-gate-coderow .rl-gate-btn{width:auto;padding:.7rem 1.1rem;}
+  .rl-gate-error{color:#be123c;font-size:.85rem;margin:.6rem 0 0;}`;
+  document.head.appendChild(s);
+}
+
+// Trap Tab focus inside the overlay so keyboard and screen-reader users cannot
+// wander into the (inert) planner behind the front page.
+function trapFocus(el) {
+  el.addEventListener('keydown', (e) => {
+    if (e.key !== 'Tab') return;
+    const f = el.querySelectorAll('a[href],button:not([disabled]),input:not([disabled]),[tabindex]:not([tabindex="-1"])');
+    if (!f.length) return;
+    const first = f[0], last = f[f.length - 1];
+    if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+    else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+  });
+}
+
 function overlayShell(innerHTML) {
+  injectGateStyles();
   const el = document.createElement('div');
   el.className = 'rl-gate-overlay';
-  el.innerHTML = `<div class="rl-gate-card">${innerHTML}</div>`;
+  el.innerHTML = `<div class="rl-gate-card" role="dialog" aria-modal="true" aria-labelledby="rl-gate-title">${innerHTML}</div>`;
+  trapFocus(el);
   return el;
 }
 
@@ -97,13 +154,13 @@ function showDisclaimerGate() {
   return new Promise((resolve) => {
     const el = overlayShell(`
       <div class="rl-gate-brand">Some<span>day</span></div>
-      <h1 class="rl-gate-title">Before you start</h1>
+      <h1 class="rl-gate-title" id="rl-gate-title">Before you start</h1>
       <p class="rl-gate-lead">Someday is an educational planning tool, <strong>not financial advice</strong>.</p>
       <ul class="rl-gate-list">
+        <li>Your figures stay in your browser — your planning data never leaves your device.</li>
         <li>Projections are estimates based on assumptions you can change. Real outcomes will differ.</li>
         <li>Tax rules, markets, and your circumstances change. Figures use UK 2025/26 rates.</li>
         <li>This is not a personal recommendation. For advice regulated by the FCA, speak to a qualified financial adviser.</li>
-        <li>Your figures stay in your browser — your planning data never leaves your device.</li>
       </ul>
       <label class="rl-gate-check">
         <input type="checkbox" id="rl-disclaimer-agree">
@@ -117,6 +174,7 @@ function showDisclaimerGate() {
 
     const check = el.querySelector('#rl-disclaimer-agree');
     const btn = el.querySelector('#rl-disclaimer-continue');
+    check.focus();
     check.addEventListener('change', () => { btn.disabled = !check.checked; });
     btn.addEventListener('click', () => {
       try { localStorage.setItem(STORAGE_KEYS.disclaimerAccepted, PRODUCT.disclaimerVersion); } catch { /* private mode */ }
@@ -137,7 +195,7 @@ function showPaywallGate() {
 
     const el = overlayShell(`
       <div class="rl-gate-brand">Some<span>day</span></div>
-      <h1 class="rl-gate-title">Unlock your full plan</h1>
+      <h1 class="rl-gate-title" id="rl-gate-title">Unlock your full plan</h1>
       <p class="rl-gate-lead">One-time ${PRODUCT.price} for lifetime access to the full planner —
         couples, Monte Carlo confidence, tax-smart withdrawals, and PDF export.</p>
       ${buyBtn}

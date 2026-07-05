@@ -637,14 +637,16 @@ function renderAssumptions(el) {
     r.onload = () => { try { S.P = mergeParams(E.freshStart(), JSON.parse(r.result)); changed(); } catch { alert('Could not read that file.'); } };
     r.readAsText(f);
   };
-  $('btn-reset').onclick = () => {
+  $('btn-reset').onclick = async () => {
     if (!confirm('Delete all your saved data and start over from the very beginning (you\'ll see the welcome and disclaimer again)?')) return;
-    // A true "start over": clear the plan AND the first-run flags, then reload so
-    // the disclaimer and welcome replay exactly as a brand-new visitor sees them.
+    // A true "start over": clear the plan AND the first-run flags, drop any cached
+    // app shell, then reload so the disclaimer and welcome replay exactly as a
+    // brand-new visitor sees them, on the freshest code.
     try {
       ['rl4-state', 'rl_disclaimer_accepted_v', 'rl_welcomed_v1', 'rl_access_granted', 'rl_access_code']
         .forEach(k => localStorage.removeItem(k));
     } catch (e) {}
+    try { if ('caches' in window) { const ks = await caches.keys(); await Promise.all(ks.map(k => caches.delete(k))); } } catch (e) {}
     location.reload();
   };
 }

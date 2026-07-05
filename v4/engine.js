@@ -125,6 +125,19 @@ export function createEngine() {
     return P;
   }
 
+  // A plausible, generic example couple for the opt-in "see an example" peek.
+  // Not the Marshall workbook, not anyone real — just illustrative round numbers.
+  function example() {
+    const P = freshStart();
+    P.partnerA = { ...P.partnerA, name: 'Alex', birthYear: 1968, pension: 320000, isa: 40000, monthlyPension: 800, monthlyIsa: 0, db: 0 };
+    P.partnerB = { ...P.partnerB, name: 'Sam',  birthYear: 1970, pension: 110000, isa: 25000, monthlyPension: 300, monthlyIsa: 0, db: 0 };
+    P.retireYear = 2032; P.horizonAge = 92;
+    P.cash = 20000; P.cashGrowth = 0.02;
+    P.house = 380000;
+    P.targetNet = 40000;
+    return P;
+  }
+
   function defaultSpending() {
     // Suite of monthly headings, all today's money, all editable.
     return [
@@ -867,7 +880,7 @@ export function createEngine() {
   }
 
   return {
-    defaults, freshStart, defaultSpending,
+    defaults, freshStart, example, defaultSpending,
     taxOn, personalAllowanceFor, grossForNet, marginalRate,
     spendingAnnual, phaseFactor, targetForYear, effectiveEvents, eventNominal,
     accumulate, drawdown, compareStrategies,

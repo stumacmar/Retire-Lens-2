@@ -23,6 +23,8 @@ const S = {
   mcBusy: false,
   cache: {},
   flowIdx: 0,
+  exampleActive: false,  // viewing the opt-in example plan (a "peek", not committed)
+  preExample: null,      // snapshot of the plan to restore when clearing the peek
 };
 
 try {
@@ -33,6 +35,7 @@ try {
       // Returning visitor: restore their plan and take them to the dashboard.
       S.P = mergeParams(E.freshStart(), obj.P);
       S.todayMoney = !!obj.todayMoney;
+      S.exampleActive = !!obj.exampleActive;
       S.tab = 'dashboard';
     }
   }
@@ -64,7 +67,37 @@ function mergeParams(base, incoming) {
 }
 
 function save() {
-  try { localStorage.setItem('rl4-state', JSON.stringify({ P: S.P, todayMoney: S.todayMoney })); } catch (e) {}
+  try { localStorage.setItem('rl4-state', JSON.stringify({ P: S.P, todayMoney: S.todayMoney, exampleActive: S.exampleActive })); } catch (e) {}
+}
+
+// ── Example-plan "peek" (opt-in; never overwrites without a way back) ─────
+function enterExample() {
+  S.preExample = JSON.parse(JSON.stringify(S.P));   // remember what to restore
+  S.P = E.example();
+  S.exampleActive = true;
+  save(); recompute(); activateTab('dashboard');
+}
+function keepExample() {          // "make this my starting point"
+  S.exampleActive = false; S.preExample = null;
+  save(); recompute(); renderTab();
+}
+function clearExample() {         // "clear and start blank"
+  S.P = S.preExample ? mergeParams(E.freshStart(), S.preExample) : E.freshStart();
+  S.preExample = null; S.exampleActive = false;
+  save(); recompute(); activateTab('assumptions');
+}
+function exampleBanner() {
+  if (!S.exampleActive) return '';
+  return `<div class="example-banner no-print">
+    <span>👀 You're viewing an <strong>example</strong> plan (Alex &amp; Sam) — not your figures.</span>
+    <span class="eb-actions"><button type="button" id="eb-keep" class="small">Make this my starting point</button>
+    <button type="button" id="eb-clear" class="small ghost">Clear &amp; start blank</button></span>
+  </div>`;
+}
+function wireExampleBanner() {
+  const k = $('eb-keep'), c = $('eb-clear');
+  if (k) k.onclick = keepExample;
+  if (c) c.onclick = clearExample;
 }
 
 // ── Formatting ──────────────────────────────────────────────────────────
@@ -355,6 +388,7 @@ function renderDashboard(el) {
   }).join('');
 
   el.innerHTML = `
+  ${exampleBanner()}
   <div class="card">
     <div class="kicker">${P.partnerA.name} and ${P.partnerB.name}, retiring April ${P.retireYear}</div>
     <div class="kicker" style="margin-bottom:0.3rem;">Where the plan stands</div>
@@ -424,6 +458,7 @@ function renderDashboard(el) {
       changed();
     };
   });
+  wireExampleBanner();
 
   $('btn-pin') && ($('btn-pin').onclick = () => {
     S.pinned = { pots: potsAtRet, endWealth: dd.endWealth, lifetimeTax: dd.lifetimeTax };
@@ -441,10 +476,12 @@ function renderDashboard(el) {
 function renderAssumptions(el) {
   const P = S.P;
   el.innerHTML = `
+  ${exampleBanner()}
   <div class="card">
     <div class="kicker">Start here</div>
     <h2>Your details</h2>
     <p class="sub">Put your own names and figures in below — this is your plan, on your device only. Open each section, fill what applies, then tap <strong>Dashboard</strong> for your answer. All money inputs are in today's money.</p>
+    ${S.exampleActive ? '' : '<button type="button" id="btn-see-example" class="small ghost no-print">👀 Not sure? See an example plan first</button>'}
 
     <details class="section" open>
       <summary>👤 About you and your partner</summary>
@@ -553,6 +590,8 @@ function renderAssumptions(el) {
     </details>
   </div>`;
   $('btn-see-answer').onclick = () => activateTab('dashboard');
+  if ($('btn-see-example')) $('btn-see-example').onclick = enterExample;
+  wireExampleBanner();
   wireInputs(el);
   $('dbb-indexed').onchange = (e) => { P.partnerB.dbIndexed = e.target.checked; changed(); };
   $('ph1-on').onchange = (e) => { P.phase1On = e.target.checked; changed(); };

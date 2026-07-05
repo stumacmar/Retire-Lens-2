@@ -64,8 +64,24 @@
 
   <footer class="honesty">
     A modelling tool, not regulated financial advice. Nominal figures with your inflation assumption unless "Today's £" is on.
+    <br>
+    <span style="display:inline-flex;gap:1rem;flex-wrap:wrap;justify-content:center;margin-top:.5rem;">
+      <a href="legal.html" style="color:inherit;text-decoration:underline;">Terms &amp; privacy</a>
+      <a id="rl-support-link" href="legal.html" hidden style="color:inherit;text-decoration:underline;">Support this project ♥</a>
+    </span>
   </footer>
 
+  <!-- Disclaimer gate + optional donation (RetireLens product wrapper) -->
+  <script type="module" src="js/access.js"></script>
   <script type="module" src="v4/app.js"></script>
+  <script type="module">
+    // Show the "Support this project" link only once a donation link is configured
+    // in config/product.js (pay-what-you-think-it's-worth model).
+    import { PRODUCT } from './config/product.js';
+    const s = document.getElementById('rl-support-link');
+    if (s && /^https:\/\//i.test(PRODUCT.donationLink || '')) {
+      s.href = PRODUCT.donationLink; s.target = '_blank'; s.rel = 'noopener'; s.hidden = false;
+    }
+  </script>
 </body>
 </html>

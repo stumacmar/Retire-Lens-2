@@ -1,5 +1,5 @@
 /**
- * RetireLens 4 UI. Tabs mirror the Marshall workbook. Engine is pure and
+ * Someday planner UI. Tabs mirror the Marshall workbook. Engine is pure and
  * lives in engine.js; everything here is rendering and state.
  * Display convention: with the Today's £ toggle on, every figure shown is
  * deflated to 2026 money, including aggregates. Lifetime tax uses the
@@ -526,7 +526,7 @@ function renderAssumptions(el) {
   $('btn-export').onclick = () => {
     const blob = new Blob([JSON.stringify(S.P, null, 2)], { type: 'application/json' });
     const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob); a.download = 'retirelens-plan.json'; a.click();
+    a.href = URL.createObjectURL(blob); a.download = 'someday-plan.json'; a.click();
   };
   $('btn-import').onclick = () => $('import-file').click();
   $('import-file').onchange = (e) => {
@@ -734,7 +734,7 @@ function renderDrawdown(el) {
     }
     const blob = new Blob([lines.join('\n')], { type: 'text/csv' });
     const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob); a.download = 'retirelens-drawdown.csv'; a.click();
+    a.href = URL.createObjectURL(blob); a.download = 'someday-drawdown.csv'; a.click();
   };
 }
 
@@ -1128,7 +1128,7 @@ try {
 } catch (e) {}
 
 // ── Boot ────────────────────────────────────────────────────────────────
-console.log('%cRetireLens 4 engine assertions', 'font-weight:bold');
+console.log('%cSomeday engine assertions', 'font-weight:bold');
 for (const a of E.runAssertions()) {
   console.log((a.pass ? 'PASS ' : 'FAIL ') + a.name + ' [got ' + a.got + ']');
 }

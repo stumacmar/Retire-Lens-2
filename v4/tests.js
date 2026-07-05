@@ -1,5 +1,5 @@
 /**
- * RetireLens 4 test battery. Run with: node v4/tests.js
+ * Someday test battery. Run with: node v4/tests.js
  * Part 1 asserts parity with the Marshall Retirement Model workbook.
  * Part 2 asserts engine invariants across a parameter grid.
  * Part 3 asserts regressions found by the adversarial audit stay fixed.
@@ -18,7 +18,7 @@ function near(a, b, tolPct, label) {
   check(Math.abs(a - b) <= tol, `${label}: got ${Math.round(a)}, expected ${Math.round(b)}`);
 }
 
-console.log('RetireLens 4 tests');
+console.log('Someday tests');
 console.log('==================');
 
 // ── Part 1: workbook parity ───────────────────────────────────────────

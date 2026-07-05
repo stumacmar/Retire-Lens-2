@@ -1,5 +1,5 @@
 /**
- * RetireLens 4 engine.
+ * Someday engine.
  * Modelled on the Marshall Retirement Model workbook: central assumptions,
  * Bear/Base/Bull scenarios, nominal figures with an inflation assumption,
  * income layering in drawdown. Deliberate improvements over the workbook,

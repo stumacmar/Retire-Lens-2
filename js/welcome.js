@@ -1,5 +1,5 @@
 /**
- * RetireLens — friendly front door for RetireLens 4.
+ * Someday — friendly front door for the planner.
  *
  * The spreadsheet (nine tabs) is powerful but intimidating cold. This shows a
  * calm, plain-English welcome on a first visit, orients the person, and walks
@@ -66,13 +66,13 @@ function goToDetails() {
 function donationBlock() {
   const headline = PRODUCT.donationHeadline || 'Pay what you think it’s worth';
   const blurb = PRODUCT.donationBlurb ||
-    'RetireLens is free. If it helped you, a small contribution funds the next idea — no pressure, no paywall.';
+    'Someday is free. If it helped you, a small contribution funds the next idea — no pressure, no paywall.';
   const link = /^https:\/\//i.test(PRODUCT.donationLink || '') ? PRODUCT.donationLink : '';
   // Always tell the story; show the button only once a real link is configured.
   return `<div class="rl-wel-give">
       <b>♥ ${headline}</b>
       <p>${blurb}</p>
-      ${link ? `<a href="${link}" target="_blank" rel="noopener">Support RetireLens</a>` : ''}
+      ${link ? `<a href="${link}" target="_blank" rel="noopener">Support Someday</a>` : ''}
     </div>`;
 }
 

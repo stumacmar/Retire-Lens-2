@@ -1,8 +1,9 @@
-# RetireLens 2
+# Someday
 
-**Income-first retirement planning engine for UK pensions**
+**See the day you can afford to stop — an income-first UK retirement planner**
 
 > "Can I retire at age X with £Y net income, and how robust is that outcome?"
+> (Formerly "RetireLens". The live app is `index.html`, powered by `v4/`.)
 
 100% private — all calculations run in-browser. Your planning data never leaves your device, and the app makes **no third-party requests** (Chart.js and the Inter font are self-hosted in `vendor/`).
 

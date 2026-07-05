@@ -1,5 +1,5 @@
 /**
- * RetireLens - Access Gate
+ * Someday - Access Gate
  *
  * Two gates, shown as full-screen overlays before the planner is usable:
  *   1. Disclaimer  — must be accepted once (legal protection). Always on.
@@ -96,9 +96,9 @@ function overlayShell(innerHTML) {
 function showDisclaimerGate() {
   return new Promise((resolve) => {
     const el = overlayShell(`
-      <div class="rl-gate-brand">Retire<span>Lens</span></div>
+      <div class="rl-gate-brand">Some<span>day</span></div>
       <h1 class="rl-gate-title">Before you start</h1>
-      <p class="rl-gate-lead">RetireLens is an educational planning tool, <strong>not financial advice</strong>.</p>
+      <p class="rl-gate-lead">Someday is an educational planning tool, <strong>not financial advice</strong>.</p>
       <ul class="rl-gate-list">
         <li>Projections are estimates based on assumptions you can change. Real outcomes will differ.</li>
         <li>Tax rules, markets, and your circumstances change. Figures use UK 2025/26 rates.</li>
@@ -136,7 +136,7 @@ function showPaywallGate() {
       : `<button class="rl-gate-btn" disabled title="Payment link not configured yet">Unlock for ${PRODUCT.price}</button>`;
 
     const el = overlayShell(`
-      <div class="rl-gate-brand">Retire<span>Lens</span></div>
+      <div class="rl-gate-brand">Some<span>day</span></div>
       <h1 class="rl-gate-title">Unlock your full plan</h1>
       <p class="rl-gate-lead">One-time ${PRODUCT.price} for lifetime access to the full planner —
         couples, Monte Carlo confidence, tax-smart withdrawals, and PDF export.</p>

@@ -1,5 +1,5 @@
 /**
- * RetireLens - Product & Commercial Configuration
+ * Someday - Product & Commercial Configuration
  *
  * Single source of truth for branding, donations, pricing, the access gate,
  * and external links. Everything a non-developer needs to change to go live
@@ -18,10 +18,10 @@
 
 export const PRODUCT = Object.freeze({
   // ── Branding ──────────────────────────────────────────────
-  name: 'RetireLens',
-  tagline: 'Can I retire at age X with £Y income?',
-  domain: 'retirelens.co.uk',            // change here + in the CNAME file
-  supportEmail: 'hello@retirelens.co.uk', // shown on legal/how-to pages
+  name: 'Someday',
+  tagline: 'See the day you can afford to stop.',
+  domain: 'someday.money',               // change here + in the CNAME file
+  supportEmail: 'hello@someday.money',    // shown on legal/how-to pages
 
   // ── Monetisation model ────────────────────────────────────
   // 'donation' — free to use, with a "pay what you think it's worth" ask (default)
@@ -33,7 +33,7 @@ export const PRODUCT = Object.freeze({
   // Shown on the homepage and after results. Empty = the buttons are hidden.
   donationLink: '',                      // e.g. 'https://buymeacoffee.com/retirelens'
   donationHeadline: 'Pay what you think it’s worth',
-  donationBlurb: 'RetireLens is free. I built it because I couldn’t find one I understood. ' +
+  donationBlurb: 'Someday is free. I built it because I couldn’t find one I understood. ' +
     'If it helped you, a small contribution funds the next idea — no pressure, no paywall.',
 
   // ── Pricing (only used when model === 'paywall') ──────────
@@ -62,7 +62,7 @@ export const PRODUCT = Object.freeze({
   // ── Legal ─────────────────────────────────────────────────
   // Disclaimer must be accepted once before the planner can be used.
   disclaimerVersion: '1.0',              // bump to force re-acceptance
-  companyName: 'RetireLens',             // trading name shown on legal pages
+  companyName: 'Someday',                // trading name shown on legal pages
   jurisdiction: 'England & Wales',
   // REQUIRED before charging: UK consumer law requires a real trader identity
   // and contact address shown before purchase. Fill the bracketed fields in

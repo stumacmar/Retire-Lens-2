@@ -1,4 +1,4 @@
-/* RetireLens 4 service worker: cache the app shell for offline use. */
+/* Someday service worker: cache the app shell for offline use. */
 const CACHE = 'rl4-v1';
 const SHELL = ['./', 'index.html', 'styles.css', 'app.js', 'engine.js', 'manifest.json'];
 

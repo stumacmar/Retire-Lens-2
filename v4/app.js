@@ -465,6 +465,11 @@ function renderAssumptions(el) {
     </div>
     <label class="switch"><input type="checkbox" id="inherit-invest" ${P.inherit.invest ? 'checked' : ''}> Invest it when it arrives (compounds at your growth rate)</label>
 
+    <h3>💷 Cash savings</h3>
+    <div class="grid2">
+      ${moneyField('Cash savings & Premium Bonds', 'cash', 'Bank or NS&I. Spent tax-free, before your ISAs')}
+    </div>
+
     <h3>🏠 Property and other assets</h3>
     <div class="grid2">
       ${moneyField('House value', 'house')}

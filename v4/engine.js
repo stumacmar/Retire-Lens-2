@@ -91,7 +91,7 @@ export function createEngine() {
       spending: defaultSpending(),
       // Age-phased reductions: from a chosen age, cut spending by a chosen %
       phase1Age: 75, phase1Cut: 0.10, phase1On: false,
-      phase2Age: 85, phase2Cut: 0.20, phase2On: false,
+      phase2Age: 82, phase2Cut: 0.20, phase2On: false,
 
       strategy: 'sippfirst',    // 'sippfirst' | 'isafirst' | 'pafirst'
       pclsMode: 'none',         // 'none' | 'upfront' | 'phased'

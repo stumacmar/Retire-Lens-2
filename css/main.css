@@ -2185,3 +2185,63 @@
   font-size: 0.82rem;
   margin-top: 0.6rem;
 }
+
+/* ═══════════════════════════════════════════════════════════════
+   "What could I change?" nudges — designed for calm, older-user access
+   ═══════════════════════════════════════════════════════════════ */
+.what-if {
+  margin: 1rem 0 1.25rem;
+  padding: 1.25rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg, 1rem);
+  background: var(--color-surface, #fff);
+}
+.what-if__head { font-size: 1.15rem; font-weight: 700; color: var(--color-text); margin-bottom: 0.35rem; }
+.what-if__intro { color: var(--color-text-light); font-size: 0.98rem; margin-bottom: 1rem; line-height: 1.5; }
+.what-if__answer {
+  font-size: 1.02rem; line-height: 1.5; color: var(--color-text);
+  padding: 0.9rem 1rem; border-radius: var(--radius-md, 0.5rem);
+  background: var(--color-primary-subtle, #eef2ff); margin-bottom: 1rem;
+}
+.lever-chips { display: flex; flex-wrap: wrap; gap: 12px; }
+.lever-chip {
+  min-height: 48px; min-width: 48px;
+  padding: 12px 16px;
+  font-size: 1.0625rem; line-height: 1.3; font-weight: 600;
+  border-radius: 24px; border: 2px solid var(--color-border);
+  background: var(--color-surface, #fff); color: var(--color-text, #1f2937);
+  display: inline-flex; align-items: center; gap: 8px;
+  cursor: pointer; touch-action: manipulation;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+.lever-chip:hover { border-color: var(--color-primary); }
+.lever-chip:focus-visible { outline: 3px solid var(--color-primary); outline-offset: 2px; }
+.lever-chip[aria-pressed="true"] {
+  border-color: var(--color-primary); border-width: 2px;
+  background: var(--color-primary-subtle, #eef2ff);
+  font-weight: 700;
+}
+.lever-chip[aria-pressed="true"]::after { content: " ✓"; color: var(--color-primary, #4f46e5); font-weight: 800; }
+/* result line — colour is decoration only; an icon + words carry the meaning */
+.what-if__result { margin-top: 1rem; font-size: 1.02rem; line-height: 1.5; color: var(--color-text); }
+.what-if__result[hidden] { display: none; }
+.what-if__result .ico { font-weight: 800; margin-right: 0.35rem; }
+.what-if__actions { margin-top: 1rem; display: flex; gap: 0.75rem; flex-wrap: wrap; }
+.what-if__reassure { margin-top: 0.9rem; font-size: 0.85rem; color: var(--color-text-light); }
+.what-if__explore {
+  min-height: 48px; padding: 10px 16px; font-size: 1rem; font-weight: 600;
+  background: none; border: 1px solid var(--color-border); border-radius: var(--radius-md, 0.5rem);
+  color: var(--color-text); cursor: pointer;
+}
+.what-if__explore:focus-visible { outline: 3px solid var(--color-primary); outline-offset: 2px; }
+.what-if__deeper { margin-top: 1rem; font-size: 0.95rem; color: var(--color-text); line-height: 1.5; }
+
+/* Respect users who prefer less motion (added with the nudges work) */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}

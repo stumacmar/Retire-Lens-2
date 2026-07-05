@@ -1,6 +1,8 @@
     // Core projection engine (existing)
     import { createPlan, runProjection, comparePlans, generateDebugOutput } from '../engine/projections.js';
     import { createAssumptions } from '../config/defaults.js';
+    import { computeNudges } from '../engine/nudges.js';
+    import { announceToScreenReader } from '../ui/components/accessibility.js';
     
     // Import all engine modules with correct exports
     import { createUserAssumptions, SCENARIO_PRESETS, DEFAULT_ASSUMPTIONS } from '../engine/assumptions.js';
@@ -1866,6 +1868,8 @@
             initSankey(basicProjection);
           } catch (e) { console.warn('Chart rendering failed:', e); }
 
+          try { renderWhatIfNudges(basicProjection, results); } catch (e) { console.warn('Nudges render failed:', e); }
+
           renderAllVisualizations(results);
 
         } catch (error) {
@@ -1923,6 +1927,134 @@
         else if (key === 'confidence') { el.textContent = confidenceNum + '%'; el.style.color = confidenceColor; }
         else if (key === 'finalBalance') el.textContent = formatCurrency(summary.finalBalance);
         else if (key === 'pclsTaken') el.textContent = formatCurrency(summary.pclsTaken);
+      });
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // "What could I change?" — gentle, guided nudges
+    // Empathetic copy + accessibility per the design Council.
+    // ═══════════════════════════════════════════════════════════════
+    function renderWhatIfNudges(projection, results) {
+      const el = document.getElementById('what-if-nudges');
+      if (!el) return;
+      const data = state.formData;
+      if (!data || typeof data.currentAge !== 'number') { el.innerHTML = ''; return; }
+
+      const scenarioPreset = SCENARIO_PRESETS[data.scenario] || SCENARIO_PRESETS.moderate;
+      const assumptions = { projection: {
+        defaultGrowthRate: scenarioPreset.growthRate || 0.04,
+        defaultFeeRate: scenarioPreset.feeRate || 0.005,
+        volatility: scenarioPreset.volatility || 0.15
+      } };
+
+      let nudges;
+      try { nudges = computeNudges(data, { endAge: 90, assumptions }); }
+      catch (e) { console.warn('Nudges failed:', e); el.innerHTML = ''; return; }
+
+      // Empathetic answer-state line, from the confidence the person sees.
+      const mcSuccess = results?.mcResult?.statistics?.successRate;
+      const confidence = Math.round((mcSuccess != null ? mcSuccess : projection.summary.successRate) * 100);
+      const answer = confidence >= 85
+        ? "Good news. On these numbers, you're on course to retire the way you're hoping to."
+        : confidence >= 60
+          ? "You're almost there. You're close enough that a small tweak or two could tip it your way."
+          : "Not quite there on these numbers — but you have options, and there's time to work with.";
+
+      const fmtGBP = (n) => formatCurrency(Math.round(n));
+      const chipCopy = (c) => {
+        if (c.lever === 'retireLater') return { label: `Retire at ${c.newRetirementAge}`, hint: 'Assumes you keep working and paying in a little longer.' };
+        if (c.lever === 'saveMore') return { label: `Save £${c.increment}/mo more`, hint: 'Adds a bit more to your pension each month from now.' };
+        return { label: `Aim for ${fmtGBP(c.newTarget)}/yr`, hint: 'Sets a slightly gentler income target.' };
+      };
+      const resultLine = (c) => c.closesGap
+        ? `<span class="ico">✓</span>That does it — with this change, your money lasts the full plan to age 90.`
+        : `<span class="ico">→</span>That's real progress: it stretches your money to age ${c.newDepletionAge}. Pairing it with another change may close the rest.`;
+
+      // On track: no fixes pushed — a quiet, optional line only.
+      if (nudges.onTrack) {
+        el.innerHTML = `
+          <div class="what-if">
+            <div class="what-if__answer">${answer}</div>
+            <div class="what-if__head">What could I change?</div>
+            <p class="what-if__intro">You're in good shape. If you'd like a little more room, you can explore changes any time using the sliders just below — nothing you try is saved.</p>
+          </div>`;
+        return;
+      }
+
+      const chips = nudges.chips || [];
+      const intro = "There's a gap right now, and that's OK. Small changes can add up to a real difference. Have a gentle look at your options below.";
+
+      const chipsHtml = chips.map((c, i) => {
+        const cc = chipCopy(c);
+        return `<button type="button" class="lever-chip" aria-pressed="false"
+                  data-idx="${i}" aria-describedby="whatif-hint-${i}">
+                  ${cc.label}
+                </button>
+                <span id="whatif-hint-${i}" hidden>${cc.hint}</span>`;
+      }).join('');
+
+      const deeperHtml = nudges.deeperHelp
+        ? `<p class="what-if__deeper">The bigger levers — working part-time into retirement, or combining a few of these — may be needed to close the rest. Your full results below show more options.</p>`
+        : '';
+
+      el.innerHTML = `
+        <div class="what-if">
+          <div class="what-if__answer">${answer}</div>
+          <div class="what-if__head">What could I change?</div>
+          <p class="what-if__intro">${intro}</p>
+          <div class="lever-chips" role="group" aria-label="Changes you could try">${chipsHtml}</div>
+          <p class="what-if__result" id="whatif-result" aria-live="polite" aria-atomic="true" hidden></p>
+          <div class="what-if__actions" id="whatif-actions" hidden>
+            <button type="button" class="btn btn-primary" id="whatif-commit">Make this my plan</button>
+            <button type="button" class="what-if__explore" id="whatif-reset">Back to my plan</button>
+          </div>
+          ${deeperHtml}
+          <p class="what-if__reassure">These are just what-ifs — nothing is saved or changed until you choose “Make this my plan”.</p>
+        </div>`;
+
+      const resultEl = el.querySelector('#whatif-result');
+      const actionsEl = el.querySelector('#whatif-actions');
+      const commitBtn = el.querySelector('#whatif-commit');
+      const resetBtn = el.querySelector('#whatif-reset');
+      let announceTimer = null;
+      let activeIdx = null;
+
+      function clearActive() {
+        el.querySelectorAll('.lever-chip').forEach(b => b.setAttribute('aria-pressed', 'false'));
+        activeIdx = null;
+        resultEl.hidden = true; actionsEl.hidden = true;
+      }
+
+      el.querySelectorAll('.lever-chip').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const idx = Number(btn.dataset.idx);
+          if (activeIdx === idx) { clearActive(); return; } // tap again to clear preview
+          // one preview at a time (toggle buttons behaving like a single choice)
+          el.querySelectorAll('.lever-chip').forEach(b => b.setAttribute('aria-pressed', 'false'));
+          btn.setAttribute('aria-pressed', 'true');
+          activeIdx = idx;
+          const c = chips[idx];
+          resultEl.innerHTML = resultLine(c);
+          resultEl.hidden = false;
+          actionsEl.hidden = false;
+          // Announce the outcome politely (debounced), focus stays on the chip.
+          clearTimeout(announceTimer);
+          announceTimer = setTimeout(() => {
+            const spoken = c.closesGap
+              ? `With this change, your money now lasts the full plan to age 90.`
+              : `This stretches your money to age ${c.newDepletionAge}.`;
+            try { announceToScreenReader(spoken, 'polite'); } catch (e) { /* ok */ }
+          }, 450);
+        });
+      });
+
+      resetBtn?.addEventListener('click', clearActive);
+      commitBtn?.addEventListener('click', () => {
+        if (activeIdx == null) return;
+        const c = chips[activeIdx];
+        Object.assign(state.formData, c.tweakedInputs);
+        try { announceToScreenReader('Updating your plan with this change.', 'polite'); } catch (e) { /* ok */ }
+        runFullCalculation();
       });
     }
 

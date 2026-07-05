@@ -187,37 +187,38 @@ const COLORS = {
 };
 
 // ── Field helpers ───────────────────────────────────────────────────────
-// Every field's <label> is tied to its <input> by id (clicking the label
-// focuses the control, and screen readers announce the name); the hint is
-// linked via aria-describedby.
+// Every field's <label> is tied to its <input> by id. The explanation is not
+// printed under the input (that made the page busy); it hides behind a small
+// "?" toggletip next to the label, and is still linked via aria-describedby so
+// screen readers always hear it.
 const fieldId = (path) => 'f-' + String(path).replace(/[^a-z0-9]+/gi, '-');
-function hintFor(id, hint) {
-  return hint ? `<div class="hint" id="${id}-h">${hint}</div>` : '';
-}
 const describedBy = (id, hint) => hint ? ` aria-describedby="${id}-h"` : '';
+function labelRow(id, label, hint) {
+  if (!hint) return `<label for="${id}">${label}</label>`;
+  const esc = String(label).replace(/"/g, '&quot;');
+  return `<div class="field-label"><label for="${id}">${label}</label>` +
+    `<button type="button" class="help-btn" aria-controls="${id}-h" aria-expanded="false" aria-label="What is &quot;${esc}&quot;?">?</button></div>` +
+    `<span class="help-text" id="${id}-h" role="note">${hint}</span>`;
+}
 function textField(label, path, hint) {
   const id = fieldId(path), val = String(getPath(path) ?? '').replace(/"/g, '&quot;');
-  return `<div class="field"><label for="${id}">${label}</label>
-    <input id="${id}" type="text" data-path="${path}" data-text="1" value="${val}"${describedBy(id, hint)}>
-    ${hintFor(id, hint)}</div>`;
+  return `<div class="field">${labelRow(id, label, hint)}
+    <input id="${id}" type="text" data-path="${path}" data-text="1" value="${val}"${describedBy(id, hint)}></div>`;
 }
 function moneyField(label, path, hint) {
   const id = fieldId(path), val = getPath(path);
-  return `<div class="field"><label for="${id}">${label}</label>
-    <input id="${id}" type="text" inputmode="decimal" data-path="${path}" value="${val}"${describedBy(id, hint)}>
-    ${hintFor(id, hint)}</div>`;
+  return `<div class="field">${labelRow(id, label, hint)}
+    <input id="${id}" type="text" inputmode="decimal" data-path="${path}" value="${val}"${describedBy(id, hint)}></div>`;
 }
 function numField(label, path, hint, step) {
   const id = fieldId(path), val = getPath(path);
-  return `<div class="field"><label for="${id}">${label}</label>
-    <input id="${id}" type="number" ${step ? `step="${step}"` : ''} data-path="${path}" value="${val}"${describedBy(id, hint)}>
-    ${hintFor(id, hint)}</div>`;
+  return `<div class="field">${labelRow(id, label, hint)}
+    <input id="${id}" type="number" ${step ? `step="${step}"` : ''} data-path="${path}" value="${val}"${describedBy(id, hint)}></div>`;
 }
 function pctField(label, path, hint) {
   const id = fieldId(path), val = Math.round(getPath(path) * 10000) / 100;
-  return `<div class="field"><label for="${id}">${label}</label>
-    <input id="${id}" type="number" step="0.25" data-path="${path}" data-pct="1" value="${val}"${describedBy(id, hint)}>
-    ${hintFor(id, hint)}</div>`;
+  return `<div class="field">${labelRow(id, label, hint)}
+    <input id="${id}" type="number" step="0.25" data-path="${path}" data-pct="1" value="${val}"${describedBy(id, hint)}></div>`;
 }
 function getPath(path) {
   return path.split('.').reduce((o, k) => o[k], S.P);
@@ -321,7 +322,6 @@ function renderDashboard(el) {
   const y1 = dd.rows[0];
   const endYear = horizonYear();
   const mc = S.mc;
-  const totals = c.totals;
 
   const kpiDelta = (key, val, year) => {
     if (!S.pinned) return '';
@@ -334,9 +334,9 @@ function renderDashboard(el) {
 
   // Scenario cards, no horizontal scroll: the key number is unmissable
   const scenarioRows = [
-    ['🔴 Bear', P.growthBear, c.accBear],
+    ['🔴 Poor', P.growthBear, c.accBear],
     ['🟡 Base', P.growthBase, c.accBase],
-    ['🟢 Bull', P.growthBull, c.accBull],
+    ['🟢 Positive', P.growthBull, c.accBull],
   ];
   const isCustom = ![P.growthBear, P.growthBase, P.growthBull].some(g => Math.abs(g - P.growth) < 1e-9);
   if (isCustom) scenarioRows.push(['🎚️ Your slider', P.growth, c.accLive]);
@@ -358,7 +358,12 @@ function renderDashboard(el) {
   <div class="card">
     <div class="kicker">${P.partnerA.name} and ${P.partnerB.name}, retiring April ${P.retireYear}</div>
     <h2>Where the plan stands</h2>
-    <p class="sub">At ${pct(P.growth, 1)} growth and ${pct(P.inflation, 1)} inflation. ${S.todayMoney ? "All figures in today's money." : 'Nominal figures.'} Drag the header slider and everything recomputes.</p>
+    <p class="sub">At ${pct(P.growth, 1)} growth and ${pct(P.inflation, 1)} inflation. ${S.todayMoney ? "All figures in today's money." : 'Nominal figures.'} Pick a scenario below and everything recomputes.</p>
+    <div class="dash-scen no-print" role="group" aria-label="Growth scenario">
+      ${[['bear', 'Poor', P.growthBear], ['base', 'Base', P.growthBase], ['bull', 'Positive', P.growthBull]].map(([k, lbl, g]) =>
+        `<button type="button" data-dscen="${k}" class="${Math.abs(P.growth - g) < 1e-9 ? 'on' : ''}" aria-pressed="${Math.abs(P.growth - g) < 1e-9 ? 'true' : 'false'}">${lbl} <small>${pct(g, 1)}</small></button>`).join('')}
+      ${isCustom ? `<span class="dash-scen-custom">Custom ${pct(P.growth, 1)}</span>` : ''}
+    </div>
     <div class="kpis">
       <div class="kpi good"><div class="v">${fmtK(potsAtRet, P.retireYear)}</div><div class="k">Pensions + ISAs at ${P.retireYear}</div>${kpiDelta('pots', potsAtRet, P.retireYear)}</div>
       <div class="kpi ${y1.shortfall > 1 ? 'bad' : 'good'}"><div class="v">${fmtK(y1.netIncome, y1.year)}</div><div class="k">Net income in year one, need ${fmtK(y1.target, y1.year)}</div></div>
@@ -376,33 +381,19 @@ function renderDashboard(el) {
     </div>
   </div>
 
-  <div class="card">
-    <div class="kicker">Scenario comparison</div>
-    <h2>Bear, Base, Bull</h2>
+  <details class="card fold">
+    <summary><span class="kicker">Scenario comparison</span><h2>Poor, Base, Positive</h2></summary>
     <div class="scenario-grid">${scenarioHtml}</div>
     <p class="note">Pot figures at ${P.retireYear} line up with your workbook's Accumulation tab. Tax is per partner: this year that saves ${fmt(E.taxOn(y1.guaranteed + y1.grossA + y1.grossB, P.tax) - y1.tax, y1.year)} versus taxing the household as one person.</p>
-  </div>
+  </details>
 
-  <div class="card">
-    <div class="kicker">Follow the money</div>
-    <h2>One year, every pound</h2>
+  <details class="card fold">
+    <summary><span class="kicker">Follow the money</span><h2>One year, every pound</h2></summary>
     <p class="sub">Where the year's money comes from and where it goes. Slide across the plan.</p>
     <div class="slider-row"><label for="flow-year">Plan year</label><output id="flow-year-out"></output></div>
     <input type="range" id="flow-year" min="0" max="${dd.rows.length - 1}" step="1" value="${Math.min(S.flowIdx, dd.rows.length - 1)}">
     <div id="flow-stage"></div>
-  </div>
-
-  <div class="card">
-    <div class="kicker">The whole plan in four numbers</div>
-    <h2>Lifetime totals to age ${P.horizonAge}</h2>
-    <div class="kpis">
-      <div class="kpi"><div class="v">${fmtK(totals.spend)}</div><div class="k">Total net income funded</div></div>
-      <div class="kpi"><div class="v">${fmtK(totals.growthInRetirement)}</div><div class="k">Investment growth earned in retirement</div></div>
-      <div class="kpi warn"><div class="v">${fmtK(totals.tax)}</div><div class="k">Income tax paid</div></div>
-      <div class="kpi"><div class="v">£${totals.taxPer100Drawn.toFixed(2)}</div><div class="k">HMRC's cut of every £100 drawn from pensions</div></div>
-    </div>
-    <p class="note">Nominal totals, exact by conservation: end wealth equals start wealth plus growth and windfalls, minus everything drawn. Guaranteed income covered ${fmtK(totals.guaranteed)} of the lifetime need.</p>
-  </div>`;
+  </details>`;
 
   const drawFlow = (idx) => {
     S.flowIdx = idx;
@@ -413,6 +404,16 @@ function renderDashboard(el) {
   const fs = $('flow-year');
   fs.addEventListener('input', () => drawFlow(Number(fs.value)));
   drawFlow(Math.min(S.flowIdx, dd.rows.length - 1));
+
+  // Inline scenario switch — sets growth and re-renders (header chips re-sync
+  // via changed() -> syncGrowthUI()), so the user never scrolls to the header.
+  el.querySelectorAll('.dash-scen button[data-dscen]').forEach(b => {
+    b.onclick = () => {
+      const map = { bear: P.growthBear, base: P.growthBase, bull: P.growthBull };
+      S.P.growth = map[b.dataset.dscen];
+      changed();
+    };
+  });
 
   $('btn-pin') && ($('btn-pin').onclick = () => {
     S.pinned = { pots: potsAtRet, endWealth: dd.endWealth, lifetimeTax: dd.lifetimeTax };
@@ -433,101 +434,109 @@ function renderAssumptions(el) {
   <div class="card">
     <div class="kicker">Start here</div>
     <h2>Your details</h2>
-    <p class="sub">Put your own names and figures in below — this is your plan, on your device only. When you're ready, tap <strong>Dashboard</strong> to see your answer. All money inputs are in today's money.</p>
+    <p class="sub">Put your own names and figures in below — this is your plan, on your device only. Open each section, fill what applies, then tap <strong>Dashboard</strong> for your answer. All money inputs are in today's money.</p>
 
-    <h3>👤 You</h3>
-    <div class="grid2">
-      ${textField('Your name', 'partnerA.name', 'What we call you across the plan')}
-      ${numField('Birth year', 'partnerA.birthYear')}
-      ${numField('State pension age', 'partnerA.spAge', 'Usually 67')}
-      ${moneyField('Pension pot today', 'partnerA.pension', 'Total value of your pensions now')}
-      ${moneyField('ISA today', 'partnerA.isa', 'Your ISA value now (withdrawals are tax-free)')}
-      ${moneyField('Monthly pension investing', 'partnerA.monthlyPension', 'What you pay in each month until you retire')}
-      ${moneyField('Monthly ISA investing', 'partnerA.monthlyIsa', 'What you add to ISAs each month')}
-      ${moneyField('State pension per year', 'partnerA.spAmount', 'Standard full new State Pension. Change if yours differs')}
-      ${moneyField('Defined-benefit pension per year', 'partnerA.db', 'Guaranteed income from a company/final-salary scheme (0 if none)')}
-    </div>
+    <details class="section" open>
+      <summary>👤 About you and your partner</summary>
+      <div class="section-body">
+        <h4>You</h4>
+        <div class="grid2">
+          ${textField('Your name', 'partnerA.name', 'What we call you across the plan')}
+          ${numField('Birth year', 'partnerA.birthYear')}
+          ${numField('State pension age', 'partnerA.spAge', 'Usually 67')}
+          ${moneyField('Pension pot today', 'partnerA.pension', 'Total value of your pensions now')}
+          ${moneyField('ISA today', 'partnerA.isa', 'Your ISA value now (withdrawals are tax-free)')}
+          ${moneyField('Monthly pension investing', 'partnerA.monthlyPension', 'What you pay in each month until you retire')}
+          ${moneyField('Monthly ISA investing', 'partnerA.monthlyIsa', 'What you add to ISAs each month')}
+          ${moneyField('State pension per year', 'partnerA.spAmount', 'Standard full new State Pension. Change if yours differs')}
+          ${moneyField('Company / final-salary pension per year', 'partnerA.db', 'Guaranteed income from a company/final-salary scheme (0 if none)')}
+        </div>
+        <h4 style="margin-top:1rem;">Your partner</h4>
+        <p class="sub" style="margin-top:-0.3rem;">Planning solo? Leave the name as “Partner” and set their pots to 0.</p>
+        <div class="grid2">
+          ${textField('Partner’s name', 'partnerB.name', 'Leave as “Partner” if planning alone')}
+          ${numField('Birth year', 'partnerB.birthYear')}
+          ${numField('State pension age', 'partnerB.spAge', 'Usually 67')}
+          ${moneyField('Pension pot today', 'partnerB.pension', 'Total value of their pensions now')}
+          ${moneyField('ISA today', 'partnerB.isa', 'Their ISA value now (withdrawals are tax-free)')}
+          ${moneyField('Monthly pension investing', 'partnerB.monthlyPension', 'What they pay in each month until retirement')}
+          ${moneyField('Monthly ISA investing', 'partnerB.monthlyIsa', 'What they add to ISAs each month')}
+          ${moneyField('State pension per year', 'partnerB.spAmount', 'Standard full new State Pension. Change if theirs differs')}
+          ${moneyField('Company / final-salary pension per year', 'partnerB.db', 'Guaranteed company/final-salary income (0 if none). Starts ' + P.partnerB.dbStartYear)}
+        </div>
+        <label class="switch" style="margin-top:0.4rem;"><input type="checkbox" id="dbb-indexed" ${P.partnerB.dbIndexed ? 'checked' : ''}> ${P.partnerB.name}'s company pension rises with inflation</label>
+      </div>
+    </details>
 
-    <h3>👤 Your partner</h3>
-    <p class="sub" style="margin-top:-0.4rem;">Planning solo? Leave the name as “Partner” and set their pots to 0.</p>
-    <div class="grid2">
-      ${textField('Partner’s name', 'partnerB.name', 'Leave as “Partner” if planning alone')}
-      ${numField('Birth year', 'partnerB.birthYear')}
-      ${numField('State pension age', 'partnerB.spAge', 'Usually 67')}
-      ${moneyField('Pension pot today', 'partnerB.pension', 'Total value of their pensions now')}
-      ${moneyField('ISA today', 'partnerB.isa', 'Their ISA value now (withdrawals are tax-free)')}
-      ${moneyField('Monthly pension investing', 'partnerB.monthlyPension', 'What they pay in each month until retirement')}
-      ${moneyField('Monthly ISA investing', 'partnerB.monthlyIsa', 'What they add to ISAs each month')}
-      ${moneyField('State pension per year', 'partnerB.spAmount', 'Standard full new State Pension. Change if theirs differs')}
-      ${moneyField('Defined-benefit pension per year', 'partnerB.db', 'Guaranteed company/final-salary income (0 if none). Starts ' + P.partnerB.dbStartYear)}
-    </div>
-    <label class="switch" style="margin-top:0.4rem;"><input type="checkbox" id="dbb-indexed" ${P.partnerB.dbIndexed ? 'checked' : ''}> ${P.partnerB.name}'s defined-benefit pension rises with inflation (off matches your workbook)</label>
+    <details class="section">
+      <summary>📅 When you retire</summary>
+      <div class="section-body"><div class="grid2">
+        ${numField('Retirement year', 'retireYear', 'The year you stop paying in and start drawing an income')}
+        ${numField('Plan to age', 'horizonAge', P.partnerA.name + "'s age the plan runs to")}
+      </div></div>
+    </details>
 
-    <h3>📅 Timing</h3>
-    <div class="grid2">
-      ${numField('Retirement year', 'retireYear', 'The year you stop paying in and start drawing an income')}
-      ${numField('Plan to age', 'horizonAge', P.partnerA.name + "'s age the plan runs to")}
-    </div>
+    <details class="section">
+      <summary>💰 Income you’ll need</summary>
+      <div class="section-body">
+        <div class="grid2">
+          ${moneyField('Target net income per year', 'targetNet', "Today's money. The 🛒 Spending tab can build this from a monthly budget instead")}
+        </div>
+        <p class="sub" style="margin-top:0.8rem;">Most people spend less as they get older. These two step-downs are on by default — adjust or switch off.</p>
+        <div class="grid2">
+          <div class="field"><label class="switch"><input type="checkbox" id="ph1-on" ${P.phase1On ? 'checked' : ''}> Ease spending in later life</label></div><div></div>
+          ${numField('From age', 'phase1Age')}
+          ${pctField('Reduce spending by', 'phase1Cut')}
+          <div class="field"><label class="switch"><input type="checkbox" id="ph2-on" ${P.phase2On ? 'checked' : ''}> A further step-down later</label></div><div></div>
+          ${numField('From age', 'phase2Age')}
+          ${pctField('Reduce by a further', 'phase2Cut')}
+        </div>
+      </div>
+    </details>
 
-    <h3>📊 Growth and inflation</h3>
-    <div class="grid2">
-      ${pctField('Base growth rate', 'growthBase', 'Your central assumption for investment returns')}
-      ${pctField('Inflation', 'inflation', 'How fast prices rise (2% is the long-run average)')}
-      ${pctField('Bear rate', 'growthBear', 'A poor decade for markets')}
-      ${pctField('Bull rate', 'growthBull', 'A strong decade for markets')}
-    </div>
+    <details class="section">
+      <summary>📊 Growth and inflation</summary>
+      <div class="section-body"><div class="grid2">
+        ${pctField('Base growth rate', 'growthBase', 'Your central assumption for investment returns')}
+        ${pctField('Inflation', 'inflation', 'How fast prices rise (2% is the long-run average)')}
+        ${pctField('Poor rate', 'growthBear', 'A weak decade for markets')}
+        ${pctField('Positive rate', 'growthBull', 'A strong decade for markets')}
+      </div></div>
+    </details>
 
-    <h3>💰 Income need</h3>
-    <div class="grid2">
-      ${moneyField('Target net income per year', 'targetNet', "Today's money. The 🛒 Spending tab can drive this instead")}
-    </div>
-
-    <h3>🎁 Inheritance</h3>
-    <label class="switch"><input type="checkbox" id="inherit-on" ${P.inherit.on ? 'checked' : ''}> Expect an inheritance</label>
-    <div class="grid2" style="margin-top:0.5rem;">
-      ${numField('Year received', 'inherit.year')}
-      ${moneyField('Amount', 'inherit.amount', "Today's money, indexed to the year")}
-    </div>
-    <label class="switch"><input type="checkbox" id="inherit-invest" ${P.inherit.invest ? 'checked' : ''}> Invest it when it arrives (compounds at your growth rate)</label>
-
-    <h3>💷 Cash savings</h3>
-    <div class="grid2">
-      ${moneyField('Cash savings & Premium Bonds', 'cash', 'Bank or NS&I. Spent tax-free, before your ISAs')}
-    </div>
-
-    <h3>🏠 Property and other assets</h3>
-    <div class="grid2">
-      ${moneyField('House value', 'house', 'For net worth and inheritance only. It never funds your retirement income')}
-      ${pctField('House growth per year', 'houseGrowth')}
-    </div>
-
-    <h3>🎲 Monte Carlo</h3>
-    <div class="grid2">
-      ${pctField('Mean return', 'mcMean')}
-      ${pctField('Volatility, standard deviation', 'mcSd')}
-      ${numField('Paths', 'mcPaths')}
-      ${numField('Seed', 'mcSeed', 'Fixed seed keeps results reproducible')}
-    </div>
-
-    <h3>🧾 Tax figures, 2026/27</h3>
-    <div class="grid2">
-      ${moneyField('Personal allowance', 'tax.personalAllowance')}
-      ${moneyField('Higher rate from', 'tax.higherThreshold')}
-      ${pctField('Basic rate', 'tax.basicRate')}
-      ${pctField('Higher rate', 'tax.higherRate')}
-      ${moneyField('Tax-free cash limit', 'tax.pclsCap')}
-      ${moneyField('Allowance taper starts', 'tax.taperStart')}
-    </div>
+    <details class="section">
+      <summary>🏦 Savings, property and one-offs</summary>
+      <div class="section-body">
+        <div class="grid2">
+          ${moneyField('Cash savings & Premium Bonds', 'cash', 'Bank or NS&I. Spent tax-free, before your ISAs')}
+          ${pctField('Return on cash', 'cashGrowth', 'Interest / Premium Bond prize rate on your cash')}
+          ${moneyField('House value', 'house', 'For net worth and inheritance only. It never funds your retirement income')}
+          ${pctField('House growth per year', 'houseGrowth')}
+        </div>
+        <label class="switch" style="margin-top:0.8rem;"><input type="checkbox" id="inherit-on" ${P.inherit.on ? 'checked' : ''}> Expect an inheritance</label>
+        <div class="grid2" style="margin-top:0.5rem;">
+          ${numField('Year received', 'inherit.year')}
+          ${moneyField('Amount', 'inherit.amount', "Today's money, indexed to the year")}
+        </div>
+        <label class="switch"><input type="checkbox" id="inherit-invest" ${P.inherit.invest ? 'checked' : ''}> Invest it when it arrives (compounds at your growth rate)</label>
+        <div style="margin-top:0.9rem;" class="no-print">
+          <button type="button" id="btn-goto-events" class="small">✏️ Add one-off life events (optional)</button>
+        </div>
+      </div>
+    </details>
 
     <div style="display:flex; gap:0.5rem; flex-wrap:wrap; margin-top:1rem;" class="no-print">
       <button id="btn-export" class="small">Export JSON</button>
       <button id="btn-import" class="small">Import JSON</button>
-      <button id="btn-reset" class="small danger">Reset to your workbook defaults</button>
+      <button id="btn-reset" class="small danger">Reset — delete all my data</button>
     </div>
     <input type="file" id="import-file" accept=".json" style="display:none">
   </div>`;
   wireInputs(el);
   $('dbb-indexed').onchange = (e) => { P.partnerB.dbIndexed = e.target.checked; changed(); };
+  $('ph1-on').onchange = (e) => { P.phase1On = e.target.checked; changed(); };
+  $('ph2-on').onchange = (e) => { P.phase2On = e.target.checked; changed(); };
+  $('btn-goto-events').onclick = () => activateTab('events');
   $('inherit-on').onchange = (e) => { P.inherit.on = e.target.checked; changed(); };
   $('inherit-invest').onchange = (e) => { P.inherit.invest = e.target.checked; changed(); };
   $('btn-export').onclick = () => {
@@ -539,26 +548,36 @@ function renderAssumptions(el) {
   $('import-file').onchange = (e) => {
     const f = e.target.files[0]; if (!f) return;
     const r = new FileReader();
-    r.onload = () => { try { S.P = mergeParams(E.defaults(), JSON.parse(r.result)); changed(); } catch { alert('Could not read that file.'); } };
+    r.onload = () => { try { S.P = mergeParams(E.freshStart(), JSON.parse(r.result)); changed(); } catch { alert('Could not read that file.'); } };
     r.readAsText(f);
   };
-  $('btn-reset').onclick = () => { if (confirm('Reset every input to the workbook defaults?')) { S.P = E.defaults(); changed(); } };
+  $('btn-reset').onclick = () => {
+    if (!confirm('Delete all your saved data and start fresh?')) return;
+    try { localStorage.removeItem('rl4-state'); } catch (e) {}
+    S.P = E.freshStart(); S.pinned = null; S.mc = null;
+    save(); recompute(); activateTab('assumptions');
+  };
 }
 
 function renderAccumulation(el) {
   const P = S.P, c = S.cache;
   const series = [
-    { name: 'Bear ' + pct(P.growthBear, 1), color: COLORS.bear, acc: c.accBear },
+    { name: 'Poor ' + pct(P.growthBear, 1), color: COLORS.bear, acc: c.accBear },
     { name: 'Base ' + pct(P.growthBase, 1), color: COLORS.base, acc: c.accBase },
-    { name: 'Bull ' + pct(P.growthBull, 1), color: COLORS.bull, acc: c.accBull },
+    { name: 'Positive ' + pct(P.growthBull, 1), color: COLORS.bull, acc: c.accBull },
   ];
   const total = (y) => y.pensionA + y.pensionB + y.isaA + y.isaB;
   const startTotal = P.partnerA.pension + P.partnerB.pension + P.partnerA.isa + P.partnerB.isa;
-  let maxV = startTotal;
-  for (const s of series) for (const y of s.acc.years) maxV = Math.max(maxV, total(y));
+  let minV = startTotal, maxV = startTotal;
+  for (const s of series) for (const y of s.acc.years) { const t = total(y); if (t < minV) minV = t; if (t > maxV) maxV = t; }
+  // Dynamic Y band: start near the lowest plotted value (not £0) so year-to-year
+  // movement is legible. Round to ~2 significant figures for tidy gridlines.
+  const nice = (v, up) => { if (v <= 0) return 0; const m = Math.pow(10, Math.floor(Math.log10(v)) - 1); return (up ? Math.ceil(v / m) : Math.floor(v / m)) * m; };
+  const span = maxV - minV, pad = span > 0 ? span * 0.12 : (maxV * 0.05 || 1);
+  const lo = Math.max(0, nice(minV - pad, false)), hi = nice(maxV + pad, true);
 
   const ch = chart({
-    xDomain: [P.startYear, P.retireYear], yDomain: [0, maxV * 1.05],
+    xDomain: [P.startYear, P.retireYear], yDomain: [lo, hi],
     yFmt: (v) => fmtK(v), xTicks: Math.min(6, Math.max(1, P.retireYear - P.startYear)), label: 'Accumulation to retirement',
   });
   for (const s of series) {
@@ -577,6 +596,7 @@ function renderAccumulation(el) {
     <p class="sub">Pensions plus ISAs, growing with your monthly investing of ${fmt(P.partnerA.monthlyPension + P.partnerB.monthlyPension + P.partnerA.monthlyIsa + P.partnerB.monthlyIsa)} a month across the household.</p>
     ${ch.get()}
     <div class="legend">${series.map(s => `<span><i style="background:${s.color}"></i>${s.name}</span>`).join('')}</div>
+    <p class="note">The vertical axis starts at ${fmtK(lo)}, not £0, so year-to-year movement is easy to see.</p>
     <div class="kpis" style="margin-top:0.9rem;">
       <div class="kpi"><div class="v">${fmtK(at.pensionA, P.retireYear)}</div><div class="k">${P.partnerA.name} pension at ${P.retireYear}</div></div>
       <div class="kpi"><div class="v">${fmtK(at.pensionB, P.retireYear)}</div><div class="k">${P.partnerB.name} pension</div></div>
@@ -619,15 +639,7 @@ function renderSpending(el) {
   <div class="card">
     <div class="kicker">Spending through retirement</div>
     <h2>Slow down later, spend less</h2>
-    <p class="sub">Most retirees spend less as they age. Choose when and by how much; both cuts compound.</p>
-    <div class="grid2">
-      <div class="field"><label class="switch"><input type="checkbox" id="ph1-on" ${P.phase1On ? 'checked' : ''}> First reduction</label></div><div></div>
-      ${numField('From age', 'phase1Age')}
-      ${pctField('Reduce spending by', 'phase1Cut')}
-      <div class="field"><label class="switch"><input type="checkbox" id="ph2-on" ${P.phase2On ? 'checked' : ''}> Second reduction</label></div><div></div>
-      ${numField('From age', 'phase2Age')}
-      ${pctField('Reduce by a further', 'phase2Cut')}
-    </div>
+    <p class="sub">Most retirees spend less as they age. ${P.phase1On || P.phase2On ? 'Your plan eases spending' + (P.phase1On ? ' by ' + pct(P.phase1Cut) + ' from age ' + P.phase1Age : '') + (P.phase2On ? ', then by a further ' + pct(P.phase2Cut) + ' from age ' + P.phase2Age : '') + '.' : 'These step-downs are currently off.'} Change this under <strong>Your details → Income you’ll need</strong>.</p>
     <div id="spend-curve" style="margin-top:0.8rem;"></div>
     <p class="note">Shown in today's money so the phase steps are visible without inflation on top.</p>
   </div>`;
@@ -652,8 +664,6 @@ function renderSpending(el) {
     });
   });
   $('spend-on').onchange = (e) => { P.spendingPlanOn = e.target.checked; changed(); };
-  $('ph1-on').onchange = (e) => { P.phase1On = e.target.checked; changed(); };
-  $('ph2-on').onchange = (e) => { P.phase2On = e.target.checked; changed(); };
   wireInputs(el);
 }
 
@@ -714,7 +724,7 @@ function renderDrawdown(el) {
     <h2>The full table</h2>
     <p class="sub">Your income year by year, with each partner's tax. ${S.todayMoney ? "Today's money." : 'Nominal figures.'}</p>
     <div style="margin-bottom:0.5rem;" class="no-print"><button id="btn-csv" class="small">Download CSV</button></div>
-    <div class="tbl-wrap"><table class="data sticky-first">
+    <div class="tbl-scroll"><div class="tbl-wrap"><table class="data sticky-first">
       <tr><th>Year</th><th>Age ${P.partnerA.name[0]}/${P.partnerB.name[0]}</th><th>Guaranteed</th><th>Pension draw</th><th>Tax-free</th><th>Tax</th><th>ISA draw</th><th>Net income</th><th>Need</th><th>Pension pots</th><th>ISAs</th></tr>
       ${rows.map(r => `<tr${r.shortfall > 1 ? ' class="warn"' : (r.eventLabels.length ? ' class="hl" title="' + r.eventLabels.join(', ') + '"' : '')}>
         <td>${r.year}${r.eventLabels.length ? ' 🎉' : ''}</td><td>${r.ageA}/${r.ageB}</td>
@@ -728,8 +738,22 @@ function renderDrawdown(el) {
         <td>${fmt(r.potA + r.potB, r.year)}</td>
         <td>${fmt(r.isaA + r.isaB + r.cash, r.year)}</td>
       </tr>`).join('')}
-    </table></div>
+    </table></div><span class="scroll-hint" aria-hidden="true">Scroll →</span></div>
   </div>`;
+
+  // Show the "scroll right" affordance only while the table actually overflows.
+  const box = el.querySelector('.tbl-scroll');
+  const sc = box && box.querySelector('.tbl-wrap');
+  if (box && sc) {
+    const upd = () => {
+      const over = sc.scrollWidth - sc.clientWidth > 1;
+      box.classList.toggle('overflowing', over);
+      box.classList.toggle('at-end', sc.scrollLeft >= sc.scrollWidth - sc.clientWidth - 1);
+    };
+    sc.addEventListener('scroll', upd);
+    window.addEventListener('resize', upd);
+    upd();
+  }
 
   $('btn-csv').onclick = () => {
     const head = ['year', 'ageA', 'ageB', 'guaranteed', 'pensionDrawGross', 'taxFreeCash', 'tax', 'isaDraw', 'netIncome', 'need', 'pensionPots', 'isas'];
@@ -1046,7 +1070,6 @@ function renderTab() {
   const el = $('tab-' + S.tab);
   VIEWS[S.tab](el);
   renderRail();
-  syncMoneyBanner();
 }
 
 // ── Live KPI rail (wide screens) and nominal banner ────────────────────
@@ -1076,10 +1099,6 @@ function renderRail() {
   </div>`;
 }
 
-function syncMoneyBanner() {
-  const b = $('money-banner');
-  if (b) b.hidden = S.todayMoney;
-}
 function renderAllForPrint() {
   for (const t of Object.keys(VIEWS)) VIEWS[t]($('tab-' + t));
 }
@@ -1124,6 +1143,37 @@ $('tabs').addEventListener('keydown', (e) => {
   if (j < 0) return;
   e.preventDefault();
   activateTab(btns[j].dataset.tab, true);
+});
+
+// ── "?" toggletips ──────────────────────────────────────────────────────
+// One delegated handler for every field's help button. Survives innerHTML
+// re-renders because it lives on the document. Click toggles the linked
+// help-text; outside-click and Escape close it.
+function closeHelp(except) {
+  document.querySelectorAll('.help-text.open').forEach(sp => {
+    if (sp === except) return;
+    sp.classList.remove('open');
+    const btn = document.querySelector('.help-btn[aria-controls="' + sp.id + '"]');
+    if (btn) btn.setAttribute('aria-expanded', 'false');
+  });
+}
+document.addEventListener('click', (e) => {
+  const btn = e.target.closest('.help-btn');
+  if (btn) {
+    e.preventDefault();
+    const sp = document.getElementById(btn.getAttribute('aria-controls'));
+    const open = sp && !sp.classList.contains('open');
+    closeHelp(open ? sp : null);
+    if (sp) { sp.classList.toggle('open', open); btn.setAttribute('aria-expanded', open ? 'true' : 'false'); }
+    return;
+  }
+  if (!e.target.closest('.help-text')) closeHelp(null);
+});
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') {
+    const open = document.querySelector('.help-text.open');
+    if (open) { const b = document.querySelector('.help-btn[aria-controls="' + open.id + '"]'); closeHelp(null); if (b) b.focus(); }
+  }
 });
 
 // ── Header controls ─────────────────────────────────────────────────────

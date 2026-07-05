@@ -76,6 +76,7 @@ export function createEngine() {
       house: 750000,
       houseGrowth: 0.03,
       cash: 0,
+      cashGrowth: 0,           // interest on cash / Premium Bonds (its own fixed rate)
 
       // Income need. targetNet and every spending line are today's money.
       targetNet: 60000,
@@ -114,9 +115,13 @@ export function createEngine() {
     const P = defaults();
     P.partnerA = { ...P.partnerA, name: 'You',     pension: 0, isa: 0, monthlyPension: 0, monthlyIsa: 0, db: 0 };
     P.partnerB = { ...P.partnerB, name: 'Partner', pension: 0, isa: 0, monthlyPension: 0, monthlyIsa: 0, db: 0 };
-    P.house = 0; P.houseGrowth = 0.03; P.cash = 0;
+    P.house = 0; P.houseGrowth = 0.03; P.cash = 0; P.cashGrowth = 0.02;
     P.inherit = { on: false, year: 2035, amount: 0, invest: true };
     P.lifeEvents = [];
+    // New plans assume spending naturally eases in later life (the workbook
+    // fixture keeps these off so its parity figures are unchanged).
+    P.phase1On = true; P.phase1Cut = 0.15;   // from age 75, spend 15% less
+    P.phase2On = true; P.phase2Cut = 0.25;   // from age 82, spend 25% less
     return P;
   }
 
@@ -239,6 +244,7 @@ export function createEngine() {
       a.isa = a.isa * (1 + g) + P.partnerA.monthlyIsa * 12 * contribHalf;
       b.pension = b.pension * (1 + g) + P.partnerB.monthlyPension * 12 * contribHalf;
       b.isa = b.isa * (1 + g) + P.partnerB.monthlyIsa * 12 * contribHalf;
+      cash = cash * (1 + (P.cashGrowth || 0));   // cash earns its own fixed rate
       // Pre-retirement life events, today's money indexed to the year
       for (const ev of events) {
         if (ev.year !== y) continue;
@@ -475,6 +481,7 @@ export function createEngine() {
       // Grow remaining pots, then land invested windfalls with half growth
       potA *= (1 + g); potB *= (1 + g);
       isaA *= (1 + g); isaB *= (1 + g);
+      cash *= (1 + (P.cashGrowth || 0));   // cash grows at its own fixed rate
       if (eventInvested > 0) isaA += eventInvested * (1 + g / 2);
 
       const wealth = potA + potB + isaA + isaB + cash;
@@ -716,7 +723,8 @@ export function createEngine() {
 
     for (let p = 0; p < nPaths; p++) {
       let potA = acc.pensionA, potB = acc.pensionB;
-      let isa = acc.isaA + acc.isaB + (acc.cash || 0);
+      let isa = acc.isaA + acc.isaB;
+      let cash = acc.cash || 0;
       let ok = true, minCoverage = 1;
       const track = [];
       for (let i = 0; i < nYears; i++) {
@@ -753,6 +761,11 @@ export function createEngine() {
         // Allowance-first ordering: partner with lower base first
         const order = baseA <= baseB
           ? [['A', baseA], ['B', baseB]] : [['B', baseB], ['A', baseA]];
+        // Cash (tax-free) first, mirroring the deterministic drawdown
+        if (need > 0.5 && cash > 0) {
+          const fromCash = Math.min(cash, need);
+          cash -= fromCash; need -= fromCash;
+        }
         for (const [who, base] of order) {
           if (need <= 0.5) break;
           const pot = who === 'A' ? potA : potB;
@@ -794,11 +807,12 @@ export function createEngine() {
         potA = clamp0(potA * (1 + r));
         potB = clamp0(potB * (1 + r));
         isa = clamp0(isa * (1 + r));
-        if (p < 60) track.push(potA + potB + isa);
+        cash = clamp0(cash * (1 + (P.cashGrowth || 0)));   // fixed rate, not random
+        if (p < 60) track.push(potA + potB + isa + cash);
       }
       if (ok) successes++;
       else trims.push(1 - minCoverage);
-      finals.push(potA + potB + isa);
+      finals.push(potA + potB + isa + cash);
       if (p < 60) tracks.push(track);
     }
 

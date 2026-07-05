@@ -357,8 +357,18 @@ function renderDashboard(el) {
   el.innerHTML = `
   <div class="card">
     <div class="kicker">${P.partnerA.name} and ${P.partnerB.name}, retiring April ${P.retireYear}</div>
-    <h2>Where the plan stands</h2>
-    <p class="sub">At ${pct(P.growth, 1)} growth and ${pct(P.inflation, 1)} inflation. ${S.todayMoney ? "All figures in today's money." : 'Nominal figures.'} Pick a scenario below and everything recomputes.</p>
+    <div class="kicker" style="margin-bottom:0.3rem;">Where the plan stands</div>
+    ${(() => {
+      const good = survives && !(y1.shortfall > 1);
+      const cls = good ? 'good' : (survives ? 'warn' : 'bad');
+      const txt = good
+        ? `Yes — your money lasts to age ${P.horizonAge}+` + (mc ? `, and holds up in about ${pct(mc.successProb)} of market scenarios.` : '.')
+        : (survives
+          ? `Almost — the income falls a little short in the first year. A slightly lower target or a later start closes it.`
+          : `Not yet — the money runs short around age ${dd.exhaustedAgeA}. Retiring a little later, saving a bit more, or easing spending closes the gap.`);
+      return `<div class="verdict ${cls}">${txt}</div>`;
+    })()}
+    <p class="sub">At ${pct(P.growth, 1)} growth and ${pct(P.inflation, 1)} inflation. ${S.todayMoney ? "All figures in today's money." : 'Future pounds, with your inflation included.'} Pick a scenario below and everything recomputes.</p>
     <div class="dash-scen no-print" role="group" aria-label="Growth scenario">
       ${[['bear', 'Poor', P.growthBear], ['base', 'Base', P.growthBase], ['bull', 'Positive', P.growthBull]].map(([k, lbl, g]) =>
         `<button type="button" data-dscen="${k}" class="${Math.abs(P.growth - g) < 1e-9 ? 'on' : ''}" aria-pressed="${Math.abs(P.growth - g) < 1e-9 ? 'true' : 'false'}">${lbl} <small>${pct(g, 1)}</small></button>`).join('')}
@@ -366,12 +376,12 @@ function renderDashboard(el) {
     </div>
     <div class="kpis">
       <div class="kpi good"><div class="v">${fmtK(potsAtRet, P.retireYear)}</div><div class="k">Pensions + ISAs at ${P.retireYear}</div>${kpiDelta('pots', potsAtRet, P.retireYear)}</div>
-      <div class="kpi ${y1.shortfall > 1 ? 'bad' : 'good'}"><div class="v">${fmtK(y1.netIncome, y1.year)}</div><div class="k">Net income in year one, need ${fmtK(y1.target, y1.year)}</div></div>
-      <div class="kpi ${survives ? 'good' : 'bad'}"><div class="v">${survives ? 'To ' + P.horizonAge + '+' : 'Age ' + dd.exhaustedAgeA}</div><div class="k">${survives ? 'Pot survives the full plan' : 'Pot exhausted'}</div>${kpiDelta('endWealth', dd.endWealth, endYear)}</div>
-      <div class="kpi"><div class="v">${fmtK(lifetimeTaxShown(dd))}</div><div class="k">Income tax to age ${P.horizonAge}${S.todayMoney ? ", today's money" : ''}</div>${kpiDelta('lifetimeTax', dd.lifetimeTax)}</div>
+      <div class="kpi ${y1.shortfall > 1 ? 'bad' : 'good'}"><div class="v">${fmtK(y1.netIncome, y1.year)}</div><div class="k">Spending money, first year (you need ${fmtK(y1.target, y1.year)})</div></div>
+      <div class="kpi ${survives ? 'good' : 'bad'}"><div class="v">${survives ? 'To ' + P.horizonAge + '+' : 'Age ' + dd.exhaustedAgeA}</div><div class="k">${survives ? 'Your money lasts the whole plan' : 'Money runs short here — fixable'}</div>${kpiDelta('endWealth', dd.endWealth, endYear)}</div>
+      <div class="kpi"><div class="v">${fmtK(lifetimeTaxShown(dd))}</div><div class="k">Income tax over the plan${S.todayMoney ? ", today's money" : ''}</div>${kpiDelta('lifetimeTax', dd.lifetimeTax)}</div>
       <div class="kpi ${mc ? (mc.successProb >= 0.85 ? 'good' : mc.successProb >= 0.6 ? 'warn' : 'bad') : ''}">
-        <div class="v">${mc ? pct(mc.successProb) : '…'}</div><div class="k">Monte Carlo success, ${P.mcPaths} paths${S.mcBusy ? ', running' : ''}</div></div>
-      <div class="kpi"><div class="v">${mc ? mc.confidenceAge : '…'}</div><div class="k">Confidence age, 85% threshold</div></div>
+        <div class="v">${mc ? pct(mc.successProb) : '…'}</div><div class="k">How often the plan works, across ${P.mcPaths} market runs${S.mcBusy ? ', running' : ''}</div></div>
+      <div class="kpi"><div class="v">${mc ? mc.confidenceAge : '…'}</div><div class="k">Very likely safe to at least this age</div></div>
     </div>
     <div style="display:flex; gap:0.5rem; margin-top:0.9rem; flex-wrap:wrap;" class="no-print">
       <button id="btn-pin" class="small">${S.pinned ? 'Update plan A pin' : 'Pin as plan A'}</button>
@@ -495,16 +505,6 @@ function renderAssumptions(el) {
     </details>
 
     <details class="section">
-      <summary>📊 Growth and inflation</summary>
-      <div class="section-body"><div class="grid2">
-        ${pctField('Base growth rate', 'growthBase', 'Your central assumption for investment returns')}
-        ${pctField('Inflation', 'inflation', 'How fast prices rise (2% is the long-run average)')}
-        ${pctField('Poor rate', 'growthBear', 'A weak decade for markets')}
-        ${pctField('Positive rate', 'growthBull', 'A strong decade for markets')}
-      </div></div>
-    </details>
-
-    <details class="section">
       <summary>🏦 Savings, property and one-offs</summary>
       <div class="section-body">
         <div class="grid2">
@@ -525,13 +525,34 @@ function renderAssumptions(el) {
       </div>
     </details>
 
-    <div style="display:flex; gap:0.5rem; flex-wrap:wrap; margin-top:1rem;" class="no-print">
-      <button id="btn-export" class="small">Export JSON</button>
-      <button id="btn-import" class="small">Import JSON</button>
-      <button id="btn-reset" class="small danger">Reset — delete all my data</button>
-    </div>
-    <input type="file" id="import-file" accept=".json" style="display:none">
+    <details class="section">
+      <summary>📊 Growth and inflation — advanced, good defaults set</summary>
+      <div class="section-body">
+        <p class="sub">Most people leave these. The Poor / Base / Positive buttons on the Dashboard flip between the first three.</p>
+        <div class="grid2">
+          ${pctField('Base growth rate', 'growthBase', 'Your central assumption for investment returns')}
+          ${pctField('Inflation', 'inflation', 'How fast prices rise (2% is the long-run average)')}
+          ${pctField('Poor rate', 'growthBear', 'A weak decade for markets')}
+          ${pctField('Positive rate', 'growthBull', 'A strong decade for markets')}
+        </div>
+      </div>
+    </details>
+
+    <button type="button" id="btn-see-answer" class="cta-primary no-print">See my answer →</button>
+    <details class="section" style="margin-top:0.8rem;">
+      <summary>🔒 Manage my data &amp; privacy</summary>
+      <div class="section-body">
+        <p class="sub">Everything stays on this device. You can save a copy, load one back, or wipe it all.</p>
+        <div style="display:flex; gap:0.5rem; flex-wrap:wrap;" class="no-print">
+          <button id="btn-export" class="small">Export a copy</button>
+          <button id="btn-import" class="small">Load a saved copy</button>
+          <button id="btn-reset" class="small danger">Reset — delete all my data</button>
+        </div>
+        <input type="file" id="import-file" accept=".json" style="display:none">
+      </div>
+    </details>
   </div>`;
+  $('btn-see-answer').onclick = () => activateTab('dashboard');
   wireInputs(el);
   $('dbb-indexed').onchange = (e) => { P.partnerB.dbIndexed = e.target.checked; changed(); };
   $('ph1-on').onchange = (e) => { P.phase1On = e.target.checked; changed(); };

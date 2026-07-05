@@ -165,6 +165,33 @@ commercially, have a solicitor check them. At minimum:
 Bump `disclaimerVersion` in `config/product.js` if you materially change the
 disclaimer — it forces every user to re-accept.
 
+### Data protection / UK GDPR
+
+RetireLens is privacy-friendly by design: your users' financial figures are
+processed entirely in their browser and never reach you. That removes most of
+the usual data-protection burden, but once you take payments you do handle
+*some* personal data (buyers' payment/contact details, server logs). Before
+charging:
+
+- **Fill in the controller details** in the `legal.html` privacy notice
+  (section 3 → "Who is the data controller") — same real name/contact as your
+  trader identity.
+- **Check whether you must pay the ICO data protection fee.** Most UK
+  businesses that process personal data for their own commercial purposes must
+  register with the ICO and pay an annual fee (typically £40–£60). Use the
+  ICO's short self-assessment: <https://ico.org.uk/for-organisations/data-protection-fee/>.
+- **Rely on Stripe's built-in compliance for payments.** Stripe acts as its own
+  controller/processor, provides a Data Processing Agreement, and handles card
+  data (PCI) and international-transfer safeguards. You don't store card details.
+- **No cookie banner is required** as shipped: the app uses only strictly
+  necessary local storage and runs no analytics, ads, or third-party trackers
+  (Chart.js and the Inter font are self-hosted, so there are no third-party
+  requests at all). If you later add analytics, you must add a compliant
+  consent banner and update the privacy notice.
+- **Handle rights requests** sent to your support email within one month. Local
+  planning data is erased by the user via "Reset & Start Over"; you only need to
+  action requests about data you actually hold (e.g. payment records).
+
 ---
 
 ## Step 8 — Ship it

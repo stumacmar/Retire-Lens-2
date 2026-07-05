@@ -2072,9 +2072,10 @@
       if (!projection || !plan || !data) return null;
       const s = projection.summary;
 
+      const esc = (str) => String(str).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
       const isCouple = state.onboardingState?.householdType === HOUSEHOLD_TYPES.COUPLE;
-      const nameA = personName('personA');
-      const nameB = personName('personB');
+      const nameA = esc(personName('personA'));
+      const nameB = esc(personName('personB'));
       const title = isCouple && nameB
         ? `${nameA} &amp; ${nameB}'s retirement plan`
         : `${nameA === 'You' ? 'Your' : nameA + "'s"} retirement plan`;
@@ -2105,13 +2106,17 @@
         }
       } catch (e) { /* ok */ }
 
-      // The answer + "what this means", by confidence band
+      // The answer + "what this means" — driven by ONE source of truth (whether
+      // the plan lasts, deterministic), so the narrative can never contradict
+      // the facts. Monte Carlo confidence appears only as the honest, separate
+      // "held up in our tests" figure below.
       let answer, means;
-      if (confidence >= 85) {
-        answer = `You're on track to retire at ${retireAge} on about ${monthly} a month. On these figures, that income keeps going right through the plan to age 90 — so it holds up, with room to spare.`;
+      if (lasts) {
+        const spare = confidence >= 85 ? ', with room to spare' : '';
+        answer = `You're on track to retire at ${retireAge} on about ${monthly} a month. On these figures, that income keeps going right through the plan to age 90 — so it holds up${spare}.`;
         means = `In plain terms, you've built enough to stop working at ${retireAge} and draw the income you're after, without watching every penny. Nothing here is guaranteed — markets and life move around — but you're starting from a strong position.`;
-      } else if (confidence >= 60) {
-        answer = `You're close. Retiring at ${retireAge} on about ${monthly} a month looks achievable — around ${confidence} times out of 100 in our tests it lasted the distance. A small change would put it beyond doubt.`;
+      } else if (runsLowAge >= 85) {
+        answer = `You're close. Retiring at ${retireAge} on about ${monthly} a month is nearly there — on these figures the money holds up well but starts to get a little tight around age ${runsLowAge}. A small change (below) would see it comfortably through.`;
         means = `In plain terms, you're nearly there. The income you want is within reach, but there isn't a lot of cushion if life throws a curveball. Think of this as a plan worth a second look, not one to worry over.`;
       } else {
         answer = `Not quite yet — and that's useful to know now. As things stand, retiring at ${retireAge} on ${monthly} a month gets tight around age ${runsLowAge}. The good news: a modest change brings it back into reach.`;

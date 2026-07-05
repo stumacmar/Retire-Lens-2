@@ -71,7 +71,8 @@ function show() {
       </ol>
       <button class="rl-wel-btn" id="rl-wel-start">Start with my details →</button>
       <button class="rl-wel-skip" id="rl-wel-skip">Skip — take me straight to the numbers</button>
-      <p class="rl-wel-note">You can change anything later. Your figures stay on this device.</p>
+      <p class="rl-wel-note">You can change anything later. Your figures stay on this device.<br>
+        <a href="friendly.html" style="color:#0e7a6e;">Why I built this</a> · <a href="legal.html" style="color:#0e7a6e;">the important bit (not advice)</a></p>
     </div>`;
   document.body.appendChild(el);
 

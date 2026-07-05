@@ -638,10 +638,14 @@ function renderAssumptions(el) {
     r.readAsText(f);
   };
   $('btn-reset').onclick = () => {
-    if (!confirm('Delete all your saved data and start fresh?')) return;
-    try { localStorage.removeItem('rl4-state'); } catch (e) {}
-    S.P = E.freshStart(); S.pinned = null; S.mc = null;
-    save(); recompute(); activateTab('assumptions');
+    if (!confirm('Delete all your saved data and start over from the very beginning (you\'ll see the welcome and disclaimer again)?')) return;
+    // A true "start over": clear the plan AND the first-run flags, then reload so
+    // the disclaimer and welcome replay exactly as a brand-new visitor sees them.
+    try {
+      ['rl4-state', 'rl_disclaimer_accepted_v', 'rl_welcomed_v1', 'rl_access_granted', 'rl_access_code']
+        .forEach(k => localStorage.removeItem(k));
+    } catch (e) {}
+    location.reload();
   };
 }
 

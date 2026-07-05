@@ -21,7 +21,7 @@ const IN = {
   startYear: 2026, retireYear: 2030, horizonAge: 90,
   growthBase: 7, inflation: 2, growthBear: 4, growthBull: 10,
   targetNet: 60000,
-  house: 750000, mortgage: 69000, mortgageMonthly: 1000, motorhome: 63000,
+  house: 750000,
 };
 // Owner's real Marshall workbook results (Base 7%). Read live from the .xlsx if
 // a path is passed (node tests/ui-excel-reconcile.mjs <workbook.xlsx>), else use
@@ -120,9 +120,6 @@ await setField('growthBear', IN.growthBear);
 await setField('growthBull', IN.growthBull);
 await setField('targetNet', IN.targetNet);
 await setField('house', IN.house);
-await setField('mortgage', IN.mortgage);
-await setField('mortgageMonthly', IN.mortgageMonthly);
-await setField('motorhome', IN.motorhome);
 await page.waitForTimeout(300);
 
 // Base scenario + nominal money, so scraped figures are raw nominal (like the workbook).
@@ -206,7 +203,7 @@ const rows = [
   ['Metric', 'App (UI, scraped)', 'Excel model (formula)', 'Owner workbook', 'App vs Excel', 'App vs workbook'],
   ['Pension at retirement', uiPensionAtRetire, xlPensionAtRetire, EXCEL_WORKBOOK.pensionAtRetire],
   ['ISA at retirement',     uiIsaAtRetire,     xlIsaAtRetire,     EXCEL_WORKBOOK.isaAtRetire],
-  ["Year-1 spend ex-mortgage", uiYear1NetTodays,  xlYear1Net,        EXCEL_WORKBOOK.year1Net],
+  ["Year-1 net income", uiYear1NetTodays,  xlYear1Net,        EXCEL_WORKBOOK.year1Net],
 ];
 const TOL_APP_XL = 0.5;      // app vs independent Excel formula
 const TOL_APP_WB = 2.5;      // app vs owner's workbook (contribution-timing differences)

@@ -35,7 +35,6 @@ const accBear = E.accumulate(P, 0.04).atRetirement;
 near(accBear.pensionA, 818893, 0.02, 'Stuart SIPP at 2030, bear');
 const accBull = E.accumulate(P, 0.10).atRetirement;
 near(accBull.pensionA, 1005093, 0.02, 'Stuart SIPP at 2030, bull');
-near(accBase.mortgage, 21000, 0.001, 'Mortgage remaining at 2030');
 
 near(E.taxOn(57548), 10451.2, 0.001, 'Tax on 57548 single person');
 near(E.taxOn(77548), 18451.2, 0.001, 'Tax on 77548 single person');
@@ -109,15 +108,15 @@ console.log('Grid: ' + combos + ' drawdown combinations checked.');
   check(y2030.tax <= merged + 1, `per-partner ${Math.round(y2030.tax)} beats merged ${Math.round(merged)}`);
   // Stuart has no base income in 2030, so his allowance must be in use
   check(y2030.grossA >= 12000, 'Stuart allowance actually used in 2030, drew ' + Math.round(y2030.grossA));
-  // Large need, no mortgage: the historical optimum for this need is 9,951
+  // Large need: the historical optimum for this need is 9,951
   // (both allowances used, remainder at 20%). Must not regress above it.
-  const Qnm = E.defaults(); Qnm.mortgage = 0;
+  const Qnm = E.defaults();
   const ynm = E.drawdown(Qnm).rows[0];
   check(ynm.tax <= 9951.5, `large-need optimum held: ${Math.round(ynm.tax)} <= 9951`);
   // Low need: everything should fit inside Stuart's free allowance, so the
   // only tax is on Carol's guaranteed income. The old serve-B-first order
   // paid 20% on this. This is the audit's key allocation regression.
-  const Qlow = E.defaults(); Qlow.mortgage = 0; Qlow.targetNet = 30000;
+  const Qlow = E.defaults(); Qlow.targetNet = 30000;
   const ylow = E.drawdown(Qlow).rows[0];
   const carolBaseTax = E.taxOn(ylow.spB + ylow.dbB);
   // Optimal tax for this year: Carol's base tax, plus 20% on the grossed-up
@@ -130,17 +129,10 @@ console.log('Grid: ' + combos + ' drawdown combinations checked.');
   check(ylow.grossA >= 12570 - 1, 'Stuart free allowance fully used at low need');
 }
 
-// 3.2 Mortgage: paid from cash flow at nominal value until cleared, and
-// absent from the spending builder.
+// 3.2 The spending builder carries no mortgage or motorhome line.
 {
   check(!E.defaults().spending.some(s => s.key === 'mortgage'), 'no mortgage line in spending builder');
-  check(y2030.mortgagePay === 12000, '2030 pays 12000 of mortgage, got ' + y2030.mortgagePay);
-  const y2031 = dd.rows[1];
-  check(y2031.mortgagePay === 9000, '2031 pays the final 9000, got ' + y2031.mortgagePay);
-  const y2032 = dd.rows[2];
-  check(y2032.mortgagePay === 0 && y2032.mortgageLeft === 0, 'mortgage gone by 2032');
-  const total = dd.rows.reduce((s, r) => s + r.mortgagePay, 0);
-  check(Math.abs(total - 21000) < 1, 'total retirement mortgage payments equal the 2030 balance');
+  check(!E.defaults().spending.some(s => s.key === 'motorhome'), 'no motorhome line in spending builder');
 }
 
 // 3.3 Life events and inheritance are today's money, indexed to the year.
@@ -225,10 +217,9 @@ console.log('Grid: ' + combos + ' drawdown combinations checked.');
   const lt = E.lifetimeTotals(E.defaults());
   check(lt.spend > 0 && lt.tax > 0 && lt.growthInRetirement > 0, 'lifetime totals positive');
   check(lt.taxPer100Drawn > 0 && lt.taxPer100Drawn < 45, 'tax per 100 drawn sane: ' + lt.taxPer100Drawn.toFixed(1));
-  near(lt.mortgage, 21000, 0.001, 'lifetime mortgage payments');
 }
 
-// 3.10 Spending builder drives the target when enabled; total excludes mortgage.
+// 3.10 Spending builder drives the target when enabled.
 {
   const q = E.defaults();
   q.spendingPlanOn = true;

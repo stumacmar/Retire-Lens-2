@@ -7,9 +7,7 @@
  *   1. Tax is computed per partner, allocated by marginal rate, so both
  *      personal allowances and basic bands are used before anyone pays 40%.
  *   2. State pensions are today's money indexed from the start year.
- *   3. The remaining mortgage is paid explicitly from retirement cash flow,
- *      held at its nominal payment, until the balance clears.
- *   4. Life event and inheritance amounts are today's money, indexed to
+ *   3. Life event and inheritance amounts are today's money, indexed to
  *      their year, matching every other money input.
  * All logic is pure and deterministic; the Monte Carlo takes a seed.
  * No em dashes anywhere. All figures nominal unless stated.
@@ -74,15 +72,9 @@ export function createEngine() {
       mcPaths: 1000,
       mcSeed: 42,
 
-      // Property and chattels, tracked for net worth and estate.
-      // The mortgage is a real liability: payments continue from retirement
-      // cash flow, at the nominal monthly amount, until the balance clears.
+      // Property, tracked for net worth and estate.
       house: 750000,
       houseGrowth: 0.03,
-      mortgage: 69000,
-      mortgageMonthly: 1000,
-      motorhome: 63000,
-      motorhomeDepPerYear: 3000,
       cash: 0,
 
       // Income need. targetNet and every spending line are today's money.
@@ -122,8 +114,7 @@ export function createEngine() {
     const P = defaults();
     P.partnerA = { ...P.partnerA, name: 'You',     pension: 0, isa: 0, monthlyPension: 0, monthlyIsa: 0, db: 0 };
     P.partnerB = { ...P.partnerB, name: 'Partner', pension: 0, isa: 0, monthlyPension: 0, monthlyIsa: 0, db: 0 };
-    P.house = 0; P.houseGrowth = 0.03; P.mortgage = 0; P.mortgageMonthly = 0;
-    P.motorhome = 0; P.motorhomeDepPerYear = 0; P.cash = 0;
+    P.house = 0; P.houseGrowth = 0.03; P.cash = 0;
     P.inherit = { on: false, year: 2035, amount: 0, invest: true };
     P.lifeEvents = [];
     return P;
@@ -131,14 +122,11 @@ export function createEngine() {
 
   function defaultSpending() {
     // Suite of monthly headings, all today's money, all editable.
-    // No mortgage line: the mortgage is modelled explicitly and stops
-    // when the balance is repaid.
     return [
       { key: 'council',    label: 'Council tax',                 monthly: 250 },
       { key: 'utilities',  label: 'Utilities and energy',        monthly: 300 },
       { key: 'groceries',  label: 'Groceries',                   monthly: 650 },
       { key: 'transport',  label: 'Cars, fuel and travel',       monthly: 350 },
-      { key: 'motorhome',  label: 'Motorhome running costs',     monthly: 250 },
       { key: 'insurance',  label: 'Insurance',                   monthly: 200 },
       { key: 'health',     label: 'Health and dental',           monthly: 150 },
       { key: 'phone',      label: 'Phone, broadband, subs',      monthly: 120 },
@@ -168,7 +156,7 @@ export function createEngine() {
     return f;
   }
 
-  /** Net spending target for a calendar year, nominal, excluding mortgage. */
+  /** Net spending target for a calendar year, nominal. */
   function targetForYear(P, year) {
     return spendingAnnual(P) * inflFactor(P, year) * phaseFactor(P, ageIn(P.partnerA, year));
   }
@@ -243,7 +231,6 @@ export function createEngine() {
     let a = { pension: P.partnerA.pension, isa: P.partnerA.isa };
     let b = { pension: P.partnerB.pension, isa: P.partnerB.isa };
     let cash = P.cash;
-    let mort = P.mortgage;
     const events = effectiveEvents(P);
 
     for (let y = P.startYear; y < P.retireYear; y++) {
@@ -252,9 +239,6 @@ export function createEngine() {
       a.isa = a.isa * (1 + g) + P.partnerA.monthlyIsa * 12 * contribHalf;
       b.pension = b.pension * (1 + g) + P.partnerB.monthlyPension * 12 * contribHalf;
       b.isa = b.isa * (1 + g) + P.partnerB.monthlyIsa * 12 * contribHalf;
-      // Mortgage payments before retirement come from salary, as in the
-      // workbook, so they reduce the balance without touching the pots.
-      mort = clamp0(mort - P.mortgageMonthly * 12);
       // Pre-retirement life events, today's money indexed to the year
       for (const ev of events) {
         if (ev.year !== y) continue;
@@ -278,15 +262,14 @@ export function createEngine() {
         year: y + 1,
         pensionA: a.pension, isaA: a.isa,
         pensionB: b.pension, isaB: b.isa,
-        cash, mortgage: mort,
+        cash,
         house: P.house * Math.pow(1 + P.houseGrowth, y + 1 - P.startYear),
-        motorhome: clamp0(P.motorhome - P.motorhomeDepPerYear * (y + 1 - P.startYear)),
       });
     }
     const last = years[years.length - 1] || {
       year: P.startYear, pensionA: a.pension, isaA: a.isa,
-      pensionB: b.pension, isaB: b.isa, cash, mortgage: mort,
-      house: P.house, motorhome: P.motorhome,
+      pensionB: b.pension, isaB: b.isa, cash,
+      house: P.house,
     };
     return { years, atRetirement: last, warnings };
   }
@@ -307,7 +290,6 @@ export function createEngine() {
     let potA = acc.pensionA, potB = acc.pensionB;
     let isaA = acc.isaA, isaB = acc.isaB;
     let cash = acc.cash || 0;
-    let mortgageLeft = acc.mortgage || 0;
     let pclsUsedA = 0, pclsUsedB = 0;
 
     // PCLS upfront: crystallise everything at retirement, take 25% capped.
@@ -341,10 +323,6 @@ export function createEngine() {
       const baseB = dbB + spB;
       const guaranteedNet = baseA + baseB - taxOn(baseA, T) - taxOn(baseB, T);
 
-      // Mortgage: nominal payment, stops when the balance clears
-      const mortgagePay = Math.min(P.mortgageMonthly * 12, mortgageLeft);
-      mortgageLeft = clamp0(mortgageLeft - mortgagePay);
-
       // This year's net need
       const target = targetForYear(P, year);
       let eventCost = 0, eventIncome = 0, eventInvested = 0;
@@ -360,7 +338,7 @@ export function createEngine() {
       // Invested windfalls join the ISA pot mid-year: half a year of growth
       // this year, full growth thereafter. Applied after this year's growth
       // step below via a carry.
-      let need = clamp0(target + mortgagePay + eventCost - eventIncome - guaranteedNet);
+      let need = clamp0(target + eventCost - eventIncome - guaranteedNet);
 
       // Funding
       let grossA = 0, grossB = 0, tfcA = 0, tfcB = 0, isaDraw = 0, cashDraw = 0;
@@ -492,7 +470,7 @@ export function createEngine() {
 
       const netIncome = baseA + baseB + grossA + grossB + tfcA + tfcB
         - totalTax + isaDraw + cashDraw + eventIncome;
-      const shortfall = clamp0(target + mortgagePay + eventCost - netIncome);
+      const shortfall = clamp0(target + eventCost - netIncome);
 
       // Grow remaining pots, then land invested windfalls with half growth
       potA *= (1 + g); potB *= (1 + g);
@@ -509,7 +487,6 @@ export function createEngine() {
         grossA, grossB, tfcA, tfcB,
         taxA, taxB, tax: totalTax,
         isaDraw, cashDraw,
-        mortgagePay, mortgageLeft,
         eventCost, eventInflow: eventIncome + eventInvested, eventLabels,
         target, netIncome, shortfall,
         potA, potB, isaA, isaB, cash, wealth,
@@ -657,7 +634,7 @@ export function createEngine() {
   function lifetimeTotals(P) {
     const dd = drawdown(P);
     const acc = dd.startPots;
-    let spend = 0, tax = 0, grossDraws = 0, tfc = 0, guaranteed = 0, isaDraws = 0, mortgage = 0;
+    let spend = 0, tax = 0, grossDraws = 0, tfc = 0, guaranteed = 0, isaDraws = 0;
     for (const r of dd.rows) {
       spend += r.netIncome;
       tax += r.tax;
@@ -665,7 +642,6 @@ export function createEngine() {
       tfc += r.tfcA + r.tfcB;
       guaranteed += r.guaranteed;
       isaDraws += r.isaDraw + r.cashDraw;
-      mortgage += r.mortgagePay;
     }
     const startWealth = acc.pensionA + acc.pensionB + acc.isaA + acc.isaB + (acc.cash || 0);
     // Growth earned during retirement, exact by conservation:
@@ -677,7 +653,7 @@ export function createEngine() {
     const outflows = grossDraws + tfc + isaDraws;
     const growth = dd.endWealth - startWealth - invested + outflows;
     return {
-      spend, tax, grossDraws, tfc, guaranteed, isaDraws, mortgage,
+      spend, tax, grossDraws, tfc, guaranteed, isaDraws,
       startWealth, endWealth: dd.endWealth, growthInRetirement: growth,
       taxPer100Drawn: grossDraws + tfc > 0 ? tax / (grossDraws + tfc) * 100 : 0,
     };
@@ -690,12 +666,10 @@ export function createEngine() {
     const row = dd.rows.find(r => r.year === year) || dd.rows[dd.rows.length - 1];
     const yearsOn = year - P.startYear;
     const house = P.house * Math.pow(1 + P.houseGrowth, yearsOn);
-    const mortLeft = row ? row.mortgageLeft : clamp0(P.mortgage - P.mortgageMonthly * 12 * yearsOn);
-    const motorhome = clamp0(P.motorhome - P.motorhomeDepPerYear * yearsOn);
     const pensions = row ? row.potA + row.potB : 0;
     const isas = row ? row.isaA + row.isaB + row.cash : 0;
     const pensionsIn = P.iht.includePensions && year >= P.iht.pensionsInEstateFrom;
-    const inScope = house - mortLeft + motorhome + isas + (pensionsIn ? pensions : 0);
+    const inScope = house + isas + (pensionsIn ? pensions : 0);
     // Residence nil-rate band tapers £1 per £2 of estate above £2m
     const persons = P.iht.couple ? 2 : 1;
     const rnrbTaperStart = 2000000;
@@ -705,7 +679,7 @@ export function createEngine() {
     const taxable = clamp0(inScope - nrb);
     const iht = taxable * P.iht.rate;
     return {
-      year, house, mortLeft, motorhome, pensions, isas,
+      year, house, pensions, isas,
       pensionsIn, inScope, nrb, rnrb, rnrbFull, taxable, iht,
       netToHeirs: inScope - iht + (pensionsIn ? 0 : pensions),
     };
@@ -714,7 +688,7 @@ export function createEngine() {
   // ── Monte Carlo on the drawdown phase ─────────────────────────────────
   // Mirrors the deterministic funding: per-partner pensions taxed on their
   // own bands, filled to the basic rate threshold, ISA pool for the excess,
-  // mortgage paid until cleared, events and inheritance indexed.
+  // events and inheritance indexed.
   function mulberry32(seed) {
     let s = seed >>> 0;
     return function () {
@@ -743,7 +717,6 @@ export function createEngine() {
     for (let p = 0; p < nPaths; p++) {
       let potA = acc.pensionA, potB = acc.pensionB;
       let isa = acc.isaA + acc.isaB + (acc.cash || 0);
-      let mortLeft = acc.mortgage || 0;
       let ok = true, minCoverage = 1;
       const track = [];
       for (let i = 0; i < nYears; i++) {
@@ -758,9 +731,6 @@ export function createEngine() {
         const baseA = spA + dbA, baseB = spB + dbB;
         const guaranteedNet = baseA + baseB - taxOn(baseA, T) - taxOn(baseB, T);
 
-        const mortPay = Math.min(P.mortgageMonthly * 12, mortLeft);
-        mortLeft = clamp0(mortLeft - mortPay);
-
         let eventNet = 0;
         for (const ev of events) {
           if (ev.year !== year) continue;
@@ -769,7 +739,7 @@ export function createEngine() {
           else if (ev.invest) isa += amt;
           else eventNet += amt;
         }
-        const target = targetForYear(P, year) + mortPay;
+        const target = targetForYear(P, year);
         let need = clamp0(target - guaranteedNet - eventNet);
 
         // Pension draws to each partner's basic band, cheaper marginal first

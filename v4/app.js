@@ -14,7 +14,7 @@ const $ = (id) => document.getElementById(id);
 const S = {
   P: E.defaults(),
   tab: 'dashboard',
-  todayMoney: false,
+  todayMoney: true,   // open in today's money — clearer for people, matches the workbook view
   pinned: null,
   mc: null,
   mcBusy: false,

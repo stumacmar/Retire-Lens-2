@@ -34,3 +34,6 @@ npm-debug.log*
 tmp/
 temp/
 *.tmp
+
+# Generated Excel model (regenerate with npm run beta:excel)
+RetireLens-Reference-Model.xlsx

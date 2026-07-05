@@ -208,7 +208,8 @@ export function runSingleSimulation(plan, accumulationReturns, decumulationRetur
       const taxablePension = pensionWithdrawn - pclsThisYear;
       const recalcTax = calculateTaxFromGross(totalGuaranteed + taxablePension, effectiveTaxConfig);
       withdrawalResult.taxPaid = recalcTax.total;
-      withdrawalResult.netIncome = recalcTax.netIncome + withdrawalResult.withdrawals.isa;
+      // + pclsThisYear: the retiree receives the tax-free cash too, not just the taxed slice
+      withdrawalResult.netIncome = recalcTax.netIncome + withdrawalResult.withdrawals.isa + pclsThisYear;
     }
 
     let targetMetThisYear = true;

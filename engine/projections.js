@@ -420,7 +420,12 @@ export function projectDecumulation(plan, accumulationResult, endAge = 90) {
       );
     }
 
-    // Marginal PCLS: 25% of pension withdrawals are tax-free (up to remaining entitlement)
+    // Marginal PCLS: 25% of each pension withdrawal is tax-free (up to the
+    // remaining entitlement). The retiree receives the FULL pension cash — both
+    // the taxable portion and the tax-free portion — so net income must include
+    // the tax-free cash, not just the taxed slice. (Crediting the full cash also
+    // keeps the pot trajectory unchanged: the balance already fell by the gross
+    // withdrawal.)
     const pensionWithdrawn = withdrawalResult.withdrawals.pension;
     if (pensionWithdrawn > 0 && pclsRemainingEntitlement > 0) {
       const pclsThisYear = Math.min(pensionWithdrawn * pclsRate, pclsRemainingEntitlement);
@@ -433,16 +438,17 @@ export function projectDecumulation(plan, accumulationResult, endAge = 90) {
         ? (statePension + dbPension)
         : totalGuaranteedIncome;
       const recalcTax = calculateTaxFromGross(guaranteedIncome + taxablePension, taxConfig);
-      const taxSaving = (withdrawalResult.taxPaid || 0) - recalcTax.total;
 
       if (partnerCurrentAge > 0) {
         const personBIncome = partnerStatePension + partnerDbPension;
         const personBTax = calculateTaxFromGross(personBIncome, taxConfig);
         withdrawalResult.taxPaid = recalcTax.total + personBTax.total;
-        withdrawalResult.netIncome = recalcTax.netIncome + withdrawalResult.withdrawals.isa + personBTax.netIncome;
+        // + pclsThisYear: the tax-free cash the retiree actually receives
+        withdrawalResult.netIncome = recalcTax.netIncome + withdrawalResult.withdrawals.isa + pclsThisYear + personBTax.netIncome;
       } else {
         withdrawalResult.taxPaid = recalcTax.total;
-        withdrawalResult.netIncome = recalcTax.netIncome + withdrawalResult.withdrawals.isa;
+        // + pclsThisYear: the tax-free cash the retiree actually receives
+        withdrawalResult.netIncome = recalcTax.netIncome + withdrawalResult.withdrawals.isa + pclsThisYear;
       }
     }
 

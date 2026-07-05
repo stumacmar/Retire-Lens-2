@@ -14,7 +14,7 @@ import { test, expect } from '@playwright/test';
 test.describe('Couples Scenario', () => {
   
   test.beforeEach(async ({ page }) => {
-    await page.goto('/');
+    await page.goto('/app.html');
     // Wait for app to initialize
     await page.waitForSelector('#screen-welcome.active');
   });

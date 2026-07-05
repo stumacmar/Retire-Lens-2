@@ -9,7 +9,7 @@ import { test, expect } from '@playwright/test';
 test.describe('Pathfinder Flow', () => {
   
   test.beforeEach(async ({ page }) => {
-    await page.goto('/');
+    await page.goto('/app.html');
     // Wait for app to initialize
     await page.waitForSelector('#screen-welcome.active');
   });
@@ -104,7 +104,7 @@ test.describe('Pathfinder Flow', () => {
 test.describe('Mode Selection', () => {
   
   test.beforeEach(async ({ page }) => {
-    await page.goto('/');
+    await page.goto('/app.html');
     // Navigate through pathfinder
     await page.click('[data-action="next"]');
     await page.waitForSelector('#screen-pathfinder.active');
@@ -235,7 +235,7 @@ test.describe('Mode Selection', () => {
 test.describe('Answer Preview Card', () => {
   
   test.beforeEach(async ({ page }) => {
-    await page.goto('/');
+    await page.goto('/app.html');
     // Navigate through pathfinder and mode select
     await page.click('[data-action="next"]');
     await page.waitForSelector('#screen-pathfinder.active');

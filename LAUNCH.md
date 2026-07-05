@@ -207,15 +207,32 @@ accept the disclaimer, and (if the paywall is on) test a code.
 
 ---
 
-## Optional — make the landing page your homepage
+## Site structure (already set up)
 
-Today the domain root shows the planner (`index.html`), with links to the
-marketing page (`landing.html`), guide and legal in the footer. If you'd rather
-visitors hit marketing first, rename in the repo: move `index.html` →
-`app.html` and `landing.html` → `index.html`, then update the "Open the planner"
-links in `index.html`/`guide.html`/`legal.html` to point at `app.html`. (Leave
-this until after you've confirmed the basic flow works, and re-run the E2E tests
-which currently expect the planner at `/`.)
+- `index.html` — the **homepage**: your story, features, how-it-works and the
+  donation ask. This is what visitors see at your domain root.
+- `app.html` — the **planner** itself (with the disclaimer gate).
+- `guide.html`, `legal.html` — how-to and legal pages.
+
+All the links, the deploy workflow, and the E2E tests already point at these.
+
+## Donations ("pay what you think it's worth")
+
+The default model is **free to use, with a donation ask** — no paywall. To turn
+the donate button on:
+
+1. Create a donations link — the easiest are
+   [Buy Me a Coffee](https://buymeacoffee.com), [Ko-fi](https://ko-fi.com),
+   PayPal.me, or a Stripe donation Payment Link. All let supporters choose their
+   own amount.
+2. Paste it into `config/product.js` → `donationLink`. Tweak `donationHeadline`
+   and `donationBlurb` if you like — your story is already there.
+
+Until a link is set, the donate button simply opens the planner, so nothing
+looks broken. The homepage and the planner footer both surface the ask.
+
+To charge a fixed fee instead of asking for donations, set `model: 'paywall'`
+and `paywallEnabled: true` in `config/product.js` and follow steps 4–6 above.
 
 ---
 

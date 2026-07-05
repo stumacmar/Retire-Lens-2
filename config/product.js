@@ -19,7 +19,20 @@ export const PRODUCT = Object.freeze({
   domain: 'retirelens.co.uk',            // change here + in the CNAME file
   supportEmail: 'hello@retirelens.co.uk', // shown on legal/how-to pages
 
-  // ── Pricing ───────────────────────────────────────────────
+  // ── Monetisation model ────────────────────────────────────
+  // 'donation' — free to use, with a "pay what you think it's worth" ask (default)
+  // 'paywall'  — require an access code to use the planner
+  model: 'donation',
+
+  // ── Donations (pay what you think it's worth) ─────────────
+  // Paste a Buy Me a Coffee / Ko-fi / PayPal.me / Stripe donation link here.
+  // Shown on the homepage and after results. Empty = the buttons are hidden.
+  donationLink: '',                      // e.g. 'https://buymeacoffee.com/retirelens'
+  donationHeadline: 'Pay what you think it’s worth',
+  donationBlurb: 'RetireLens is free. I built it because I couldn’t find one I understood. ' +
+    'If it helped you, a small contribution funds the next idea — no pressure, no paywall.',
+
+  // ── Pricing (only used when model === 'paywall') ──────────
   price: '£4.99',
   priceModel: 'one-time',                // 'one-time' | 'subscription'
   currency: 'GBP',

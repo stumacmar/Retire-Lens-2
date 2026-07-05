@@ -28,7 +28,7 @@ jobs:
         run: |
           mkdir -p _site
           # App + product pages + self-hosted vendor assets (Chart.js, Inter font)
-          cp -r index.html landing.html guide.html legal.html css/ js/ engine/ config/ src/ ui/ vendor/ _site/
+          cp -r index.html app.html guide.html legal.html css/ js/ engine/ config/ src/ ui/ vendor/ _site/
           # Custom domain (GitHub Pages reads CNAME from the site root)
           cp CNAME _site/CNAME
 

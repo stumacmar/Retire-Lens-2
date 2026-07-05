@@ -106,7 +106,7 @@ for (const t of TESTERS) {
 
   const rec = { id: t.id, label: t.label, steps: [], reachedResults: false, resultText: '', consoleErrors, pageErrors, issues: [] };
   try {
-    await page.goto(`${BASE}/index.html`);
+    await page.goto(`${BASE}/app.html`);
     await page.waitForTimeout(700);
 
     // Select household type (auto-advances)

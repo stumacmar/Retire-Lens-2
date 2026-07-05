@@ -10,7 +10,7 @@ import { test, expect } from '@playwright/test';
 test.describe('Critical Bug Fix - Navigation', () => {
 
   test.beforeEach(async ({ page }) => {
-    await page.goto('http://localhost:8080');
+    await page.goto('http://localhost:8080/app.html');
     await page.waitForSelector('#screen-household-type.active', { timeout: 10000 });
   });
 
@@ -127,7 +127,7 @@ test.describe('Critical Bug Fix - Navigation', () => {
 test.describe('Single Household Full Flow', () => {
 
   test('TEST 7: Complete single household happy path', async ({ page }) => {
-    await page.goto('http://localhost:8080');
+    await page.goto('http://localhost:8080/app.html');
     await page.waitForSelector('#screen-household-type.active', { timeout: 10000 });
 
     await page.click('.household-type-card[data-household-type="single"]');
@@ -171,7 +171,7 @@ test.describe('Single Household Full Flow', () => {
 test.describe('Couple Household Full Flow', () => {
 
   test('TEST 8: Complete couple household happy path (unified wizard)', async ({ page }) => {
-    await page.goto('http://localhost:8080');
+    await page.goto('http://localhost:8080/app.html');
     await page.waitForSelector('#screen-household-type.active', { timeout: 10000 });
 
     // 1. Select couple
@@ -221,7 +221,7 @@ test.describe('Couple Household Full Flow', () => {
 test.describe('Progress Bar Tests', () => {
 
   test('TEST 9: Progress bar updates as navigation advances', async ({ page }) => {
-    await page.goto('http://localhost:8080');
+    await page.goto('http://localhost:8080/app.html');
     await page.waitForSelector('#screen-household-type.active', { timeout: 10000 });
 
     const progressBar = page.locator('#progress-bar');

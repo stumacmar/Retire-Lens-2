@@ -2058,6 +2058,151 @@
       });
     }
 
+    // ═══════════════════════════════════════════════════════════════
+    // "Your summary" — a calm one-page snapshot to print or share
+    // Empathetic copy + print design from the Council.
+    // ═══════════════════════════════════════════════════════════════
+    let summaryLastFocus = null;
+
+    function buildSummaryHtml() {
+      const projection = state.projectionA;
+      const plan = state.planA;
+      const results = state.lastResults;
+      const data = state.formData;
+      if (!projection || !plan || !data) return null;
+      const s = projection.summary;
+
+      const isCouple = state.onboardingState?.householdType === HOUSEHOLD_TYPES.COUPLE;
+      const nameA = personName('personA');
+      const nameB = personName('personB');
+      const title = isCouple && nameB
+        ? `${nameA} &amp; ${nameB}'s retirement plan`
+        : `${nameA === 'You' ? 'Your' : nameA + "'s"} retirement plan`;
+
+      const mcSuccess = results?.mcResult?.statistics?.successRate;
+      const confidence = Math.round((mcSuccess != null ? mcSuccess : s.successRate) * 100);
+      const retireAge = plan.retirementAge;
+      const monthly = formatCurrency(Math.round(plan.targetNetIncome / 12));
+      const annual = formatCurrency(Math.round(plan.targetNetIncome));
+      const lasts = s.successRate >= 1;
+      const runsLowAge = s.depletionAge || 90;
+
+      // Gentlest fix (only when there's a gap)
+      let fixLine = '';
+      try {
+        const scenarioPreset = SCENARIO_PRESETS[data.scenario] || SCENARIO_PRESETS.moderate;
+        const assumptions = { projection: {
+          defaultGrowthRate: scenarioPreset.growthRate || 0.04,
+          defaultFeeRate: scenarioPreset.feeRate || 0.005,
+          volatility: scenarioPreset.volatility || 0.15
+        } };
+        const nudges = computeNudges(data, { endAge: 90, assumptions });
+        const chip = (nudges.chips || []).find(c => c.closesGap) || (nudges.chips || [])[0];
+        if (!nudges.onTrack && chip) {
+          if (chip.lever === 'retireLater') fixLine = `Working just to ${chip.newRetirementAge} instead of ${retireAge} would likely close the gap on its own.`;
+          else if (chip.lever === 'saveMore') fixLine = `Putting aside about £${chip.increment} a month more between now and then would likely do it.`;
+          else fixLine = `Settling for around ${formatCurrency(chip.newTarget)} a year — not far off your target — would likely make it comfortable.`;
+        }
+      } catch (e) { /* ok */ }
+
+      // The answer + "what this means", by confidence band
+      let answer, means;
+      if (confidence >= 85) {
+        answer = `You're on track to retire at ${retireAge} on about ${monthly} a month. On these figures, that income keeps going right through the plan to age 90 — so it holds up, with room to spare.`;
+        means = `In plain terms, you've built enough to stop working at ${retireAge} and draw the income you're after, without watching every penny. Nothing here is guaranteed — markets and life move around — but you're starting from a strong position.`;
+      } else if (confidence >= 60) {
+        answer = `You're close. Retiring at ${retireAge} on about ${monthly} a month looks achievable — around ${confidence} times out of 100 in our tests it lasted the distance. A small change would put it beyond doubt.`;
+        means = `In plain terms, you're nearly there. The income you want is within reach, but there isn't a lot of cushion if life throws a curveball. Think of this as a plan worth a second look, not one to worry over.`;
+      } else {
+        answer = `Not quite yet — and that's useful to know now. As things stand, retiring at ${retireAge} on ${monthly} a month gets tight around age ${runsLowAge}. The good news: a modest change brings it back into reach.`;
+        means = `In plain terms, the income you'd like is a stretch on today's plan, and the money could start running low around age ${runsLowAge}. That's not a wall — it's a signal, early enough to do something about.`;
+      }
+
+      const lastsLabel = lasts ? 'Comfortably through age 90' : `Starts to run low around ${runsLowAge}`;
+      const facts = [
+        ['The age you’d stop working', `${retireAge}`],
+        ['The income you’re planning for', `${monthly}/mo · ${annual}/yr`],
+        ['How often the plan held up in our tests', `${confidence} out of 100`],
+        ['The savings you’d have to retire on', formatCurrency(Math.round(s.retirementPot))],
+        ['Tax-free cash you can take at the start', formatCurrency(Math.round(s.pclsTaken))],
+        ['How long the money lasts', lastsLabel],
+      ];
+
+      const factsHtml = facts.map(([label, val]) =>
+        `<div class="summary-fact"><span class="summary-fact__label">${label}</span><span class="summary-fact__val">${val}</span></div>`).join('');
+
+      const fixHtml = fixLine ? `
+        <section class="summary-fix">
+          <h2>One thing that would help</h2>
+          <p>${fixLine}</p>
+          <p class="summary-fix__reassure">You don't have to decide today. This is one door, not the only one.</p>
+        </section>` : '';
+
+      return `
+        <div class="summary-sheet">
+          <div class="summary-actions" id="summary-actions">
+            <button type="button" class="btn btn-primary" id="summary-print">Print or save as PDF</button>
+            <button type="button" class="btn btn-secondary" id="summary-close">Close</button>
+          </div>
+          <header class="summary-head">
+            <div class="summary-brand">Retire<span>Lens</span></div>
+            <h1 id="summary-title">${title}</h1>
+            <p class="summary-sub">A simple snapshot of the plan you've built — yours to keep, print, or share.</p>
+          </header>
+          <section class="summary-answer"><p>${answer}</p></section>
+          <section class="summary-means">
+            <h2>What this means</h2>
+            <p>${means}</p>
+          </section>
+          <section class="summary-facts">${factsHtml}</section>
+          ${fixHtml}
+          <footer class="summary-foot">
+            <p class="summary-disclaimer">These figures are estimates to help you think, based on UK 2025/26 tax rules and assumptions about growth, inflation and how long money needs to last. They're not financial advice and aren't guaranteed. For a decision this big, it's worth talking to a regulated financial adviser.</p>
+            <p class="summary-made">Made with RetireLens — a plan you can hold in your hand and talk over at the kitchen table.</p>
+          </footer>
+        </div>`;
+    }
+
+    function openSummary() {
+      const view = document.getElementById('summary-view');
+      const html = buildSummaryHtml();
+      if (!view || !html) { showError('Please calculate your plan first.'); return; }
+      summaryLastFocus = document.activeElement;
+      view.innerHTML = html;
+      view.hidden = false;
+      document.body.classList.add('summary-open');
+      document.body.style.overflow = 'hidden';
+      view.querySelector('#summary-print')?.addEventListener('click', () => window.print());
+      view.querySelector('#summary-close')?.addEventListener('click', closeSummary);
+      view.addEventListener('keydown', summaryKeydown);
+      // Move focus into the dialog (to the close button) for keyboard users
+      (view.querySelector('#summary-close') || view).focus();
+    }
+
+    function closeSummary() {
+      const view = document.getElementById('summary-view');
+      if (!view) return;
+      view.hidden = true;
+      view.innerHTML = '';
+      document.body.classList.remove('summary-open');
+      document.body.style.overflow = '';
+      view.removeEventListener('keydown', summaryKeydown);
+      if (summaryLastFocus && summaryLastFocus.focus) summaryLastFocus.focus();
+    }
+
+    function summaryKeydown(e) {
+      if (e.key === 'Escape') { closeSummary(); return; }
+      // simple focus trap
+      if (e.key === 'Tab') {
+        const view = document.getElementById('summary-view');
+        const focusables = view.querySelectorAll('button, a[href], [tabindex]:not([tabindex="-1"])');
+        if (!focusables.length) return;
+        const first = focusables[0], last = focusables[focusables.length - 1];
+        if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+        else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+      }
+    }
+
     function renderResults(projection, results = null) {
       const { summary, plan } = projection;
 
@@ -3995,6 +4140,9 @@
       
       // Pension types next button
       document.getElementById('pension-types-next-btn')?.addEventListener('click', advancePensionTypesScreen);
+
+      // Open the one-page summary
+      document.getElementById('open-summary-btn')?.addEventListener('click', openSummary);
 
       // Names screen: save names then advance
       document.getElementById('names-next-btn')?.addEventListener('click', () => {

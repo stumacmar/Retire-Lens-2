@@ -883,6 +883,13 @@
       <!-- "What could I change?" — gentle, guided nudges (rendered by app.js) -->
       <div id="what-if-nudges"></div>
 
+      <!-- Your summary — a calm one-pager to print or share -->
+      <div id="summary-cta" style="text-align:center; margin: 0.5rem 0 1.25rem;">
+        <button type="button" id="open-summary-btn" class="btn btn-secondary" style="min-height:48px; font-size:1.02rem;">
+          📄 Your summary — to print or share
+        </button>
+      </div>
+
       <!-- What-if Sliders + Income Chart (connected) -->
       <div class="card-primary" id="whatif-sliders-section" style="margin-bottom: 0; border-bottom-left-radius: 0; border-bottom-right-radius: 0; border-bottom: none;">
         <h3 class="section-title mb-sm">What if I change...</h3>
@@ -1074,9 +1081,10 @@
     </nav>
     <button onclick="if(confirm('Clear all saved data and start fresh?')){localStorage.clear();indexedDB.deleteDatabase('RetireLensDB');location.reload();}" style="margin-top: 8px; background: none; border: 1px solid var(--color-border); border-radius: var(--radius-sm, 4px); padding: 4px 12px; font-size: 0.6875rem; color: var(--color-text-light); cursor: pointer;">Reset &amp; Start Over</button>
   </footer>
-  
-  <!-- Bottom Ticker removed -->
-  
+
+  <!-- One-page summary overlay (top-level so it prints cleanly; filled by app.js) -->
+  <div id="summary-view" class="summary-overlay" role="dialog" aria-modal="true" aria-labelledby="summary-title" hidden></div>
+
   <!-- Access gate (disclaimer + optional paywall) — runs before the planner -->
   <script type="module" src="js/access.js"></script>
   <!-- Main application script -->

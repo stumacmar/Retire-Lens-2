@@ -409,20 +409,23 @@ function renderDashboard(el) {
       ${isCustom ? `<span class="dash-scen-custom">Custom ${pct(P.growth, 1)}</span>` : ''}
     </div>
     <div class="kpis">
+      <div class="kpi lead ${survives ? 'good' : 'bad'}"><div class="v">${survives ? 'To ' + P.horizonAge + '+' : 'Age ' + dd.exhaustedAgeA}</div><div class="k">${survives ? 'Your money lasts the whole plan' : 'Money runs short here — fixable'}</div>${kpiDelta('endWealth', dd.endWealth, endYear)}</div>
+      <div class="kpi lead ${y1.shortfall > 1 ? 'bad' : 'good'}"><div class="v">${fmtK(y1.netIncome, y1.year)}</div><div class="k">Spending money, first year (you need ${fmtK(y1.target, y1.year)})</div></div>
       <div class="kpi good"><div class="v">${fmtK(potsAtRet, P.retireYear)}</div><div class="k">Pensions + ISAs at ${P.retireYear}</div>${kpiDelta('pots', potsAtRet, P.retireYear)}</div>
-      <div class="kpi ${y1.shortfall > 1 ? 'bad' : 'good'}"><div class="v">${fmtK(y1.netIncome, y1.year)}</div><div class="k">Spending money, first year (you need ${fmtK(y1.target, y1.year)})</div></div>
-      <div class="kpi ${survives ? 'good' : 'bad'}"><div class="v">${survives ? 'To ' + P.horizonAge + '+' : 'Age ' + dd.exhaustedAgeA}</div><div class="k">${survives ? 'Your money lasts the whole plan' : 'Money runs short here — fixable'}</div>${kpiDelta('endWealth', dd.endWealth, endYear)}</div>
-      <div class="kpi"><div class="v">${fmtK(lifetimeTaxShown(dd))}</div><div class="k">Income tax over the plan${S.todayMoney ? ", today's money" : ''}</div>${kpiDelta('lifetimeTax', dd.lifetimeTax)}</div>
       <div class="kpi ${mc ? (mc.successProb >= 0.85 ? 'good' : mc.successProb >= 0.6 ? 'warn' : 'bad') : ''}">
         <div class="v">${mc ? pct(mc.successProb) : '…'}</div><div class="k">How often the plan works, across ${P.mcPaths} market runs${S.mcBusy ? ', running' : ''}</div></div>
       <div class="kpi"><div class="v">${mc ? mc.confidenceAge : '…'}</div><div class="k">Very likely safe to at least this age</div></div>
+      <div class="kpi"><div class="v">${fmtK(lifetimeTaxShown(dd))}</div><div class="k">Income tax over the plan${S.todayMoney ? ", today's money" : ''}</div>${kpiDelta('lifetimeTax', dd.lifetimeTax)}</div>
     </div>
-    <div style="display:flex; gap:0.5rem; margin-top:0.9rem; flex-wrap:wrap;" class="no-print">
-      <button id="btn-pin" class="small">${S.pinned ? 'Update plan A pin' : 'Pin as plan A'}</button>
-      ${S.pinned ? '<button id="btn-unpin" class="small ghost">Clear pin</button>' : ''}
-      <button id="btn-print" class="small">Download PDF report</button>
-      <button id="btn-share" class="small">Copy share link</button>
-    </div>
+    <details class="section" style="margin-top:0.9rem;">
+      <summary>🛠️ Plan actions — pin, save a report, share</summary>
+      <div class="section-body" style="display:flex; gap:0.5rem; flex-wrap:wrap;" class="no-print">
+        <button id="btn-pin" class="small">${S.pinned ? 'Update plan A pin' : 'Pin as plan A'}</button>
+        ${S.pinned ? '<button id="btn-unpin" class="small ghost">Clear pin</button>' : ''}
+        <button id="btn-print" class="small">Download PDF report</button>
+        <button id="btn-share" class="small">Copy share link</button>
+      </div>
+    </details>
   </div>
 
   <details class="card fold">
@@ -475,6 +478,18 @@ function renderDashboard(el) {
 
 function renderAssumptions(el) {
   const P = S.P;
+  // Live one-line recaps shown in each collapsed section header, so the plan
+  // reads as progress rather than a form dump.
+  const potsNow = P.partnerA.pension + P.partnerA.isa + P.partnerB.pension + P.partnerB.isa;
+  const partnerHasData = P.partnerB.pension > 0 || P.partnerB.isa > 0 || P.partnerB.db > 0 || (P.partnerB.name && P.partnerB.name !== 'Partner');
+  const recap = {
+    about: `${P.partnerA.name}${partnerHasData ? ' & ' + P.partnerB.name : ''} · ${fmtK(potsNow)} saved`,
+    when: `Retire ${P.retireYear} · plan to ${P.horizonAge}`,
+    income: `${fmt(P.targetNet)}/yr${P.phase1On || P.phase2On ? ' · eases later' : ''}`,
+    savings: `${fmtK(P.cash)} cash · ${fmtK(P.house)} home${P.inherit.on ? ' · inheritance' : ''}`,
+    growth: `Base ${pct(P.growthBase)} · inflation ${pct(P.inflation)}`,
+  };
+  const sumHead = (title, r) => `<span class="sec-title">${title}</span><span class="sec-recap">${r}</span>`;
   el.innerHTML = `
   ${exampleBanner()}
   <div class="card">
@@ -484,39 +499,50 @@ function renderAssumptions(el) {
     ${S.exampleActive ? '' : '<button type="button" id="btn-see-example" class="small ghost no-print">👀 Not sure? See an example plan first</button>'}
 
     <details class="section" open>
-      <summary>👤 About you and your partner</summary>
+      <summary>${sumHead('👤 About you', recap.about)}</summary>
       <div class="section-body">
-        <h4>You</h4>
         <div class="grid2">
           ${textField('Your name', 'partnerA.name', 'What we call you across the plan')}
           ${numField('Birth year', 'partnerA.birthYear')}
-          ${numField('State pension age', 'partnerA.spAge', 'Usually 67')}
           ${moneyField('Pension pot today', 'partnerA.pension', 'Total value of your pensions now')}
-          ${moneyField('ISA today', 'partnerA.isa', 'Your ISA value now (withdrawals are tax-free)')}
           ${moneyField('Monthly pension investing', 'partnerA.monthlyPension', 'What you pay in each month until you retire')}
-          ${moneyField('Monthly ISA investing', 'partnerA.monthlyIsa', 'What you add to ISAs each month')}
-          ${moneyField('State pension per year', 'partnerA.spAmount', 'Standard full new State Pension. Change if yours differs')}
-          ${moneyField('Company / final-salary pension per year', 'partnerA.db', 'Guaranteed income from a company/final-salary scheme (0 if none)')}
         </div>
-        <h4 style="margin-top:1rem;">Your partner</h4>
-        <p class="sub" style="margin-top:-0.3rem;">Planning solo? Leave the name as “Partner” and set their pots to 0.</p>
-        <div class="grid2">
-          ${textField('Partner’s name', 'partnerB.name', 'Leave as “Partner” if planning alone')}
-          ${numField('Birth year', 'partnerB.birthYear')}
-          ${numField('State pension age', 'partnerB.spAge', 'Usually 67')}
-          ${moneyField('Pension pot today', 'partnerB.pension', 'Total value of their pensions now')}
-          ${moneyField('ISA today', 'partnerB.isa', 'Their ISA value now (withdrawals are tax-free)')}
-          ${moneyField('Monthly pension investing', 'partnerB.monthlyPension', 'What they pay in each month until retirement')}
-          ${moneyField('Monthly ISA investing', 'partnerB.monthlyIsa', 'What they add to ISAs each month')}
-          ${moneyField('State pension per year', 'partnerB.spAmount', 'Standard full new State Pension. Change if theirs differs')}
-          ${moneyField('Company / final-salary pension per year', 'partnerB.db', 'Guaranteed company/final-salary income (0 if none). Starts ' + P.partnerB.dbStartYear)}
-        </div>
-        <label class="switch" style="margin-top:0.4rem;"><input type="checkbox" id="dbb-indexed" ${P.partnerB.dbIndexed ? 'checked' : ''}> ${P.partnerB.name}'s company pension rises with inflation</label>
+        <details class="subsection">
+          <summary>More about you — State Pension, ISAs, company pension</summary>
+          <div class="grid2">
+            ${numField('State pension age', 'partnerA.spAge', 'Usually 67')}
+            ${moneyField('State pension per year', 'partnerA.spAmount', 'Standard full new State Pension. Change if yours differs')}
+            ${moneyField('ISA today', 'partnerA.isa', 'Your ISA value now (withdrawals are tax-free)')}
+            ${moneyField('Monthly ISA investing', 'partnerA.monthlyIsa', 'What you add to ISAs each month')}
+            ${moneyField('Company / final-salary pension per year', 'partnerA.db', 'Guaranteed income from a company/final-salary scheme (0 if none)')}
+          </div>
+        </details>
+        <details class="subsection" ${partnerHasData ? 'open' : ''}>
+          <summary>➕ Add your partner's details</summary>
+          <p class="sub" style="margin:0.5rem 0;">Planning solo? Leave this closed.</p>
+          <div class="grid2">
+            ${textField('Partner’s name', 'partnerB.name', 'Leave as “Partner” if planning alone')}
+            ${numField('Birth year', 'partnerB.birthYear')}
+            ${moneyField('Pension pot today', 'partnerB.pension', 'Total value of their pensions now')}
+            ${moneyField('Monthly pension investing', 'partnerB.monthlyPension', 'What they pay in each month until retirement')}
+          </div>
+          <details class="subsection">
+            <summary>More about your partner</summary>
+            <div class="grid2">
+              ${numField('State pension age', 'partnerB.spAge', 'Usually 67')}
+              ${moneyField('State pension per year', 'partnerB.spAmount', 'Standard full new State Pension. Change if theirs differs')}
+              ${moneyField('ISA today', 'partnerB.isa', 'Their ISA value now (withdrawals are tax-free)')}
+              ${moneyField('Monthly ISA investing', 'partnerB.monthlyIsa', 'What they add to ISAs each month')}
+              ${moneyField('Company / final-salary pension per year', 'partnerB.db', 'Guaranteed company/final-salary income (0 if none). Starts ' + P.partnerB.dbStartYear)}
+            </div>
+          </details>
+          <label class="switch" style="margin-top:0.4rem;"><input type="checkbox" id="dbb-indexed" ${P.partnerB.dbIndexed ? 'checked' : ''}> ${P.partnerB.name}'s company pension rises with inflation</label>
+        </details>
       </div>
     </details>
 
     <details class="section">
-      <summary>📅 When you retire</summary>
+      <summary>${sumHead('📅 When you retire', recap.when)}</summary>
       <div class="section-body"><div class="grid2">
         ${numField('Retirement year', 'retireYear', 'The year you stop paying in and start drawing an income')}
         ${numField('Plan to age', 'horizonAge', P.partnerA.name + "'s age the plan runs to")}
@@ -524,7 +550,7 @@ function renderAssumptions(el) {
     </details>
 
     <details class="section">
-      <summary>💰 Income you’ll need</summary>
+      <summary>${sumHead('💰 Income you’ll need', recap.income)}</summary>
       <div class="section-body">
         <div class="grid2">
           ${moneyField('Target net income per year', 'targetNet', "Today's money. The 🛒 Spending tab can build this from a monthly budget instead")}
@@ -542,7 +568,7 @@ function renderAssumptions(el) {
     </details>
 
     <details class="section">
-      <summary>🏦 Savings, property and one-offs</summary>
+      <summary>${sumHead('🏦 Savings, property and one-offs', recap.savings)}</summary>
       <div class="section-body">
         <div class="grid2">
           ${moneyField('Cash savings & Premium Bonds', 'cash', 'Bank or NS&I. Spent tax-free, before your ISAs')}
@@ -563,7 +589,7 @@ function renderAssumptions(el) {
     </details>
 
     <details class="section">
-      <summary>📊 Growth and inflation — advanced, good defaults set</summary>
+      <summary>${sumHead('📊 Growth and inflation', recap.growth + ' · advanced')}</summary>
       <div class="section-body">
         <p class="sub">Most people leave these. The Poor / Base / Positive buttons on the Dashboard flip between the first three.</p>
         <div class="grid2">
@@ -684,16 +710,19 @@ function renderSpending(el) {
     <div class="kicker">Expenditure builder</div>
     <h2>What does a month cost?</h2>
     <p class="sub">Today's money. Build your real monthly spend, then flip the switch to use it as the plan's income target.</p>
-    ${P.spending.map((r, i) => `
-      <div class="spend-row">
-        <label>${r.label}</label>
-        <input type="text" inputmode="decimal" data-spend="${i}" value="${r.monthly}">
-      </div>`).join('')}
     <div class="spend-total"><span>Total</span><span class="v">${fmt(totalMonthly)} / month, ${fmt(totalMonthly * 12)} / year</span></div>
     <label class="switch" style="margin-top:0.5rem;">
       <input type="checkbox" id="spend-on" ${P.spendingPlanOn ? 'checked' : ''}>
       Use this as my income target (currently ${P.spendingPlanOn ? 'on' : 'off, using ' + fmt(P.targetNet)})
     </label>
+    <details class="subsection">
+      <summary>Edit the ${P.spending.length} spending categories</summary>
+      ${P.spending.map((r, i) => `
+        <div class="spend-row">
+          <label>${r.label}</label>
+          <input type="text" inputmode="decimal" data-spend="${i}" value="${r.monthly}">
+        </div>`).join('')}
+    </details>
   </div>
 
   <div class="card">
@@ -779,9 +808,8 @@ function renderDrawdown(el) {
     ${dd.exhaustedAgeA ? `<div class="callout">⚠️ The pots run dry at age ${dd.exhaustedAgeA}. Try a later retirement, a lower target, or the spending reductions on the 🛒 tab.</div>` : ''}
   </div>
 
-  <div class="card">
-    <div class="kicker">Year by year</div>
-    <h2>The full table</h2>
+  <details class="card fold">
+    <summary><span class="kicker">Year by year</span><h2>Show the full table</h2></summary>
     <p class="sub">Your income year by year, with each partner's tax. ${S.todayMoney ? "Today's money." : 'Nominal figures.'}</p>
     <div style="margin-bottom:0.5rem;" class="no-print"><button id="btn-csv" class="small">Download CSV</button></div>
     <div class="tbl-scroll"><div class="tbl-wrap"><table class="data sticky-first">
@@ -799,7 +827,7 @@ function renderDrawdown(el) {
         <td>${fmt(r.isaA + r.isaB + r.cash, r.year)}</td>
       </tr>`).join('')}
     </table></div><span class="scroll-hint" aria-hidden="true">Scroll →</span></div>
-  </div>`;
+  </details>`;
 
   // Show the "scroll right" affordance only while the table actually overflows.
   const box = el.querySelector('.tbl-scroll');
@@ -812,6 +840,9 @@ function renderDrawdown(el) {
     };
     sc.addEventListener('scroll', upd);
     window.addEventListener('resize', upd);
+    // Recompute when the collapsed table is first opened (it has no width until then).
+    const tableCard = box.closest('details.fold');
+    if (tableCard) tableCard.addEventListener('toggle', upd);
     upd();
   }
 
@@ -833,13 +864,15 @@ function renderTax(el) {
   const P = S.P, dd = S.cache.dd;
   const strategies = S.cache.strategies;
   const best = strategies.reduce((a, b) => (b.lifetimeTax < a.lifetimeTax ? b : a));
+  const worst = strategies.reduce((a, b) => (b.lifetimeTax > a.lifetimeTax ? b : a));
   const endYear = horizonYear();
 
   el.innerHTML = `
   <div class="card">
     <div class="kicker">Where the money comes from</div>
     <h2>Three ways to fund the same life</h2>
-    <p class="sub">Your workbook's Tax Optimisation tab, live. Tap a strategy to adopt it; every tab recomputes. Lifetime tax shown nominal.</p>
+    <p class="lead-summary">💡 Drawing your money in the smartest order saves about <strong>${fmtK(worst.lifetimeTax - best.lifetimeTax)}</strong> in tax over your whole plan — Someday picks it for you.</p>
+    <p class="sub">Tap a strategy to adopt it; every tab recomputes. Lifetime tax shown in future pounds.</p>
     <div class="strategies">
       ${strategies.map(s => `
         <div class="strategy ${P.strategy === s.id ? 'on' : ''}" data-strat="${s.id}" role="button" tabindex="0">
@@ -1036,9 +1069,9 @@ function renderRisk(el) {
     }
     mcHtml = `
       <div class="kpis" style="margin-bottom:0.8rem;">
-        <div class="kpi ${mc.successProb >= 0.85 ? 'good' : mc.successProb >= 0.6 ? 'warn' : 'bad'}"><div class="v">${pct(mc.successProb)}</div><div class="k">Paths fully funded to ${P.horizonAge}</div></div>
-        <div class="kpi"><div class="v">${mc.confidenceAge}</div><div class="k">Confidence age, 85% threshold</div></div>
-        <div class="kpi"><div class="v">${fmtK(mc.finalP50, endYear)}</div><div class="k">Median wealth at ${P.horizonAge} (p10 ${fmtK(mc.finalP10, endYear)}, p90 ${fmtK(mc.finalP90, endYear)})</div></div>
+        <div class="kpi ${mc.successProb >= 0.85 ? 'good' : mc.successProb >= 0.6 ? 'warn' : 'bad'}"><div class="v">${pct(mc.successProb)}</div><div class="k">How often your money lasts to ${P.horizonAge}</div></div>
+        <div class="kpi"><div class="v">${mc.confidenceAge}</div><div class="k">Very likely safe to at least this age</div></div>
+        <div class="kpi"><div class="v">${fmtK(mc.finalP50, endYear)}</div><div class="k">Typical wealth left at ${P.horizonAge} (unlucky ${fmtK(mc.finalP10, endYear)}, lucky ${fmtK(mc.finalP90, endYear)})</div></div>
       </div>
       ${ch.get()}
       <p class="note">${Math.min(60, P.mcPaths)} of the ${mc.nPaths} simulated paths shown${S.todayMoney ? ", deflated to today's money" : ''}. The funding each year mirrors the main model: per-partner tax, pensions to the basic band, ISAs for the excess, events included. If a path fails, the median income trim needed is ${pct(mc.medianTrim)}.</p>`;
@@ -1046,8 +1079,9 @@ function renderRisk(el) {
 
   el.innerHTML = `
   <div class="card">
-    <div class="kicker">Monte Carlo</div>
-    <h2>${P.mcPaths} possible markets</h2>
+    <div class="kicker">Good and bad markets</div>
+    <h2>Does the plan hold up if markets misbehave?</h2>
+    <p class="lead-summary">${mc ? `In about <strong>${pct(mc.successProb)}</strong> of ${P.mcPaths} possible market histories — booms and crashes alike — your money still lasts to age ${P.horizonAge}.` : `Testing your plan against ${P.mcPaths} possible market histories…`}</p>
     ${mcHtml}
   </div>
 

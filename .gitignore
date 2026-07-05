@@ -40,4 +40,5 @@ RetireLens-Reference-Model.xlsx
 
 # Beta E2E artifacts (regenerate with node tests/beta-e2e-bot.mjs)
 test-artifacts/beta-*.png
+test-artifacts/summary-*.png
 test-artifacts/beta-results.json

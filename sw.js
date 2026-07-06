@@ -2,8 +2,8 @@
    Network-first AND revalidating (cache: 'no-cache'), so a new deploy is picked
    up on the next load instead of being masked by the browser's HTTP cache. The
    cache is only an offline fallback. */
-const CACHE = 'someday-root-v3';
-const SHELL = ['./', 'index.html', 'v4/styles.css', 'v4/app.js', 'v4/engine.js', 'v4/manifest.json'];
+const CACHE = 'someday-root-v4';
+const SHELL = ['./', 'index.html', 'app.html', 'v4/styles.css', 'v4/app.js', 'v4/engine.js', 'v4/manifest.json'];
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL)).then(() => self.skipWaiting()));
 });

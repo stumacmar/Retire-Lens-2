@@ -218,6 +218,13 @@ main { padding-top: 1rem; }
 .whatif .lever-top label { font-size: 0.8rem; font-weight: 600; color: var(--ink); }
 .whatif .lever-top output { font-family: var(--mono); font-weight: 800; font-size: 0.9rem; color: var(--accent-strong); font-variant-numeric: tabular-nums; }
 
+/* Income-sources segmented bar */
+.src-bar { display: flex; height: 18px; border-radius: 9px; overflow: hidden; gap: 2px; margin: 0.4rem 0 0.5rem; }
+.src-bar span { display: block; min-width: 3px; }
+.src-legend { display: flex; flex-wrap: wrap; gap: 0.5rem 0.9rem; font-size: 0.68rem; color: var(--ink-dim); }
+.src-legend i { display: inline-block; width: 9px; height: 9px; border-radius: 3px; margin-right: 0.3rem; vertical-align: baseline; }
+.src-legend b { color: var(--ink); font-family: var(--mono); font-weight: 700; }
+
 /* Auto insight cards */
 .insights { display: grid; gap: 0.55rem; }
 .insight { display: flex; gap: 0.6rem; align-items: flex-start; background: var(--input-bg);

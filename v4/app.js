@@ -384,17 +384,19 @@ function renderDashboard(el) {
   };
   const survives = dd.exhaustedAgeA == null;
 
-  // Scenario cards, no horizontal scroll: the key number is unmissable
+  // Scenario cards, no horizontal scroll: the key number is unmissable.
+  // Poor/Positive drawdowns are computed once and shared with the timeline band.
+  const ddFor = (g, a) => (Math.abs(g - P.growth) < 1e-9) ? dd : E.drawdown(P, { growth: g, startPots: a.atRetirement });
+  const ddBear = ddFor(P.growthBear, c.accBear);
+  const ddBull = ddFor(P.growthBull, c.accBull);
   const scenarioRows = [
-    ['🔴 Poor', P.growthBear, c.accBear],
-    ['🟡 Base', P.growthBase, c.accBase],
-    ['🟢 Positive', P.growthBull, c.accBull],
+    ['🔴 Poor', P.growthBear, c.accBear, ddBear],
+    ['🟡 Base', P.growthBase, c.accBase, ddFor(P.growthBase, c.accBase)],
+    ['🟢 Positive', P.growthBull, c.accBull, ddBull],
   ];
   const isCustom = ![P.growthBear, P.growthBase, P.growthBull].some(g => Math.abs(g - P.growth) < 1e-9);
-  if (isCustom) scenarioRows.push(['🎚️ Your slider', P.growth, c.accLive]);
-  const scenarioHtml = scenarioRows.map(([name, g, a]) => {
-    const r = (Math.abs(g - P.growth) < 1e-9)
-      ? dd : E.drawdown(P, { growth: g, startPots: a.atRetirement });
+  if (isCustom) scenarioRows.push(['🎚️ Your slider', P.growth, c.accLive, dd]);
+  const scenarioHtml = scenarioRows.map(([name, g, a, r]) => {
     const live = Math.abs(g - P.growth) < 1e-9;
     return `<div class="scenario-card${live ? ' live' : ''}">
       <div class="sc-head"><b>${name}</b> <span>${pct(g, 1)} growth</span></div>
@@ -406,13 +408,22 @@ function renderDashboard(el) {
     </div>`;
   }).join('');
 
-  // Money-through-retirement timeline — the depletion story at a glance
+  // Money-through-retirement timeline — the depletion story at a glance, with a
+  // Poor↔Positive band around the live line so the range is visible in one view.
   const tlRows = dd.rows;
   const tlPts = tlRows.map(r => [r.year, deflate(r.wealth, r.year)]);
-  let tlMax = 1; for (const p of tlPts) tlMax = Math.max(tlMax, p[1]);
+  const bandLo = ddBear.rows.map(r => [r.year, deflate(r.wealth, r.year)]);
+  const bandHi = ddBull.rows.map(r => [r.year, deflate(r.wealth, r.year)]);
+  let tlMax = 1; for (const p of bandHi) tlMax = Math.max(tlMax, p[1]);
+  for (const p of tlPts) tlMax = Math.max(tlMax, p[1]);
   const tlY0 = tlRows[0].year, tlY1 = tlRows[tlRows.length - 1].year;
   const tch = chart({ xDomain: [tlY0, tlY1], yDomain: [0, tlMax * 1.08], yFmt: (v) => fmtK(v), h: 170, label: 'Your money through retirement' });
-  tch.add(`<path d="${areaPath(tlPts, [[tlY1, 0], [tlY0, 0]], tch.X, tch.Y)}" fill="var(--accent)" opacity="0.13"/>`);
+  if (bandLo.length && bandHi.length) {
+    tch.add(`<path d="${areaPath(bandHi, bandLo, tch.X, tch.Y)}" fill="var(--accent)" opacity="0.09"/>`);
+    tch.add(`<text x="${tch.X(tlY1) - 3}" y="${tch.Y(bandHi[bandHi.length - 1][1]) - 4}" text-anchor="end" style="font-size:10px" fill="var(--ink-faint)">Positive</text>`);
+    tch.add(`<text x="${tch.X(tlY1) - 3}" y="${tch.Y(bandLo[bandLo.length - 1][1]) + 12}" text-anchor="end" style="font-size:10px" fill="var(--ink-faint)">Poor</text>`);
+  }
+  tch.add(`<path d="${areaPath(tlPts, [[tlY1, 0], [tlY0, 0]], tch.X, tch.Y)}" fill="var(--accent)" opacity="0.10"/>`);
   tch.add(`<path d="${linePath(tlPts, tch.X, tch.Y)}" fill="none" stroke="var(--accent)" stroke-width="2.6" pathLength="1" data-draw/>`);
   // Story annotations: State Pension start, and the crossover where guaranteed
   // income first covers the spending need.
@@ -428,6 +439,27 @@ function renderDashboard(el) {
     tch.add(`<line x1="${tch.X(dd.exhaustedYear)}" y1="14" x2="${tch.X(dd.exhaustedYear)}" y2="${170 - 32}" stroke="var(--rose)" stroke-width="1.5" stroke-dasharray="4 4"/>`);
     tch.add(`<text x="${tch.X(dd.exhaustedYear) + 5}" y="26" style="font-size:11px" fill="var(--rose)">runs dry ${dd.exhaustedYear}</text>`);
   }
+
+  // Where the retirement £ comes from, over the whole plan: one calm segmented
+  // bar (sums the rows already computed — no engine call).
+  let srcSP = 0, srcDB = 0, srcPen = 0, srcTFC = 0, srcIsa = 0;
+  for (const r of dd.rows) {
+    srcSP += r.spA + r.spB; srcDB += r.dbA + r.dbB;
+    srcPen += r.grossA + r.grossB - r.taxA - r.taxB;
+    srcTFC += r.tfcA + r.tfcB; srcIsa += r.isaDraw + r.cashDraw;
+  }
+  const srcTotal = Math.max(1, srcSP + srcDB + srcPen + srcTFC + srcIsa);
+  const srcSegs = [
+    ['State Pension', srcSP, COLORS.spA],
+    ['Company pension', srcDB, COLORS.db],
+    ['Pension draws (after tax)', srcPen, COLORS.pension],
+    ['Tax-free cash', srcTFC, COLORS.pcls],
+    ['ISAs & cash', srcIsa, COLORS.isa],
+  ].filter(s => s[1] / srcTotal > 0.005);
+  const srcBar = `<div class="src-bar" role="img" aria-label="Where your retirement income comes from">
+      ${srcSegs.map(([n, v, c]) => `<span style="flex:${(v / srcTotal).toFixed(4)};background:${c}" title="${n}"></span>`).join('')}
+    </div>
+    <div class="src-legend">${srcSegs.map(([n, v, c]) => `<span><i style="background:${c}"></i>${n} <b>${Math.round(v / srcTotal * 100)}%</b></span>`).join('')}</div>`;
 
   // Auto-generated, personalised insight bullets from the numbers already computed.
   const insights = [];
@@ -530,7 +562,9 @@ function renderDashboard(el) {
     <div class="kicker">Your money through retirement</div>
     <h2>${dd.exhaustedYear ? 'When the money runs down' : 'Your money holds up'}</h2>
     ${tch.get()}
-    <p class="note">Total pensions, ISAs and cash from ${P.retireYear} to ${tlY1}, in ${S.todayMoney ? "today's money" : 'future pounds'}. ${dd.exhaustedYear ? 'On this plan it runs dry around ' + dd.exhaustedYear + '.' : 'On this plan it lasts the whole way.'}</p>
+    <p class="note">Total pensions, ISAs and cash from ${P.retireYear} to ${tlY1}, in ${S.todayMoney ? "today's money" : 'future pounds'}. The soft band is the Poor-to-Positive range; the solid line is your current scenario. ${dd.exhaustedYear ? 'On this plan it runs dry around ' + dd.exhaustedYear + '.' : 'On this plan it lasts the whole way.'}</p>
+    <h3 style="margin-top:1rem;">Where your retirement £ comes from</h3>
+    ${srcBar}
   </div>
 
   <details class="card fold">

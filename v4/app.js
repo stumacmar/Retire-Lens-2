@@ -182,7 +182,7 @@ function changed() {
 // ── SVG chart helpers ───────────────────────────────────────────────────
 function chart(opts) {
   const W = opts.w || 720, H = opts.h || 260;
-  const padL = opts.padL || 46, padR = 12, padT = 12, padB = 26;
+  const padL = opts.padL || 56, padR = 14, padT = 14, padB = 32;
   const xs = opts.xDomain, ys = opts.yDomain;
   const X = (x) => padL + (x - xs[0]) / (xs[1] - xs[0] || 1) * (W - padL - padR);
   const Y = (y) => H - padB - (y - ys[0]) / (ys[1] - ys[0] || 1) * (H - padT - padB);
@@ -192,7 +192,7 @@ function chart(opts) {
     const v = ys[0] + (ys[1] - ys[0]) * i / ticks;
     const y = Y(v);
     const baseLine = i === 0;   // the floor gets a slightly firmer line; the rest recede
-    svg += `<line x1="${padL}" y1="${y}" x2="${W - padR}" y2="${y}" stroke="var(--card-edge)" stroke-width="1" opacity="${baseLine ? 0.9 : 0.45}" shape-rendering="crispEdges"/>`;
+    svg += `<line x1="${padL}" y1="${y}" x2="${W - padR}" y2="${y}" stroke="var(--card-edge)" stroke-width="1.4" opacity="${baseLine ? 0.9 : 0.45}" shape-rendering="crispEdges"/>`;
     svg += `<text x="${padL - 6}" y="${y + 3}" text-anchor="end" font-size="9" font-family="var(--mono)" fill="var(--ink-faint)">${opts.yFmt ? opts.yFmt(v) : Math.round(v)}</text>`;
   }
   const xt = opts.xTicks || 6;
@@ -391,8 +391,7 @@ function renderDashboard(el) {
   el.innerHTML = `
   ${exampleBanner()}
   <div class="card">
-    <div class="kicker">${P.partnerA.name} and ${P.partnerB.name}, retiring April ${P.retireYear}</div>
-    <div class="kicker" style="margin-bottom:0.3rem;">Where the plan stands</div>
+    <div class="kicker" style="margin-bottom:0.4rem;">${P.partnerA.name} and ${P.partnerB.name}, retiring April ${P.retireYear}</div>
     ${(() => {
       const good = survives && !(y1.shortfall > 1);
       const cls = good ? 'good' : (survives ? 'warn' : 'bad');

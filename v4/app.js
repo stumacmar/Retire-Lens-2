@@ -390,19 +390,25 @@ function renderDashboard(el) {
 
   el.innerHTML = `
   ${exampleBanner()}
-  <div class="card">
-    <div class="kicker" style="margin-bottom:0.4rem;">${P.partnerA.name} and ${P.partnerB.name}, retiring April ${P.retireYear}</div>
-    ${(() => {
-      const good = survives && !(y1.shortfall > 1);
-      const cls = good ? 'good' : (survives ? 'warn' : 'bad');
-      const txt = good
-        ? `Yes — your money lasts to age ${P.horizonAge}+` + (mc ? `, and holds up in about ${pct(mc.successProb)} of market scenarios.` : '.')
-        : (survives
-          ? `Almost — the income falls a little short in the first year. A slightly lower target or a later start closes it.`
-          : `Not yet — the money runs short around age ${dd.exhaustedAgeA}. Retiring a little later, saving a bit more, or easing spending closes the gap.`);
-      return `<div class="verdict ${cls}">${txt}</div>`;
-    })()}
-    <p class="sub">At ${pct(P.growth, 1)} growth and ${pct(P.inflation, 1)} inflation. ${S.todayMoney ? "All figures in today's money." : 'Future pounds, with your inflation included.'} Pick a scenario below and everything recomputes.</p>
+  ${(() => {
+    const good = survives && !(y1.shortfall > 1);
+    const cls = good ? 'good' : (survives ? 'warn' : 'bad');
+    const ageAtRet = P.retireYear - P.partnerA.birthYear;
+    const txt = good
+      ? `Yes — your money lasts to age ${P.horizonAge}+` + (mc ? `, and holds up in about ${pct(mc.successProb)} of market scenarios.` : '.')
+      : (survives
+        ? `Almost — the income falls a little short in the first year. A slightly lower target or a later start closes it.`
+        : `Not yet — the money runs short around age ${dd.exhaustedAgeA}. Retiring a little later, saving a bit more, or easing spending closes the gap.`);
+    return `<div class="card">
+    <div class="kicker">${P.partnerA.name} and ${P.partnerB.name}</div>
+    <div class="someday-hero is-${cls}">
+      <span class="sd-eyebrow">${good ? '🎉 Your Someday could be' : 'Your retirement target'}</span>
+      <span class="sd-date">April ${P.retireYear}</span>
+      <span class="sd-age">${good ? `You could stop work at ${ageAtRet}.` : `The plan you're aiming for — ${P.partnerA.name} at ${ageAtRet}.`}</span>
+    </div>
+    <p class="verdict ${cls}">${txt}</p>
+    <p class="sub">At ${pct(P.growth, 1)} growth and ${pct(P.inflation, 1)} inflation. ${S.todayMoney ? "All figures in today's money." : 'Future pounds, with your inflation included.'} Pick a scenario below and everything recomputes.</p>`;
+  })()}
     <div class="dash-scen no-print" role="group" aria-label="Growth scenario">
       ${[['bear', 'Poor', P.growthBear], ['base', 'Base', P.growthBase], ['bull', 'Positive', P.growthBull]].map(([k, lbl, g]) =>
         `<button type="button" data-dscen="${k}" class="${Math.abs(P.growth - g) < 1e-9 ? 'on' : ''}" aria-pressed="${Math.abs(P.growth - g) < 1e-9 ? 'true' : 'false'}">${lbl} <small>${pct(g, 1)}</small></button>`).join('')}

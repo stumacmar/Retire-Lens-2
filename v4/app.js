@@ -213,11 +213,13 @@ function areaPath(pts, base, X, Y) {
   return d + ' Z';
 }
 
+// Chart colours reference theme-aware CSS custom properties (SVG stroke/fill and
+// legend swatches both resolve var() inline), so lines stay legible in dark mode.
 const COLORS = {
-  db: '#8b5cf6', spB: '#0ea5e9', spA: '#1d4ed8',
-  pension: '#0e7a6e', pcls: '#94a3b8', isa: '#b45309',
-  bear: '#be123c', base: '#0e7a6e', bull: '#1d4ed8',
-  tax: '#be123c', spend: '#0e7a6e', mort: '#64748b', event: '#8b5cf6',
+  db: 'var(--c-purple)', spB: 'var(--c-cyan)', spA: 'var(--c-blue)',
+  pension: 'var(--c-teal)', pcls: 'var(--c-slate)', isa: 'var(--c-amber)',
+  bear: 'var(--c-rose)', base: 'var(--c-teal)', bull: 'var(--c-blue)',
+  tax: 'var(--c-rose)', spend: 'var(--c-teal)', mort: 'var(--c-slate)', event: 'var(--c-purple)',
 };
 
 // ── Field helpers ───────────────────────────────────────────────────────

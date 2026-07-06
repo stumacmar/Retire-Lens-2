@@ -107,6 +107,11 @@ function deflate(v, year) {
   return v / Math.pow(1 + S.P.inflation, year - S.P.startYear);
 }
 const horizonYear = () => S.P.partnerA.birthYear + S.P.horizonAge;
+// Grammar for the fresh-start name "You": "You save", "Your pension" — never
+// "You saves" or "You's". Real names keep normal possessives.
+const isYou = (n) => /^you$/i.test((n || '').trim());
+const poss = (n) => isYou(n) ? 'Your' : (/s$/i.test(n) ? n + '’' : n + '’s');
+const verbS = (n, third, second) => isYou(n) ? second : third;
 const fmt = (v, year) => GBP.format(Math.round(deflate(v, year)));
 const fmtK = (v, year) => {
   const x = deflate(v, year);
@@ -518,7 +523,7 @@ function renderDashboard(el) {
     const cls = good ? 'good' : (survives ? 'warn' : 'bad');
     const ageAtRet = P.retireYear - P.partnerA.birthYear;
     const txt = good
-      ? `Yes — your money lasts to age ${P.horizonAge}+` + (mc ? `, and holds up in about ${pct(mc.successProb)} of market scenarios.` : '.')
+      ? `On these assumptions, yes — your money lasts to age ${P.horizonAge}+` + (mc ? `, and held up in about ${pct(mc.successProb)} of ${P.mcPaths} market runs.` : '.')
       : (survives
         ? `Almost — the income falls a little short in the first year. A slightly lower target or a later start closes it.`
         : `Not yet — the money runs short around age ${dd.exhaustedAgeA}. Retiring a little later, saving a bit more, or easing spending closes the gap.`);
@@ -534,7 +539,8 @@ function renderDashboard(el) {
       ${readinessRing(readyFrac, 'Readiness')}
     </div>
     <p class="verdict ${cls}">${txt}</p>
-    <p class="sub">At ${pct(P.growth, 1)} growth and ${pct(P.inflation, 1)} inflation. ${S.todayMoney ? "All figures in today's money." : 'Future pounds, with your inflation included.'} Pick a scenario below and everything recomputes.</p>`;
+    <p class="note">Someday is a model, not regulated financial advice — but it makes an excellent starting point for a conversation with a qualified, FCA-regulated financial adviser. <a href="legal.html" style="color:inherit;">The important bit</a>.</p>
+    <p class="sub">At ${pct(P.growth, 1)} growth and ${pct(P.inflation, 1)} inflation. A model, not a promise. ${S.todayMoney ? "All figures in today's money." : 'Future pounds, with your inflation included.'} Pick a scenario below and everything recomputes.</p>`;
   })()}
     <div class="dash-scen no-print" role="group" aria-label="Growth scenario">
       ${[['bear', 'Poor', P.growthBear], ['base', 'Base', P.growthBase], ['bull', 'Positive', P.growthBull]].map(([k, lbl, g]) =>
@@ -542,12 +548,12 @@ function renderDashboard(el) {
       ${isCustom ? `<span class="dash-scen-custom">Custom ${pct(P.growth, 1)}</span>` : ''}
     </div>
     <div class="kpis">
-      <div class="kpi lead ${survives ? 'good' : 'bad'}"><div class="v">${survives ? 'To ' + P.horizonAge + '+' : 'Age ' + dd.exhaustedAgeA}</div><div class="k">${survives ? 'Your money lasts the whole plan' : 'Money runs short here — fixable'}</div>${kpiDelta('endWealth', dd.endWealth, endYear)}</div>
+      <div class="kpi lead ${survives ? 'good' : 'bad'}"><div class="v">${survives ? 'To ' + P.horizonAge + '+' : 'Age ' + dd.exhaustedAgeA}</div><div class="k">${survives ? 'Your money lasts the whole plan' : 'Money runs short here — there are levers to try'}</div>${kpiDelta('endWealth', dd.endWealth, endYear)}</div>
       <div class="kpi lead ${y1.shortfall > 1 ? 'bad' : 'good'}"><div class="v">${fmtK(y1.netIncome, y1.year)}</div><div class="k">Spending money, first year (you need ${fmtK(y1.target, y1.year)})</div></div>
       <div class="kpi good"><div class="v">${fmtK(potsAtRet, P.retireYear)}</div><div class="k">Pensions + ISAs at ${P.retireYear}</div>${kpiDelta('pots', potsAtRet, P.retireYear)}</div>
       <div class="kpi ${mc ? (mc.successProb >= 0.85 ? 'good' : mc.successProb >= 0.6 ? 'warn' : 'bad') : ''}">
         <div class="v">${mc ? pct(mc.successProb) : '…'}</div><div class="k">How often the plan works, across ${P.mcPaths} market runs${S.mcBusy ? ', running' : ''}</div></div>
-      <div class="kpi"><div class="v">${mc ? mc.confidenceAge : '…'}</div><div class="k">Very likely safe to at least this age</div></div>
+      <div class="kpi"><div class="v">${mc ? mc.confidenceAge : '…'}</div><div class="k">Money lasted to at least this age in 9 of 10 market runs</div></div>
       <div class="kpi"><div class="v">${fmtK(lifetimeTaxShown(dd))}</div><div class="k">Income tax over the plan${S.todayMoney ? ", today's money" : ''}</div>${kpiDelta('lifetimeTax', dd.lifetimeTax)}</div>
     </div>
     <details class="section" style="margin-top:0.9rem;">
@@ -574,7 +580,7 @@ function renderDashboard(el) {
       <input type="range" id="wi-spend" min="15000" max="120000" step="1000" value="${P.targetNet}">
     </div>
     <div class="lever">
-      <div class="lever-top"><label for="wi-save">${P.partnerA.name} saves each month</label><output id="wi-save-out">${fmt(P.partnerA.monthlyPension)}</output></div>
+      <div class="lever-top"><label for="wi-save">${P.partnerA.name} ${verbS(P.partnerA.name, 'saves', 'save')} each month</label><output id="wi-save-out">${fmt(P.partnerA.monthlyPension)}</output></div>
       <input type="range" id="wi-save" min="0" max="5000" step="50" value="${P.partnerA.monthlyPension}">
     </div>
   </div>
@@ -662,27 +668,71 @@ function renderAssumptions(el) {
   const partnerHasData = P.partnerB.pension > 0 || P.partnerB.isa > 0 || P.partnerB.db > 0 || (P.partnerB.name && P.partnerB.name !== 'Partner');
   // Remember which accordion sections are open, so editing a field (which
   // re-renders the tab) never snaps your open section shut.
-  if (!S.openSecs) { S.openSecs = new Set(['about']); if (partnerHasData) S.openSecs.add('partner'); }
+  if (!S.openSecs) { S.openSecs = new Set(['vision']); if (partnerHasData) S.openSecs.add('partner'); }
+  if (!S.doneSecs) S.doneSecs = new Set();
   const so = (k) => S.openSecs.has(k) ? 'open' : '';
   const recap = {
+    vision: `Retire ${P.retireYear} · ${fmt(P.targetNet)}/yr${P.phase1On || P.phase2On ? ' · eases later' : ''}`,
     about: `${P.partnerA.name}${partnerHasData ? ' & ' + P.partnerB.name : ''} · ${fmtK(potsNow)} saved`,
-    when: `Retire ${P.retireYear} · plan to ${P.horizonAge}`,
-    income: `${fmt(P.targetNet)}/yr${P.phase1On || P.phase2On ? ' · eases later' : ''}`,
     savings: `${fmtK(P.cash)} cash · ${fmtK(P.house)} home${P.inherit.on ? ' · inheritance' : ''}`,
-    growth: `Base ${pct(P.growthBase)} · inflation ${pct(P.inflation)}`,
+    growth: `Base ${pct(P.growthBase)} · inflation ${pct(P.inflation)} · to age ${P.horizonAge}`,
   };
-  const sumHead = (n, title, r) => `<span class="sec-step">${n}</span><span class="sec-title">${title}</span><span class="sec-recap">${r}</span>`;
+  const sumHead = (key, n, title, r) => `<span class="sec-step${S.doneSecs.has(key) ? ' done' : ''}">${S.doneSecs.has(key) ? '✓' : n}</span><span class="sec-title">${title}</span><span class="sec-recap">${r}</span>`;
+  // The Today → Someday → horizon journey strip: the whole plan in one glance.
+  const jY0 = P.startYear, jY1 = P.retireYear, jY2 = horizonYear();
+  const jX = (y) => 30 + (y - jY0) / Math.max(1, jY2 - jY0) * 660;
+  const journeyStrip = `<svg class="journey-strip" viewBox="0 0 720 62" role="img" aria-label="Today ${jY0}, Someday ${jY1}, planning to age ${P.horizonAge}">
+    <line x1="30" y1="24" x2="690" y2="24" stroke="var(--card-edge)" stroke-width="3" stroke-linecap="round"/>
+    <line x1="30" y1="24" x2="${jX(jY1).toFixed(0)}" y2="24" stroke="var(--accent)" stroke-width="3" stroke-linecap="round"/>
+    <circle cx="30" cy="24" r="6" fill="var(--accent)"/>
+    <circle cx="${jX(jY1).toFixed(0)}" cy="24" r="8" fill="var(--accent)"/>
+    <circle cx="690" cy="24" r="6" fill="none" stroke="var(--ink-faint)" stroke-width="2"/>
+    <text x="30" y="52" font-size="13" fill="var(--ink-dim)">Today</text>
+    <text x="${jX(jY1).toFixed(0)}" y="52" font-size="13" font-weight="700" text-anchor="middle" fill="var(--accent-strong)">Someday · ${jY1}</text>
+    <text x="690" y="52" font-size="13" text-anchor="end" fill="var(--ink-dim)">to age ${P.horizonAge}</text>
+  </svg>`;
+  // PLSA Retirement Living Standards 2024 (couple, after tax, home owned outright)
+  const PLSA = [['Minimum', 22400], ['Moderate', 43100], ['Comfortable', 59000]];
   el.innerHTML = `
   ${exampleBanner()}
   <div class="card">
     <div class="kicker">Start here</div>
-    <h2>Your details</h2>
-    <p class="sub">Put your own names and figures in below — this is your plan, on your device only. Open each section, fill what applies, then tap <strong>Dashboard</strong> for your answer. All money inputs are in today's money.</p>
-    ${S.exampleActive ? '' : '<button type="button" id="btn-see-example" class="small ghost no-print">👀 Not sure? See an example plan first</button>'}
+    <h2>Your journey to Someday</h2>
+    <p class="sub">Start with the life, then the numbers — everything stays on this device, and nothing here is financial advice; it's your working, made visible. All money inputs are in today's money.</p>
+
+    <details class="section" data-sec="vision" ${so('vision')}>
+      <summary>${sumHead('vision', 1, '🌅 Your Someday', recap.vision)}</summary>
+      <div class="section-body">
+        <p class="sub">Start with the life, not the spreadsheet — the year you'd like to stop work, and what enough looks like each year. You can change both any time.</p>
+        <div class="grid2">
+          ${numField('Retirement year', 'retireYear', 'The year you stop paying in and start drawing an income')}
+          ${moneyField('Income you want each year', 'targetNet', "Today's money, after tax. The 🛒 Spending tab can build this from a monthly budget instead")}
+        </div>
+        <div class="seg plsa no-print" role="group" aria-label="Income benchmarks">
+          ${PLSA.map(([n, v]) => `<button type="button" data-plsa="${v}" class="${Math.abs(P.targetNet - v) < 1 ? 'on' : ''}">${n} <small>${fmtK(v)}</small></button>`).join('')}
+        </div>
+        <p class="note">Benchmarks from the PLSA Retirement Living Standards 2024 for a couple, after tax, home owned outright — a starting point, not advice; your own number wins.</p>
+        ${journeyStrip}
+        <details class="subsection" data-sec="stepdowns" ${so('stepdowns')}>
+          <summary>Ease spending as you age (on by default)</summary>
+          <p class="sub" style="margin:0.5rem 0;">Most people spend less as they get older. Adjust or switch off.</p>
+          <div class="grid2">
+            <div class="field"><label class="switch"><input type="checkbox" id="ph1-on" ${P.phase1On ? 'checked' : ''}> Ease spending in later life</label></div><div></div>
+            ${numField('From age', 'phase1Age')}
+            ${pctField('Reduce spending by', 'phase1Cut')}
+            <div class="field"><label class="switch"><input type="checkbox" id="ph2-on" ${P.phase2On ? 'checked' : ''}> A further step-down later</label></div><div></div>
+            ${numField('From age', 'phase2Age')}
+            ${pctField('Reduce by a further', 'phase2Cut')}
+          </div>
+        </details>
+        ${S.exampleActive ? '' : '<button type="button" id="btn-see-example" class="small ghost no-print" style="margin-top:0.8rem;">👀 Not sure? See an example plan first</button>'}
+      </div>
+    </details>
 
     <details class="section" data-sec="about" ${so('about')}>
-      <summary>${sumHead(1, '👤 About you', recap.about)}</summary>
+      <summary>${sumHead('about', 2, '👤 Your starting point', recap.about)}</summary>
       <div class="section-body">
+        <p class="sub">Now, where you're starting from. Real names, real numbers — honest beats hopeful, and it stays on this device.</p>
         <div class="grid2">
           ${textField('Your name', 'partnerA.name', 'What we call you across the plan')}
           ${numField('Birth year', 'partnerA.birthYear')}
@@ -718,40 +768,15 @@ function renderAssumptions(el) {
               ${moneyField('Company / final-salary pension per year', 'partnerB.db', 'Guaranteed company/final-salary income (0 if none). Starts ' + P.partnerB.dbStartYear)}
             </div>
           </details>
-          <label class="switch" style="margin-top:0.4rem;"><input type="checkbox" id="dbb-indexed" ${P.partnerB.dbIndexed ? 'checked' : ''}> ${P.partnerB.name}'s company pension rises with inflation</label>
+          <label class="switch" style="margin-top:0.4rem;"><input type="checkbox" id="dbb-indexed" ${P.partnerB.dbIndexed ? 'checked' : ''}> ${poss(P.partnerB.name)} company pension rises with inflation</label>
         </details>
       </div>
     </details>
 
-    <details class="section" data-sec="when" ${so('when')}>
-      <summary>${sumHead(2, '📅 When you retire', recap.when)}</summary>
-      <div class="section-body"><div class="grid2">
-        ${numField('Retirement year', 'retireYear', 'The year you stop paying in and start drawing an income')}
-        ${numField('Plan to age', 'horizonAge', P.partnerA.name + "'s age the plan runs to")}
-      </div></div>
-    </details>
-
-    <details class="section" data-sec="income" ${so('income')}>
-      <summary>${sumHead(3, '💰 Income you’ll need', recap.income)}</summary>
-      <div class="section-body">
-        <div class="grid2">
-          ${moneyField('Target net income per year', 'targetNet', "Today's money. The 🛒 Spending tab can build this from a monthly budget instead")}
-        </div>
-        <p class="sub" style="margin-top:0.8rem;">Most people spend less as they get older. These two step-downs are on by default — adjust or switch off.</p>
-        <div class="grid2">
-          <div class="field"><label class="switch"><input type="checkbox" id="ph1-on" ${P.phase1On ? 'checked' : ''}> Ease spending in later life</label></div><div></div>
-          ${numField('From age', 'phase1Age')}
-          ${pctField('Reduce spending by', 'phase1Cut')}
-          <div class="field"><label class="switch"><input type="checkbox" id="ph2-on" ${P.phase2On ? 'checked' : ''}> A further step-down later</label></div><div></div>
-          ${numField('From age', 'phase2Age')}
-          ${pctField('Reduce by a further', 'phase2Cut')}
-        </div>
-      </div>
-    </details>
-
     <details class="section" data-sec="savings" ${so('savings')}>
-      <summary>${sumHead(4, '🏦 Savings, property and one-offs', recap.savings)}</summary>
+      <summary>${sumHead('savings', 3, '🌉 Bridging & extras', recap.savings)}</summary>
       <div class="section-body">
+        <p class="sub">What else helps carry you there — cash set aside, your home, and anything you expect along the way.</p>
         <div class="grid2">
           ${moneyField('Cash savings & Premium Bonds', 'cash', 'Bank or NS&I. Spent tax-free, before your ISAs')}
           ${pctField('Return on cash', 'cashGrowth', 'Interest / Premium Bond prize rate on your cash')}
@@ -771,14 +796,15 @@ function renderAssumptions(el) {
     </details>
 
     <details class="section" data-sec="growth" ${so('growth')}>
-      <summary>${sumHead(5, '📊 Growth and inflation', recap.growth + ' · advanced')}</summary>
+      <summary>${sumHead('growth', 4, '🔭 The lens you look through', recap.growth + ' · optional')}</summary>
       <div class="section-body">
-        <p class="sub">Most people leave these. The Poor / Base / Positive buttons on the Dashboard flip between the first three.</p>
+        <p class="sub">No one knows what markets will do, so Someday looks through three lenses instead of one guess — Poor, Base and Positive. Assumptions, not predictions; a planning tool, not financial advice. Most people leave these as they are.</p>
         <div class="grid2">
           ${pctField('Base growth rate', 'growthBase', 'Your central assumption for investment returns')}
           ${pctField('Inflation', 'inflation', 'How fast prices rise (2% is the long-run average)')}
           ${pctField('Poor rate', 'growthBear', 'A weak decade for markets')}
           ${pctField('Positive rate', 'growthBull', 'A strong decade for markets')}
+          ${numField('Plan to age', 'horizonAge', 'Around 1 in 4 people who reach 65 live into their mid-90s — planning too short is the quieter risk, so 90+ is a sensible floor')}
         </div>
       </div>
     </details>
@@ -798,24 +824,32 @@ function renderAssumptions(el) {
     </details>
   </div>`;
   $('btn-see-answer').onclick = () => activateTab('dashboard');
-  // Guided journey: a "Continue" button at the foot of the four core sections
-  // advances to the next (the optional "advanced" Growth section is skipped),
-  // so the accordion reads like a step-by-step wizard.
-  const steps = [...el.querySelectorAll('details.section')].slice(0, 4);
+  // Guided journey: Vision → Starting point → Bridging, then the answer. The
+  // optional "lens" section sits outside the Continue chain. Completed steps
+  // earn a ✓ in their step badge.
+  const steps = [...el.querySelectorAll('details.section')].slice(0, 3);
+  const stepLabels = ['Continue → who’s saving', 'Continue → what else you have', 'See my answer →'];
   steps.forEach((sec, i) => {
     const body = sec.querySelector('.section-body');
     if (!body) return;
-    const next = i < 3 ? steps[i + 1] : null;
+    const next = i < 2 ? steps[i + 1] : null;
     const btn = document.createElement('button');
     btn.type = 'button';
     btn.className = 'small sec-next no-print';
-    btn.textContent = next ? 'Continue →' : 'See my answer →';
+    btn.textContent = stepLabels[i];
     btn.onclick = () => {
+      S.doneSecs.add(sec.dataset.sec);
+      const badge = sec.querySelector('.sec-step');
+      if (badge) { badge.textContent = '✓'; badge.classList.add('done'); }
       sec.open = false;
       if (next) { next.open = true; next.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
       else activateTab('dashboard');
     };
     body.appendChild(btn);
+  });
+  // PLSA income benchmarks: one tap sets the target (a starting point, not advice)
+  el.querySelectorAll('.plsa button[data-plsa]').forEach(b => {
+    b.onclick = () => { S.P.targetNet = Number(b.dataset.plsa); S.P.spendingPlanOn = false; changed(); };
   });
   if ($('btn-see-example')) $('btn-see-example').onclick = enterExample;
   wireExampleBanner();
@@ -898,8 +932,8 @@ function renderAccumulation(el) {
     <div class="legend">${series.map(s => `<span><i style="background:${s.color}"></i>${s.name}</span>`).join('')}</div>
     <p class="note">The vertical axis starts at ${fmtK(lo)}, not £0, so year-to-year movement is easy to see.</p>
     <div class="kpis" style="margin-top:0.9rem;">
-      <div class="kpi"><div class="v">${fmtK(at.pensionA, P.retireYear)}</div><div class="k">${P.partnerA.name} pension at ${P.retireYear}</div></div>
-      <div class="kpi"><div class="v">${fmtK(at.pensionB, P.retireYear)}</div><div class="k">${P.partnerB.name} pension</div></div>
+      <div class="kpi"><div class="v">${fmtK(at.pensionA, P.retireYear)}</div><div class="k">${poss(P.partnerA.name)} pension at ${P.retireYear}</div></div>
+      <div class="kpi"><div class="v">${fmtK(at.pensionB, P.retireYear)}</div><div class="k">${poss(P.partnerB.name)} pension</div></div>
       <div class="kpi"><div class="v">${fmtK(at.isaA + at.isaB, P.retireYear)}</div><div class="k">ISAs combined</div></div>
     </div>
     ${warns.map(w => `<div class="callout">⚠️ ${w}</div>`).join('')}
@@ -910,7 +944,7 @@ function renderAccumulation(el) {
     <div class="kicker">Year by year</div>
     <h2>The path, base scenario</h2>
     <div class="tbl-wrap"><table class="data">
-      <tr><th>Year</th><th>${P.partnerA.name} pension</th><th>${P.partnerB.name} pension</th><th>ISAs</th><th>Total investable</th></tr>
+      <tr><th>Year</th><th>${poss(P.partnerA.name)} pension</th><th>${poss(P.partnerB.name)} pension</th><th>ISAs</th><th>Total investable</th></tr>
       ${c.accBase.years.map(y => `<tr><td>${y.year}</td><td>${fmt(y.pensionA, y.year)}</td><td>${fmt(y.pensionB, y.year)}</td><td>${fmt(y.isaA + y.isaB, y.year)}</td><td>${fmt(total(y), y.year)}</td></tr>`).join('')}
     </table></div>
   </div>`;
@@ -942,7 +976,7 @@ function renderSpending(el) {
   <div class="card">
     <div class="kicker">Spending through retirement</div>
     <h2>Slow down later, spend less</h2>
-    <p class="sub">Most retirees spend less as they age. ${P.phase1On || P.phase2On ? 'Your plan eases spending' + (P.phase1On ? ' by ' + pct(P.phase1Cut) + ' from age ' + P.phase1Age : '') + (P.phase2On ? ', then by a further ' + pct(P.phase2Cut) + ' from age ' + P.phase2Age : '') + '.' : 'These step-downs are currently off.'} Change this under <strong>Your details → Income you’ll need</strong>.</p>
+    <p class="sub">Most retirees spend less as they age. ${P.phase1On || P.phase2On ? 'Your plan eases spending' + (P.phase1On ? ' by ' + pct(P.phase1Cut) + ' from age ' + P.phase1Age : '') + (P.phase2On ? ', then by a further ' + pct(P.phase2Cut) + ' from age ' + P.phase2Age : '') + '.' : 'These step-downs are currently off.'} Change this under <strong>Your details → Your Someday</strong>.</p>
     <div id="spend-curve" style="margin-top:0.8rem;"></div>
     <p class="note">Shown in today's money so the phase steps are visible without inflation on top.</p>
   </div>`;
@@ -1015,8 +1049,8 @@ function renderDrawdown(el) {
     <h2>What is left</h2>
     ${ch2.get()}
     <div class="legend">
-      <span><i style="background:${COLORS.pension}"></i>${P.partnerA.name} pension</span>
-      <span><i style="background:${COLORS.spB}"></i>${P.partnerB.name} pension</span>
+      <span><i style="background:${COLORS.pension}"></i>${poss(P.partnerA.name)} pension</span>
+      <span><i style="background:${COLORS.spB}"></i>${poss(P.partnerB.name)} pension</span>
       <span><i style="background:${COLORS.isa}"></i>ISAs and cash</span>
     </div>
     ${dd.exhaustedAgeA ? `<div class="callout">⚠️ The pots run dry at age ${dd.exhaustedAgeA}. Try a later retirement, a lower target, or the spending reductions on the 🛒 tab.</div>` : ''}
@@ -1085,7 +1119,7 @@ function renderTax(el) {
   <div class="card">
     <div class="kicker">Where the money comes from</div>
     <h2>Three ways to fund the same life</h2>
-    <p class="lead-summary">💡 Drawing your money in the smartest order saves about <strong>${fmtK(worst.lifetimeTax - best.lifetimeTax)}</strong> in tax over your whole plan — Someday picks it for you.</p>
+    <p class="lead-summary">💡 Drawing your money in the smartest order saves about <strong>${fmtK(worst.lifetimeTax - best.lifetimeTax)}</strong> in tax over your whole plan — Someday shows you the order that costs least tax in this model.</p>
     <p class="sub">Tap a strategy to adopt it; every tab recomputes. Lifetime tax shown in future pounds.</p>
     <div class="strategies">
       ${strategies.map(s => `
@@ -1312,7 +1346,7 @@ function renderRisk(el) {
     mcHtml = `
       <div class="kpis" style="margin-bottom:0.8rem;">
         <div class="kpi ${mc.successProb >= 0.85 ? 'good' : mc.successProb >= 0.6 ? 'warn' : 'bad'}"><div class="v">${pct(mc.successProb)}</div><div class="k">How often your money lasts to ${P.horizonAge}</div></div>
-        <div class="kpi"><div class="v">${mc.confidenceAge}</div><div class="k">Very likely safe to at least this age</div></div>
+        <div class="kpi"><div class="v">${mc.confidenceAge}</div><div class="k">Money lasted to at least this age in 9 of 10 market runs</div></div>
         <div class="kpi"><div class="v">${fmtK(mc.finalP50, endYear)}</div><div class="k">Typical wealth left at ${P.horizonAge} (unlucky ${fmtK(mc.finalP10, endYear)}, lucky ${fmtK(mc.finalP90, endYear)})</div></div>
       </div>
       ${ch.get()}
@@ -1442,10 +1476,10 @@ function renderAllForPrint() {
   if (ph) {
     const P = S.P, dd = S.cache.dd;
     const survives = dd && dd.exhaustedAgeA == null;
-    ph.innerHTML = `<div class="ph-brand">Someday — retirement plan report</div>
+    ph.innerHTML = `<div class="ph-brand">Someday <em class="ph-tag">we retire, I think</em> — retirement plan report</div>
       <div class="ph-sub">${P.partnerA.name} and ${P.partnerB.name} · retiring April ${P.retireYear} · prepared ${new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
       · ${survives ? 'money lasts to age ' + P.horizonAge + '+' : 'money runs short at age ' + (dd ? dd.exhaustedAgeA : '?')}
-      · Growth ${(P.growth * 100).toFixed(1)}%, inflation ${(P.inflation * 100).toFixed(1)}% · Educational tool, not regulated financial advice</div>`;
+      · Growth ${(P.growth * 100).toFixed(1)}%, inflation ${(P.inflation * 100).toFixed(1)}% · Educational tool, not regulated financial advice — an excellent starting point for a conversation with an FCA-regulated adviser</div>`;
   }
 }
 

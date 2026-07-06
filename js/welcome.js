@@ -65,11 +65,11 @@ function show() {
       <h1 id="rl-wel-title">Can you afford to retire? Let's find out.</h1>
       <p class="rl-wel-lead">This is built from a real, tested spreadsheet, so the sums are solid — but I'll keep it in plain English. It takes about five minutes, and nothing you type ever leaves your device.</p>
       <ol class="rl-wel-steps">
-        <li><span class="rl-wel-num">1</span><div><b>Tell it about you</b><span>Your names, ages, when you'd like to stop work, your pensions and savings.</span></div></li>
-        <li><span class="rl-wel-num">2</span><div><b>See your answer</b><span>A clear yes / not-yet, and how long your money lasts.</span></div></li>
-        <li><span class="rl-wel-num">3</span><div><b>Explore if you want</b><span>Tabs across the top show the detail — tax, income year by year, and more.</span></div></li>
+        <li><span class="rl-wel-num">1</span><div><b>Dream it</b><span>The year you'd like to stop work, and what enough looks like each year.</span></div></li>
+        <li><span class="rl-wel-num">2</span><div><b>Ground it</b><span>Your names, pensions and savings — where you're starting from.</span></div></li>
+        <li><span class="rl-wel-num">3</span><div><b>See your answer</b><span>A clear yes / not-yet, how long your money lasts, and the levers to try.</span></div></li>
       </ol>
-      <button class="rl-wel-btn" id="rl-wel-start">Start with my details →</button>
+      <button class="rl-wel-btn" id="rl-wel-start">Start with my Someday →</button>
       <button class="rl-wel-skip" id="rl-wel-skip">Skip — take me straight to the numbers</button>
       <p class="rl-wel-note">You can change anything later. Your figures stay on this device.<br>
         <a href="index.html" style="color:#0e7a6e;">Why I built this</a> · <a href="legal.html" style="color:#0e7a6e;">the important bit (not advice)</a></p>

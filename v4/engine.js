@@ -116,6 +116,7 @@ export function createEngine() {
     P.partnerA = { ...P.partnerA, name: 'You',     pension: 0, isa: 0, monthlyPension: 0, monthlyIsa: 0, db: 0 };
     P.partnerB = { ...P.partnerB, name: 'Partner', pension: 0, isa: 0, monthlyPension: 0, monthlyIsa: 0, db: 0 };
     P.house = 0; P.houseGrowth = 0.03; P.cash = 0; P.cashGrowth = 0.02;
+    P.targetNet = 43100;   // PLSA 2024 "Moderate" for a couple — an honest starting point
     P.inherit = { on: false, year: 2035, amount: 0, invest: true };
     P.lifeEvents = [];
     // New plans assume spending naturally eases in later life (the workbook

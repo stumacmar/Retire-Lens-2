@@ -31,6 +31,8 @@
     nav .wrap{display:flex;align-items:center;justify-content:space-between;height:64px}
     .brand{font-size:1.35rem;font-weight:800;letter-spacing:-.03em}
     .brand span{color:var(--primary)}
+    .brand .tagline{font-style:italic;font-weight:500;font-size:.76rem;color:var(--muted);margin-left:.5rem;letter-spacing:0}
+    @media(max-width:560px){.brand .tagline{display:none}}
     .nav-links{display:flex;gap:1.4rem;align-items:center;font-size:.92rem;color:var(--muted)}
     .nav-links a:hover{color:var(--text)}
     .btn{display:inline-block;background:var(--primary);color:#fff;padding:.7rem 1.25rem;border-radius:var(--radius);font-weight:600;border:none;cursor:pointer;transition:background .15s,transform .15s;font-size:.95rem}
@@ -88,7 +90,7 @@
 <body>
   <nav>
     <div class="wrap">
-      <div class="brand">Some<span>day</span></div>
+      <div class="brand">Some<span>day</span><span class="tagline">we retire, I think</span></div>
       <div class="nav-links">
         <a href="#story" class="hide-sm">My story</a>
         <a href="#how" class="hide-sm">How it works</a>
@@ -101,6 +103,7 @@
 
   <header class="hero">
     <div class="wrap">
+      <p style="font-style:italic;color:var(--muted);font-size:.95rem;margin-bottom:.5rem;">we retire, I think</p>
       <h1>Can I retire at <em>X</em> with <em>£Y</em> a year?</h1>
       <p class="sub">I'm 56. I couldn't find a retirement tool I actually understood — so I built one. Someday answers the one question that matters, clearly and privately, with UK tax built in.</p>
       <div class="hero-cta">
@@ -186,7 +189,7 @@
 
   <footer>
     <div class="wrap">
-      <div class="brand">Some<span>day</span></div>
+      <div class="brand">Some<span>day</span><span class="tagline">we retire, I think</span></div>
       <div class="foot-links">
         <a href="app.html">Planner</a>
         <a href="guide.html">How-to guide</a>

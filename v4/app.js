@@ -191,13 +191,14 @@ function chart(opts) {
   for (let i = 0; i <= ticks; i++) {
     const v = ys[0] + (ys[1] - ys[0]) * i / ticks;
     const y = Y(v);
-    svg += `<line x1="${padL}" y1="${y}" x2="${W - padR}" y2="${y}" stroke="var(--card-edge)" stroke-width="1"/>`;
-    svg += `<text x="${padL - 5}" y="${y + 3}" text-anchor="end" font-size="9" fill="var(--ink-faint)">${opts.yFmt ? opts.yFmt(v) : Math.round(v)}</text>`;
+    const baseLine = i === 0;   // the floor gets a slightly firmer line; the rest recede
+    svg += `<line x1="${padL}" y1="${y}" x2="${W - padR}" y2="${y}" stroke="var(--card-edge)" stroke-width="1" opacity="${baseLine ? 0.9 : 0.45}" shape-rendering="crispEdges"/>`;
+    svg += `<text x="${padL - 6}" y="${y + 3}" text-anchor="end" font-size="9" font-family="var(--mono)" fill="var(--ink-faint)">${opts.yFmt ? opts.yFmt(v) : Math.round(v)}</text>`;
   }
   const xt = opts.xTicks || 6;
   for (let i = 0; i <= xt; i++) {
     const v = Math.round(xs[0] + (xs[1] - xs[0]) * i / xt);
-    svg += `<text x="${X(v)}" y="${H - 8}" text-anchor="middle" font-size="9" fill="var(--ink-faint)">${opts.xFmt ? opts.xFmt(v) : v}</text>`;
+    svg += `<text x="${X(v)}" y="${H - 8}" text-anchor="middle" font-size="9" font-family="var(--mono)" fill="var(--ink-faint)">${opts.xFmt ? opts.xFmt(v) : v}</text>`;
   }
   return { svg, X, Y, W, H, add: (s) => { svg += s; }, get: () => svg + '</svg>' };
 }

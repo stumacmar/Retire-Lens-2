@@ -371,8 +371,10 @@ table.sticky-first td:first-child, table.sticky-first th:first-child {
 .event-invest { grid-column: 2 / 5; margin-top: -0.2rem; margin-bottom: 0.3rem; }
 
 /* ── Charts ─────────────────────────────────────── */
-.chart { width: 100%; }
+.chart { width: 100%; overflow: visible; }
 .chart text { font-family: var(--mono); }
+/* Smooth, calm data lines — rounded joins/caps read softer than sharp corners */
+.chart path { stroke-linejoin: round; stroke-linecap: round; }
 .legend { display: flex; flex-wrap: wrap; gap: 0.7rem; font-size: 0.68rem; color: var(--ink-dim); margin-top: 0.4rem; }
 .legend span { display: inline-flex; align-items: center; gap: 0.3rem; }
 .legend i { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }

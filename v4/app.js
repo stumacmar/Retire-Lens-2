@@ -390,6 +390,19 @@ function renderDashboard(el) {
     </div>`;
   }).join('');
 
+  // Money-through-retirement timeline — the depletion story at a glance
+  const tlRows = dd.rows;
+  const tlPts = tlRows.map(r => [r.year, deflate(r.wealth, r.year)]);
+  let tlMax = 1; for (const p of tlPts) tlMax = Math.max(tlMax, p[1]);
+  const tlY0 = tlRows[0].year, tlY1 = tlRows[tlRows.length - 1].year;
+  const tch = chart({ xDomain: [tlY0, tlY1], yDomain: [0, tlMax * 1.08], yFmt: (v) => fmtK(v), h: 170, label: 'Your money through retirement' });
+  tch.add(`<path d="${areaPath(tlPts, [[tlY1, 0], [tlY0, 0]], tch.X, tch.Y)}" fill="var(--accent)" opacity="0.13"/>`);
+  tch.add(`<path d="${linePath(tlPts, tch.X, tch.Y)}" fill="none" stroke="var(--accent)" stroke-width="2.6" pathLength="1" data-draw/>`);
+  if (dd.exhaustedYear) {
+    tch.add(`<line x1="${tch.X(dd.exhaustedYear)}" y1="14" x2="${tch.X(dd.exhaustedYear)}" y2="${170 - 32}" stroke="var(--rose)" stroke-width="1.5" stroke-dasharray="4 4"/>`);
+    tch.add(`<text x="${tch.X(dd.exhaustedYear) + 5}" y="26" style="font-size:11px" fill="var(--rose)">runs dry ${dd.exhaustedYear}</text>`);
+  }
+
   el.innerHTML = `
   ${exampleBanner()}
   ${(() => {
@@ -434,6 +447,13 @@ function renderDashboard(el) {
         <button id="btn-share" class="small">Copy share link</button>
       </div>
     </details>
+  </div>
+
+  <div class="card">
+    <div class="kicker">Your money through retirement</div>
+    <h2>${dd.exhaustedYear ? 'When the money runs down' : 'Your money holds up'}</h2>
+    ${tch.get()}
+    <p class="note">Total pensions, ISAs and cash from ${P.retireYear} to ${tlY1}, in ${S.todayMoney ? "today's money" : 'future pounds'}. ${dd.exhaustedYear ? 'On this plan it runs dry around ' + dd.exhaustedYear + '.' : 'On this plan it lasts the whole way.'}</p>
   </div>
 
   <details class="card fold">
@@ -1278,6 +1298,14 @@ function activateTab(name, focusBtn) {
   document.querySelectorAll('main section').forEach(sec => { sec.hidden = sec.id !== 'tab-' + name; });
   document.body.dataset.tab = name;
   renderTab();
+  // Entrance motion, once per navigation only (changed()/renderTab re-renders
+  // never add this class, so nothing animates on a keystroke). Reduced-motion off.
+  try {
+    if (matchMedia('(prefers-reduced-motion: no-preference)').matches) {
+      const sec = document.getElementById('tab-' + name);
+      if (sec) { sec.classList.add('tab-enter'); setTimeout(() => sec.classList.remove('tab-enter'), 750); }
+    }
+  } catch (e) {}
 }
 
 $('tabs').addEventListener('click', (e) => {

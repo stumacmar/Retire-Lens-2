@@ -518,6 +518,14 @@ footer.honesty {
   /* Gate and welcome front pages fade in gently the once they appear */
   .rl-gate-overlay, .rl-wel-overlay { animation: sd-fade .22s ease both; }
   .rl-gate-card, .rl-wel-card { animation: sd-rise .26s cubic-bezier(.2,.7,.3,1) both; }
+  /* Entrance on tab navigation only (class added in activateTab, stripped after
+     750ms) — never replays on the app's frequent re-renders. */
+  section.tab-enter { animation: sd-fade .26s ease both; }
+  section.tab-enter .someday-hero, section.tab-enter .verdict,
+  section.tab-enter .kpi, section.tab-enter > .card > h2 { animation: sd-rise .34s cubic-bezier(.2,.7,.3,1) both; }
+  section.tab-enter .chart { animation: sd-fade .5s ease both; }
+  section.tab-enter .chart path[data-draw] { stroke-dasharray: 1; stroke-dashoffset: 1; animation: sd-draw .6s ease .1s forwards; }
 }
 @keyframes sd-fade { from { opacity: 0; } to { opacity: 1; } }
 @keyframes sd-rise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+@keyframes sd-draw { to { stroke-dashoffset: 0; } }

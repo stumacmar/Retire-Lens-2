@@ -495,7 +495,7 @@ function renderAssumptions(el) {
     savings: `${fmtK(P.cash)} cash · ${fmtK(P.house)} home${P.inherit.on ? ' · inheritance' : ''}`,
     growth: `Base ${pct(P.growthBase)} · inflation ${pct(P.inflation)}`,
   };
-  const sumHead = (title, r) => `<span class="sec-title">${title}</span><span class="sec-recap">${r}</span>`;
+  const sumHead = (n, title, r) => `<span class="sec-step">${n}</span><span class="sec-title">${title}</span><span class="sec-recap">${r}</span>`;
   el.innerHTML = `
   ${exampleBanner()}
   <div class="card">
@@ -505,7 +505,7 @@ function renderAssumptions(el) {
     ${S.exampleActive ? '' : '<button type="button" id="btn-see-example" class="small ghost no-print">👀 Not sure? See an example plan first</button>'}
 
     <details class="section" open>
-      <summary>${sumHead('👤 About you', recap.about)}</summary>
+      <summary>${sumHead(1, '👤 About you', recap.about)}</summary>
       <div class="section-body">
         <div class="grid2">
           ${textField('Your name', 'partnerA.name', 'What we call you across the plan')}
@@ -548,7 +548,7 @@ function renderAssumptions(el) {
     </details>
 
     <details class="section">
-      <summary>${sumHead('📅 When you retire', recap.when)}</summary>
+      <summary>${sumHead(2, '📅 When you retire', recap.when)}</summary>
       <div class="section-body"><div class="grid2">
         ${numField('Retirement year', 'retireYear', 'The year you stop paying in and start drawing an income')}
         ${numField('Plan to age', 'horizonAge', P.partnerA.name + "'s age the plan runs to")}
@@ -556,7 +556,7 @@ function renderAssumptions(el) {
     </details>
 
     <details class="section">
-      <summary>${sumHead('💰 Income you’ll need', recap.income)}</summary>
+      <summary>${sumHead(3, '💰 Income you’ll need', recap.income)}</summary>
       <div class="section-body">
         <div class="grid2">
           ${moneyField('Target net income per year', 'targetNet', "Today's money. The 🛒 Spending tab can build this from a monthly budget instead")}
@@ -574,7 +574,7 @@ function renderAssumptions(el) {
     </details>
 
     <details class="section">
-      <summary>${sumHead('🏦 Savings, property and one-offs', recap.savings)}</summary>
+      <summary>${sumHead(4, '🏦 Savings, property and one-offs', recap.savings)}</summary>
       <div class="section-body">
         <div class="grid2">
           ${moneyField('Cash savings & Premium Bonds', 'cash', 'Bank or NS&I. Spent tax-free, before your ISAs')}
@@ -595,7 +595,7 @@ function renderAssumptions(el) {
     </details>
 
     <details class="section">
-      <summary>${sumHead('📊 Growth and inflation', recap.growth + ' · advanced')}</summary>
+      <summary>${sumHead(5, '📊 Growth and inflation', recap.growth + ' · advanced')}</summary>
       <div class="section-body">
         <p class="sub">Most people leave these. The Poor / Base / Positive buttons on the Dashboard flip between the first three.</p>
         <div class="grid2">
@@ -622,6 +622,25 @@ function renderAssumptions(el) {
     </details>
   </div>`;
   $('btn-see-answer').onclick = () => activateTab('dashboard');
+  // Guided journey: a "Continue" button at the foot of the four core sections
+  // advances to the next (the optional "advanced" Growth section is skipped),
+  // so the accordion reads like a step-by-step wizard.
+  const steps = [...el.querySelectorAll('details.section')].slice(0, 4);
+  steps.forEach((sec, i) => {
+    const body = sec.querySelector('.section-body');
+    if (!body) return;
+    const next = i < 3 ? steps[i + 1] : null;
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'small sec-next no-print';
+    btn.textContent = next ? 'Continue →' : 'See my answer →';
+    btn.onclick = () => {
+      sec.open = false;
+      if (next) { next.open = true; next.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
+      else activateTab('dashboard');
+    };
+    body.appendChild(btn);
+  });
   if ($('btn-see-example')) $('btn-see-example').onclick = enterExample;
   wireExampleBanner();
   wireInputs(el);

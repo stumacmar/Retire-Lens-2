@@ -261,7 +261,14 @@ main { padding-top: 1rem; }
 .section > summary::after { content: "⌄"; font-size: 1.1rem; color: var(--ink-faint); transition: transform 0.15s; flex: 0 0 auto; margin-left: 0.5rem; }
 .section[open] > summary::after { transform: rotate(180deg); }
 .section > summary:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.sec-step { flex: 0 0 auto; width: 1.5rem; height: 1.5rem; border-radius: 50%; display: inline-flex;
+  align-items: center; justify-content: center; font-size: 0.78rem; font-weight: 700;
+  background: var(--accent-soft); color: var(--accent-strong); margin-right: 0.1rem; }
+.section[open] > summary .sec-step { background: var(--accent); color: #fff; }
+:root[data-theme="dark"] .section[open] > summary .sec-step { color: #06302b; }
 .sec-title { flex: 0 0 auto; }
+/* "Continue" button ends each wizard step full-width */
+.sec-next { display: block; width: 100%; margin-top: 1rem; }
 .sec-recap { flex: 1 1 auto; min-width: 0; text-align: right; font-weight: 500; font-size: 0.76rem;
   color: var(--ink-faint); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .section[open] > summary .sec-recap { visibility: hidden; }  /* recap is a collapsed-state summary */

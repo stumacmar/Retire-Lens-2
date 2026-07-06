@@ -510,6 +510,10 @@ function renderAssumptions(el) {
   // reads as progress rather than a form dump.
   const potsNow = P.partnerA.pension + P.partnerA.isa + P.partnerB.pension + P.partnerB.isa;
   const partnerHasData = P.partnerB.pension > 0 || P.partnerB.isa > 0 || P.partnerB.db > 0 || (P.partnerB.name && P.partnerB.name !== 'Partner');
+  // Remember which accordion sections are open, so editing a field (which
+  // re-renders the tab) never snaps your open section shut.
+  if (!S.openSecs) { S.openSecs = new Set(['about']); if (partnerHasData) S.openSecs.add('partner'); }
+  const so = (k) => S.openSecs.has(k) ? 'open' : '';
   const recap = {
     about: `${P.partnerA.name}${partnerHasData ? ' & ' + P.partnerB.name : ''} · ${fmtK(potsNow)} saved`,
     when: `Retire ${P.retireYear} · plan to ${P.horizonAge}`,
@@ -526,7 +530,7 @@ function renderAssumptions(el) {
     <p class="sub">Put your own names and figures in below — this is your plan, on your device only. Open each section, fill what applies, then tap <strong>Dashboard</strong> for your answer. All money inputs are in today's money.</p>
     ${S.exampleActive ? '' : '<button type="button" id="btn-see-example" class="small ghost no-print">👀 Not sure? See an example plan first</button>'}
 
-    <details class="section" open>
+    <details class="section" data-sec="about" ${so('about')}>
       <summary>${sumHead(1, '👤 About you', recap.about)}</summary>
       <div class="section-body">
         <div class="grid2">
@@ -535,7 +539,7 @@ function renderAssumptions(el) {
           ${moneyField('Pension pot today', 'partnerA.pension', 'Total value of your pensions now')}
           ${moneyField('Monthly pension investing', 'partnerA.monthlyPension', 'What you pay in each month until you retire')}
         </div>
-        <details class="subsection">
+        <details class="subsection" data-sec="aboutmore" ${so('aboutmore')}>
           <summary>More about you — State Pension, ISAs, company pension</summary>
           <div class="grid2">
             ${numField('State pension age', 'partnerA.spAge', 'Usually 67')}
@@ -545,7 +549,7 @@ function renderAssumptions(el) {
             ${moneyField('Company / final-salary pension per year', 'partnerA.db', 'Guaranteed income from a company/final-salary scheme (0 if none)')}
           </div>
         </details>
-        <details class="subsection" ${partnerHasData ? 'open' : ''}>
+        <details class="subsection" data-sec="partner" ${so('partner')}>
           <summary>➕ Add your partner's details</summary>
           <p class="sub" style="margin:0.5rem 0;">Planning solo? Leave this closed.</p>
           <div class="grid2">
@@ -554,7 +558,7 @@ function renderAssumptions(el) {
             ${moneyField('Pension pot today', 'partnerB.pension', 'Total value of their pensions now')}
             ${moneyField('Monthly pension investing', 'partnerB.monthlyPension', 'What they pay in each month until retirement')}
           </div>
-          <details class="subsection">
+          <details class="subsection" data-sec="partnermore" ${so('partnermore')}>
             <summary>More about your partner</summary>
             <div class="grid2">
               ${numField('State pension age', 'partnerB.spAge', 'Usually 67')}
@@ -569,7 +573,7 @@ function renderAssumptions(el) {
       </div>
     </details>
 
-    <details class="section">
+    <details class="section" data-sec="when" ${so('when')}>
       <summary>${sumHead(2, '📅 When you retire', recap.when)}</summary>
       <div class="section-body"><div class="grid2">
         ${numField('Retirement year', 'retireYear', 'The year you stop paying in and start drawing an income')}
@@ -577,7 +581,7 @@ function renderAssumptions(el) {
       </div></div>
     </details>
 
-    <details class="section">
+    <details class="section" data-sec="income" ${so('income')}>
       <summary>${sumHead(3, '💰 Income you’ll need', recap.income)}</summary>
       <div class="section-body">
         <div class="grid2">
@@ -595,7 +599,7 @@ function renderAssumptions(el) {
       </div>
     </details>
 
-    <details class="section">
+    <details class="section" data-sec="savings" ${so('savings')}>
       <summary>${sumHead(4, '🏦 Savings, property and one-offs', recap.savings)}</summary>
       <div class="section-body">
         <div class="grid2">
@@ -616,7 +620,7 @@ function renderAssumptions(el) {
       </div>
     </details>
 
-    <details class="section">
+    <details class="section" data-sec="growth" ${so('growth')}>
       <summary>${sumHead(5, '📊 Growth and inflation', recap.growth + ' · advanced')}</summary>
       <div class="section-body">
         <p class="sub">Most people leave these. The Poor / Base / Positive buttons on the Dashboard flip between the first three.</p>
@@ -630,7 +634,7 @@ function renderAssumptions(el) {
     </details>
 
     <button type="button" id="btn-see-answer" class="cta-primary no-print">See my answer →</button>
-    <details class="section" style="margin-top:0.8rem;">
+    <details class="section" data-sec="managedata" style="margin-top:0.8rem;" ${so('managedata')}>
       <summary>🔒 Manage my data &amp; privacy</summary>
       <div class="section-body">
         <p class="sub">Everything stays on this device. You can save a copy, load one back, or wipe it all.</p>
@@ -666,6 +670,13 @@ function renderAssumptions(el) {
   if ($('btn-see-example')) $('btn-see-example').onclick = enterExample;
   wireExampleBanner();
   wireInputs(el);
+  // Remember open/closed accordion state so a field edit (which re-renders the
+  // tab) keeps your section open instead of snapping it shut.
+  el.querySelectorAll('details[data-sec]').forEach(d => {
+    d.addEventListener('toggle', () => {
+      if (d.open) S.openSecs.add(d.dataset.sec); else S.openSecs.delete(d.dataset.sec);
+    });
+  });
   $('dbb-indexed').onchange = (e) => { P.partnerB.dbIndexed = e.target.checked; changed(); };
   $('ph1-on').onchange = (e) => { P.phase1On = e.target.checked; changed(); };
   $('ph2-on').onchange = (e) => { P.phase2On = e.target.checked; changed(); };

@@ -1065,9 +1065,17 @@ function renderRisk(el) {
   const endYear = horizonYear();
 
   const heatColor = (age) => {
-    if (age == null) return 'var(--accent-soft)';
-    if (age >= 90) return 'var(--amber-soft)';
-    return 'var(--rose-soft)';
+    // Continuous ramp: rose (dies early) → amber (mid) → teal (lasts), tinted
+    // into the card so cell text stays legible. A field, not three buckets.
+    let ramp;
+    if (age == null) ramp = 'var(--accent)';
+    else {
+      const t = Math.max(0, Math.min(1, (age - 72) / Math.max(1, P.horizonAge - 72)));
+      ramp = t < 0.5
+        ? `color-mix(in srgb, var(--amber) ${Math.round(t / 0.5 * 100)}%, var(--rose))`
+        : `color-mix(in srgb, var(--accent) ${Math.round((t - 0.5) / 0.5 * 100)}%, var(--amber))`;
+    }
+    return `color-mix(in srgb, ${ramp} ${age == null ? 44 : 40}%, var(--card))`;
   };
   const heatText = (age) => age == null ? 'Never' : 'age ' + age;
 
@@ -1093,13 +1101,33 @@ function renderRisk(el) {
   let mcHtml = '<p class="sub">Running ' + P.mcPaths + ' market paths in the background…</p>';
   if (mc) {
     const nY = mc.tracks[0] ? mc.tracks[0].length : 0;
-    let maxY = 1;
-    for (const t of mc.tracks) for (const v of t) maxY = Math.max(maxY, deflate(v, endYear));
     const retY = P.retireYear;
-    const ch = chart({ xDomain: [retY, retY + nY - 1], yDomain: [0, maxY], yFmt: (v) => fmtK(v), h: 230, label: 'Monte Carlo paths' });
-    for (const t of mc.tracks) {
-      ch.add(`<path d="${linePath(t.map((v, i) => [retY + i, deflate(v, retY + i)]), ch.X, ch.Y)}" fill="none" stroke="var(--accent)" stroke-width="0.7" opacity="0.16"/>`);
+    // Per-year percentiles from the sample tracks (presentation only — reads
+    // existing data). A calm P10–P90 band with a median line beats 60 lines of
+    // spaghetti and lets you read a typical outcome at a glance.
+    const pctl = (arr, p) => { const s = arr.filter(v => v != null).sort((a, b) => a - b); return s.length ? s[Math.min(s.length - 1, Math.round(p * (s.length - 1)))] : 0; };
+    const bandTop = [], bandBot = [], mid = [];
+    for (let i = 0; i < nY; i++) {
+      const col = mc.tracks.map(t => t[i]); const y = retY + i;
+      bandTop.push([y, deflate(pctl(col, 0.9), y)]);
+      bandBot.push([y, deflate(pctl(col, 0.1), y)]);
+      mid.push([y, deflate(pctl(col, 0.5), y)]);
     }
+    let maxY = 1; for (const p of bandTop) maxY = Math.max(maxY, p[1]);
+    const ch = chart({ xDomain: [retY, retY + nY - 1], yDomain: [0, maxY * 1.08], yFmt: (v) => fmtK(v), h: 230, label: 'Range of outcomes across market histories' });
+    // A few faint sample paths for texture, then the band, then the median.
+    const stepK = Math.max(1, Math.floor(mc.tracks.length / 6));
+    for (let k = 0; k < mc.tracks.length; k += stepK) {
+      ch.add(`<path d="${linePath(mc.tracks[k].map((v, i) => [retY + i, deflate(v, retY + i)]), ch.X, ch.Y)}" fill="none" stroke="var(--accent)" stroke-width="0.6" opacity="0.09"/>`);
+    }
+    ch.add(`<path d="${areaPath(bandTop, bandBot, ch.X, ch.Y)}" fill="var(--accent)" opacity="0.15"/>`);
+    ch.add(`<path d="${linePath(bandBot, ch.X, ch.Y)}" fill="none" stroke="var(--accent)" stroke-width="1" opacity="0.35" stroke-dasharray="3 3"/>`);
+    ch.add(`<path d="${linePath(bandTop, ch.X, ch.Y)}" fill="none" stroke="var(--accent)" stroke-width="1" opacity="0.35" stroke-dasharray="3 3"/>`);
+    ch.add(`<path d="${linePath(mid, ch.X, ch.Y)}" fill="none" stroke="var(--accent)" stroke-width="2.4"/>`);
+    const lx = ch.X(retY + nY - 1) - 3;
+    ch.add(`<text x="${lx}" y="${ch.Y(bandTop[nY - 1][1]) - 4}" text-anchor="end" style="font-size:11px" fill="var(--ink-dim)">lucky</text>`);
+    ch.add(`<text x="${lx}" y="${ch.Y(mid[nY - 1][1]) - 4}" text-anchor="end" style="font-size:11px" fill="var(--accent-strong)">typical</text>`);
+    ch.add(`<text x="${lx}" y="${ch.Y(bandBot[nY - 1][1]) + 13}" text-anchor="end" style="font-size:11px" fill="var(--ink-dim)">unlucky</text>`);
     mcHtml = `
       <div class="kpis" style="margin-bottom:0.8rem;">
         <div class="kpi ${mc.successProb >= 0.85 ? 'good' : mc.successProb >= 0.6 ? 'warn' : 'bad'}"><div class="v">${pct(mc.successProb)}</div><div class="k">How often your money lasts to ${P.horizonAge}</div></div>
@@ -1107,7 +1135,7 @@ function renderRisk(el) {
         <div class="kpi"><div class="v">${fmtK(mc.finalP50, endYear)}</div><div class="k">Typical wealth left at ${P.horizonAge} (unlucky ${fmtK(mc.finalP10, endYear)}, lucky ${fmtK(mc.finalP90, endYear)})</div></div>
       </div>
       ${ch.get()}
-      <p class="note">${Math.min(60, P.mcPaths)} of the ${mc.nPaths} simulated paths shown${S.todayMoney ? ", deflated to today's money" : ''}. The funding each year mirrors the main model: per-partner tax, pensions to the basic band, ISAs for the excess, events included. If a path fails, the median income trim needed is ${pct(mc.medianTrim)}.</p>`;
+      <p class="note">The shaded band spans the unlucky-to-lucky range (10th–90th percentile) across ${mc.nPaths} simulated market histories${S.todayMoney ? ", in today's money" : ''}; the solid line is the typical (median) outcome. Funding each year mirrors the main model. If a path falls short, the median income trim needed is ${pct(mc.medianTrim)}.</p>`;
   }
 
   el.innerHTML = `
@@ -1141,13 +1169,14 @@ function renderRisk(el) {
 
   <div class="card">
     <div class="kicker">Sensitivity</div>
-    <h2>Withdrawal against growth: when the pot dies</h2>
-    <p class="sub">Net annual target in today's money, run to age 100. Green never dies, red dies before 90.</p>
+    <h2>How long the money lasts, by target and growth</h2>
+    <p class="sub">Each cell is the age the pot runs dry for that yearly spend (today's money) and growth rate — teal lasts to the end, rose runs dry early.</p>
     <div class="tbl-wrap"><table class="data">
       <tr><th>Target</th>${grid.growths.map(g => `<th>${pct(g)}</th>`).join('')}</tr>
       ${grid.grid.map(row => `<tr><td>${fmtK(row.withdrawal)}</td>
         ${row.cells.map(c => `<td class="heat" style="background:${heatColor(c.exhaustedAgeA)}">${heatText(c.exhaustedAgeA)}</td>`).join('')}</tr>`).join('')}
     </table></div>
+    <div class="heat-legend"><span>Runs dry early</span><span class="heat-bar" aria-hidden="true"></span><span>Never runs dry</span></div>
   </div>`;
 }
 

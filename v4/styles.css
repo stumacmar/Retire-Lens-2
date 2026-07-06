@@ -255,6 +255,8 @@ main { padding-top: 1rem; }
   font-family: var(--mono);
 }
 .field input:focus, .field select:focus { outline: 2px solid var(--accent); outline-offset: 1px; border-color: var(--accent); }
+/* Brief highlight when a value was gently corrected into a sensible range */
+.field input.was-clamped { border-color: var(--amber); box-shadow: 0 0 0 3px var(--amber-soft); }
 
 /* "?" toggletips: the explanation hides behind a small button next to the label */
 .field-label { display: flex; align-items: center; gap: 0.35rem; margin-bottom: 0.22rem; }
@@ -512,12 +514,20 @@ footer.honesty {
 /* ── Print: the PDF report ──────────────────────── */
 @media print {
   :root { --bg: #fff; --card: #fff; --ink: #111; --ink-dim: #444; --ink-faint: #777; --card-edge: #ddd; --shadow: none; }
+  @page { margin: 14mm 12mm; }
   header.site, nav.tabs, footer.honesty, .no-print, button, input[type="range"] { display: none !important; }
   body { padding: 0; font-size: 11px; }
-  .card { break-inside: avoid; box-shadow: none; margin-bottom: 0.6rem; }
+  .card { break-inside: avoid; box-shadow: none; margin-bottom: 0.6rem; border: 1px solid #ddd; }
   section[hidden] { display: block !important; }
   .print-only { display: block !important; }
+  /* Folded cards and accordion sections print in full, even when collapsed */
+  details > *:not(summary) { display: block !important; }
+  details.card.fold > summary::after, .section > summary::after { display: none; }
+  .print-header { display: block !important; border-bottom: 2px solid #111; padding-bottom: 6px; margin-bottom: 12px; }
+  .print-header .ph-brand { font-size: 18px; font-weight: 800; }
+  .print-header .ph-sub { font-size: 10px; color: #555; }
 }
+.print-header { display: none; }
 .print-only { display: none; }
 
 /* ── Subtle, calm micro-interactions (interaction-only, so they never replay

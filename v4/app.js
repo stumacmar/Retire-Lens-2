@@ -281,6 +281,24 @@ function setPath(path, v) {
   for (let i = 0; i < ks.length - 1; i++) o = o[ks[i]];
   o[ks[ks.length - 1]] = v;
 }
+// Gentle sanity bounds for fields where a slip (e.g. birth year 19700, retiring
+// in the past) would silently produce a nonsense plan. Values are clamped, and
+// the field flashes briefly so the correction is visible, not mysterious.
+const BOUNDS = {
+  'partnerA.birthYear': () => [1930, S.P.startYear - 16],
+  'partnerB.birthYear': () => [1930, S.P.startYear - 16],
+  'partnerA.spAge': () => [55, 75],
+  'partnerB.spAge': () => [55, 75],
+  'retireYear': () => [S.P.startYear + 1, S.P.startYear + 45],
+  'horizonAge': () => [Math.max(70, S.P.retireYear - S.P.partnerA.birthYear + 1), 105],
+  'inherit.year': () => [S.P.startYear, S.P.startYear + 60],
+};
+function clampFor(path, v) {
+  const b = BOUNDS[path];
+  if (!b || typeof v !== 'number' || Number.isNaN(v)) return v;
+  const [lo, hi] = b();
+  return Math.min(hi, Math.max(lo, v));
+}
 function wireInputs(root) {
   root.querySelectorAll('input[data-path], select[data-path]').forEach(el => {
     el.addEventListener('change', () => {
@@ -288,9 +306,18 @@ function wireInputs(root) {
       if (el.dataset.text) v = String(v).trim();
       else if (el.dataset.pct) v = (parseFloat(v) || 0) / 100;
       else if (el.type === 'number' || el.inputMode === 'decimal') v = parseFloat(String(v).replace(/[£,\s]/g, '')) || 0;
+      const clamped = clampFor(el.dataset.path, v);
+      const wasClamped = clamped !== v;
+      if (wasClamped) v = clamped;
       setPath(el.dataset.path, v);
       if (el.dataset.path === 'growthBase') S.P.growth = S.P.growthBase;
       changed();
+      if (wasClamped && el.id) {
+        // changed() re-rendered the tab; flash the fresh element so the
+        // correction is visible, not mysterious.
+        const fresh = document.getElementById(el.id);
+        if (fresh) { fresh.classList.add('was-clamped'); setTimeout(() => fresh.classList.remove('was-clamped'), 1200); }
+      }
     });
   });
 }
@@ -1411,6 +1438,15 @@ function renderRail() {
 
 function renderAllForPrint() {
   for (const t of Object.keys(VIEWS)) VIEWS[t]($('tab-' + t));
+  const ph = $('print-header');
+  if (ph) {
+    const P = S.P, dd = S.cache.dd;
+    const survives = dd && dd.exhaustedAgeA == null;
+    ph.innerHTML = `<div class="ph-brand">Someday — retirement plan report</div>
+      <div class="ph-sub">${P.partnerA.name} and ${P.partnerB.name} · retiring April ${P.retireYear} · prepared ${new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
+      · ${survives ? 'money lasts to age ' + P.horizonAge + '+' : 'money runs short at age ' + (dd ? dd.exhaustedAgeA : '?')}
+      · Growth ${(P.growth * 100).toFixed(1)}%, inflation ${(P.inflation * 100).toFixed(1)}% · Educational tool, not regulated financial advice</div>`;
+  }
 }
 
 // Reflect the active tab everywhere: pill highlight, ARIA selection state,

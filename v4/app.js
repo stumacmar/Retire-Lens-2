@@ -212,6 +212,22 @@ function areaPath(pts, base, X, Y) {
   }
   return d + ' Z';
 }
+// Retirement-readiness ring: an SVG donut, 0–100%, colour-coded. Sweeps in on
+// tab entry via the .tab-enter hook (data-draw), reduced-motion permitting.
+function readinessRing(frac, caption) {
+  const f = Math.max(0, Math.min(1, frac || 0));
+  const r = 34, C = 2 * Math.PI * r;
+  const cls = f >= 0.85 ? 'good' : f >= 0.6 ? 'warn' : 'bad';
+  return `<div class="readiness ring-${cls}">
+    <svg viewBox="0 0 80 80" width="86" height="86" role="img" aria-label="Retirement readiness ${Math.round(f * 100)} percent">
+      <circle cx="40" cy="40" r="${r}" fill="none" stroke="var(--card-edge)" stroke-width="8"/>
+      <circle cx="40" cy="40" r="${r}" fill="none" stroke="currentColor" stroke-width="8" stroke-linecap="round"
+        transform="rotate(-90 40 40)" pathLength="1" stroke-dasharray="1" stroke-dashoffset="${(1 - f).toFixed(3)}" data-ring/>
+      <text x="40" y="46" text-anchor="middle" font-size="20" font-weight="800" fill="var(--ink)">${Math.round(f * 100)}%</text>
+    </svg>
+    <span class="readiness-cap">${caption}</span>
+  </div>`;
+}
 
 // Chart colours reference theme-aware CSS custom properties (SVG stroke/fill and
 // legend swatches both resolve var() inline), so lines stay legible in dark mode.
@@ -398,10 +414,43 @@ function renderDashboard(el) {
   const tch = chart({ xDomain: [tlY0, tlY1], yDomain: [0, tlMax * 1.08], yFmt: (v) => fmtK(v), h: 170, label: 'Your money through retirement' });
   tch.add(`<path d="${areaPath(tlPts, [[tlY1, 0], [tlY0, 0]], tch.X, tch.Y)}" fill="var(--accent)" opacity="0.13"/>`);
   tch.add(`<path d="${linePath(tlPts, tch.X, tch.Y)}" fill="none" stroke="var(--accent)" stroke-width="2.6" pathLength="1" data-draw/>`);
+  // Story annotations: State Pension start, and the crossover where guaranteed
+  // income first covers the spending need.
+  const tlMark = (yr, label, col, ty) => {
+    if (yr == null || yr < tlY0 || yr > tlY1) return;
+    tch.add(`<line x1="${tch.X(yr)}" y1="14" x2="${tch.X(yr)}" y2="${170 - 32}" stroke="${col}" stroke-width="1" stroke-dasharray="3 3" opacity="0.65"/>`);
+    tch.add(`<text x="${tch.X(yr) + 4}" y="${ty}" style="font-size:10px" fill="${col}" opacity="0.9">${label}</text>`);
+  };
+  tlMark(P.partnerA.birthYear + P.partnerA.spAge, 'State Pension', 'var(--c-blue)', 40);
+  const crossRow = dd.rows.find(r => r.guaranteed >= r.target * 0.98);
+  if (crossRow) tlMark(crossRow.year, 'income covers need', 'var(--accent-strong)', 54);
   if (dd.exhaustedYear) {
     tch.add(`<line x1="${tch.X(dd.exhaustedYear)}" y1="14" x2="${tch.X(dd.exhaustedYear)}" y2="${170 - 32}" stroke="var(--rose)" stroke-width="1.5" stroke-dasharray="4 4"/>`);
     tch.add(`<text x="${tch.X(dd.exhaustedYear) + 5}" y="26" style="font-size:11px" fill="var(--rose)">runs dry ${dd.exhaustedYear}</text>`);
   }
+
+  // Auto-generated, personalised insight bullets from the numbers already computed.
+  const insights = [];
+  const covRow = dd.rows.find(r => r.spA > 0 && r.spB > 0) || dd.rows[dd.rows.length - 1];
+  const covPct = covRow && covRow.target > 0 ? Math.round(covRow.guaranteed / covRow.target * 100) : 0;
+  if (covPct > 0) insights.push(['🛟', `Your guaranteed income (State Pension${(P.partnerA.db || P.partnerB.db) ? ' and company pension' : ''}) covers about <strong>${covPct}%</strong> of your spending from age ${covRow.ageA}.`]);
+  const isaRet = acc.isaA + acc.isaB, potRet = acc.pensionA + acc.pensionB;
+  if (isaRet > 500) insights.push(['🏦', `You'll have <strong>${fmtK(isaRet, P.retireYear)}</strong> in ISAs at ${P.retireYear} — about ${Math.round(isaRet / Math.max(1, isaRet + potRet) * 100)}% of your pot, drawn tax-free.`]);
+  if (P.retireYear > P.startYear) {
+    try {
+      const P2 = JSON.parse(JSON.stringify(P)); P2.partnerA.monthlyPension += 250;
+      const gain = E.accumulate(P2).atRetirement.pensionA - acc.pensionA;
+      if (gain > 500) insights.push(['📈', `Saving <strong>£250/month</strong> more would grow your pot by about ${fmtK(gain, P.retireYear)} by ${P.retireYear}.`]);
+    } catch (e) {}
+  }
+  try {
+    const P3 = JSON.parse(JSON.stringify(P)); P3.retireYear += 1;
+    const diff = E.drawdown(P3).endWealth - dd.endWealth;
+    if (Math.abs(diff) > 1000) insights.push(['🗓️', `Retiring a year later (${P.retireYear + 1}) would leave about <strong>${fmtK(Math.abs(diff), endYear)}</strong> ${diff >= 0 ? 'more' : 'less'} at ${P.horizonAge}.`]);
+  } catch (e) {}
+  const taxSave = E.taxOn(y1.guaranteed + y1.grossA + y1.grossB, P.tax) - y1.tax;
+  if (taxSave > 100) insights.push(['🧮', `Splitting income across both of you saves about <strong>${fmt(taxSave, y1.year)}</strong> in tax this year.`]);
+  const insightHtml = insights.slice(0, 4).map(([ic, t]) => `<div class="insight"><span class="insight-ic" aria-hidden="true">${ic}</span><span>${t}</span></div>`).join('');
 
   el.innerHTML = `
   ${exampleBanner()}
@@ -414,12 +463,16 @@ function renderDashboard(el) {
       : (survives
         ? `Almost — the income falls a little short in the first year. A slightly lower target or a later start closes it.`
         : `Not yet — the money runs short around age ${dd.exhaustedAgeA}. Retiring a little later, saving a bit more, or easing spending closes the gap.`);
+    const readyFrac = mc ? mc.successProb : (survives ? (y1.shortfall > 1 ? 0.72 : 0.9) : 0.4);
     return `<div class="card">
     <div class="kicker">${P.partnerA.name} and ${P.partnerB.name}</div>
     <div class="someday-hero is-${cls}">
-      <span class="sd-eyebrow">${good ? '🎉 Your Someday could be' : 'Your retirement target'}</span>
-      <span class="sd-date">April ${P.retireYear}</span>
-      <span class="sd-age">${good ? `You could stop work at ${ageAtRet}.` : `The plan you're aiming for — ${P.partnerA.name} at ${ageAtRet}.`}</span>
+      <div class="sd-main">
+        <span class="sd-eyebrow">${good ? '🎉 Your Someday could be' : 'Your retirement target'}</span>
+        <span class="sd-date">April ${P.retireYear}</span>
+        <span class="sd-age">${good ? `You could stop work at ${ageAtRet}.` : `The plan you're aiming for — ${P.partnerA.name} at ${ageAtRet}.`}</span>
+      </div>
+      ${readinessRing(readyFrac, 'Readiness')}
     </div>
     <p class="verdict ${cls}">${txt}</p>
     <p class="sub">At ${pct(P.growth, 1)} growth and ${pct(P.inflation, 1)} inflation. ${S.todayMoney ? "All figures in today's money." : 'Future pounds, with your inflation included.'} Pick a scenario below and everything recomputes.</p>`;
@@ -448,6 +501,30 @@ function renderDashboard(el) {
       </div>
     </details>
   </div>
+
+  <div class="card whatif no-print">
+    <div class="kicker">Try a what-if</div>
+    <h2>Move a lever, watch it change</h2>
+    <p class="sub">Drag to explore; let go and the whole plan updates. Your saved figures aren't changed until you release.</p>
+    <div class="lever">
+      <div class="lever-top"><label for="wi-year">Retire in</label><output id="wi-year-out">${P.retireYear} · age ${P.retireYear - P.partnerA.birthYear}</output></div>
+      <input type="range" id="wi-year" min="${P.startYear + 1}" max="${P.startYear + 25}" step="1" value="${P.retireYear}">
+    </div>
+    <div class="lever">
+      <div class="lever-top"><label for="wi-spend">Spend each year</label><output id="wi-spend-out">${fmt(P.targetNet)}</output></div>
+      <input type="range" id="wi-spend" min="15000" max="120000" step="1000" value="${P.targetNet}">
+    </div>
+    <div class="lever">
+      <div class="lever-top"><label for="wi-save">${P.partnerA.name} saves each month</label><output id="wi-save-out">${fmt(P.partnerA.monthlyPension)}</output></div>
+      <input type="range" id="wi-save" min="0" max="5000" step="50" value="${P.partnerA.monthlyPension}">
+    </div>
+  </div>
+
+  ${insightHtml ? `<div class="card">
+    <div class="kicker">What we notice</div>
+    <h2>Insights from your plan</h2>
+    <div class="insights">${insightHtml}</div>
+  </div>` : ''}
 
   <div class="card">
     <div class="kicker">Your money through retirement</div>
@@ -490,6 +567,18 @@ function renderDashboard(el) {
     };
   });
   wireExampleBanner();
+
+  // What-if levers: live label on drag; full recompute on release (a re-render
+  // would replace the slider mid-drag, so we only commit on 'change').
+  const lever = (id, outId, fmtVal, apply) => {
+    const sl = $(id), out = $(outId);
+    if (!sl || !out) return;
+    sl.addEventListener('input', () => { out.textContent = fmtVal(Number(sl.value)); });
+    sl.addEventListener('change', () => { apply(Number(sl.value)); changed(); });
+  };
+  lever('wi-year', 'wi-year-out', v => `${v} · age ${v - P.partnerA.birthYear}`, v => { S.P.retireYear = v; });
+  lever('wi-spend', 'wi-spend-out', v => fmt(v), v => { S.P.targetNet = v; S.P.spendingPlanOn = false; });
+  lever('wi-save', 'wi-save-out', v => fmt(v), v => { S.P.partnerA.monthlyPension = v; });
 
   $('btn-pin') && ($('btn-pin').onclick = () => {
     S.pinned = { pots: potsAtRet, endWealth: dd.endWealth, lifetimeTax: dd.lifetimeTax };

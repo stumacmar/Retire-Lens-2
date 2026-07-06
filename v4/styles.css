@@ -454,3 +454,23 @@ footer.honesty {
   .print-only { display: block !important; }
 }
 .print-only { display: none; }
+
+/* ── Subtle, calm micro-interactions (interaction-only, so they never replay
+   on a re-render; fully disabled under prefers-reduced-motion) ───────────── */
+@media (prefers-reduced-motion: no-preference) {
+  button:not(:disabled), .dash-scen button, .seg button, .help-btn,
+  .section > summary, .subsection > summary, details.card.fold > summary,
+  .strategy, .scenario-card, .kpi.lead {
+    transition: background-color .15s ease, color .15s ease, border-color .15s ease,
+                box-shadow .18s ease, transform .08s ease;
+  }
+  button:not(:disabled):active, .dash-scen button:active, .seg button:active { transform: translateY(1px); }
+  .card { transition: box-shadow .2s ease; }
+  .cta-primary { transition: background-color .15s ease, transform .1s ease; }
+  .cta-primary:active { transform: translateY(1px); }
+  /* Gate and welcome front pages fade in gently the once they appear */
+  .rl-gate-overlay, .rl-wel-overlay { animation: sd-fade .22s ease both; }
+  .rl-gate-card, .rl-wel-card { animation: sd-rise .26s cubic-bezier(.2,.7,.3,1) both; }
+}
+@keyframes sd-fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes sd-rise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }

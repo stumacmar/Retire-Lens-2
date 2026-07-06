@@ -1390,14 +1390,15 @@ $('btn-money').onclick = () => {
   save(); renderTab();
 };
 $('btn-theme').onclick = () => {
-  const cur = document.documentElement.dataset.theme
-    || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+  // Default is light (no data-theme), so the toggle flips to dark first, then back.
+  const cur = document.documentElement.dataset.theme || 'light';
   document.documentElement.dataset.theme = cur === 'dark' ? 'light' : 'dark';
   try { localStorage.setItem('rl4-theme', document.documentElement.dataset.theme); } catch (e) {}
 };
 try {
+  // Only honour an explicit choice; otherwise stay light regardless of the OS.
   const th = localStorage.getItem('rl4-theme');
-  if (th) document.documentElement.dataset.theme = th;
+  if (th === 'dark' || th === 'light') document.documentElement.dataset.theme = th;
 } catch (e) {}
 
 // ── Boot ────────────────────────────────────────────────────────────────

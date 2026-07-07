@@ -6,6 +6,8 @@
  * engine's per-year deflated sum; horizon values deflate at the horizon year.
  */
 import { createEngine } from './engine.js';
+import { EXAMPLES } from './examples.js';
+import { PRODUCT } from '../config/product.js';
 
 const E = createEngine();
 const $ = (id) => document.getElementById(id);
@@ -71,10 +73,12 @@ function save() {
 }
 
 // ── Example-plan "peek" (opt-in; never overwrites without a way back) ─────
-function enterExample() {
+function enterExample(key) {
+  const ex = EXAMPLES.find(e => e.key === key) || EXAMPLES[1];
   S.preExample = JSON.parse(JSON.stringify(S.P));   // remember what to restore
-  S.P = E.example();
+  S.P = mergeParams(E.freshStart(), ex.patch);
   S.exampleActive = true;
+  S.exampleLabel = ex.label.toLowerCase();
   save(); recompute(); activateTab('dashboard');
 }
 function keepExample() {          // "make this my starting point"
@@ -89,7 +93,7 @@ function clearExample() {         // "clear and start blank"
 function exampleBanner() {
   if (!S.exampleActive) return '';
   return `<div class="example-banner no-print">
-    <span>👀 You're viewing an <strong>example</strong> plan (Alex &amp; Sam) — not your figures.</span>
+    <span>👀 You're viewing an <strong>example</strong> plan${S.exampleLabel ? ' (the ' + S.exampleLabel + ')' : ''} — not your figures.</span>
     <span class="eb-actions"><button type="button" id="eb-keep" class="small">Make this my starting point</button>
     <button type="button" id="eb-clear" class="small ghost">Clear &amp; start blank</button></span>
   </div>`;
@@ -99,6 +103,38 @@ function wireExampleBanner() {
   if (k) k.onclick = keepExample;
   if (c) c.onclick = clearExample;
 }
+
+// ── "This helped?" support panel (post-results, warm, dismissible) ────────
+// Donations only — no paywall, per the product ethos. Preset buttons appear
+// once a real donation link is configured in config/product.js; until then a
+// single button points at the landing page's support section.
+function supportDismissed() { try { return localStorage.getItem('rl_support_dismissed') === '1'; } catch { return false; } }
+function supportPanel() {
+  if (supportDismissed()) return '';
+  const link = /^https:\/\//i.test(PRODUCT.donationLink || '') ? PRODUCT.donationLink : '';
+  return `<div class="card support-card no-print" id="support-card">
+    <div class="kicker">This helped?</div>
+    <h2>Keep Someday free for the next person</h2>
+    <p class="sub">Someday is free and private, built by one person. If it moved your thinking, chip in whatever you think it's worth — it funds the next improvement. Totally optional, always will be.</p>
+    <div class="support-actions">
+      ${link
+        ? [5, 10, 25].map(a => `<a class="small support-amt" href="${link}" target="_blank" rel="noopener">£${a}</a>`).join('')
+        : '<a class="small support-amt" href="index.html#support">Support Someday ♥</a>'}
+      <button type="button" id="support-later" class="small ghost">Maybe later</button>
+    </div>
+  </div>`;
+}
+function wireSupportPanel() {
+  const b = $('support-later');
+  if (b) b.onclick = () => {
+    try { localStorage.setItem('rl_support_dismissed', '1'); } catch (e) {}
+    const c = $('support-card'); if (c) c.remove();
+  };
+}
+
+// ── Multiple saved plans (free for everyone — no supporter gate) ──────────
+function savedPlans() { try { return JSON.parse(localStorage.getItem('rl4-plans') || '{}'); } catch { return {}; } }
+function setSavedPlans(o) { try { localStorage.setItem('rl4-plans', JSON.stringify(o)); } catch (e) {} }
 
 // ── Formatting ──────────────────────────────────────────────────────────
 const GBP = new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP', maximumFractionDigits: 0 });
@@ -591,6 +627,8 @@ function renderDashboard(el) {
     <div class="insights">${insightHtml}</div>
   </div>` : ''}
 
+  ${supportPanel()}
+
   <div class="card">
     <div class="kicker">Your money through retirement</div>
     <h2>${dd.exhaustedYear ? 'When the money runs down' : 'Your money holds up'}</h2>
@@ -634,6 +672,7 @@ function renderDashboard(el) {
     };
   });
   wireExampleBanner();
+  wireSupportPanel();
 
   // What-if levers: live label on drag; full recompute on release (a re-render
   // would replace the slider mid-drag, so we only commit on 'change').
@@ -725,7 +764,12 @@ function renderAssumptions(el) {
             ${pctField('Reduce by a further', 'phase2Cut')}
           </div>
         </details>
-        ${S.exampleActive ? '' : '<button type="button" id="btn-see-example" class="small ghost no-print" style="margin-top:0.8rem;">👀 Not sure? See an example plan first</button>'}
+        ${S.exampleActive ? '' : `<div class="ex-row no-print">
+          <span class="ex-lead">👀 Not sure where to start? Peek at an example:</span>
+          ${EXAMPLES.map(ex => `<button type="button" class="ex-card" data-example="${ex.key}">
+            <b>${ex.label}</b><span>${ex.blurb}</span>
+          </button>`).join('')}
+        </div>`}
       </div>
     </details>
 
@@ -820,6 +864,16 @@ function renderAssumptions(el) {
           <button id="btn-reset" class="small danger">Reset — delete all my data</button>
         </div>
         <input type="file" id="import-file" accept=".json" style="display:none">
+        <h4 style="margin-top:1rem;">My saved plans</h4>
+        <p class="sub" style="margin-bottom:0.4rem;">Keep a few versions — "retire at 60", "retire at 63" — and flip between them.</p>
+        <div style="display:flex; gap:0.5rem; flex-wrap:wrap; align-items:center;" class="no-print">
+          <button id="btn-save-plan" class="small">💾 Save current plan as…</button>
+        </div>
+        <div class="plans-list no-print">
+          ${Object.keys(savedPlans()).map(n => `<div class="plan-row"><span>${n.replace(/</g, '&lt;')}</span>
+            <span><button type="button" class="small" data-loadplan="${n.replace(/"/g, '&quot;')}">Load</button>
+            <button type="button" class="small ghost" data-delplan="${n.replace(/"/g, '&quot;')}">Delete</button></span></div>`).join('')}
+        </div>
       </div>
     </details>
   </div>`;
@@ -846,12 +900,47 @@ function renderAssumptions(el) {
       else activateTab('dashboard');
     };
     body.appendChild(btn);
+    // A forgiving "back" on steps 2-3: reopen the previous step
+    if (i > 0) {
+      const back = document.createElement('button');
+      back.type = 'button';
+      back.className = 'small ghost sec-back no-print';
+      back.textContent = '← Back';
+      back.onclick = () => {
+        sec.open = false;
+        steps[i - 1].open = true;
+        steps[i - 1].scrollIntoView({ behavior: 'smooth', block: 'start' });
+      };
+      body.appendChild(back);
+    }
   });
   // PLSA income benchmarks: one tap sets the target (a starting point, not advice)
   el.querySelectorAll('.plsa button[data-plsa]').forEach(b => {
     b.onclick = () => { S.P.targetNet = Number(b.dataset.plsa); S.P.spendingPlanOn = false; changed(); };
   });
-  if ($('btn-see-example')) $('btn-see-example').onclick = enterExample;
+  el.querySelectorAll('.ex-card[data-example]').forEach(b => { b.onclick = () => enterExample(b.dataset.example); });
+  // My saved plans: save current under a name; load or delete a saved one
+  if ($('btn-save-plan')) $('btn-save-plan').onclick = () => {
+    const name = (prompt('Name this plan (e.g. "Retire at 60")', 'Plan ' + (Object.keys(savedPlans()).length + 1)) || '').trim();
+    if (!name) return;
+    const plans = savedPlans();
+    plans[name] = JSON.parse(JSON.stringify(S.P));
+    setSavedPlans(plans);
+    renderTab();
+  };
+  el.querySelectorAll('[data-loadplan]').forEach(b => {
+    b.onclick = () => {
+      const plans = savedPlans(); const p = plans[b.dataset.loadplan];
+      if (p) { S.P = mergeParams(E.freshStart(), p); changed(); }
+    };
+  });
+  el.querySelectorAll('[data-delplan]').forEach(b => {
+    b.onclick = () => {
+      if (!confirm('Delete saved plan "' + b.dataset.delplan + '"?')) return;
+      const plans = savedPlans(); delete plans[b.dataset.delplan];
+      setSavedPlans(plans); renderTab();
+    };
+  });
   wireExampleBanner();
   wireInputs(el);
   // Remember open/closed accordion state so a field edit (which re-renders the

@@ -310,6 +310,35 @@ main { padding-top: 1rem; }
 /* PLSA income benchmark chips */
 .seg.plsa { margin-top: 0.6rem; flex-wrap: wrap; }
 .seg.plsa button small { font-family: var(--mono); font-weight: 600; margin-left: 0.25rem; }
+
+/* Example persona cards on the vision step */
+.ex-row { margin-top: 0.9rem; display: grid; gap: 0.45rem; }
+.ex-lead { font-size: 0.76rem; color: var(--ink-dim); font-weight: 600; }
+.ex-card { display: flex; flex-direction: column; align-items: flex-start; gap: 0.1rem; text-align: left;
+  background: var(--input-bg); border: 1px solid var(--card-edge); border-radius: 11px;
+  padding: 0.6rem 0.8rem; cursor: pointer; color: var(--ink); width: 100%; }
+.ex-card:hover { border-color: var(--accent); }
+.ex-card b { font-size: 0.86rem; }
+.ex-card span { font-size: 0.72rem; color: var(--ink-dim); }
+@media (min-width: 560px) { .ex-row { grid-template-columns: repeat(3, 1fr); } .ex-lead { grid-column: 1 / -1; } }
+
+/* "This helped?" support panel */
+.support-card { border-color: color-mix(in srgb, var(--amber) 30%, transparent); }
+.support-actions { display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center; }
+.support-amt { display: inline-block; background: var(--accent); color: #fff; border-radius: 10px;
+  padding: 0.45rem 1rem; font-weight: 800; text-decoration: none; font-size: 0.88rem; }
+.support-amt:hover { background: var(--accent-strong); }
+:root[data-theme="dark"] .support-amt { color: #06302b; }
+
+/* Saved plans list */
+.plans-list { margin-top: 0.5rem; display: grid; gap: 0.35rem; }
+.plan-row { display: flex; justify-content: space-between; align-items: center; gap: 0.6rem;
+  background: var(--input-bg); border: 1px solid var(--card-edge); border-radius: 10px;
+  padding: 0.45rem 0.7rem; font-size: 0.82rem; }
+.plan-row > span:last-child { display: flex; gap: 0.35rem; }
+
+/* Wizard back button (secondary, under Continue) */
+.sec-back { display: block; width: 100%; margin-top: 0.4rem; }
 .sec-recap { flex: 1 1 auto; min-width: 0; text-align: right; font-weight: 500; font-size: 0.76rem;
   color: var(--ink-faint); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .section[open] > summary .sec-recap { visibility: hidden; }  /* recap is a collapsed-state summary */

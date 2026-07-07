@@ -311,6 +311,56 @@ main { padding-top: 1rem; }
 @media (prefers-reduced-motion: no-preference) { .jp-fill { transition: width 0.35s cubic-bezier(.2,.7,.3,1); } }
 .jp-label { flex: 0 0 auto; font-size: 0.72rem; font-weight: 700; color: var(--ink-dim); letter-spacing: 0.02em; white-space: nowrap; }
 
+/* ── Multi-page wizard: one step per screen, room to breathe ───────────── */
+.wiz-steps { display: flex; gap: 0.3rem; margin: 0.2rem 0 1rem; max-width: 760px; }
+.wiz-dot { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 0.4rem;
+  background: none; border: none; cursor: pointer; padding: 0.2rem 0; color: var(--ink-faint); font: inherit; }
+.wiz-dot i { width: 30px; height: 30px; display: grid; place-items: center; border-radius: 999px;
+  background: var(--card-edge); color: var(--ink-dim); font-style: normal; font-weight: 800;
+  font-size: 0.85rem; border: 2px solid transparent; transition: background .2s, color .2s; }
+.wiz-dot span { font-size: 0.66rem; font-weight: 700; letter-spacing: 0.01em; }
+.wiz-dot.done i { background: var(--accent-soft); color: var(--accent-strong); }
+.wiz-dot.on i { background: var(--accent); color: #fff; box-shadow: 0 2px 10px var(--accent-soft); }
+.wiz-dot.on { color: var(--ink); }
+.wiz-dot:hover i { border-color: color-mix(in srgb, var(--accent) 40%, transparent); }
+.wiz-dot:focus-visible { outline: none; }
+.wiz-dot:focus-visible i { outline: 2px solid var(--accent); outline-offset: 2px; }
+:root[data-theme="dark"] .wiz-dot.on i { color: #06302b; }
+
+.card.wizard { max-width: 760px; }
+.wiz-head { margin-bottom: 1.5rem; }
+.wiz-head h2 { margin: 0.15rem 0 0.55rem; }
+.wiz-lead { max-width: 54ch; }
+.wiz-nav { display: flex; align-items: center; gap: 0.8rem; margin-top: 2rem; }
+.wiz-next { flex: 1; }
+.wiz-back { background: none; border: 1px solid var(--card-edge); color: var(--ink-dim);
+  border-radius: 12px; padding: 0.85rem 1.2rem; font-weight: 700; cursor: pointer; font-size: 0.9rem; }
+.wiz-back:hover { color: var(--ink); border-color: var(--accent); }
+.wiz-spacer { flex: 0 0 auto; }
+.wiz-skip { display: block; margin: 1rem auto 0; background: none; border: none; color: var(--ink-dim);
+  font-size: 0.82rem; font-weight: 600; cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
+.wiz-skip:hover { color: var(--accent-strong); }
+.wiz-datalink { display: block; margin: 1.1rem auto 0; background: none; border: none;
+  color: var(--ink-faint); font-size: 0.78rem; cursor: pointer; }
+.wiz-datalink:hover { color: var(--ink-dim); }
+.wiz-databack { background: none; border: none; color: var(--accent-strong); font-weight: 700;
+  cursor: pointer; padding: 0; margin-bottom: 0.7rem; font-size: 0.85rem; }
+
+/* PLSA benchmark cards — big and selectable, not tiny chips */
+.wiz-benchlead { font-size: 0.82rem; color: var(--ink-dim); font-weight: 600; margin: 1.2rem 0 0.55rem; }
+.plsa-cards { display: grid; gap: 0.6rem; grid-template-columns: 1fr; }
+@media (min-width: 520px) { .plsa-cards { grid-template-columns: repeat(3, 1fr); } }
+.plsa-card { display: flex; flex-direction: column; align-items: flex-start; gap: 0.25rem; text-align: left;
+  background: var(--input-bg); border: 1.5px solid var(--card-edge); border-radius: 14px;
+  padding: 0.95rem 1rem; cursor: pointer; color: var(--ink); transition: border-color .15s, background .15s; }
+.plsa-card:hover { border-color: color-mix(in srgb, var(--accent) 45%, transparent); }
+.plsa-card.on { border-color: var(--accent); background: var(--accent-soft); }
+.pc-name { font-size: 0.82rem; font-weight: 800; letter-spacing: 0.01em; }
+.pc-amt { font-size: 1.35rem; font-weight: 800; font-family: var(--mono); color: var(--accent-strong); font-variant-numeric: tabular-nums; }
+.pc-amt small { font-size: 0.68rem; font-weight: 600; color: var(--ink-dim); }
+.plsa-card.on .pc-name { color: var(--accent-strong); }
+.pc-desc { font-size: 0.74rem; color: var(--ink-dim); }
+
 /* Today → Someday → horizon journey strip */
 .journey-strip { width: 100%; margin: 0.7rem 0 0.2rem; overflow: visible; }
 .journey-strip text { font-family: var(--sans); }

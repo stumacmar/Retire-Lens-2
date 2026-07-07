@@ -699,28 +699,38 @@ function renderDashboard(el) {
   });
 }
 
+// ── "Your details": a calm one-step-at-a-time wizard ──────────────────────
+// Rather than a single long form, the plan is built one page at a time —
+// one idea per screen, generous whitespace, one obvious button. State lives
+// in S.P (the engine is untouched); S.step remembers which page you're on so
+// editing a field never loses your place.
+const WIZARD_STEPS = [
+  { n: 1, key: 'vision',  emoji: '🌅', short: 'Someday',  title: 'Your Someday',
+    lead: 'Start with the life, not the spreadsheet — the year you’d like to stop work, and what “enough” looks like each year. Nothing here is advice, and you can change either any time.' },
+  { n: 2, key: 'about',   emoji: '👤', short: 'You',      title: 'Where you’re starting from',
+    lead: 'Real names, real numbers — honest beats hopeful. Just you for now; you can add a partner lower down. Everything stays on this device.' },
+  { n: 3, key: 'savings', emoji: '🌉', short: 'Extras',   title: 'What else helps carry you there',
+    lead: 'Cash set aside, your home, and anything you expect along the way. Small things count — add what you have and skip the rest.' },
+  { n: 4, key: 'growth',  emoji: '🔭', short: 'The lens', title: 'The lens you look through',
+    lead: 'No one knows what markets will do, so Someday looks through three lenses — Poor, Base and Positive — instead of one guess. Most people leave these exactly as they are.' },
+];
+
 function renderAssumptions(el) {
   const P = S.P;
-  // Live one-line recaps shown in each collapsed section header, so the plan
-  // reads as progress rather than a form dump.
   const potsNow = P.partnerA.pension + P.partnerA.isa + P.partnerB.pension + P.partnerB.isa;
   const partnerHasData = P.partnerB.pension > 0 || P.partnerB.isa > 0 || P.partnerB.db > 0 || (P.partnerB.name && P.partnerB.name !== 'Partner');
-  // Remember which accordion sections are open, so editing a field (which
-  // re-renders the tab) never snaps your open section shut.
-  if (!S.openSecs) { S.openSecs = new Set(['vision']); if (partnerHasData) S.openSecs.add('partner'); }
+  // Subsection open state persists across re-renders so a field edit never
+  // snaps an expanded "more…" panel shut.
+  if (!S.openSecs) { S.openSecs = new Set(); if (partnerHasData) S.openSecs.add('partner'); }
   if (!S.doneSecs) S.doneSecs = new Set();
+  if (!S.step) S.step = 1;
   const so = (k) => S.openSecs.has(k) ? 'open' : '';
-  // "Step X of 4" journey progress: the current step is the highest-numbered
-  // open section among the four journey steps (fallback 1).
-  const STEP_ORDER = ['vision', 'about', 'savings', 'growth'];
-  const journeyStep = () => { let s = 1; STEP_ORDER.forEach((k, i) => { if (S.openSecs.has(k)) s = i + 1; }); return s; };
-  const recap = {
-    vision: `Retire ${P.retireYear} · ${fmt(P.targetNet)}/yr${P.phase1On || P.phase2On ? ' · eases later' : ''}`,
-    about: `${P.partnerA.name}${partnerHasData ? ' & ' + P.partnerB.name : ''} · ${fmtK(potsNow)} saved`,
-    savings: `${fmtK(P.cash)} cash · ${fmtK(P.house)} home${P.inherit.on ? ' · inheritance' : ''}`,
-    growth: `Base ${pct(P.growthBase)} · inflation ${pct(P.inflation)} · to age ${P.horizonAge}`,
-  };
-  const sumHead = (key, n, title, r) => `<span class="sec-step${S.doneSecs.has(key) ? ' done' : ''}">${S.doneSecs.has(key) ? '✓' : n}</span><span class="sec-title">${title}</span><span class="sec-recap">${r}</span>`;
+
+  // The quiet "Manage my data" page sits outside the numbered journey.
+  if (S.step === 'data') return renderDataPanel(el);
+
+  const cur = WIZARD_STEPS.find(s => s.n === S.step) || WIZARD_STEPS[0];
+
   // The Today → Someday → horizon journey strip: the whole plan in one glance.
   const jY0 = P.startYear, jY1 = P.retireYear, jY2 = horizonYear();
   const jX = (y) => 30 + (y - jY0) / Math.max(1, jY2 - jY0) * 660;
@@ -734,200 +744,210 @@ function renderAssumptions(el) {
     <text x="${jX(jY1).toFixed(0)}" y="52" font-size="13" font-weight="700" text-anchor="middle" fill="var(--accent-strong)">Someday · ${jY1}</text>
     <text x="690" y="52" font-size="13" text-anchor="end" fill="var(--ink-dim)">to age ${P.horizonAge}</text>
   </svg>`;
-  // PLSA Retirement Living Standards 2024 (couple, after tax, home owned outright)
-  const PLSA = [['Minimum', 22400], ['Moderate', 43100], ['Comfortable', 59000]];
+
+  // PLSA Retirement Living Standards 2024 (couple, after tax, home owned
+  // outright), shown as big selectable cards — pick a starting point in one tap.
+  const PLSA = [
+    ['Minimum', 22400, 'The essentials, covered'],
+    ['Moderate', 43100, 'Some comfort and choice'],
+    ['Comfortable', 59000, 'More freedom and treats'],
+  ];
+
+  // ── Per-step bodies ─────────────────────────────────────────────────────
+  const bodies = {
+    vision: `
+      <div class="grid2">
+        ${numField('Retirement year', 'retireYear', 'The year you stop paying in and start drawing an income')}
+        ${moneyField('Income you want each year', 'targetNet', "Today's money, after tax. The 🛒 Spending tab can build this from a monthly budget instead")}
+      </div>
+      <p class="wiz-benchlead">Not sure what to aim for? Pick a benchmark to start from:</p>
+      <div class="plsa-cards no-print" role="group" aria-label="Income benchmarks">
+        ${PLSA.map(([n, v, d]) => `<button type="button" class="plsa-card ${Math.abs(P.targetNet - v) < 1 ? 'on' : ''}" data-plsa="${v}">
+          <span class="pc-name">${n}</span>
+          <span class="pc-amt">${fmtK(v)}<small> / yr</small></span>
+          <span class="pc-desc">${d}</span>
+        </button>`).join('')}
+      </div>
+      <p class="note">Benchmarks from the Pensions and Lifetime Savings Association’s Retirement Living Standards (2024) for a couple, after tax, home owned outright — a starting point, not advice; your own number wins.</p>
+      ${journeyStrip}
+      <details class="subsection" data-sec="stepdowns" ${so('stepdowns')}>
+        <summary>Ease spending as you age (on by default)</summary>
+        <p class="sub" style="margin:0.5rem 0;">Most people spend less as they get older. Adjust or switch off.</p>
+        <div class="grid2">
+          <div class="field"><label class="switch"><input type="checkbox" id="ph1-on" ${P.phase1On ? 'checked' : ''}> Ease spending in later life</label></div><div></div>
+          ${numField('From age', 'phase1Age')}
+          ${pctField('Reduce spending by', 'phase1Cut')}
+          <div class="field"><label class="switch"><input type="checkbox" id="ph2-on" ${P.phase2On ? 'checked' : ''}> A further step-down later</label></div><div></div>
+          ${numField('From age', 'phase2Age')}
+          ${pctField('Reduce by a further', 'phase2Cut')}
+        </div>
+      </details>
+      ${S.exampleActive ? '' : `<div class="ex-row no-print">
+        <span class="ex-lead">👀 Not sure where to start? Peek at an example:</span>
+        ${EXAMPLES.map(ex => `<button type="button" class="ex-card" data-example="${ex.key}">
+          <b>${ex.label}</b><span>${ex.blurb}</span>
+        </button>`).join('')}
+      </div>`}`,
+
+    about: `
+      <div class="grid2">
+        ${textField('Your name', 'partnerA.name', 'What we call you across the plan')}
+        ${numField('Birth year', 'partnerA.birthYear')}
+        ${moneyField('Pension pot today', 'partnerA.pension', 'Total value of your pensions now')}
+        ${moneyField('Monthly pension investing', 'partnerA.monthlyPension', 'What you pay in each month until you retire')}
+      </div>
+      <details class="subsection" data-sec="aboutmore" ${so('aboutmore')}>
+        <summary>More about you — State Pension, ISAs, company pension</summary>
+        <div class="grid2">
+          ${numField('State pension age', 'partnerA.spAge', 'Usually 67')}
+          ${moneyField('State pension per year', 'partnerA.spAmount', 'Standard full new State Pension. Change if yours differs')}
+          ${moneyField('ISA today', 'partnerA.isa', 'Your ISA value now (withdrawals are tax-free)')}
+          ${moneyField('Monthly ISA investing', 'partnerA.monthlyIsa', 'What you add to ISAs each month')}
+          ${moneyField('Company / final-salary pension per year', 'partnerA.db', 'Guaranteed income from a company/final-salary scheme (0 if none)')}
+        </div>
+      </details>
+      <details class="subsection" data-sec="partner" ${so('partner')}>
+        <summary>➕ Add your partner’s details</summary>
+        <p class="sub" style="margin:0.5rem 0;">Planning solo? Leave this closed.</p>
+        <div class="grid2">
+          ${textField('Partner’s name', 'partnerB.name', 'Leave as “Partner” if planning alone')}
+          ${numField('Birth year', 'partnerB.birthYear')}
+          ${moneyField('Pension pot today', 'partnerB.pension', 'Total value of their pensions now')}
+          ${moneyField('Monthly pension investing', 'partnerB.monthlyPension', 'What they pay in each month until retirement')}
+        </div>
+        <details class="subsection" data-sec="partnermore" ${so('partnermore')}>
+          <summary>More about your partner</summary>
+          <div class="grid2">
+            ${numField('State pension age', 'partnerB.spAge', 'Usually 67')}
+            ${moneyField('State pension per year', 'partnerB.spAmount', 'Standard full new State Pension. Change if theirs differs')}
+            ${moneyField('ISA today', 'partnerB.isa', 'Their ISA value now (withdrawals are tax-free)')}
+            ${moneyField('Monthly ISA investing', 'partnerB.monthlyIsa', 'What they add to ISAs each month')}
+            ${moneyField('Company / final-salary pension per year', 'partnerB.db', 'Guaranteed company/final-salary income (0 if none). Starts ' + P.partnerB.dbStartYear)}
+          </div>
+        </details>
+        <label class="switch" style="margin-top:0.4rem;"><input type="checkbox" id="dbb-indexed" ${P.partnerB.dbIndexed ? 'checked' : ''}> ${poss(P.partnerB.name)} company pension rises with inflation</label>
+      </details>`,
+
+    savings: `
+      <div class="grid2">
+        ${moneyField('Cash savings & Premium Bonds', 'cash', 'Bank or NS&I. Spent tax-free, before your ISAs')}
+        ${pctField('Return on cash', 'cashGrowth', 'Interest / Premium Bond prize rate on your cash')}
+        ${moneyField('House value', 'house', 'For net worth and inheritance only. It never funds your retirement income')}
+        ${pctField('House growth per year', 'houseGrowth')}
+      </div>
+      <label class="switch" style="margin-top:0.8rem;"><input type="checkbox" id="inherit-on" ${P.inherit.on ? 'checked' : ''}> Expect an inheritance</label>
+      <div class="grid2" style="margin-top:0.5rem;">
+        ${numField('Year received', 'inherit.year')}
+        ${moneyField('Amount', 'inherit.amount', "Today's money, indexed to the year")}
+      </div>
+      <label class="switch"><input type="checkbox" id="inherit-invest" ${P.inherit.invest ? 'checked' : ''}> Invest it when it arrives (compounds at your growth rate)</label>
+      <div style="margin-top:0.9rem;" class="no-print">
+        <button type="button" id="btn-goto-events" class="small">✏️ Add one-off life events (optional)</button>
+      </div>`,
+
+    growth: `
+      <div class="grid2">
+        ${pctField('Base growth rate', 'growthBase', 'Your central assumption for investment returns')}
+        ${pctField('Inflation', 'inflation', 'How fast prices rise (2% is the long-run average)')}
+        ${pctField('Poor rate', 'growthBear', 'A weak decade for markets')}
+        ${pctField('Positive rate', 'growthBull', 'A strong decade for markets')}
+        ${numField('Plan to age', 'horizonAge', 'Around 1 in 4 people who reach 65 live into their mid-90s — planning too short is the quieter risk, so 90+ is a sensible floor')}
+      </div>
+      <p class="note">Assumptions, not predictions — a planning tool, not financial advice.</p>`,
+  };
+
+  const isLast = cur.n === WIZARD_STEPS.length;
   el.innerHTML = `
   ${exampleBanner()}
-  <div class="card">
-    <div class="kicker">Start here</div>
-    <h2>Your journey to Someday</h2>
-    <div class="journey-progress no-print" role="group" aria-label="Journey progress, step ${journeyStep()} of 4">
-      <div class="jp-track"><div class="jp-fill" id="jp-fill" style="width:${journeyStep() / 4 * 100}%"></div></div>
-      <span class="jp-label" id="jp-label">Step ${journeyStep()} of 4</span>
+  <nav class="wiz-steps no-print" aria-label="Your journey, step ${cur.n} of ${WIZARD_STEPS.length}">
+    ${WIZARD_STEPS.map(s => `<button type="button" class="wiz-dot ${s.n === cur.n ? 'on' : ''} ${S.doneSecs.has(s.key) ? 'done' : ''}" data-gostep="${s.n}" ${s.n === cur.n ? 'aria-current="step"' : ''}>
+      <i>${S.doneSecs.has(s.key) && s.n !== cur.n ? '✓' : s.n}</i><span>${s.short}</span>
+    </button>`).join('')}
+  </nav>
+  <div class="card wizard">
+    <div class="wiz-head">
+      <div class="kicker">Step ${cur.n} of ${WIZARD_STEPS.length}</div>
+      <h2>${cur.emoji} ${cur.title}</h2>
+      <p class="sub wiz-lead">${cur.lead}</p>
     </div>
-    <p class="sub">Start with the life, then the numbers — everything stays on this device, and nothing here is financial advice; it's your working, made visible. All money inputs are in today's money.</p>
+    <div class="wiz-body">${bodies[cur.key]}</div>
+    <div class="wiz-nav no-print">
+      ${cur.n > 1 ? `<button type="button" class="wiz-back">← Back</button>` : `<span class="wiz-spacer"></span>`}
+      <button type="button" class="cta-primary wiz-next">${isLast ? 'See my answer →' : 'Continue →'}</button>
+    </div>
+    ${isLast ? '' : `<button type="button" class="wiz-skip no-print">or skip ahead to my answer →</button>`}
+  </div>
+  <button type="button" class="wiz-datalink no-print">🔒 Manage my data &amp; privacy</button>`;
 
-    <details class="section" data-sec="vision" ${so('vision')}>
-      <summary>${sumHead('vision', 1, '🌅 Your Someday', recap.vision)}</summary>
-      <div class="section-body">
-        <p class="sub">Start with the life, not the spreadsheet — the year you'd like to stop work, and what enough looks like each year. You can change both any time.</p>
-        <div class="grid2">
-          ${numField('Retirement year', 'retireYear', 'The year you stop paying in and start drawing an income')}
-          ${moneyField('Income you want each year', 'targetNet', "Today's money, after tax. The 🛒 Spending tab can build this from a monthly budget instead")}
-        </div>
-        <div class="seg plsa no-print" role="group" aria-label="Income benchmarks">
-          ${PLSA.map(([n, v]) => `<button type="button" data-plsa="${v}" class="${Math.abs(P.targetNet - v) < 1 ? 'on' : ''}">${n} <small>${fmtK(v)}</small></button>`).join('')}
-        </div>
-        <p class="note">Benchmarks from the Pensions and Lifetime Savings Association's Retirement Living Standards (2024) for a couple, after tax, home owned outright — a starting point, not advice; your own number wins.</p>
-        ${journeyStrip}
-        <details class="subsection" data-sec="stepdowns" ${so('stepdowns')}>
-          <summary>Ease spending as you age (on by default)</summary>
-          <p class="sub" style="margin:0.5rem 0;">Most people spend less as they get older. Adjust or switch off.</p>
-          <div class="grid2">
-            <div class="field"><label class="switch"><input type="checkbox" id="ph1-on" ${P.phase1On ? 'checked' : ''}> Ease spending in later life</label></div><div></div>
-            ${numField('From age', 'phase1Age')}
-            ${pctField('Reduce spending by', 'phase1Cut')}
-            <div class="field"><label class="switch"><input type="checkbox" id="ph2-on" ${P.phase2On ? 'checked' : ''}> A further step-down later</label></div><div></div>
-            ${numField('From age', 'phase2Age')}
-            ${pctField('Reduce by a further', 'phase2Cut')}
-          </div>
-        </details>
-        ${S.exampleActive ? '' : `<div class="ex-row no-print">
-          <span class="ex-lead">👀 Not sure where to start? Peek at an example:</span>
-          ${EXAMPLES.map(ex => `<button type="button" class="ex-card" data-example="${ex.key}">
-            <b>${ex.label}</b><span>${ex.blurb}</span>
-          </button>`).join('')}
-        </div>`}
-      </div>
-    </details>
+  // ── Navigation ──────────────────────────────────────────────────────────
+  const goStep = (n) => { S.step = n; renderTab(); window.scrollTo({ top: 0, behavior: 'smooth' }); };
+  el.querySelectorAll('[data-gostep]').forEach(b => b.onclick = () => goStep(Number(b.dataset.gostep)));
+  const nextBtn = el.querySelector('.wiz-next');
+  if (nextBtn) nextBtn.onclick = () => {
+    S.doneSecs.add(cur.key);
+    if (isLast) activateTab('dashboard'); else goStep(cur.n + 1);
+  };
+  const backBtn = el.querySelector('.wiz-back');
+  if (backBtn) backBtn.onclick = () => goStep(cur.n - 1);
+  const skipBtn = el.querySelector('.wiz-skip');
+  if (skipBtn) skipBtn.onclick = () => activateTab('dashboard');
+  const dataLink = el.querySelector('.wiz-datalink');
+  if (dataLink) dataLink.onclick = () => { S.prevStep = S.step; S.step = 'data'; renderTab(); window.scrollTo({ top: 0, behavior: 'smooth' }); };
 
-    <details class="section" data-sec="about" ${so('about')}>
-      <summary>${sumHead('about', 2, '👤 Your starting point', recap.about)}</summary>
-      <div class="section-body">
-        <p class="sub">Now, where you're starting from. Real names, real numbers — honest beats hopeful, and it stays on this device.</p>
-        <div class="grid2">
-          ${textField('Your name', 'partnerA.name', 'What we call you across the plan')}
-          ${numField('Birth year', 'partnerA.birthYear')}
-          ${moneyField('Pension pot today', 'partnerA.pension', 'Total value of your pensions now')}
-          ${moneyField('Monthly pension investing', 'partnerA.monthlyPension', 'What you pay in each month until you retire')}
-        </div>
-        <details class="subsection" data-sec="aboutmore" ${so('aboutmore')}>
-          <summary>More about you — State Pension, ISAs, company pension</summary>
-          <div class="grid2">
-            ${numField('State pension age', 'partnerA.spAge', 'Usually 67')}
-            ${moneyField('State pension per year', 'partnerA.spAmount', 'Standard full new State Pension. Change if yours differs')}
-            ${moneyField('ISA today', 'partnerA.isa', 'Your ISA value now (withdrawals are tax-free)')}
-            ${moneyField('Monthly ISA investing', 'partnerA.monthlyIsa', 'What you add to ISAs each month')}
-            ${moneyField('Company / final-salary pension per year', 'partnerA.db', 'Guaranteed income from a company/final-salary scheme (0 if none)')}
-          </div>
-        </details>
-        <details class="subsection" data-sec="partner" ${so('partner')}>
-          <summary>➕ Add your partner's details</summary>
-          <p class="sub" style="margin:0.5rem 0;">Planning solo? Leave this closed.</p>
-          <div class="grid2">
-            ${textField('Partner’s name', 'partnerB.name', 'Leave as “Partner” if planning alone')}
-            ${numField('Birth year', 'partnerB.birthYear')}
-            ${moneyField('Pension pot today', 'partnerB.pension', 'Total value of their pensions now')}
-            ${moneyField('Monthly pension investing', 'partnerB.monthlyPension', 'What they pay in each month until retirement')}
-          </div>
-          <details class="subsection" data-sec="partnermore" ${so('partnermore')}>
-            <summary>More about your partner</summary>
-            <div class="grid2">
-              ${numField('State pension age', 'partnerB.spAge', 'Usually 67')}
-              ${moneyField('State pension per year', 'partnerB.spAmount', 'Standard full new State Pension. Change if theirs differs')}
-              ${moneyField('ISA today', 'partnerB.isa', 'Their ISA value now (withdrawals are tax-free)')}
-              ${moneyField('Monthly ISA investing', 'partnerB.monthlyIsa', 'What they add to ISAs each month')}
-              ${moneyField('Company / final-salary pension per year', 'partnerB.db', 'Guaranteed company/final-salary income (0 if none). Starts ' + P.partnerB.dbStartYear)}
-            </div>
-          </details>
-          <label class="switch" style="margin-top:0.4rem;"><input type="checkbox" id="dbb-indexed" ${P.partnerB.dbIndexed ? 'checked' : ''}> ${poss(P.partnerB.name)} company pension rises with inflation</label>
-        </details>
-      </div>
-    </details>
-
-    <details class="section" data-sec="savings" ${so('savings')}>
-      <summary>${sumHead('savings', 3, '🌉 Bridging & extras', recap.savings)}</summary>
-      <div class="section-body">
-        <p class="sub">What else helps carry you there — cash set aside, your home, and anything you expect along the way.</p>
-        <div class="grid2">
-          ${moneyField('Cash savings & Premium Bonds', 'cash', 'Bank or NS&I. Spent tax-free, before your ISAs')}
-          ${pctField('Return on cash', 'cashGrowth', 'Interest / Premium Bond prize rate on your cash')}
-          ${moneyField('House value', 'house', 'For net worth and inheritance only. It never funds your retirement income')}
-          ${pctField('House growth per year', 'houseGrowth')}
-        </div>
-        <label class="switch" style="margin-top:0.8rem;"><input type="checkbox" id="inherit-on" ${P.inherit.on ? 'checked' : ''}> Expect an inheritance</label>
-        <div class="grid2" style="margin-top:0.5rem;">
-          ${numField('Year received', 'inherit.year')}
-          ${moneyField('Amount', 'inherit.amount', "Today's money, indexed to the year")}
-        </div>
-        <label class="switch"><input type="checkbox" id="inherit-invest" ${P.inherit.invest ? 'checked' : ''}> Invest it when it arrives (compounds at your growth rate)</label>
-        <div style="margin-top:0.9rem;" class="no-print">
-          <button type="button" id="btn-goto-events" class="small">✏️ Add one-off life events (optional)</button>
-        </div>
-      </div>
-    </details>
-
-    <details class="section" data-sec="growth" ${so('growth')}>
-      <summary>${sumHead('growth', 4, '🔭 The lens you look through', recap.growth + ' · optional')}</summary>
-      <div class="section-body">
-        <p class="sub">No one knows what markets will do, so Someday looks through three lenses instead of one guess — Poor, Base and Positive. Assumptions, not predictions; a planning tool, not financial advice. Most people leave these as they are.</p>
-        <div class="grid2">
-          ${pctField('Base growth rate', 'growthBase', 'Your central assumption for investment returns')}
-          ${pctField('Inflation', 'inflation', 'How fast prices rise (2% is the long-run average)')}
-          ${pctField('Poor rate', 'growthBear', 'A weak decade for markets')}
-          ${pctField('Positive rate', 'growthBull', 'A strong decade for markets')}
-          ${numField('Plan to age', 'horizonAge', 'Around 1 in 4 people who reach 65 live into their mid-90s — planning too short is the quieter risk, so 90+ is a sensible floor')}
-        </div>
-      </div>
-    </details>
-
-    <button type="button" id="btn-see-answer" class="cta-primary no-print">See my answer →</button>
-    <details class="section" data-sec="managedata" style="margin-top:0.8rem;" ${so('managedata')}>
-      <summary>🔒 Manage my data &amp; privacy</summary>
-      <div class="section-body">
-        <p class="sub">Everything stays on this device. You can save a copy, load one back, or wipe it all.</p>
-        <div style="display:flex; gap:0.5rem; flex-wrap:wrap;" class="no-print">
-          <button id="btn-export" class="small">Export a copy</button>
-          <button id="btn-import" class="small">Load a saved copy</button>
-          <button id="btn-reset" class="small danger">Reset — delete all my data</button>
-        </div>
-        <input type="file" id="import-file" accept=".json" style="display:none">
-        <h4 style="margin-top:1rem;">My saved plans</h4>
-        <p class="sub" style="margin-bottom:0.4rem;">Keep a few versions — "retire at 60", "retire at 63" — and flip between them.</p>
-        <div style="display:flex; gap:0.5rem; flex-wrap:wrap; align-items:center;" class="no-print">
-          <button id="btn-save-plan" class="small">💾 Save current plan as…</button>
-        </div>
-        <div class="plans-list no-print">
-          ${Object.keys(savedPlans()).map(n => `<div class="plan-row"><span>${n.replace(/</g, '&lt;')}</span>
-            <span><button type="button" class="small" data-loadplan="${n.replace(/"/g, '&quot;')}">Load</button>
-            <button type="button" class="small ghost" data-delplan="${n.replace(/"/g, '&quot;')}">Delete</button></span></div>`).join('')}
-        </div>
-      </div>
-    </details>
-  </div>`;
-  $('btn-see-answer').onclick = () => activateTab('dashboard');
-  // Guided journey: Vision → Starting point → Bridging, then the answer. The
-  // optional "lens" section sits outside the Continue chain. Completed steps
-  // earn a ✓ in their step badge.
-  const steps = [...el.querySelectorAll('details.section')].slice(0, 3);
-  const stepLabels = ['Continue → who’s saving', 'Continue → what else you have', 'See my answer →'];
-  steps.forEach((sec, i) => {
-    const body = sec.querySelector('.section-body');
-    if (!body) return;
-    const next = i < 2 ? steps[i + 1] : null;
-    const btn = document.createElement('button');
-    btn.type = 'button';
-    btn.className = 'small sec-next no-print';
-    btn.textContent = stepLabels[i];
-    btn.onclick = () => {
-      S.doneSecs.add(sec.dataset.sec);
-      const badge = sec.querySelector('.sec-step');
-      if (badge) { badge.textContent = '✓'; badge.classList.add('done'); }
-      sec.open = false;
-      if (next) { next.open = true; next.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
-      else activateTab('dashboard');
-    };
-    body.appendChild(btn);
-    // A forgiving "back" on steps 2-3: reopen the previous step
-    if (i > 0) {
-      const back = document.createElement('button');
-      back.type = 'button';
-      back.className = 'small ghost sec-back no-print';
-      back.textContent = '← Back';
-      back.onclick = () => {
-        sec.open = false;
-        steps[i - 1].open = true;
-        steps[i - 1].scrollIntoView({ behavior: 'smooth', block: 'start' });
-      };
-      body.appendChild(back);
-    }
-  });
-  // PLSA income benchmarks: one tap sets the target (a starting point, not advice)
-  el.querySelectorAll('.plsa button[data-plsa]').forEach(b => {
+  // ── Step-specific wiring (guarded — only the current step is in the DOM) ──
+  el.querySelectorAll('.plsa-card[data-plsa]').forEach(b => {
     b.onclick = () => { S.P.targetNet = Number(b.dataset.plsa); S.P.spendingPlanOn = false; changed(); };
   });
   el.querySelectorAll('.ex-card[data-example]').forEach(b => { b.onclick = () => enterExample(b.dataset.example); });
-  // My saved plans: save current under a name; load or delete a saved one
+  if ($('ph1-on')) $('ph1-on').onchange = (e) => { P.phase1On = e.target.checked; changed(); };
+  if ($('ph2-on')) $('ph2-on').onchange = (e) => { P.phase2On = e.target.checked; changed(); };
+  if ($('dbb-indexed')) $('dbb-indexed').onchange = (e) => { P.partnerB.dbIndexed = e.target.checked; changed(); };
+  if ($('btn-goto-events')) $('btn-goto-events').onclick = () => activateTab('events');
+  if ($('inherit-on')) $('inherit-on').onchange = (e) => { P.inherit.on = e.target.checked; changed(); };
+  if ($('inherit-invest')) $('inherit-invest').onchange = (e) => { P.inherit.invest = e.target.checked; changed(); };
+
+  wireExampleBanner();
+  wireInputs(el);
+  // Remember which "more…" subsections are open across re-renders.
+  el.querySelectorAll('details[data-sec]').forEach(d => {
+    d.addEventListener('toggle', () => {
+      if (d.open) S.openSecs.add(d.dataset.sec); else S.openSecs.delete(d.dataset.sec);
+    });
+  });
+}
+
+// The quiet privacy / saved-plans page — reachable from the "Manage my data"
+// link under any wizard step, kept off the numbered journey so it never
+// competes with the plan itself.
+function renderDataPanel(el) {
+  el.innerHTML = `
+  ${exampleBanner()}
+  <div class="card">
+    <button type="button" class="wiz-databack no-print">← Back to my plan</button>
+    <div class="kicker">Private by design</div>
+    <h2>🔒 Manage my data &amp; privacy</h2>
+    <p class="sub">Everything stays on this device. You can save a copy, load one back, or wipe it all — nothing ever leaves your browser.</p>
+    <div style="display:flex; gap:0.5rem; flex-wrap:wrap;" class="no-print">
+      <button id="btn-export" class="small">Export a copy</button>
+      <button id="btn-import" class="small">Load a saved copy</button>
+      <button id="btn-reset" class="small danger">Reset — delete all my data</button>
+    </div>
+    <input type="file" id="import-file" accept=".json" style="display:none">
+    <h4 style="margin-top:1.4rem;">My saved plans</h4>
+    <p class="sub" style="margin-bottom:0.4rem;">Keep a few versions — “retire at 60”, “retire at 63” — and flip between them.</p>
+    <div style="display:flex; gap:0.5rem; flex-wrap:wrap; align-items:center;" class="no-print">
+      <button id="btn-save-plan" class="small">💾 Save current plan as…</button>
+    </div>
+    <div class="plans-list no-print">
+      ${Object.keys(savedPlans()).map(n => `<div class="plan-row"><span>${n.replace(/</g, '&lt;')}</span>
+        <span><button type="button" class="small" data-loadplan="${n.replace(/"/g, '&quot;')}">Load</button>
+        <button type="button" class="small ghost" data-delplan="${n.replace(/"/g, '&quot;')}">Delete</button></span></div>`).join('')}
+    </div>
+  </div>`;
+
+  const back = el.querySelector('.wiz-databack');
+  if (back) back.onclick = () => { S.step = S.prevStep || 1; renderTab(); window.scrollTo({ top: 0, behavior: 'smooth' }); };
+  wireExampleBanner();
   if ($('btn-save-plan')) $('btn-save-plan').onclick = () => {
     const name = (prompt('Name this plan (e.g. "Retire at 60")', 'Plan ' + (Object.keys(savedPlans()).length + 1)) || '').trim();
     if (!name) return;
@@ -949,30 +969,6 @@ function renderAssumptions(el) {
       setSavedPlans(plans); renderTab();
     };
   });
-  wireExampleBanner();
-  wireInputs(el);
-  // Remember open/closed accordion state so a field edit (which re-renders the
-  // tab) keeps your section open instead of snapping it shut.
-  // Live "Step X of 4" update as sections open/close (no full re-render, so the
-  // journey bar animates smoothly).
-  const updateJourneyProgress = () => {
-    const f = $('jp-fill'), l = $('jp-label');
-    if (!f || !l) return;
-    let s = 1; STEP_ORDER.forEach((k, i) => { if (S.openSecs.has(k)) s = i + 1; });
-    f.style.width = (s / 4 * 100) + '%'; l.textContent = 'Step ' + s + ' of 4';
-  };
-  el.querySelectorAll('details[data-sec]').forEach(d => {
-    d.addEventListener('toggle', () => {
-      if (d.open) S.openSecs.add(d.dataset.sec); else S.openSecs.delete(d.dataset.sec);
-      updateJourneyProgress();
-    });
-  });
-  $('dbb-indexed').onchange = (e) => { P.partnerB.dbIndexed = e.target.checked; changed(); };
-  $('ph1-on').onchange = (e) => { P.phase1On = e.target.checked; changed(); };
-  $('ph2-on').onchange = (e) => { P.phase2On = e.target.checked; changed(); };
-  $('btn-goto-events').onclick = () => activateTab('events');
-  $('inherit-on').onchange = (e) => { P.inherit.on = e.target.checked; changed(); };
-  $('inherit-invest').onchange = (e) => { P.inherit.invest = e.target.checked; changed(); };
   $('btn-export').onclick = () => {
     const blob = new Blob([JSON.stringify(S.P, null, 2)], { type: 'application/json' });
     const a = document.createElement('a');
@@ -987,9 +983,6 @@ function renderAssumptions(el) {
   };
   $('btn-reset').onclick = async () => {
     if (!confirm('Delete all your saved data and start over from the very beginning (you\'ll see the welcome and disclaimer again)?')) return;
-    // A true "start over": clear the plan AND the first-run flags, drop any cached
-    // app shell, then reload so the disclaimer and welcome replay exactly as a
-    // brand-new visitor sees them, on the freshest code.
     try {
       ['rl4-state', 'rl_disclaimer_accepted_v', 'rl_welcomed_v1', 'rl_access_granted', 'rl_access_code']
         .forEach(k => localStorage.removeItem(k));

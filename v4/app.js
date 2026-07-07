@@ -296,12 +296,12 @@ function labelRow(id, label, hint) {
 function textField(label, path, hint) {
   const id = fieldId(path), val = String(getPath(path) ?? '').replace(/"/g, '&quot;');
   return `<div class="field">${labelRow(id, label, hint)}
-    <input id="${id}" type="text" data-path="${path}" data-text="1" value="${val}"${describedBy(id, hint)}></div>`;
+    <input id="${id}" type="text" data-path="${path}" data-text="1" value="${val}" autocapitalize="words" autocomplete="off" enterkeyhint="done"${describedBy(id, hint)}></div>`;
 }
 function moneyField(label, path, hint) {
   const id = fieldId(path), val = getPath(path);
   return `<div class="field">${labelRow(id, label, hint)}
-    <input id="${id}" type="text" inputmode="decimal" data-path="${path}" value="${val}"${describedBy(id, hint)}></div>`;
+    <input id="${id}" type="text" inputmode="decimal" data-path="${path}" value="${val}" enterkeyhint="done"${describedBy(id, hint)}></div>`;
 }
 function numField(label, path, hint, step) {
   const id = fieldId(path), val = getPath(path);
@@ -750,7 +750,7 @@ function renderAssumptions(el) {
         <div class="seg plsa no-print" role="group" aria-label="Income benchmarks">
           ${PLSA.map(([n, v]) => `<button type="button" data-plsa="${v}" class="${Math.abs(P.targetNet - v) < 1 ? 'on' : ''}">${n} <small>${fmtK(v)}</small></button>`).join('')}
         </div>
-        <p class="note">Benchmarks from the PLSA Retirement Living Standards 2024 for a couple, after tax, home owned outright — a starting point, not advice; your own number wins.</p>
+        <p class="note">Benchmarks from the Pensions and Lifetime Savings Association's Retirement Living Standards (2024) for a couple, after tax, home owned outright — a starting point, not advice; your own number wins.</p>
         ${journeyStrip}
         <details class="subsection" data-sec="stepdowns" ${so('stepdowns')}>
           <summary>Ease spending as you age (on by default)</summary>

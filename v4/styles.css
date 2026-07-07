@@ -601,3 +601,20 @@ footer.honesty {
 @keyframes sd-rise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
 @keyframes sd-draw { to { stroke-dashoffset: 0; } }
 @keyframes sd-ring { from { stroke-dashoffset: 1; } }
+
+/* ── iOS / touch polish (Apple HIG) ──────────────────────────────────────
+   viewport-fit=cover is set, so respect notch safe areas; give every
+   interactive element a ≥44pt touch target on touch devices; kill the grey
+   tap flash and double-tap zoom delay. */
+html { -webkit-tap-highlight-color: transparent; }
+button, a, summary, input, select { touch-action: manipulation; }
+body { padding-left: env(safe-area-inset-left); padding-right: env(safe-area-inset-right); }
+footer.honesty { padding-bottom: calc(0.45rem + env(safe-area-inset-bottom)); }
+main.wrap { padding-bottom: calc(4.5rem + env(safe-area-inset-bottom)); }
+@media (pointer: coarse) {
+  .small, .seg button, .dash-scen button, nav.tabs button, .cta-primary, .sec-next, .sec-back,
+  .ex-card, .support-amt, .scenario-chips button, .hdr-actions button { min-height: 44px; }
+  .field input[type="text"], .field input[type="number"], .field select { min-height: 46px; }
+  .help-btn::before { inset: -14px; }   /* 16px visual → 44px effective target */
+  .section > summary, .subsection > summary, details.card.fold > summary { min-height: 44px; }
+}

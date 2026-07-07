@@ -731,26 +731,12 @@ function renderAssumptions(el) {
 
   const cur = WIZARD_STEPS.find(s => s.n === S.step) || WIZARD_STEPS[0];
 
-  // The Today → Someday → horizon journey strip: the whole plan in one glance.
-  const jY0 = P.startYear, jY1 = P.retireYear, jY2 = horizonYear();
-  const jX = (y) => 30 + (y - jY0) / Math.max(1, jY2 - jY0) * 660;
-  const journeyStrip = `<svg class="journey-strip" viewBox="0 0 720 62" role="img" aria-label="Today ${jY0}, Someday ${jY1}, planning to age ${P.horizonAge}">
-    <line x1="30" y1="24" x2="690" y2="24" stroke="var(--card-edge)" stroke-width="3" stroke-linecap="round"/>
-    <line x1="30" y1="24" x2="${jX(jY1).toFixed(0)}" y2="24" stroke="var(--accent)" stroke-width="3" stroke-linecap="round"/>
-    <circle cx="30" cy="24" r="6" fill="var(--accent)"/>
-    <circle cx="${jX(jY1).toFixed(0)}" cy="24" r="8" fill="var(--accent)"/>
-    <circle cx="690" cy="24" r="6" fill="none" stroke="var(--ink-faint)" stroke-width="2"/>
-    <text x="30" y="52" font-size="13" fill="var(--ink-dim)">Today</text>
-    <text x="${jX(jY1).toFixed(0)}" y="52" font-size="13" font-weight="700" text-anchor="middle" fill="var(--accent-strong)">Someday · ${jY1}</text>
-    <text x="690" y="52" font-size="13" text-anchor="end" fill="var(--ink-dim)">to age ${P.horizonAge}</text>
-  </svg>`;
-
   // PLSA Retirement Living Standards 2024 (couple, after tax, home owned
   // outright), shown as big selectable cards — pick a starting point in one tap.
   const PLSA = [
-    ['Minimum', 22400, 'The essentials, covered'],
-    ['Moderate', 43100, 'Some comfort and choice'],
-    ['Comfortable', 59000, 'More freedom and treats'],
+    ['Minimum', 22400, 'Essentials covered'],
+    ['Moderate', 43100, 'Comfort & choice'],
+    ['Comfortable', 59000, 'Freedom & treats'],
   ];
 
   // ── Per-step bodies ─────────────────────────────────────────────────────
@@ -760,7 +746,7 @@ function renderAssumptions(el) {
         ${numField('Retirement year', 'retireYear', 'The year you stop paying in and start drawing an income')}
         ${moneyField('Income you want each year', 'targetNet', "Today's money, after tax. The 🛒 Spending tab can build this from a monthly budget instead")}
       </div>
-      <p class="wiz-benchlead">Not sure what to aim for? Pick a benchmark to start from:</p>
+      <p class="wiz-benchlead">Not sure? Tap a benchmark to start from:</p>
       <div class="plsa-cards no-print" role="group" aria-label="Income benchmarks">
         ${PLSA.map(([n, v, d]) => `<button type="button" class="plsa-card ${Math.abs(P.targetNet - v) < 1 ? 'on' : ''}" data-plsa="${v}">
           <span class="pc-name">${n}</span>
@@ -768,8 +754,11 @@ function renderAssumptions(el) {
           <span class="pc-desc">${d}</span>
         </button>`).join('')}
       </div>
-      <p class="note">Benchmarks from the Pensions and Lifetime Savings Association’s Retirement Living Standards (2024) for a couple, after tax, home owned outright — a starting point, not advice; your own number wins.</p>
-      ${journeyStrip}
+      <p class="note">PLSA Retirement Living Standards (2024), couple, after tax — a starting point, not advice.</p>
+      ${S.exampleActive ? '' : `<div class="ex-peek no-print">
+        <span class="ex-lead">👀 New here?</span>
+        ${EXAMPLES.map(ex => `<button type="button" class="ex-chip" data-example="${ex.key}" title="${ex.blurb}">${ex.label}</button>`).join('')}
+      </div>`}
       <details class="subsection" data-sec="stepdowns" ${so('stepdowns')}>
         <summary>Ease spending as you age (on by default)</summary>
         <p class="sub" style="margin:0.5rem 0;">Most people spend less as they get older. Adjust or switch off.</p>
@@ -781,13 +770,7 @@ function renderAssumptions(el) {
           ${numField('From age', 'phase2Age')}
           ${pctField('Reduce by a further', 'phase2Cut')}
         </div>
-      </details>
-      ${S.exampleActive ? '' : `<div class="ex-row no-print">
-        <span class="ex-lead">👀 Not sure where to start? Peek at an example:</span>
-        ${EXAMPLES.map(ex => `<button type="button" class="ex-card" data-example="${ex.key}">
-          <b>${ex.label}</b><span>${ex.blurb}</span>
-        </button>`).join('')}
-      </div>`}`,
+      </details>`,
 
     about: `
       <div class="grid2">
@@ -898,7 +881,7 @@ function renderAssumptions(el) {
   el.querySelectorAll('.plsa-card[data-plsa]').forEach(b => {
     b.onclick = () => { S.P.targetNet = Number(b.dataset.plsa); S.P.spendingPlanOn = false; changed(); };
   });
-  el.querySelectorAll('.ex-card[data-example]').forEach(b => { b.onclick = () => enterExample(b.dataset.example); });
+  el.querySelectorAll('[data-example]').forEach(b => { b.onclick = () => enterExample(b.dataset.example); });
   if ($('ph1-on')) $('ph1-on').onchange = (e) => { P.phase1On = e.target.checked; changed(); };
   if ($('ph2-on')) $('ph2-on').onchange = (e) => { P.phase2On = e.target.checked; changed(); };
   if ($('dbb-indexed')) $('dbb-indexed').onchange = (e) => { P.partnerB.dbIndexed = e.target.checked; changed(); };

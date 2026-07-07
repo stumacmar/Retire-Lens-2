@@ -327,10 +327,10 @@ main { padding-top: 1rem; }
 .wiz-dot:focus-visible i { outline: 2px solid var(--accent); outline-offset: 2px; }
 :root[data-theme="dark"] .wiz-dot.on i { color: #06302b; }
 
-.card.wizard { max-width: 760px; }
-.wiz-head { margin-bottom: 1.5rem; }
-.wiz-head h2 { margin: 0.15rem 0 0.55rem; }
-.wiz-lead { max-width: 54ch; }
+.card.wizard { max-width: 760px; padding-top: 1.25rem; padding-bottom: 1.25rem; }
+.wiz-head { margin-bottom: 1.2rem; }
+.wiz-head h2 { margin: 0.15rem 0 0.4rem; }
+.wiz-lead { max-width: 54ch; margin-bottom: 0; }
 .wiz-nav { display: flex; align-items: center; gap: 0.8rem; margin-top: 2rem; }
 .wiz-next { flex: 1; }
 .wiz-back { background: none; border: 1px solid var(--card-edge); color: var(--ink-dim);
@@ -347,19 +347,25 @@ main { padding-top: 1rem; }
   cursor: pointer; padding: 0; margin-bottom: 0.7rem; font-size: 0.85rem; }
 
 /* PLSA benchmark cards — big and selectable, not tiny chips */
-.wiz-benchlead { font-size: 0.82rem; color: var(--ink-dim); font-weight: 600; margin: 1.2rem 0 0.55rem; }
-.plsa-cards { display: grid; gap: 0.6rem; grid-template-columns: 1fr; }
-@media (min-width: 520px) { .plsa-cards { grid-template-columns: repeat(3, 1fr); } }
-.plsa-card { display: flex; flex-direction: column; align-items: flex-start; gap: 0.25rem; text-align: left;
-  background: var(--input-bg); border: 1.5px solid var(--card-edge); border-radius: 14px;
-  padding: 0.95rem 1rem; cursor: pointer; color: var(--ink); transition: border-color .15s, background .15s; }
+.wiz-benchlead { font-size: 0.82rem; color: var(--ink-dim); font-weight: 600; margin: 1rem 0 0.5rem; }
+.plsa-cards { display: grid; gap: 0.55rem; grid-template-columns: repeat(3, 1fr); }
+.plsa-card { display: flex; flex-direction: column; align-items: flex-start; gap: 0.15rem; text-align: left;
+  background: var(--input-bg); border: 1.5px solid var(--card-edge); border-radius: 13px;
+  padding: 0.7rem 0.75rem; cursor: pointer; color: var(--ink); transition: border-color .15s, background .15s; }
 .plsa-card:hover { border-color: color-mix(in srgb, var(--accent) 45%, transparent); }
 .plsa-card.on { border-color: var(--accent); background: var(--accent-soft); }
-.pc-name { font-size: 0.82rem; font-weight: 800; letter-spacing: 0.01em; }
-.pc-amt { font-size: 1.35rem; font-weight: 800; font-family: var(--mono); color: var(--accent-strong); font-variant-numeric: tabular-nums; }
-.pc-amt small { font-size: 0.68rem; font-weight: 600; color: var(--ink-dim); }
+.pc-name { font-size: 0.78rem; font-weight: 800; letter-spacing: 0.01em; }
+.pc-amt { font-size: 1.2rem; font-weight: 800; font-family: var(--mono); color: var(--accent-strong); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.pc-amt small { font-size: 0.62rem; font-weight: 600; color: var(--ink-dim); }
 .plsa-card.on .pc-name { color: var(--accent-strong); }
-.pc-desc { font-size: 0.74rem; color: var(--ink-dim); }
+.pc-desc { font-size: 0.68rem; color: var(--ink-dim); line-height: 1.25; }
+
+/* Compact "try an example" chips (short, one line) */
+.ex-peek { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem; margin-top: 1rem; }
+.ex-peek .ex-lead { font-size: 0.78rem; }
+.ex-chip { background: var(--input-bg); border: 1px solid var(--card-edge); border-radius: 999px;
+  padding: 0.35rem 0.8rem; font-size: 0.78rem; font-weight: 600; color: var(--ink-dim); cursor: pointer; }
+.ex-chip:hover { border-color: var(--accent); color: var(--accent-strong); }
 
 /* Today → Someday → horizon journey strip */
 .journey-strip { width: 100%; margin: 0.7rem 0 0.2rem; overflow: visible; }

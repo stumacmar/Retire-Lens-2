@@ -304,6 +304,13 @@ main { padding-top: 1rem; }
 .sec-title { flex: 0 0 auto; }
 /* "Continue" button ends each wizard step full-width */
 .sec-next { display: block; width: 100%; margin-top: 1rem; }
+/* "Step X of 4" journey progress bar (per the iPhone mockups) */
+.journey-progress { display: flex; align-items: center; gap: 0.7rem; margin: 0.5rem 0 0.2rem; }
+.jp-track { flex: 1; height: 6px; border-radius: 999px; background: var(--card-edge); overflow: hidden; }
+.jp-fill { height: 100%; border-radius: 999px; background: var(--accent); min-width: 6px; }
+@media (prefers-reduced-motion: no-preference) { .jp-fill { transition: width 0.35s cubic-bezier(.2,.7,.3,1); } }
+.jp-label { flex: 0 0 auto; font-size: 0.72rem; font-weight: 700; color: var(--ink-dim); letter-spacing: 0.02em; white-space: nowrap; }
+
 /* Today → Someday → horizon journey strip */
 .journey-strip { width: 100%; margin: 0.7rem 0 0.2rem; overflow: visible; }
 .journey-strip text { font-family: var(--sans); }

@@ -710,6 +710,10 @@ function renderAssumptions(el) {
   if (!S.openSecs) { S.openSecs = new Set(['vision']); if (partnerHasData) S.openSecs.add('partner'); }
   if (!S.doneSecs) S.doneSecs = new Set();
   const so = (k) => S.openSecs.has(k) ? 'open' : '';
+  // "Step X of 4" journey progress: the current step is the highest-numbered
+  // open section among the four journey steps (fallback 1).
+  const STEP_ORDER = ['vision', 'about', 'savings', 'growth'];
+  const journeyStep = () => { let s = 1; STEP_ORDER.forEach((k, i) => { if (S.openSecs.has(k)) s = i + 1; }); return s; };
   const recap = {
     vision: `Retire ${P.retireYear} · ${fmt(P.targetNet)}/yr${P.phase1On || P.phase2On ? ' · eases later' : ''}`,
     about: `${P.partnerA.name}${partnerHasData ? ' & ' + P.partnerB.name : ''} · ${fmtK(potsNow)} saved`,
@@ -737,6 +741,10 @@ function renderAssumptions(el) {
   <div class="card">
     <div class="kicker">Start here</div>
     <h2>Your journey to Someday</h2>
+    <div class="journey-progress no-print" role="group" aria-label="Journey progress, step ${journeyStep()} of 4">
+      <div class="jp-track"><div class="jp-fill" id="jp-fill" style="width:${journeyStep() / 4 * 100}%"></div></div>
+      <span class="jp-label" id="jp-label">Step ${journeyStep()} of 4</span>
+    </div>
     <p class="sub">Start with the life, then the numbers — everything stays on this device, and nothing here is financial advice; it's your working, made visible. All money inputs are in today's money.</p>
 
     <details class="section" data-sec="vision" ${so('vision')}>
@@ -945,9 +953,18 @@ function renderAssumptions(el) {
   wireInputs(el);
   // Remember open/closed accordion state so a field edit (which re-renders the
   // tab) keeps your section open instead of snapping it shut.
+  // Live "Step X of 4" update as sections open/close (no full re-render, so the
+  // journey bar animates smoothly).
+  const updateJourneyProgress = () => {
+    const f = $('jp-fill'), l = $('jp-label');
+    if (!f || !l) return;
+    let s = 1; STEP_ORDER.forEach((k, i) => { if (S.openSecs.has(k)) s = i + 1; });
+    f.style.width = (s / 4 * 100) + '%'; l.textContent = 'Step ' + s + ' of 4';
+  };
   el.querySelectorAll('details[data-sec]').forEach(d => {
     d.addEventListener('toggle', () => {
       if (d.open) S.openSecs.add(d.dataset.sec); else S.openSecs.delete(d.dataset.sec);
+      updateJourneyProgress();
     });
   });
   $('dbb-indexed').onchange = (e) => { P.partnerB.dbIndexed = e.target.checked; changed(); };

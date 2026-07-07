@@ -311,6 +311,16 @@ main { padding-top: 1rem; }
 @media (prefers-reduced-motion: no-preference) { .jp-fill { transition: width 0.35s cubic-bezier(.2,.7,.3,1); } }
 .jp-label { flex: 0 0 auto; font-size: 0.72rem; font-weight: 700; color: var(--ink-dim); letter-spacing: 0.02em; white-space: nowrap; }
 
+/* ── Sub-page nav (Dashboard / Risk split into calm pages) ────────────── */
+.subnav { display: flex; gap: 0.4rem; margin: 0 0 1rem; flex-wrap: wrap; }
+.subnav button { flex: 1 1 auto; min-width: max-content; padding: 0.55rem 0.9rem; border-radius: 999px;
+  border: 1px solid var(--card-edge); background: var(--card); color: var(--ink-dim);
+  font-weight: 700; font-size: 0.82rem; cursor: pointer; transition: background .15s, color .15s, border-color .15s; }
+.subnav button:hover { border-color: color-mix(in srgb, var(--accent) 45%, transparent); color: var(--ink); }
+.subnav button.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+:root[data-theme="dark"] .subnav button.on { color: #06302b; }
+.subnav button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
 /* ── Multi-page wizard: one step per screen, room to breathe ───────────── */
 .wiz-steps { display: flex; gap: 0.3rem; margin: 0.2rem 0 1rem; max-width: 760px; }
 .wiz-dot { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 0.4rem;

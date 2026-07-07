@@ -552,9 +552,12 @@ function renderDashboard(el) {
   if (taxSave > 100) insights.push(['🧮', `Splitting income across both of you saves about <strong>${fmt(taxSave, y1.year)}</strong> in tax this year.`]);
   const insightHtml = insights.slice(0, 4).map(([ic, t]) => `<div class="insight"><span class="insight-ic" aria-hidden="true">${ic}</span><span>${t}</span></div>`).join('');
 
-  el.innerHTML = `
-  ${exampleBanner()}
-  ${(() => {
+  if (!S.dashPage) S.dashPage = 1;
+
+  // The dashboard is split into three calm pages so no single screen is a long
+  // scroll: the answer, things to explore, then the underlying detail. For the
+  // PDF report everything is rendered at once (S.printing).
+  const heroCard = `${(() => {
     const good = survives && !(y1.shortfall > 1);
     const cls = good ? 'good' : (survives ? 'warn' : 'bad');
     const ageAtRet = P.retireYear - P.partnerA.birthYear;
@@ -601,9 +604,9 @@ function renderDashboard(el) {
         <button id="btn-share" class="small">Copy share link</button>
       </div>
     </details>
-  </div>
+  </div>`;
 
-  <div class="card whatif no-print">
+  const whatifCard = `<div class="card whatif no-print">
     <div class="kicker">Try a what-if</div>
     <h2>Move a lever, watch it change</h2>
     <p class="sub">Drag to explore; let go and the whole plan updates. Your saved figures aren't changed until you release.</p>
@@ -619,32 +622,30 @@ function renderDashboard(el) {
       <div class="lever-top"><label for="wi-save">${P.partnerA.name} ${verbS(P.partnerA.name, 'saves', 'save')} each month</label><output id="wi-save-out">${fmt(P.partnerA.monthlyPension)}</output></div>
       <input type="range" id="wi-save" min="0" max="5000" step="50" value="${P.partnerA.monthlyPension}">
     </div>
-  </div>
+  </div>`;
 
-  ${insightHtml ? `<div class="card">
+  const insightsCard = insightHtml ? `<div class="card">
     <div class="kicker">What we notice</div>
     <h2>Insights from your plan</h2>
     <div class="insights">${insightHtml}</div>
-  </div>` : ''}
+  </div>` : '';
 
-  ${supportPanel()}
-
-  <div class="card">
+  const moneyCard = `<div class="card">
     <div class="kicker">Your money through retirement</div>
     <h2>${dd.exhaustedYear ? 'When the money runs down' : 'Your money holds up'}</h2>
     ${tch.get()}
     <p class="note">Total pensions, ISAs and cash from ${P.retireYear} to ${tlY1}, in ${S.todayMoney ? "today's money" : 'future pounds'}. The soft band is the Poor-to-Positive range; the solid line is your current scenario. ${dd.exhaustedYear ? 'On this plan it runs dry around ' + dd.exhaustedYear + '.' : 'On this plan it lasts the whole way.'}</p>
     <h3 style="margin-top:1rem;">Where your retirement £ comes from</h3>
     ${srcBar}
-  </div>
+  </div>`;
 
-  <details class="card fold">
+  const scenarioFold = `<details class="card fold">
     <summary><span class="kicker">Scenario comparison</span><h2>Poor, Base, Positive</h2></summary>
     <div class="scenario-grid">${scenarioHtml}</div>
     <p class="note">Pot figures at ${P.retireYear} line up with your workbook's Accumulation tab. Tax is per partner: this year that saves ${fmt(E.taxOn(y1.guaranteed + y1.grossA + y1.grossB, P.tax) - y1.tax, y1.year)} versus taxing the household as one person.</p>
-  </details>
+  </details>`;
 
-  <details class="card fold">
+  const flowFold = `<details class="card fold">
     <summary><span class="kicker">Follow the money</span><h2>One year, every pound</h2></summary>
     <p class="sub">Where the year's money comes from and where it goes. Slide across the plan.</p>
     <div class="slider-row"><label for="flow-year">Plan year</label><output id="flow-year-out"></output></div>
@@ -652,15 +653,37 @@ function renderDashboard(el) {
     <div id="flow-stage"></div>
   </details>`;
 
-  const drawFlow = (idx) => {
-    S.flowIdx = idx;
-    const r = dd.rows[idx];
-    $('flow-year-out').textContent = r.year + ' (age ' + r.ageA + '/' + r.ageB + ')';
-    $('flow-stage').innerHTML = sankeyFor(r);
+  const dashPages = {
+    1: heroCard,
+    2: whatifCard + insightsCard + supportPanel(),
+    3: moneyCard + scenarioFold + flowFold,
   };
+  const dashLabels = ['Your answer', 'Explore', 'The detail'];
+  const dashNav = `<nav class="subnav no-print" aria-label="Dashboard pages">
+    ${dashLabels.map((l, i) => `<button type="button" data-dashpage="${i + 1}" class="${S.dashPage === i + 1 ? 'on' : ''}" aria-current="${S.dashPage === i + 1 ? 'page' : 'false'}">${l}</button>`).join('')}
+  </nav>`;
+
+  el.innerHTML = `
+  ${exampleBanner()}
+  ${S.printing ? '' : dashNav}
+  ${S.printing ? (heroCard + moneyCard + scenarioFold + flowFold) : (dashPages[S.dashPage] || dashPages[1])}`;
+
+  el.querySelectorAll('[data-dashpage]').forEach(b => b.onclick = () => {
+    S.dashPage = Number(b.dataset.dashpage); renderTab(); window.scrollTo({ top: 0, behavior: 'smooth' });
+  });
+
+  // Follow-the-money slider (only on 'The detail' page, or in the print report)
   const fs = $('flow-year');
-  fs.addEventListener('input', () => drawFlow(Number(fs.value)));
-  drawFlow(Math.min(S.flowIdx, dd.rows.length - 1));
+  if (fs) {
+    const drawFlow = (idx) => {
+      S.flowIdx = idx;
+      const r = dd.rows[idx];
+      $('flow-year-out').textContent = r.year + ' (age ' + r.ageA + '/' + r.ageB + ')';
+      $('flow-stage').innerHTML = sankeyFor(r);
+    };
+    fs.addEventListener('input', () => drawFlow(Number(fs.value)));
+    drawFlow(Math.min(S.flowIdx, dd.rows.length - 1));
+  }
 
   // Inline scenario switch — sets growth and re-renders (header chips re-sync
   // via changed() -> syncGrowthUI()), so the user never scrolls to the header.
@@ -691,7 +714,10 @@ function renderDashboard(el) {
     renderTab();
   });
   $('btn-unpin') && ($('btn-unpin').onclick = () => { S.pinned = null; renderTab(); });
-  $('btn-print') && ($('btn-print').onclick = () => { renderAllForPrint(); setTimeout(() => window.print(), 60); });
+  $('btn-print') && ($('btn-print').onclick = () => {
+    renderAllForPrint();
+    setTimeout(() => { window.print(); renderTab(); }, 60);
+  });
   $('btn-share') && ($('btn-share').onclick = async (e) => {
     const url = location.origin + location.pathname + '#plan=' + btoa(unescape(encodeURIComponent(JSON.stringify(S.P))));
     try { await navigator.clipboard.writeText(url); e.target.textContent = 'Link copied'; }
@@ -1435,23 +1461,24 @@ function renderRisk(el) {
       <p class="note">The shaded band spans the unlucky-to-lucky range (10th–90th percentile) across ${mc.nPaths} simulated market histories${S.todayMoney ? ", in today's money" : ''}; the solid line is the typical (median) outcome. Funding each year mirrors the main model. If a path falls short, the median income trim needed is ${pct(mc.medianTrim)}.</p>`;
   }
 
-  el.innerHTML = `
-  <div class="card">
+  if (!S.riskPage) S.riskPage = 1;
+
+  const mcCard = `<div class="card">
     <div class="kicker">Good and bad markets</div>
     <h2>Does the plan hold up if markets misbehave?</h2>
     <p class="lead-summary">${mc ? `In about <strong>${pct(mc.successProb)}</strong> of ${P.mcPaths} possible market histories — booms and crashes alike — your money still lasts to age ${P.horizonAge}.` : `Testing your plan against ${P.mcPaths} possible market histories…`}</p>
     ${mcHtml}
-  </div>
+  </div>`;
 
-  <div class="card">
+  const tornadoCard = `<div class="card">
     <div class="kicker">What actually moves the answer</div>
     <h2>Sensitivity tornado</h2>
     <p class="sub">Each assumption nudged both ways; bars show the change in wealth at ${P.horizonAge}, in today's money. The longest bars deserve your attention first.</p>
     ${tsvg}
     <div class="legend"><span><i style="background:var(--accent)"></i>favourable move</span><span><i style="background:var(--rose)"></i>unfavourable move</span></div>
-  </div>
+  </div>`;
 
-  <div class="card">
+  const stressCard = `<div class="card">
     <div class="kicker">Stress tests</div>
     <h2>How the plan bends</h2>
     <p class="sub">Your workbook's scenarios through the full model. Compared in today's money so different inflation assumptions stay honest.</p>
@@ -1462,9 +1489,9 @@ function renderRisk(el) {
         <td class="${t.delta >= 0 ? 'pos' : 'neg'}">${t.delta >= 0 ? '+' : ''}${fmtK(t.delta)}</td>
         <td>${t.exhaustedAgeA == null ? P.horizonAge + '+' : 'age ' + t.exhaustedAgeA}</td></tr>`).join('')}
     </table></div>
-  </div>
+  </div>`;
 
-  <div class="card">
+  const gridCard = `<div class="card">
     <div class="kicker">Sensitivity</div>
     <h2>How long the money lasts, by target and growth</h2>
     <p class="sub">Each cell is the age the pot runs dry for that yearly spend (today's money) and growth rate — teal lasts to the end, rose runs dry early.</p>
@@ -1475,6 +1502,24 @@ function renderRisk(el) {
     </table></div>
     <div class="heat-legend"><span>Runs dry early</span><span class="heat-bar" aria-hidden="true"></span><span>Never runs dry</span></div>
   </div>`;
+
+  const riskPages = {
+    1: mcCard,
+    2: tornadoCard,
+    3: stressCard + gridCard,
+  };
+  const riskLabels = ['Market runs', 'What moves it', 'Stress tests'];
+  const riskNav = `<nav class="subnav no-print" aria-label="Risk pages">
+    ${riskLabels.map((l, i) => `<button type="button" data-riskpage="${i + 1}" class="${S.riskPage === i + 1 ? 'on' : ''}" aria-current="${S.riskPage === i + 1 ? 'page' : 'false'}">${l}</button>`).join('')}
+  </nav>`;
+
+  el.innerHTML = `
+  ${S.printing ? '' : riskNav}
+  ${S.printing ? (mcCard + tornadoCard + stressCard + gridCard) : (riskPages[S.riskPage] || riskPages[1])}`;
+
+  el.querySelectorAll('[data-riskpage]').forEach(b => b.onclick = () => {
+    S.riskPage = Number(b.dataset.riskpage); renderTab(); window.scrollTo({ top: 0, behavior: 'smooth' });
+  });
 }
 
 function renderEstate(el) {
@@ -1553,7 +1598,11 @@ function renderRail() {
 }
 
 function renderAllForPrint() {
+  // Split views (dashboard, risk) collapse to their active sub-page on screen;
+  // for the PDF report we want every section, so flag a full render.
+  S.printing = true;
   for (const t of Object.keys(VIEWS)) VIEWS[t]($('tab-' + t));
+  S.printing = false;
   const ph = $('print-header');
   if (ph) {
     const P = S.P, dd = S.cache.dd;

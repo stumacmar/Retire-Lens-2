@@ -4,6 +4,11 @@
   --accent: #0e7a6e;
   --accent-strong: #0a5f56;
   --accent-soft: rgba(14, 122, 110, 0.10);
+  /* iOS system blue = the interactive tint (selected states, primary actions,
+     focus, links, hints). Green stays reserved for positive *outcomes*. */
+  --tint: #007aff;
+  --tint-strong: #0062cc;
+  --tint-soft: rgba(0, 122, 255, 0.10);
   --amber: #b45309;
   --amber-soft: rgba(180, 83, 9, 0.12);
   --rose: #be123c;
@@ -15,14 +20,14 @@
   --c-teal: #0e7a6e; --c-blue: #1d4ed8; --c-cyan: #0ea5e9; --c-purple: #7c3aed;
   --c-amber: #b45309; --c-rose: #be123c; --c-slate: #64748b;
 
-  --bg: #f6f5f1;
+  --bg: #f2f2f7;
   --card: #ffffff;
-  --card-edge: rgba(20, 30, 28, 0.08);
-  --ink: #1a2422;
-  --ink-dim: #55645f;
-  --ink-faint: #67756f;
-  --input-bg: #fbfaf7;
-  --shadow: 0 1px 2px rgba(20, 30, 28, 0.05), 0 8px 28px rgba(20, 30, 28, 0.07);
+  --card-edge: rgba(20, 30, 28, 0.07);
+  --ink: #10201c;
+  --ink-dim: #52616b;
+  --ink-faint: #7b8891;
+  --input-bg: #f7f8fa;
+  --shadow: 0 1px 2px rgba(16, 24, 32, 0.04), 0 5px 18px rgba(16, 24, 32, 0.06);
   --radius: 20px;
   --radius-sm: 13px;
   --mono: ui-monospace, 'SF Mono', Menlo, monospace;
@@ -50,6 +55,9 @@
   --accent: #2dd4bf;
   --accent-strong: #5eead4;
   --accent-soft: rgba(45, 212, 191, 0.12);
+  --tint: #0a84ff;
+  --tint-strong: #409cff;
+  --tint-soft: rgba(10, 132, 255, 0.18);
   --amber: #fbbf24;
   --amber-soft: rgba(251, 191, 36, 0.14);
   --rose: #fb7185;
@@ -247,12 +255,14 @@ main { padding-top: 1rem; }
 /* Primary call-to-action button */
 .cta-primary {
   display: block; width: 100%; text-align: center; margin-top: 1.1rem;
-  background: var(--accent); color: #fff; border: none; border-radius: 12px;
-  padding: 0.85rem 1rem; font-size: 1.02rem; font-weight: 800; cursor: pointer;
+  background: var(--tint); color: #fff; border: none; border-radius: 14px;
+  padding: 0.95rem 1rem; font-size: 1.05rem; font-weight: 700; cursor: pointer;
+  letter-spacing: -0.01em; box-shadow: 0 2px 10px var(--tint-soft);
+  transition: transform .12s ease, background-color .15s ease;
 }
-.cta-primary:hover { background: var(--accent-strong); }
-.cta-primary:focus-visible { outline: 3px solid var(--accent-soft); outline-offset: 2px; }
-:root[data-theme="dark"] .cta-primary { color: #06302b; }
+.cta-primary:hover { background: var(--tint-strong); }
+.cta-primary:active { transform: scale(0.985); }
+.cta-primary:focus-visible { outline: 3px solid var(--tint-soft); outline-offset: 2px; }
 
 /* ── Inputs ─────────────────────────────────────── */
 .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-4) var(--sp-4); }
@@ -263,7 +273,7 @@ main { padding-top: 1rem; }
   background: var(--input-bg); border: 1px solid var(--card-edge); color: var(--ink);
   font-family: var(--mono);
 }
-.field input:focus, .field select:focus { outline: 2px solid var(--accent); outline-offset: 1px; border-color: var(--accent); }
+.field input:focus, .field select:focus { outline: 2px solid var(--tint); outline-offset: 1px; border-color: var(--tint); }
 /* Brief highlight when a value was gently corrected into a sensible range */
 .field input.was-clamped { border-color: var(--amber); box-shadow: 0 0 0 3px var(--amber-soft); }
 
@@ -322,13 +332,109 @@ main { padding-top: 1rem; }
   border: 1px solid var(--card-edge); background: var(--card); color: var(--ink-dim);
   font-weight: 700; font-size: 0.86rem; cursor: pointer; transition: background .15s, color .15s, border-color .15s; }
 .subnav button:hover { border-color: color-mix(in srgb, var(--accent) 45%, transparent); color: var(--ink); }
-.subnav button.on { background: var(--accent); border-color: var(--accent); color: #fff; }
-:root[data-theme="dark"] .subnav button.on { color: #06302b; }
-.subnav button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.subnav button.on { background: var(--tint); border-color: var(--tint); color: #fff; box-shadow: 0 2px 8px var(--tint-soft); }
+.subnav button:focus-visible { outline: 2px solid var(--tint); outline-offset: 2px; }
 
 /* Life events is a simple list — the money view and theme toggle in the
    header are irrelevant there, so hide that chrome on that tab. */
 body[data-tab="events"] .hdr-actions { display: none; }
+
+/* ══════════════════════════════════════════════════════════════════════
+   Native iOS shell — bottom tab bar, glass sheets, hint buttons
+   ══════════════════════════════════════════════════════════════════════ */
+
+/* Bottom tab bar: phones only. On ≥768px the classic top pills stay. This is
+   the single biggest "feels native" move — a fixed, blurred, thumb-reachable
+   bar with the five primary destinations. */
+.tabbar { display: none; }
+@media (max-width: 767px) {
+  header.site nav.tabs { display: none; }
+  .tabbar {
+    display: grid; grid-template-columns: repeat(5, 1fr); align-items: end;
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 60;
+    padding: 0.4rem 0.25rem calc(0.3rem + env(safe-area-inset-bottom));
+    background: color-mix(in srgb, var(--card) 80%, transparent);
+    -webkit-backdrop-filter: saturate(180%) blur(22px); backdrop-filter: saturate(180%) blur(22px);
+    border-top: 0.5px solid var(--card-edge);
+  }
+  main.wrap { padding-bottom: calc(5.2rem + env(safe-area-inset-bottom)); }
+  /* The persistent disclaimer footer would fight the tab bar; it lives in the
+     "More" sheet on phones instead. */
+  footer.honesty { display: none; }
+}
+.tabbar-btn {
+  display: flex; flex-direction: column; align-items: center; gap: 3px;
+  background: none; border: none; cursor: pointer; padding: 0.35rem 0 0.1rem;
+  color: var(--ink-faint); font: inherit; font-size: 0.62rem; font-weight: 600;
+  -webkit-tap-highlight-color: transparent; touch-action: manipulation;
+}
+.tabbar-btn svg { width: 26px; height: 26px; }
+.tabbar-btn.on { color: var(--tint); }
+@media (prefers-reduced-motion: no-preference) {
+  .tabbar-btn svg { transition: transform .22s cubic-bezier(.2,.8,.2,1); }
+  .tabbar-btn.on svg { transform: scale(1.08); }
+  .tabbar-btn:active svg { transform: scale(0.9); }
+}
+
+/* Glass bottom-sheets: help hints and the More menu. Slide up from the bottom
+   on phones (thumb-reachable), centre as a modal on wider screens. */
+#sheet-root:empty { display: none; }
+.sheet-overlay {
+  position: fixed; inset: 0; z-index: 120; display: flex; align-items: flex-end; justify-content: center;
+  background: rgba(8, 12, 11, 0.34); opacity: 0; transition: opacity .25s ease;
+}
+.sheet-overlay.in { opacity: 1; }
+.sheet {
+  width: 100%; max-width: 540px;
+  background: color-mix(in srgb, var(--card) 88%, transparent);
+  -webkit-backdrop-filter: saturate(180%) blur(26px); backdrop-filter: saturate(180%) blur(26px);
+  border: 0.5px solid var(--card-edge); border-bottom: none;
+  border-radius: 26px 26px 0 0; padding: 0.5rem 1.35rem calc(1.6rem + env(safe-area-inset-bottom));
+  box-shadow: 0 -10px 44px rgba(0,0,0,0.22);
+  transform: translateY(100%); transition: transform .34s cubic-bezier(.32,.72,0,1);
+  max-height: 84vh; overflow-y: auto; -webkit-overflow-scrolling: touch;
+}
+.sheet-overlay.in .sheet { transform: translateY(0); }
+@media (prefers-reduced-motion: reduce) { .sheet, .sheet-overlay { transition: none; } }
+.sheet-grip { width: 38px; height: 5px; border-radius: 999px; background: var(--card-edge); margin: 0.5rem auto 1rem; }
+.sheet h3 { font-size: 1.2rem; letter-spacing: -0.015em; margin-bottom: 0.5rem; }
+.sheet p { font-size: 0.95rem; line-height: 1.55; color: var(--ink-dim); margin-bottom: 0.6rem; }
+.sheet ul { list-style: none; display: grid; gap: 0.55rem; margin: 0.4rem 0 0.2rem; }
+.sheet li { position: relative; padding-left: 1.4rem; font-size: 0.95rem; line-height: 1.5; color: var(--ink-dim); }
+.sheet li::before { content: "✓"; position: absolute; left: 0; top: 0; color: var(--accent-strong); font-weight: 800; }
+.sheet-close { display: block; width: 100%; margin-top: 1.3rem; padding: 0.9rem; border: none; border-radius: 15px;
+  background: var(--tint); color: #fff; font-weight: 700; font-size: 1rem; cursor: pointer; }
+.sheet-close:active { transform: scale(0.99); }
+/* The More menu is a list of destinations */
+.sheet-menu { display: grid; gap: 0.2rem; margin: 0.2rem 0 0.4rem; }
+.sheet-menu button {
+  display: flex; align-items: center; gap: 0.85rem; width: 100%; text-align: left;
+  background: none; border: none; padding: 0.9rem 0.4rem; font: inherit; font-size: 1rem; font-weight: 600;
+  color: var(--ink); cursor: pointer; border-bottom: 0.5px solid var(--card-edge);
+}
+.sheet-menu button:last-child { border-bottom: none; }
+.sheet-menu button .m-emoji { font-size: 1.25rem; width: 1.7rem; text-align: center; }
+.sheet-menu button.on { color: var(--tint); }
+.sheet-menu button .m-chev { margin-left: auto; color: var(--ink-faint); }
+@media (min-width: 560px) {
+  .sheet-overlay { align-items: center; }
+  .sheet { border-radius: 24px; border-bottom: 0.5px solid var(--card-edge); margin: 1rem; max-height: 86vh; }
+}
+
+/* Hint buttons — the crisp little "i" that replaces paragraphs of text. */
+.hint-btn {
+  flex: 0 0 auto; width: 22px; height: 22px; border-radius: 50%; border: none;
+  background: var(--tint-soft); color: var(--tint); cursor: pointer; padding: 0;
+  display: inline-grid; place-items: center; vertical-align: middle;
+  font-family: Georgia, 'Times New Roman', serif; font-style: italic; font-weight: 700; font-size: 0.82rem;
+  line-height: 1; -webkit-tap-highlight-color: transparent;
+}
+.hint-btn::after { content: "i"; }
+.hint-btn:active { transform: scale(0.9); }
+.hint-btn:focus-visible { outline: 2px solid var(--tint); outline-offset: 2px; }
+/* A heading with an inline hint sits on one tidy row */
+.title-row { display: flex; align-items: center; gap: 0.5rem; }
+.title-row h2, .title-row h3 { margin: 0; }
 
 /* ── Multi-page wizard: one step per screen, room to breathe ───────────── */
 .card.wizard { max-width: 760px; padding-top: 1.25rem; padding-bottom: 1.25rem; }
@@ -356,12 +462,12 @@ body[data-tab="events"] .hdr-actions { display: none; }
 .plsa-card { display: flex; flex-direction: column; align-items: flex-start; gap: 0.15rem; text-align: left;
   background: var(--input-bg); border: 1.5px solid var(--card-edge); border-radius: 13px;
   padding: 0.7rem 0.75rem; cursor: pointer; color: var(--ink); transition: border-color .15s, background .15s; }
-.plsa-card:hover { border-color: color-mix(in srgb, var(--accent) 45%, transparent); }
-.plsa-card.on { border-color: var(--accent); background: var(--accent-soft); }
+.plsa-card:hover { border-color: color-mix(in srgb, var(--tint) 45%, transparent); }
+.plsa-card.on { border-color: var(--tint); background: var(--tint-soft); }
 .pc-name { font-size: 0.78rem; font-weight: 800; letter-spacing: 0.01em; }
-.pc-amt { font-size: 1.2rem; font-weight: 800; font-family: var(--mono); color: var(--accent-strong); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.pc-amt { font-size: 1.2rem; font-weight: 800; font-family: var(--mono); color: var(--ink); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .pc-amt small { font-size: 0.62rem; font-weight: 600; color: var(--ink-dim); }
-.plsa-card.on .pc-name { color: var(--accent-strong); }
+.plsa-card.on .pc-name, .plsa-card.on .pc-amt { color: var(--tint-strong); }
 .pc-desc { font-size: 0.68rem; color: var(--ink-dim); line-height: 1.25; }
 
 /* Compact "try an example" chips (short, one line) */
@@ -440,10 +546,9 @@ details.card.fold > summary:focus-visible { outline: 2px solid var(--accent); ou
   border-radius: 999px; padding: 0.4rem 0.85rem; font-size: 0.8rem; font-weight: 700; cursor: pointer;
 }
 .dash-scen button small { font-family: var(--mono); font-weight: 600; color: var(--ink-faint); margin-left: 0.2rem; }
-.dash-scen button.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+.dash-scen button.on { background: var(--tint); border-color: var(--tint); color: #fff; box-shadow: 0 2px 8px var(--tint-soft); }
 .dash-scen button.on small { color: rgba(255,255,255,0.85); }
-:root[data-theme="dark"] .dash-scen button.on { color: #06302b; }
-.dash-scen button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.dash-scen button:focus-visible { outline: 2px solid var(--tint); outline-offset: 2px; }
 .dash-scen-custom { font-size: 0.72rem; color: var(--ink-faint); font-family: var(--mono); }
 .dash-scen-lead { font-size: 0.62rem; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase;
   color: var(--ink-faint); margin-right: 0.15rem; }

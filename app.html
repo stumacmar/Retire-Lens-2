@@ -72,6 +72,34 @@
     <aside id="kpi-rail" class="kpi-rail" aria-label="Live plan summary"></aside>
   </div>
 
+  <!-- Native-style bottom tab bar (phones only; ≥768px falls back to the top pills).
+       Five primary destinations; "More" opens a glass sheet with the rest. -->
+  <nav class="tabbar no-print" id="tabbar" aria-label="Primary">
+    <button class="tabbar-btn" data-tab="dashboard" aria-label="Dashboard">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 13h6V4H4zM14 20h6v-9h-6zM14 8h6V4h-6zM4 20h6v-4H4z"/></svg>
+      <span>Home</span>
+    </button>
+    <button class="tabbar-btn" data-tab="assumptions" aria-label="Your details">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 21v-6M5 11V3M12 21v-9M12 8V3M19 21v-4M19 13V3"/><circle cx="5" cy="13" r="2"/><circle cx="12" cy="6" r="2"/><circle cx="19" cy="15" r="2"/></svg>
+      <span>Details</span>
+    </button>
+    <button class="tabbar-btn" data-tab="drawdown" aria-label="Taking income">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="6" width="19" height="12" rx="2.5"/><circle cx="12" cy="12" r="2.5"/></svg>
+      <span>Income</span>
+    </button>
+    <button class="tabbar-btn" data-tab="risk" aria-label="Risk">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 2.6v5.1c0 4.4-3 7.6-7 9.3-4-1.7-7-4.9-7-9.3V5.6z"/></svg>
+      <span>Risk</span>
+    </button>
+    <button class="tabbar-btn" data-more aria-label="More sections">
+      <svg viewBox="0 0 24 24"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg>
+      <span>More</span>
+    </button>
+  </nav>
+
+  <!-- Root for glass bottom-sheets (help hints, the More menu). -->
+  <div id="sheet-root"></div>
+
   <footer class="honesty">
     A modelling tool, not regulated financial advice. Nominal figures with your inflation assumption unless "Today's £" is on.
     <br>

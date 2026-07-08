@@ -738,15 +738,22 @@ function renderDashboard(el) {
 // one idea per screen, generous whitespace, one obvious button. State lives
 // in S.P (the engine is untouched); S.step remembers which page you're on so
 // editing a field never loses your place.
+// Each step carries a SHORT lead (one line) and a fuller `hint` (bullets) that
+// lives behind an ⓘ button — so the screen stays crisp but the guidance is a
+// tap away (ProjectionLab / Apple TipKit style progressive disclosure).
 const WIZARD_STEPS = [
   { n: 1, key: 'vision',  emoji: '🌅', short: 'Someday',  title: 'Your Someday',
-    lead: 'Start with the life, not the spreadsheet — the year you’d like to stop work, and what “enough” looks like each year. Nothing here is advice, and you can change either any time.' },
+    lead: 'When you’d like to stop, and what “enough” looks like each year.',
+    hint: '<ul><li>Start with the life, not the spreadsheet.</li><li>Change either figure any time.</li><li>All money is in today’s pounds, after tax.</li><li>Nothing here is regulated financial advice.</li></ul>' },
   { n: 2, key: 'about',   emoji: '👤', short: 'You',      title: 'Where you’re starting from',
-    lead: 'Real names, real numbers — honest beats hopeful. Just you for now; you can add a partner lower down. Everything stays on this device.' },
+    lead: 'Your age and what you’ve saved so far — just you for now.',
+    hint: '<ul><li>Real numbers beat hopeful ones.</li><li>Add a partner lower down if you have one.</li><li>Everything stays on this device — nothing is uploaded.</li></ul>' },
   { n: 3, key: 'savings', emoji: '🌉', short: 'Extras',   title: 'What else helps carry you there',
-    lead: 'Cash set aside, your home, and anything you expect along the way. Small things count — add what you have and skip the rest.' },
+    lead: 'Cash, your home, and anything you expect along the way.',
+    hint: '<ul><li>Add what you have; skip the rest.</li><li>Your home counts toward net worth only — it never funds income.</li><li>Windfalls can be invested or spent when they arrive.</li></ul>' },
   { n: 4, key: 'growth',  emoji: '🔭', short: 'The lens', title: 'The lens you look through',
-    lead: 'No one knows what markets will do, so Someday looks through three lenses — Poor, Base and Positive — instead of one guess. Most people leave these exactly as they are.' },
+    lead: 'How markets might treat you — three lenses, not one guess.',
+    hint: '<ul><li>Poor, Base and Positive instead of a single prediction.</li><li>Most people leave these exactly as they are.</li><li>Assumptions, not forecasts — a planning tool, not advice.</li></ul>' },
 ];
 
 function renderAssumptions(el) {
@@ -881,7 +888,7 @@ function renderAssumptions(el) {
   </nav>
   <div class="card wizard">
     <div class="wiz-head">
-      <h2>${cur.emoji} ${cur.title}</h2>
+      <div class="title-row"><h2>${cur.emoji} ${cur.title}</h2>${hintBtn(cur.title, cur.hint)}</div>
       <p class="sub wiz-lead">${cur.lead}</p>
     </div>
     <div class="wiz-body">${bodies[cur.key]}</div>
@@ -1647,6 +1654,7 @@ function activateTab(name, focusBtn) {
   });
   document.querySelectorAll('main section').forEach(sec => { sec.hidden = sec.id !== 'tab-' + name; });
   document.body.dataset.tab = name;
+  syncTabbar(name);
   renderTab();
   // Entrance motion, once per navigation only (changed()/renderTab re-renders
   // never add this class, so nothing animates on a keystroke). Reduced-motion off.
@@ -1677,6 +1685,78 @@ $('tabs').addEventListener('keydown', (e) => {
   if (j < 0) return;
   e.preventDefault();
   activateTab(btns[j].dataset.tab, true);
+});
+
+// ── Glass bottom-sheets (help hints + the "More" menu) ────────────────────
+// A single lightweight sheet primitive: slides up from the bottom on phones,
+// centres as a modal on wider screens. Used for progressive disclosure so the
+// main screens stay calm instead of carrying walls of text.
+function escAttr(s) { return String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;'); }
+function hintBtn(title, bodyHtml) {
+  return `<button type="button" class="hint-btn" aria-label="More about ${escAttr(title)}" data-hint-title="${escAttr(title)}" data-hint-body="${escAttr(bodyHtml)}"></button>`;
+}
+let _sheetKeydown = null;
+function closeSheet() {
+  const root = $('sheet-root'); if (!root) return;
+  const ov = root.querySelector('.sheet-overlay'); if (!ov) return;
+  if (_sheetKeydown) { document.removeEventListener('keydown', _sheetKeydown); _sheetKeydown = null; }
+  ov.classList.remove('in');
+  setTimeout(() => ov.remove(), 340);
+}
+function openSheet(innerHtml) {
+  closeSheet();
+  const root = $('sheet-root'); if (!root) return;
+  const ov = document.createElement('div');
+  ov.className = 'sheet-overlay';
+  ov.innerHTML = `<div class="sheet" role="dialog" aria-modal="true"><div class="sheet-grip" aria-hidden="true"></div>${innerHtml}</div>`;
+  root.appendChild(ov);
+  requestAnimationFrame(() => ov.classList.add('in'));
+  ov.addEventListener('click', (e) => { if (e.target === ov) closeSheet(); });
+  ov.querySelectorAll('[data-sheet-close]').forEach(b => b.onclick = closeSheet);
+  _sheetKeydown = (e) => { if (e.key === 'Escape') closeSheet(); };
+  document.addEventListener('keydown', _sheetKeydown);
+  return ov;
+}
+function openHint(title, bodyHtml) {
+  openSheet(`<h3>${title}</h3>${bodyHtml}<button class="sheet-close" data-sheet-close>Got it</button>`);
+}
+// Delegated: any hint button anywhere opens its sheet (survives re-renders).
+document.addEventListener('click', (e) => {
+  const h = e.target.closest('.hint-btn[data-hint-title]');
+  if (h) openHint(h.dataset.hintTitle, h.dataset.hintBody);
+});
+
+// ── Bottom tab bar (phones) ───────────────────────────────────────────────
+const MORE_TABS = ['events', 'accumulation', 'spending', 'tax', 'estate'];
+const TAB_META = {
+  dashboard: ['📊', 'Dashboard'], assumptions: ['⚙️', 'Your details'], drawdown: ['💰', 'Taking income'],
+  risk: ['⚠️', 'Risk'], events: ['🎉', 'Life events'], accumulation: ['🏦', 'Saving up'],
+  spending: ['🛒', 'Spending'], tax: ['🧮', 'Tax'], estate: ['🏛️', 'Estate'],
+};
+function syncTabbar(name) {
+  const bar = $('tabbar'); if (!bar) return;
+  bar.querySelectorAll('.tabbar-btn').forEach(b => {
+    const on = b.hasAttribute('data-more') ? MORE_TABS.includes(name) : b.dataset.tab === name;
+    b.classList.toggle('on', on);
+    b.setAttribute('aria-current', on ? 'page' : 'false');
+  });
+}
+function openMoreSheet() {
+  const items = MORE_TABS.map(t =>
+    `<button type="button" data-goto="${t}" class="${S.tab === t ? 'on' : ''}"><span class="m-emoji" aria-hidden="true">${TAB_META[t][0]}</span>${TAB_META[t][1]}<span class="m-chev" aria-hidden="true">›</span></button>`).join('');
+  openSheet(`<h3>More</h3>
+    <div class="sheet-menu">${items}</div>
+    <p style="font-size:0.76rem;color:var(--ink-faint);margin:0.8rem 0 0;">A modelling tool, not regulated financial advice. <a href="legal.html" style="color:var(--tint);text-decoration:none;">Why I built it · Terms &amp; privacy</a></p>
+    <button class="sheet-close" data-sheet-close>Close</button>`);
+  $('sheet-root').querySelectorAll('[data-goto]').forEach(b => b.onclick = () => {
+    closeSheet(); activateTab(b.dataset.goto, false); window.scrollTo({ top: 0 });
+  });
+}
+const tabbar = $('tabbar');
+if (tabbar) tabbar.addEventListener('click', (e) => {
+  const b = e.target.closest('.tabbar-btn'); if (!b) return;
+  if (b.hasAttribute('data-more')) { openMoreSheet(); return; }
+  activateTab(b.dataset.tab, false); window.scrollTo({ top: 0 });
 });
 
 // ── "?" toggletips ──────────────────────────────────────────────────────

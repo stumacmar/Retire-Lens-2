@@ -12,6 +12,26 @@ import { PRODUCT } from '../config/product.js';
 const E = createEngine();
 const $ = (id) => document.getElementById(id);
 
+// ── Icon set ──────────────────────────────────────────────────────────────
+// One consistent family of clean, thin-stroke line icons (Apple SF-Symbols
+// spirit): 24px grid, 1.75px stroke, round joins, currentColor. No emoji
+// anywhere in the chrome — this is what separates "premium" from "toy".
+const ICONS = {
+  home:     '<path d="M3.5 11.5 12 4.5l8.5 7"/><path d="M5.6 10v9h12.8v-9"/><path d="M9.5 19v-5h5v5"/>',
+  sliders:  '<path d="M4 8h8"/><path d="M16 8h4"/><circle cx="14" cy="8" r="2"/><path d="M4 16h4"/><path d="M12 16h8"/><circle cx="10" cy="16" r="2"/>',
+  wallet:   '<rect x="3.5" y="6" width="17" height="12.5" rx="2.6"/><path d="M3.5 10h17"/><circle cx="16.4" cy="14.3" r="1" fill="currentColor" stroke="none"/>',
+  shield:   '<path d="M12 3.5 19 6v5.2c0 4.3-3 7.4-7 9-4-1.6-7-4.7-7-9V6z"/><path d="M9 12l2 2 4-4.2"/>',
+  grid:     '<rect x="4" y="4" width="7" height="7" rx="1.8"/><rect x="13" y="4" width="7" height="7" rx="1.8"/><rect x="4" y="13" width="7" height="7" rx="1.8"/><rect x="13" y="13" width="7" height="7" rx="1.8"/>',
+  calendar: '<rect x="3.5" y="5" width="17" height="15" rx="2.6"/><path d="M3.5 9.5h17"/><path d="M8 3.5v3M16 3.5v3"/>',
+  trend:    '<path d="M4 15l5-5 3 3 6-7"/><path d="M15 6h4v4"/>',
+  tag:      '<path d="M4 4.5h6.6l9 9-6.6 6.6-9-9z"/><circle cx="8.3" cy="8.3" r="1.15" fill="currentColor" stroke="none"/>',
+  percent:  '<path d="M6.5 17.5 17.5 6.5"/><circle cx="8" cy="8" r="1.9"/><circle cx="16" cy="16" r="1.9"/>',
+  bank:     '<path d="M3.5 9.5 12 4.5l8.5 5"/><path d="M5.6 11v6.5M9.8 11v6.5M14.2 11v6.5M18.4 11v6.5"/><path d="M3.8 20.5h16.4"/>',
+};
+function icon(name, cls) {
+  return `<svg${cls ? ` class="${cls}"` : ''} viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[name] || ''}</svg>`;
+}
+
 // ── State ───────────────────────────────────────────────────────────────
 const S = {
   // New visitors start with a blank, generic plan ("You" / "Partner", zeroed
@@ -617,7 +637,7 @@ function renderDashboard(el) {
   } catch (e) {}
   const taxSave = E.taxOn(y1.guaranteed + y1.grossA + y1.grossB, P.tax) - y1.tax;
   if (taxSave > 100) insights.push(['🧮', `Splitting income across both of you saves about <strong>${fmt(taxSave, y1.year)}</strong> in tax this year.`]);
-  const insightHtml = insights.slice(0, 4).map(([ic, t]) => `<div class="insight"><span class="insight-ic" aria-hidden="true">${ic}</span><span>${t}</span></div>`).join('');
+  const insightHtml = insights.slice(0, 4).map(([, t]) => `<div class="insight"><span>${t}</span></div>`).join('');
 
   if (!S.dashPage) S.dashPage = 1;
 
@@ -1130,7 +1150,7 @@ function renderAccumulation(el) {
       <div class="kpi"><div class="v">${fmtK(at.pensionB, P.retireYear)}</div><div class="k">${poss(P.partnerB.name)} pension</div></div>
       <div class="kpi"><div class="v">${fmtK(at.isaA + at.isaB, P.retireYear)}</div><div class="k">ISAs combined</div></div>
     </div>
-    ${warns.map(w => `<div class="callout">⚠️ ${w}</div>`).join('')}
+    ${warns.map(w => `<div class="callout">${w}</div>`).join('')}
     <p class="note">You will have paid in ${fmt(contribA)} (${P.partnerA.name}) and ${fmt(contribB)} (${P.partnerB.name}) of contributions by retirement.</p>
   </div>
 
@@ -1247,7 +1267,7 @@ function renderDrawdown(el) {
       <span><i style="background:${COLORS.spB}"></i>${poss(P.partnerB.name)} pension</span>
       <span><i style="background:${COLORS.isa}"></i>ISAs and cash</span>
     </div>
-    ${dd.exhaustedAgeA ? `<div class="callout">⚠️ The pots run dry at age ${dd.exhaustedAgeA}. Try a later retirement, a lower target, or the spending reductions on the 🛒 tab.</div>` : ''}
+    ${dd.exhaustedAgeA ? `<div class="callout">The pots run dry at age ${dd.exhaustedAgeA}. Try a later retirement, a lower target, or the spending reductions on the Spending tab.</div>` : ''}
   </div>
 
   <details class="card fold">
@@ -1257,7 +1277,7 @@ function renderDrawdown(el) {
     <div class="tbl-scroll"><div class="tbl-wrap"><table class="data sticky-first">
       <tr><th>Year</th><th>Age ${P.partnerA.name[0]}/${P.partnerB.name[0]}</th><th>Guaranteed</th><th>Pension draw</th><th>Tax-free</th><th>Tax</th><th>ISA draw</th><th>Net income</th><th>Need</th><th>Pension pots</th><th>ISAs</th></tr>
       ${rows.map(r => `<tr${r.shortfall > 1 ? ' class="warn"' : (r.eventLabels.length ? ' class="hl" title="' + r.eventLabels.join(', ') + '"' : '')}>
-        <td>${r.year}${r.eventLabels.length ? ' 🎉' : ''}</td><td>${r.ageA}/${r.ageB}</td>
+        <td>${r.year}${r.eventLabels.length ? ' •' : ''}</td><td>${r.ageA}/${r.ageB}</td>
         <td>${fmt(r.guaranteed, r.year)}</td>
         <td>${fmt(r.grossA + r.grossB, r.year)}</td>
         <td>${fmt(r.tfcA + r.tfcB, r.year)}</td>
@@ -1831,10 +1851,20 @@ document.addEventListener('click', (e) => {
 // ── Bottom tab bar (phones) ───────────────────────────────────────────────
 const MORE_TABS = ['events', 'accumulation', 'spending', 'tax', 'estate'];
 const TAB_META = {
-  dashboard: ['📊', 'Dashboard'], assumptions: ['⚙️', 'Your details'], drawdown: ['💰', 'Taking income'],
-  risk: ['⚠️', 'Risk'], events: ['🎉', 'Life events'], accumulation: ['🏦', 'Saving up'],
-  spending: ['🛒', 'Spending'], tax: ['🧮', 'Tax'], estate: ['🏛️', 'Estate'],
+  dashboard: ['home', 'Dashboard'], assumptions: ['sliders', 'Your details'], drawdown: ['wallet', 'Taking income'],
+  risk: ['shield', 'Risk'], events: ['calendar', 'Life events'], accumulation: ['trend', 'Saving up'],
+  spending: ['tag', 'Spending'], tax: ['percent', 'Tax'], estate: ['bank', 'Estate'],
 };
+// Which clean icon each bottom-tab button carries.
+const TABBAR_ICONS = { dashboard: 'home', assumptions: 'sliders', drawdown: 'wallet', risk: 'shield' };
+function paintTabbarIcons() {
+  document.querySelectorAll('#tabbar .tabbar-btn').forEach(btn => {
+    const name = btn.hasAttribute('data-more') ? 'grid' : TABBAR_ICONS[btn.dataset.tab];
+    const svg = btn.querySelector('svg');
+    if (name && svg) svg.outerHTML = icon(name);
+  });
+}
+paintTabbarIcons();
 function syncTabbar(name) {
   const bar = $('tabbar'); if (!bar) return;
   bar.querySelectorAll('.tabbar-btn').forEach(b => {
@@ -1845,7 +1875,7 @@ function syncTabbar(name) {
 }
 function openMoreSheet() {
   const items = MORE_TABS.map(t =>
-    `<button type="button" data-goto="${t}" class="${S.tab === t ? 'on' : ''}"><span class="m-emoji" aria-hidden="true">${TAB_META[t][0]}</span>${TAB_META[t][1]}<span class="m-chev" aria-hidden="true">›</span></button>`).join('');
+    `<button type="button" data-goto="${t}" class="${S.tab === t ? 'on' : ''}"><span class="m-ic" aria-hidden="true">${icon(TAB_META[t][0])}</span>${TAB_META[t][1]}<span class="m-chev" aria-hidden="true">›</span></button>`).join('');
   openSheet(`<h3>More</h3>
     <div class="sheet-menu">${items}</div>
     <p style="font-size:0.76rem;color:var(--ink-faint);margin:0.8rem 0 0;">A modelling tool, not regulated financial advice. <a href="legal.html" style="color:var(--tint);text-decoration:none;">Why I built it · Terms &amp; privacy</a></p>

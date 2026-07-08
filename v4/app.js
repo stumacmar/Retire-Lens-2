@@ -93,7 +93,7 @@ function clearExample() {         // "clear and start blank"
 function exampleBanner() {
   if (!S.exampleActive) return '';
   return `<div class="example-banner no-print">
-    <span>👀 You're viewing an <strong>example</strong> plan${S.exampleLabel ? ' (the ' + S.exampleLabel + ')' : ''} — not your figures.</span>
+    <span>You're viewing an <strong>example</strong> plan${S.exampleLabel ? ' (the ' + S.exampleLabel + ')' : ''} — not your figures.</span>
     <span class="eb-actions"><button type="button" id="eb-keep" class="small">Make this my starting point</button>
     <button type="button" id="eb-clear" class="small ghost">Clear &amp; start blank</button></span>
   </div>`;
@@ -543,11 +543,7 @@ function renderDashboard(el) {
     const Y = (v) => H - padB - (v / hi) * (H - padT - padB);
     return `<button type="button" class="fan-preview no-print" data-goto-detail aria-label="See your money through retirement in detail">
       <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true">
-        <defs><linearGradient id="fanBand" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stop-color="var(--tint)" stop-opacity="0.24"/>
-          <stop offset="1" stop-color="var(--tint)" stop-opacity="0.02"/>
-        </linearGradient></defs>
-        <path d="${areaPath(bandHi, bandLo, X, Y)}" fill="url(#fanBand)"/>
+        <path d="${areaPath(bandHi, bandLo, X, Y)}" fill="url(#gradFan)"/>
         <path d="${linePath(tlPts, X, Y)}" fill="none" stroke="var(--tint)" stroke-width="2.4" vector-effect="non-scaling-stroke" stroke-linejoin="round"/>
       </svg>
       <span class="fan-cap"><span>Your money · ${tlY0}–${tlY1} · Poor to Positive</span><span class="fan-more">See detail ›</span></span>
@@ -618,7 +614,7 @@ function renderDashboard(el) {
     <div class="kicker">${P.partnerA.name} and ${P.partnerB.name}</div>
     <div class="someday-hero is-${cls}">
       <div class="sd-main">
-        <span class="sd-eyebrow">${good ? '🎉 Your Someday could be' : 'Your retirement target'}</span>
+        <span class="sd-eyebrow">${good ? 'Your Someday could be' : 'Your retirement target'}</span>
         <span class="sd-date">April ${P.retireYear}</span>
         <span class="sd-age">${good ? `You could stop work at ${ageAtRet}.` : `The plan you're aiming for — ${P.partnerA.name} at ${ageAtRet}.`}</span>
       </div>
@@ -638,12 +634,12 @@ function renderDashboard(el) {
     ${fanPreview}
     <div class="title-row nudge-head"><h3>What could I change?</h3></div>
     <div class="nudge-row no-print">
-      <button type="button" class="nudge" data-nudge="year">🗓️ Retire later</button>
-      <button type="button" class="nudge" data-nudge="save">💷 Save more</button>
-      <button type="button" class="nudge" data-nudge="spend">🛒 Spend less</button>
+      <button type="button" class="nudge" data-nudge="year">Retire later</button>
+      <button type="button" class="nudge" data-nudge="save">Save more</button>
+      <button type="button" class="nudge" data-nudge="spend">Spend less</button>
     </div>
     <details class="section" style="margin-top:1.1rem;">
-      <summary>🛠️ Plan actions — pin, save a report, share</summary>
+      <summary>Plan actions — pin, save a report, share</summary>
       <div class="section-body" style="display:flex; gap:0.5rem; flex-wrap:wrap;" class="no-print">
         <button id="btn-pin" class="small">${S.pinned ? 'Update plan A pin' : 'Pin as plan A'}</button>
         ${S.pinned ? '<button id="btn-unpin" class="small ghost">Clear pin</button>' : ''}
@@ -836,7 +832,7 @@ function renderAssumptions(el) {
     vision: `
       <div class="grid2">
         ${numField('Retirement year', 'retireYear', 'The year you stop paying in and start drawing an income')}
-        ${moneyField('Income you want each year', 'targetNet', "Today's money, after tax. The 🛒 Spending tab can build this from a monthly budget instead")}
+        ${moneyField('Income you want each year', 'targetNet', "Today's money, after tax. The Spending tab can build this from a monthly budget instead")}
       </div>
       <p class="wiz-benchlead">Not sure? Tap a benchmark to start from:</p>
       <div class="plsa-cards no-print" role="group" aria-label="Income benchmarks">
@@ -848,7 +844,7 @@ function renderAssumptions(el) {
       </div>
       <p class="note">PLSA Retirement Living Standards (2024), couple, after tax — a starting point, not advice.</p>
       ${S.exampleActive ? '' : `<div class="ex-peek no-print">
-        <span class="ex-lead">👀 New here?</span>
+        <span class="ex-lead">New here? Try an example:</span>
         ${EXAMPLES.map(ex => `<button type="button" class="ex-chip" data-example="${ex.key}" title="${ex.blurb}">${ex.label}</button>`).join('')}
       </div>`}
       <details class="subsection" data-sec="stepdowns" ${so('stepdowns')}>
@@ -882,7 +878,7 @@ function renderAssumptions(el) {
         </div>
       </details>
       <details class="subsection" data-sec="partner" ${so('partner')}>
-        <summary>➕ Add your partner’s details</summary>
+        <summary>Add your partner’s details</summary>
         <p class="sub" style="margin:0.5rem 0;">Planning solo? Leave this closed.</p>
         <div class="grid2">
           ${textField('Partner’s name', 'partnerB.name', 'Leave as “Partner” if planning alone')}
@@ -939,7 +935,7 @@ function renderAssumptions(el) {
   </nav>
   <div class="card wizard">
     <div class="wiz-head">
-      <div class="title-row"><h2>${cur.emoji} ${cur.title}</h2>${hintBtn(cur.title, cur.hint)}</div>
+      <div class="title-row"><h2>${cur.title}</h2>${hintBtn(cur.title, cur.hint)}</div>
       <p class="sub wiz-lead">${cur.lead}</p>
     </div>
     <div class="wiz-body">${bodies[cur.key]}</div>
@@ -1293,7 +1289,7 @@ function renderTax(el) {
   <div class="card">
     <div class="kicker">Where the money comes from</div>
     <h2>Three ways to fund the same life</h2>
-    <p class="lead-summary">💡 Drawing your money in the smartest order saves about <strong>${fmtK(worst.lifetimeTax - best.lifetimeTax)}</strong> in tax over your whole plan — Someday shows you the order that costs least tax in this model.</p>
+    <p class="lead-summary">Drawing your money in the smartest order saves about <strong>${fmtK(worst.lifetimeTax - best.lifetimeTax)}</strong> in tax over your whole plan — Someday shows you the order that costs least tax in this model.</p>
     <p class="sub">Tap a strategy to adopt it; every tab recomputes. Lifetime tax shown in future pounds.</p>
     <div class="strategies">
       ${strategies.map(s => `
@@ -1864,6 +1860,24 @@ try {
   const th = localStorage.getItem('rl4-theme');
   if (th === 'dark' || th === 'light') document.documentElement.dataset.theme = th;
 } catch (e) {}
+
+// Reusable SVG gradient defs, injected once and referenced by every chart via
+// url(#…). Stops are coloured in CSS (not inline attributes) so var() resolves
+// on Safari and follows dark mode. Gives the fan/area charts the calming
+// gradient depth of the mockups.
+function injectSvgDefs() {
+  if (document.getElementById('rl-svg-defs')) return;
+  const d = document.createElement('div');
+  d.id = 'rl-svg-defs';
+  d.setAttribute('aria-hidden', 'true');
+  d.style.cssText = 'position:absolute;width:0;height:0;overflow:hidden';
+  d.innerHTML = `<svg width="0" height="0"><defs>
+    <linearGradient id="gradFan" x1="0" y1="0" x2="0" y2="1"><stop class="gs0" offset="0"/><stop class="gs1" offset="1"/></linearGradient>
+    <linearGradient id="gradArea" x1="0" y1="0" x2="0" y2="1"><stop class="ga0" offset="0"/><stop class="ga1" offset="1"/></linearGradient>
+  </defs></svg>`;
+  document.body.appendChild(d);
+}
+injectSvgDefs();
 
 // ── Boot ────────────────────────────────────────────────────────────────
 console.log('%cSomeday engine assertions', 'font-weight:bold');

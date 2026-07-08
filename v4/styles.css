@@ -425,6 +425,8 @@ details.card.fold > summary:focus-visible { outline: 2px solid var(--accent); ou
 :root[data-theme="dark"] .dash-scen button.on { color: #06302b; }
 .dash-scen button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .dash-scen-custom { font-size: 0.72rem; color: var(--ink-faint); font-family: var(--mono); }
+.dash-scen-lead { font-size: 0.62rem; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--ink-faint); margin-right: 0.15rem; }
 
 input[type="range"] {
   -webkit-appearance: none; appearance: none; width: 100%;

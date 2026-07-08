@@ -434,6 +434,28 @@ function sankeyFor(row) {
 
 // ── Views ───────────────────────────────────────────────────────────────
 
+// The growth "lens" switch — Poor / Base / Positive. One shared control so it
+// looks and behaves identically on every tab whose numbers move with the live
+// scenario (Dashboard, Taking income, Tax, Estate). Switching recomputes the
+// whole plan. Tabs that already show all three lenses at once (Saving up, Risk)
+// deliberately don't carry it — there'd be nothing to switch.
+function scenarioSwitch(lead = 'Growth lens') {
+  const P = S.P;
+  const chips = [['bear', 'Poor', P.growthBear], ['base', 'Base', P.growthBase], ['bull', 'Positive', P.growthBull]];
+  const isCustom = !chips.some(([, , g]) => Math.abs(g - P.growth) < 1e-9);
+  return `<div class="dash-scen no-print" role="group" aria-label="Growth lens: poor, base or positive markets">
+    <span class="dash-scen-lead">${lead}</span>
+    ${chips.map(([k, lbl, g]) => `<button type="button" data-dscen="${k}" class="${Math.abs(P.growth - g) < 1e-9 ? 'on' : ''}" aria-pressed="${Math.abs(P.growth - g) < 1e-9 ? 'true' : 'false'}">${lbl} <small>${pct(g, 1)}</small></button>`).join('')}
+    ${isCustom ? `<span class="dash-scen-custom">Custom ${pct(P.growth, 1)}</span>` : ''}
+  </div>`;
+}
+function wireScenarioSwitch(root) {
+  const map = { bear: S.P.growthBear, base: S.P.growthBase, bull: S.P.growthBull };
+  (root || document).querySelectorAll('.dash-scen button[data-dscen]').forEach(b => {
+    b.onclick = () => { S.P.growth = map[b.dataset.dscen]; changed(); };
+  });
+}
+
 function renderDashboard(el) {
   const c = S.cache, P = S.P;
   const acc = c.accLive.atRetirement;
@@ -581,11 +603,7 @@ function renderDashboard(el) {
     <p class="note">Someday is a model, not regulated financial advice — but it makes an excellent starting point for a conversation with a qualified, FCA-regulated financial adviser. <a href="legal.html" style="color:inherit;">The important bit</a>.</p>
     <p class="sub">At ${pct(P.growth, 1)} growth and ${pct(P.inflation, 1)} inflation. A model, not a promise. ${S.todayMoney ? "All figures in today's money." : 'Future pounds, with your inflation included.'} Pick a scenario below and everything recomputes.</p>`;
   })()}
-    <div class="dash-scen no-print" role="group" aria-label="Growth scenario">
-      ${[['bear', 'Poor', P.growthBear], ['base', 'Base', P.growthBase], ['bull', 'Positive', P.growthBull]].map(([k, lbl, g]) =>
-        `<button type="button" data-dscen="${k}" class="${Math.abs(P.growth - g) < 1e-9 ? 'on' : ''}" aria-pressed="${Math.abs(P.growth - g) < 1e-9 ? 'true' : 'false'}">${lbl} <small>${pct(g, 1)}</small></button>`).join('')}
-      ${isCustom ? `<span class="dash-scen-custom">Custom ${pct(P.growth, 1)}</span>` : ''}
-    </div>
+    ${scenarioSwitch()}
     <div class="kpis">
       <div class="kpi lead ${survives ? 'good' : 'bad'}"><div class="v">${survives ? 'To ' + P.horizonAge + '+' : 'Age ' + dd.exhaustedAgeA}</div><div class="k">${survives ? 'Your money lasts the whole plan' : 'Money runs short here — there are levers to try'}</div>${kpiDelta('endWealth', dd.endWealth, endYear)}</div>
       <div class="kpi lead ${y1.shortfall > 1 ? 'bad' : 'good'}"><div class="v">${fmtK(y1.netIncome, y1.year)}</div><div class="k">Spending money, first year (you need ${fmtK(y1.target, y1.year)})</div></div>
@@ -685,13 +703,7 @@ function renderDashboard(el) {
 
   // Inline scenario switch — sets growth and re-renders (header chips re-sync
   // via changed() -> syncGrowthUI()), so the user never scrolls to the header.
-  el.querySelectorAll('.dash-scen button[data-dscen]').forEach(b => {
-    b.onclick = () => {
-      const map = { bear: P.growthBear, base: P.growthBase, bull: P.growthBull };
-      S.P.growth = map[b.dataset.dscen];
-      changed();
-    };
-  });
+  wireScenarioSwitch(el);
   wireExampleBanner();
   wireSupportPanel();
 
@@ -1138,6 +1150,7 @@ function renderDrawdown(el) {
   ch2.add(`<path d="${linePath(rows.map(r => [r.year, dv(r.isaA + r.isaB + r.cash, r)]), ch2.X, ch2.Y)}" fill="none" stroke="${COLORS.isa}" stroke-width="2"/>`);
 
   el.innerHTML = `
+  ${scenarioSwitch()}
   <div class="card">
     <div class="kicker">Income layering, ${P.retireYear} to ${rows[rows.length - 1].year}</div>
     <h2>Who pays for each year</h2>
@@ -1179,6 +1192,8 @@ function renderDrawdown(el) {
     </table></div><span class="scroll-hint" aria-hidden="true">Scroll →</span></div>
   </details>`;
 
+  wireScenarioSwitch(el);
+
   // Show the "scroll right" affordance only while the table actually overflows.
   const box = el.querySelector('.tbl-scroll');
   const sc = box && box.querySelector('.tbl-wrap');
@@ -1218,6 +1233,7 @@ function renderTax(el) {
   const endYear = horizonYear();
 
   el.innerHTML = `
+  ${scenarioSwitch()}
   <div class="card">
     <div class="kicker">Where the money comes from</div>
     <h2>Three ways to fund the same life</h2>
@@ -1251,6 +1267,7 @@ function renderTax(el) {
     <p class="note" id="vessel-note"></p>
   </details>`;
 
+  wireScenarioSwitch(el);
   el.querySelectorAll('[data-strat]').forEach(d => {
     const go = () => { P.strategy = d.dataset.strat; changed(); };
     d.onclick = go;
@@ -1519,10 +1536,11 @@ function renderEstate(el) {
   const P = S.P;
   const es = S.cache.estate;
   el.innerHTML = `
+  ${scenarioSwitch()}
   <div class="card">
     <div class="kicker">Inheritance tax</div>
     <h2>Estate at age ${P.horizonAge} (${es.year})</h2>
-    <p class="sub">Base scenario. Pensions ${es.pensionsIn ? 'are inside' : 'stay outside'} the estate under the ${P.iht.pensionsInEstateFrom} rule change. ${S.todayMoney ? "Today's money." : 'Nominal figures.'}</p>
+    <p class="sub">Through the ${pct(P.growth, 1)} growth lens. Pensions ${es.pensionsIn ? 'are inside' : 'stay outside'} the estate under the ${P.iht.pensionsInEstateFrom} rule change. ${S.todayMoney ? "Today's money." : 'Nominal figures.'}</p>
     <div class="tbl-wrap"><table class="data">
       <tr><th>Component</th><th>Value</th><th>In IHT scope</th></tr>
       <tr><td>House at ${pct(P.houseGrowth)} a year</td><td>${fmt(es.house, es.year)}</td><td>Yes</td></tr>
@@ -1547,6 +1565,7 @@ function renderEstate(el) {
     </details>
     <p class="note">The residence nil-rate band taper above £2m is applied. Beneficiary income tax on inherited pensions after age 75 is not modelled: pensions shown passing gross. Gifting, trusts and insurance are for a conversation with an adviser, not a slider.</p>
   </div>`;
+  wireScenarioSwitch(el);
   wireInputs(el);
   $('iht-pens').onchange = (e) => { P.iht.includePensions = e.target.checked; changed(); };
 }

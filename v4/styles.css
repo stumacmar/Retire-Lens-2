@@ -91,24 +91,9 @@ header.site {
   margin-left: 0.45rem; letter-spacing: 0; }
 @media (max-width: 430px) { .brand .yr { display: none; } }
 
-.growth-ctl { display: flex; align-items: center; gap: 0.55rem; flex: 1; min-width: 230px; }
-/* The growth scenario controls are meaningless before any figures exist, so
-   keep the header calm on the "Your details" tab — reveal them on results tabs. */
-body[data-tab="assumptions"] .growth-ctl { display: none; }
-/* The Dashboard has its own inline Poor/Base/Positive switch, so hide the
-   duplicate header chips there (the custom-% slider stays). */
-body[data-tab="dashboard"] .scenario-chips { display: none; }
 /* The side KPI rail duplicates the Dashboard's own hero + tiles, so hide it
    there; it still earns its place on Saving up / Taking income / Tax / etc. */
 body[data-tab="dashboard"] .kpi-rail { display: none; }
-.growth-ctl output { font-family: var(--mono); font-weight: 800; font-size: 0.95rem; min-width: 3.4ch; text-align: right; color: var(--accent-strong); }
-.scenario-chips { display: flex; gap: 0.3rem; }
-.scenario-chips button {
-  font-size: 0.68rem; font-weight: 700; padding: 0.24rem 0.6rem; border-radius: 999px;
-  border: 1px solid var(--card-edge); background: var(--card); color: var(--ink-dim); cursor: pointer;
-}
-.scenario-chips button.on { background: var(--accent); border-color: var(--accent); color: #fff; }
-:root[data-theme="dark"] .scenario-chips button.on { color: #06302b; }
 
 .hdr-actions { display: flex; gap: 0.4rem; margin-left: auto; }
 
@@ -321,9 +306,8 @@ main { padding-top: 1rem; }
 :root[data-theme="dark"] .subnav button.on { color: #06302b; }
 .subnav button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
-/* Life events is a simple list — the growth scenario, money view and theme
-   toggle in the header are irrelevant there, so hide that chrome on that tab. */
-body[data-tab="events"] .growth-ctl,
+/* Life events is a simple list — the money view and theme toggle in the
+   header are irrelevant there, so hide that chrome on that tab. */
 body[data-tab="events"] .hdr-actions { display: none; }
 
 /* ── Multi-page wizard: one step per screen, room to breathe ───────────── */
@@ -675,8 +659,8 @@ body { padding-left: env(safe-area-inset-left); padding-right: env(safe-area-ins
 footer.honesty { padding-bottom: calc(0.45rem + env(safe-area-inset-bottom)); }
 main.wrap { padding-bottom: calc(4.5rem + env(safe-area-inset-bottom)); }
 @media (pointer: coarse) {
-  .small, .seg button, .dash-scen button, nav.tabs button, .cta-primary, .sec-next, .sec-back,
-  .ex-card, .support-amt, .scenario-chips button, .hdr-actions button { min-height: 44px; }
+  .small, .seg button, .dash-scen button, .subnav button, nav.tabs button, .cta-primary,
+  .ex-card, .ex-chip, .plsa-card, .support-amt, .hdr-actions button { min-height: 44px; }
   .field input[type="text"], .field input[type="number"], .field select { min-height: 46px; }
   .help-btn::before { inset: -14px; }   /* 16px visual → 44px effective target */
   .section > summary, .subsection > summary, details.card.fold > summary { min-height: 44px; }

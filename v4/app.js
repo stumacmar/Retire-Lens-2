@@ -1691,28 +1691,11 @@ document.addEventListener('keydown', (e) => {
 });
 
 // ── Header controls ─────────────────────────────────────────────────────
-const gs = $('growth-slider');
-function syncGrowthUI() {
-  gs.value = String(Math.round(S.P.growth * 400) / 4);
-  $('growth-out').textContent = (S.P.growth * 100).toFixed(2).replace(/\.?0+$/, '') + '%';
-  gs.style.setProperty('--fill', (Number(gs.value) / 12 * 100) + '%');
-  document.querySelectorAll('.scenario-chips button').forEach(b => {
-    const map = { bear: S.P.growthBear, base: S.P.growthBase, bull: S.P.growthBull };
-    b.classList.toggle('on', Math.abs(S.P.growth - map[b.dataset.scen]) < 0.0001);
-  });
-}
-gs.addEventListener('input', () => {
-  S.P.growth = Number(gs.value) / 100;
-  syncGrowthUI();
-  save(); recompute(); renderTab();
-});
-document.querySelectorAll('.scenario-chips button').forEach(b => {
-  b.onclick = () => {
-    const map = { bear: S.P.growthBear, base: S.P.growthBase, bull: S.P.growthBull };
-    S.P.growth = map[b.dataset.scen];
-    syncGrowthUI(); save(); recompute(); renderTab();
-  };
-});
+// The global growth slider/scenario chips were removed from the header — the
+// growth scenario now lives on the Dashboard (Poor/Base/Positive chips), and
+// the precise rates in Your details → The lens. syncGrowthUI() is kept as a
+// safe no-op so the existing call sites (changed(), boot) need no changes.
+function syncGrowthUI() { /* header growth control removed; nothing to sync */ }
 
 $('btn-money').onclick = () => {
   S.todayMoney = !S.todayMoney;

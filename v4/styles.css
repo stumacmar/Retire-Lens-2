@@ -23,9 +23,27 @@
   --ink-faint: #67756f;
   --input-bg: #fbfaf7;
   --shadow: 0 1px 2px rgba(20, 30, 28, 0.05), 0 8px 28px rgba(20, 30, 28, 0.07);
-  --radius: 16px;
+  --radius: 20px;
+  --radius-sm: 13px;
   --mono: ui-monospace, 'SF Mono', Menlo, monospace;
   --sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Inter, Roboto, sans-serif;
+
+  /* ── Spacing & rhythm system ──────────────────────────────────────────
+     One scale, used everywhere — no magic numbers. The feel we're after:
+     calm, uncrushed, one idea per card with room to breathe (per the iPhone
+     comps). Rules of thumb:
+       • Inside a card: pad with --sp-5 (24px); stack children on --sp-4.
+       • Between cards: --sp-4 gap.
+       • Label→control: --sp-2.  Section→section: --sp-6.
+       • Never pack more than a screen of content into one section — if it
+         won't fit, concertina the secondary parts (collapsed by default). */
+  --sp-1: 0.25rem;   /* 4  — hairline */
+  --sp-2: 0.5rem;    /* 8  — tight pair */
+  --sp-3: 0.75rem;   /* 12 — snug */
+  --sp-4: 1rem;      /* 16 — base unit */
+  --sp-5: 1.5rem;    /* 24 — comfortable */
+  --sp-6: 2rem;      /* 32 — section break */
+  --sp-7: 2.75rem;   /* 44 — generous */
 }
 
 :root[data-theme="dark"] {
@@ -64,10 +82,12 @@ body {
   font-family: var(--sans);
   background: var(--bg);
   color: var(--ink);
-  line-height: 1.55;
+  line-height: 1.5;
   min-height: 100vh;
   padding-bottom: 4.5rem;
-  font-size: 15px;
+  font-size: 16px;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }
 
 .wrap { max-width: 880px; margin: 0 auto; padding: 0 1rem; }
@@ -119,8 +139,8 @@ nav.tabs {
 }
 nav.tabs::-webkit-scrollbar { display: none; }
 nav.tabs button {
-  white-space: nowrap; border-radius: 999px; font-size: 0.78rem;
-  padding: 0.42rem 0.85rem; border: 1px solid transparent; background: transparent; color: var(--ink-dim);
+  white-space: nowrap; border-radius: 999px; font-size: 0.82rem;
+  padding: 0.5rem 0.95rem; border: 1px solid transparent; background: transparent; color: var(--ink-dim);
 }
 nav.tabs button.on { background: var(--card); border-color: var(--card-edge); color: var(--ink); box-shadow: var(--shadow); font-weight: 700; }
 
@@ -128,28 +148,28 @@ nav.tabs button.on { background: var(--card); border-color: var(--card-edge); co
 main { padding-top: 1rem; }
 .card {
   background: var(--card); border: 1px solid var(--card-edge);
-  border-radius: var(--radius); padding: 1.15rem 1.15rem 1.05rem;
-  margin-bottom: 1rem; box-shadow: var(--shadow);
+  border-radius: var(--radius); padding: var(--sp-5);
+  margin-bottom: var(--sp-4); box-shadow: var(--shadow);
 }
-.card h2 { font-size: 1.02rem; letter-spacing: -0.01em; margin-bottom: 0.15rem; }
-.card h3 { font-size: 0.86rem; margin: 0.9rem 0 0.4rem; }
-.card .sub { color: var(--ink-dim); font-size: 0.78rem; margin-bottom: 0.85rem; max-width: 62ch; }
+.card h2 { font-size: 1.22rem; letter-spacing: -0.015em; line-height: 1.2; margin-bottom: 0.3rem; }
+.card h3 { font-size: 0.98rem; letter-spacing: -0.01em; margin: var(--sp-5) 0 0.5rem; }
+.card .sub { color: var(--ink-dim); font-size: 0.9rem; line-height: 1.5; margin-bottom: var(--sp-4); max-width: 60ch; }
 /* A plain-English lead sentence at the top of a detailed tab */
-.lead-summary { font-size: 0.94rem; line-height: 1.45; color: var(--ink); margin: 0.2rem 0 0.7rem;
-  background: var(--accent-soft); border-radius: 10px; padding: 0.6rem 0.75rem; max-width: 64ch; text-wrap: pretty; }
-.kicker { font-size: 0.64rem; text-transform: uppercase; letter-spacing: 0.13em; color: var(--ink-faint); font-weight: 700; margin-bottom: 0.25rem; }
+.lead-summary { font-size: 1rem; line-height: 1.5; color: var(--ink); margin: var(--sp-1) 0 var(--sp-4);
+  background: var(--accent-soft); border-radius: var(--radius-sm); padding: var(--sp-3) var(--sp-4); max-width: 62ch; text-wrap: pretty; }
+.kicker { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.12em; color: var(--ink-faint); font-weight: 800; margin-bottom: 0.5rem; }
 
 /* ── KPI grid ───────────────────────────────────── */
-.kpis { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.7rem; }
+.kpis { display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--sp-3); }
 @media (min-width: 640px) { .kpis { grid-template-columns: repeat(3, 1fr); } }
 .kpi {
-  background: var(--input-bg); border: 1px solid var(--card-edge); border-radius: 13px;
-  padding: 0.8rem 0.9rem; display: flex; flex-direction: column; min-height: 4.9rem;
+  background: var(--input-bg); border: 1px solid var(--card-edge); border-radius: var(--radius-sm);
+  padding: var(--sp-4); display: flex; flex-direction: column; min-height: 5.4rem;
 }
 /* 700 for supporting numerics; 800 is reserved for the lead "can we retire?" tiles */
-.kpi .v { font-family: var(--mono); font-weight: 700; font-size: 1.22rem; letter-spacing: -0.02em;
-  line-height: 1.12; font-variant-numeric: tabular-nums; }
-.kpi .k { font-size: 0.68rem; color: var(--ink-dim); font-weight: 600; margin-top: auto; padding-top: 0.3rem; }
+.kpi .v { font-family: var(--mono); font-weight: 700; font-size: 1.42rem; letter-spacing: -0.02em;
+  line-height: 1.1; font-variant-numeric: tabular-nums; }
+.kpi .k { font-size: 0.74rem; line-height: 1.35; color: var(--ink-dim); font-weight: 600; margin-top: auto; padding-top: 0.5rem; }
 .kpi .d { font-size: 0.66rem; font-family: var(--mono); font-weight: 700; margin-top: 0.2rem; }
 .kpi .d.up { color: var(--accent-strong); }
 .kpi .d.down { color: var(--rose); }
@@ -158,7 +178,7 @@ main { padding-top: 1rem; }
 .kpi.bad .v { color: var(--rose); }
 /* The two "can we retire?" tiles lead the grid: a calm hero surface, not a border */
 .kpi.lead { background: var(--accent-soft); border-color: color-mix(in srgb, var(--accent) 28%, transparent); }
-.kpi.lead .v { font-size: 1.42rem; font-weight: 800; }
+.kpi.lead .v { font-size: 1.7rem; font-weight: 800; }
 
 /* Example-plan peek banner */
 .example-banner {
@@ -179,8 +199,8 @@ main { padding-top: 1rem; }
 
 /* "Someday" hero — the emotional payload: the date you could be free, big and
    quietly celebratory when the plan works. */
-.someday-hero { display: flex; flex-direction: row; align-items: center; gap: 1rem; padding: 1rem 1.15rem;
-  border-radius: 14px; margin: 0.1rem 0 0.9rem; border: 1px solid var(--card-edge); background: var(--input-bg); }
+.someday-hero { display: flex; flex-direction: row; align-items: center; gap: var(--sp-4); padding: var(--sp-5);
+  border-radius: var(--radius-sm); margin: var(--sp-1) 0 var(--sp-4); border: 1px solid var(--card-edge); background: var(--input-bg); }
 .sd-main { display: flex; flex-direction: column; gap: 0.15rem; flex: 1; min-width: 0; }
 .sd-eyebrow { font-size: 0.72rem; font-weight: 700; letter-spacing: 0.04em; color: var(--ink-dim); }
 .sd-date { font-family: var(--sans); font-size: clamp(2.4rem, 9vw, 3.4rem); font-weight: 800;
@@ -235,11 +255,11 @@ main { padding-top: 1rem; }
 :root[data-theme="dark"] .cta-primary { color: #06302b; }
 
 /* ── Inputs ─────────────────────────────────────── */
-.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0.65rem 0.8rem; }
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-4) var(--sp-4); }
 @media (max-width: 480px) { .grid2 { grid-template-columns: 1fr; } }
-.field label { display: block; font-size: 0.68rem; color: var(--ink-dim); font-weight: 700; margin-bottom: 0.22rem; }
+.field label { display: block; font-size: 0.76rem; color: var(--ink-dim); font-weight: 700; margin-bottom: 0.4rem; }
 .field input[type="text"], .field input[type="number"], .field select {
-  width: 100%; padding: 0.55rem 0.65rem; border-radius: 10px; font-size: 16px;
+  width: 100%; padding: 0.7rem 0.8rem; border-radius: 12px; font-size: 16px;
   background: var(--input-bg); border: 1px solid var(--card-edge); color: var(--ink);
   font-family: var(--mono);
 }
@@ -270,9 +290,9 @@ main { padding-top: 1rem; }
 }
 
 /* Collapsible detail sections in "Your details" */
-.section { border: 1px solid var(--card-edge); border-radius: 12px; margin-top: 0.7rem; background: var(--input-bg); overflow: hidden; }
+.section { border: 1px solid var(--card-edge); border-radius: var(--radius-sm); margin-top: var(--sp-3); background: var(--input-bg); overflow: hidden; }
 .section > summary {
-  list-style: none; cursor: pointer; padding: 0.8rem 0.95rem; font-weight: 700; font-size: 0.9rem;
+  list-style: none; cursor: pointer; padding: var(--sp-4) 1.1rem; font-weight: 700; font-size: 0.95rem;
   display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; color: var(--ink);
 }
 .section > summary::-webkit-details-marker { display: none; }
@@ -297,10 +317,10 @@ main { padding-top: 1rem; }
 .jp-label { flex: 0 0 auto; font-size: 0.72rem; font-weight: 700; color: var(--ink-dim); letter-spacing: 0.02em; white-space: nowrap; }
 
 /* ── Sub-page nav (Dashboard / Risk split into calm pages) ────────────── */
-.subnav { display: flex; gap: 0.4rem; margin: 0 0 1rem; flex-wrap: wrap; }
-.subnav button { flex: 1 1 auto; min-width: max-content; padding: 0.55rem 0.9rem; border-radius: 999px;
+.subnav { display: flex; gap: var(--sp-2); margin: 0 0 var(--sp-5); flex-wrap: wrap; }
+.subnav button { flex: 1 1 auto; min-width: max-content; padding: 0.68rem 1.05rem; border-radius: 999px;
   border: 1px solid var(--card-edge); background: var(--card); color: var(--ink-dim);
-  font-weight: 700; font-size: 0.82rem; cursor: pointer; transition: background .15s, color .15s, border-color .15s; }
+  font-weight: 700; font-size: 0.86rem; cursor: pointer; transition: background .15s, color .15s, border-color .15s; }
 .subnav button:hover { border-color: color-mix(in srgb, var(--accent) 45%, transparent); color: var(--ink); }
 .subnav button.on { background: var(--accent); border-color: var(--accent); color: #fff; }
 :root[data-theme="dark"] .subnav button.on { color: #06302b; }
@@ -553,7 +573,7 @@ table.sticky-first td:first-child, table.sticky-first th:first-child {
 .pill.good { background: var(--accent-soft); color: var(--accent-strong); border-color: transparent; }
 .pill.warn { background: var(--amber-soft); color: var(--amber); border-color: transparent; }
 .pill.bad { background: var(--rose-soft); color: var(--rose); border-color: transparent; }
-.note { font-size: 0.7rem; color: var(--ink-faint); margin-top: 0.5rem; }
+.note { font-size: 0.76rem; line-height: 1.45; color: var(--ink-faint); margin-top: var(--sp-3); }
 .callout { background: var(--blue-soft); border: 1px solid color-mix(in srgb, var(--blue) 25%, transparent); border-radius: 11px; padding: 0.65rem 0.8rem; font-size: 0.76rem; margin: 0.6rem 0; }
 
 /* ── Nominal figures banner ─────────────────────── */

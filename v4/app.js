@@ -583,11 +583,12 @@ function renderDashboard(el) {
     const good = survives && !(y1.shortfall > 1);
     const cls = good ? 'good' : (survives ? 'warn' : 'bad');
     const ageAtRet = P.retireYear - P.partnerA.birthYear;
-    const txt = good
-      ? `On these assumptions, yes — your money lasts to age ${P.horizonAge}+` + (mc ? `, and held up in about ${pct(mc.successProb)} of ${P.mcPaths} market runs.` : '.')
+    const bigVerdict = good ? 'Yes — you’re on track.' : (survives ? 'Almost there.' : 'Not yet — but close.');
+    const support = good
+      ? `Your money lasts to ${P.horizonAge}+${mc ? `, holding up in about ${pct(mc.successProb)} of ${P.mcPaths} market runs` : ''}. At ${pct(P.growth, 1)} growth and ${pct(P.inflation, 1)} inflation — a model, not advice.`
       : (survives
-        ? `Almost — the income falls a little short in the first year. A slightly lower target or a later start closes it.`
-        : `Not yet — the money runs short around age ${dd.exhaustedAgeA}. Retiring a little later, saving a bit more, or easing spending closes the gap.`);
+        ? `The income falls a little short in year one — a slightly lower target or a later start closes it.`
+        : `The money runs short around age ${dd.exhaustedAgeA} — retiring later, saving a little more, or easing spending closes the gap.`);
     const readyFrac = mc ? mc.successProb : (survives ? (y1.shortfall > 1 ? 0.72 : 0.9) : 0.4);
     return `<div class="card">
     <div class="kicker">${P.partnerA.name} and ${P.partnerB.name}</div>
@@ -599,19 +600,16 @@ function renderDashboard(el) {
       </div>
       ${readinessRing(readyFrac, 'Readiness')}
     </div>
-    <p class="verdict ${cls}">${txt}</p>
-    <p class="note">Someday is a model, not regulated financial advice — but it makes an excellent starting point for a conversation with a qualified, FCA-regulated financial adviser. <a href="legal.html" style="color:inherit;">The important bit</a>.</p>
-    <p class="sub">At ${pct(P.growth, 1)} growth and ${pct(P.inflation, 1)} inflation. A model, not a promise. ${S.todayMoney ? "All figures in today's money." : 'Future pounds, with your inflation included.'} Pick a scenario below and everything recomputes.</p>`;
+    <p class="verdict ${cls}">${bigVerdict}</p>
+    <p class="sub" style="margin-bottom:0;">${support} <a href="legal.html" style="color:inherit;">Why that matters</a>.</p>`;
   })()}
     ${scenarioSwitch()}
     <div class="kpis">
-      <div class="kpi lead ${survives ? 'good' : 'bad'}"><div class="v">${survives ? 'To ' + P.horizonAge + '+' : 'Age ' + dd.exhaustedAgeA}</div><div class="k">${survives ? 'Your money lasts the whole plan' : 'Money runs short here — there are levers to try'}</div>${kpiDelta('endWealth', dd.endWealth, endYear)}</div>
-      <div class="kpi lead ${y1.shortfall > 1 ? 'bad' : 'good'}"><div class="v">${fmtK(y1.netIncome, y1.year)}</div><div class="k">Spending money, first year (you need ${fmtK(y1.target, y1.year)})</div></div>
+      <div class="kpi lead ${survives ? 'good' : 'bad'}"><div class="v">${survives ? 'To ' + P.horizonAge + '+' : 'Age ' + dd.exhaustedAgeA}</div><div class="k">${survives ? 'Your money lasts the whole plan' : 'Money runs short here'}</div>${kpiDelta('endWealth', dd.endWealth, endYear)}</div>
+      <div class="kpi lead ${y1.shortfall > 1 ? 'bad' : 'good'}"><div class="v">${fmtK(y1.netIncome, y1.year)}</div><div class="k">Spending money, year one (need ${fmtK(y1.target, y1.year)})</div></div>
       <div class="kpi good"><div class="v">${fmtK(potsAtRet, P.retireYear)}</div><div class="k">Pensions + ISAs at ${P.retireYear}</div>${kpiDelta('pots', potsAtRet, P.retireYear)}</div>
       <div class="kpi ${mc ? (mc.successProb >= 0.85 ? 'good' : mc.successProb >= 0.6 ? 'warn' : 'bad') : ''}">
-        <div class="v">${mc ? pct(mc.successProb) : '…'}</div><div class="k">How often the plan works, across ${P.mcPaths} market runs${S.mcBusy ? ', running' : ''}</div></div>
-      <div class="kpi"><div class="v">${mc ? mc.confidenceAge : '…'}</div><div class="k">Money lasted to at least this age in 9 of 10 market runs</div></div>
-      <div class="kpi"><div class="v">${fmtK(lifetimeTaxShown(dd))}</div><div class="k">Income tax over the plan${S.todayMoney ? ", today's money" : ''}</div>${kpiDelta('lifetimeTax', dd.lifetimeTax)}</div>
+        <div class="v">${mc ? pct(mc.successProb) : '…'}</div><div class="k">How often the plan works${S.mcBusy ? ', running' : ''}</div></div>
     </div>
     <details class="section" style="margin-top:0.9rem;">
       <summary>🛠️ Plan actions — pin, save a report, share</summary>
@@ -1249,14 +1247,17 @@ function renderTax(el) {
           <div class="stat">${s.exhaustedAgeA == null ? 'Never exhausts' : 'Runs dry at ' + s.exhaustedAgeA}</div>
         </div>`).join('')}
     </div>
-    <h3>Tax-free cash</h3>
+  </div>
+
+  <details class="card fold">
+    <summary><span class="kicker">Tax-free cash</span><h2>How you take your lump sum</h2></summary>
     <div class="seg" role="group" aria-label="Tax-free cash choice">
       <button data-pcls="none" class="${P.pclsMode === 'none' ? 'on' : ''}">Take none</button>
       <button data-pcls="phased" class="${P.pclsMode === 'phased' ? 'on' : ''}">A little each year</button>
       <button data-pcls="upfront" class="${P.pclsMode === 'upfront' ? 'on' : ''}">All at retirement</button>
     </div>
     <p class="note">Phased takes a quarter of each year's withdrawal tax-free until the ${fmt(P.tax.pclsCap)} cap. Upfront takes all your tax-free cash at retirement and the proceeds are modelled as staying invested; tax on growth outside wrappers is not modelled.</p>
-  </div>
+  </details>
 
   <details class="card fold">
     <summary><span class="kicker">Band vessels</span><h2>Where HMRC takes it, year by year</h2></summary>

@@ -288,10 +288,12 @@ const fieldId = (path) => 'f-' + String(path).replace(/[^a-z0-9]+/gi, '-');
 const describedBy = (id, hint) => hint ? ` aria-describedby="${id}-h"` : '';
 function labelRow(id, label, hint) {
   if (!hint) return `<label for="${id}">${label}</label>`;
-  const esc = String(label).replace(/"/g, '&quot;');
+  // Every field hint now opens the same glass sheet as section hints — one
+  // consistent, elegant disclosure pattern instead of an inline toggletip. The
+  // hidden note keeps aria-describedby working for screen readers.
   return `<div class="field-label"><label for="${id}">${label}</label>` +
-    `<button type="button" class="help-btn" aria-controls="${id}-h" aria-expanded="false" aria-label="What is &quot;${esc}&quot;?">?</button></div>` +
-    `<span class="help-text" id="${id}-h" role="note">${hint}</span>`;
+    hintBtn(label, `<p>${hint}</p>`) +
+    `<span class="help-text" id="${id}-h" role="note" hidden>${hint}</span>`;
 }
 function textField(label, path, hint) {
   const id = fieldId(path), val = String(getPath(path) ?? '').replace(/"/g, '&quot;');
@@ -611,7 +613,13 @@ function renderDashboard(el) {
       <div class="kpi ${mc ? (mc.successProb >= 0.85 ? 'good' : mc.successProb >= 0.6 ? 'warn' : 'bad') : ''}">
         <div class="v">${mc ? pct(mc.successProb) : '…'}</div><div class="k">How often the plan works${S.mcBusy ? ', running' : ''}</div></div>
     </div>
-    <details class="section" style="margin-top:0.9rem;">
+    <div class="title-row nudge-head"><h3>What could I change?</h3></div>
+    <div class="nudge-row no-print">
+      <button type="button" class="nudge" data-nudge="year">🗓️ Retire later</button>
+      <button type="button" class="nudge" data-nudge="save">💷 Save more</button>
+      <button type="button" class="nudge" data-nudge="spend">🛒 Spend less</button>
+    </div>
+    <details class="section" style="margin-top:1.1rem;">
       <summary>🛠️ Plan actions — pin, save a report, share</summary>
       <div class="section-body" style="display:flex; gap:0.5rem; flex-wrap:wrap;" class="no-print">
         <button id="btn-pin" class="small">${S.pinned ? 'Update plan A pin' : 'Pin as plan A'}</button>
@@ -684,6 +692,21 @@ function renderDashboard(el) {
 
   el.querySelectorAll('[data-dashpage]').forEach(b => b.onclick = () => {
     S.dashPage = Number(b.dataset.dashpage); renderTab(); window.scrollTo({ top: 0, behavior: 'smooth' });
+  });
+
+  // "What could I change?" nudges → jump to Explore and open the what-if lever,
+  // focusing the relevant slider. Keeps the answer page calm while making the
+  // levers one tap away (mockup's nudge section).
+  el.querySelectorAll('[data-nudge]').forEach(b => b.onclick = () => {
+    S.dashPage = 2; renderTab();
+    const w = document.querySelector('#tab-dashboard .whatif');
+    if (w) {
+      w.open = true;
+      const focusId = { year: 'wi-year', save: 'wi-save', spend: 'wi-spend' }[b.dataset.nudge];
+      const sl = document.getElementById(focusId);
+      w.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      if (sl) setTimeout(() => sl.focus({ preventScroll: true }), 350);
+    }
   });
 
   // Follow-the-money slider (only on 'The detail' page, or in the print report)

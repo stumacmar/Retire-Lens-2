@@ -421,6 +421,20 @@ body[data-tab="events"] .hdr-actions { display: none; }
   .sheet { border-radius: 24px; border-bottom: 0.5px solid var(--card-edge); margin: 1rem; max-height: 86vh; }
 }
 
+/* "What could I change?" nudge chips on the Dashboard answer page */
+.nudge-head { margin: 1.3rem 0 0.6rem; }
+.nudge-head h3 { font-size: 0.98rem; }
+.nudge-row { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+.nudge {
+  flex: 1 1 auto; min-width: max-content; display: inline-flex; align-items: center; gap: 0.4rem;
+  justify-content: center; background: var(--tint-soft); color: var(--tint-strong);
+  border: 1px solid color-mix(in srgb, var(--tint) 22%, transparent); border-radius: 14px;
+  padding: 0.7rem 0.9rem; font-size: 0.85rem; font-weight: 700; cursor: pointer;
+  -webkit-tap-highlight-color: transparent; transition: transform .12s ease, background-color .15s ease;
+}
+.nudge:hover { background: color-mix(in srgb, var(--tint) 16%, transparent); }
+.nudge:active { transform: scale(0.96); }
+
 /* Hint buttons — the crisp little "i" that replaces paragraphs of text. */
 .hint-btn {
   flex: 0 0 auto; width: 22px; height: 22px; border-radius: 50%; border: none;

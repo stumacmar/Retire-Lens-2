@@ -321,22 +321,12 @@ main { padding-top: 1rem; }
 :root[data-theme="dark"] .subnav button.on { color: #06302b; }
 .subnav button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
-/* ── Multi-page wizard: one step per screen, room to breathe ───────────── */
-.wiz-steps { display: flex; gap: 0.3rem; margin: 0.2rem 0 1rem; max-width: 760px; }
-.wiz-dot { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 0.4rem;
-  background: none; border: none; cursor: pointer; padding: 0.2rem 0; color: var(--ink-faint); font: inherit; }
-.wiz-dot i { width: 30px; height: 30px; display: grid; place-items: center; border-radius: 999px;
-  background: var(--card-edge); color: var(--ink-dim); font-style: normal; font-weight: 800;
-  font-size: 0.85rem; border: 2px solid transparent; transition: background .2s, color .2s; }
-.wiz-dot span { font-size: 0.66rem; font-weight: 700; letter-spacing: 0.01em; }
-.wiz-dot.done i { background: var(--accent-soft); color: var(--accent-strong); }
-.wiz-dot.on i { background: var(--accent); color: #fff; box-shadow: 0 2px 10px var(--accent-soft); }
-.wiz-dot.on { color: var(--ink); }
-.wiz-dot:hover i { border-color: color-mix(in srgb, var(--accent) 40%, transparent); }
-.wiz-dot:focus-visible { outline: none; }
-.wiz-dot:focus-visible i { outline: 2px solid var(--accent); outline-offset: 2px; }
-:root[data-theme="dark"] .wiz-dot.on i { color: #06302b; }
+/* Life events is a simple list — the growth scenario, money view and theme
+   toggle in the header are irrelevant there, so hide that chrome on that tab. */
+body[data-tab="events"] .growth-ctl,
+body[data-tab="events"] .hdr-actions { display: none; }
 
+/* ── Multi-page wizard: one step per screen, room to breathe ───────────── */
 .card.wizard { max-width: 760px; padding-top: 1.25rem; padding-bottom: 1.25rem; }
 .wiz-head { margin-bottom: 1.2rem; }
 .wiz-head h2 { margin: 0.15rem 0 0.4rem; }
@@ -433,7 +423,7 @@ details.card.fold > summary { list-style: none; cursor: pointer; padding: 1.05re
 details.card.fold > summary::-webkit-details-marker { display: none; }
 details.card.fold > summary::after { content: "⌄"; margin-left: auto; font-size: 1.2rem; color: var(--ink-faint); transition: transform 0.15s; }
 details.card.fold[open] > summary::after { transform: rotate(180deg); }
-details.card.fold > summary .kicker { margin: 0; }
+details.card.fold > summary .kicker { margin: 0; flex-basis: 100%; }
 details.card.fold > summary h2 { margin: 0; }
 details.card.fold > *:not(summary) { margin-left: 1.15rem; margin-right: 1.15rem; }
 details.card.fold > *:last-child { margin-bottom: 1.05rem; }

@@ -606,9 +606,8 @@ function renderDashboard(el) {
     </details>
   </div>`;
 
-  const whatifCard = `<div class="card whatif no-print">
-    <div class="kicker">Try a what-if</div>
-    <h2>Move a lever, watch it change</h2>
+  const whatifCard = `<details class="card fold whatif no-print">
+    <summary><span class="kicker">Try a what-if</span><h2>Move a lever, watch it change</h2></summary>
     <p class="sub">Drag to explore; let go and the whole plan updates. Your saved figures aren't changed until you release.</p>
     <div class="lever">
       <div class="lever-top"><label for="wi-year">Retire in</label><output id="wi-year-out">${P.retireYear} · age ${P.retireYear - P.partnerA.birthYear}</output></div>
@@ -622,13 +621,12 @@ function renderDashboard(el) {
       <div class="lever-top"><label for="wi-save">${P.partnerA.name} ${verbS(P.partnerA.name, 'saves', 'save')} each month</label><output id="wi-save-out">${fmt(P.partnerA.monthlyPension)}</output></div>
       <input type="range" id="wi-save" min="0" max="5000" step="50" value="${P.partnerA.monthlyPension}">
     </div>
-  </div>`;
+  </details>`;
 
-  const insightsCard = insightHtml ? `<div class="card">
-    <div class="kicker">What we notice</div>
-    <h2>Insights from your plan</h2>
+  const insightsCard = insightHtml ? `<details class="card fold">
+    <summary><span class="kicker">What we notice</span><h2>Insights from your plan</h2></summary>
     <div class="insights">${insightHtml}</div>
-  </div>` : '';
+  </details>` : '';
 
   const moneyCard = `<div class="card">
     <div class="kicker">Your money through retirement</div>
@@ -868,14 +866,11 @@ function renderAssumptions(el) {
   const isLast = cur.n === WIZARD_STEPS.length;
   el.innerHTML = `
   ${exampleBanner()}
-  <nav class="wiz-steps no-print" aria-label="Your journey, step ${cur.n} of ${WIZARD_STEPS.length}">
-    ${WIZARD_STEPS.map(s => `<button type="button" class="wiz-dot ${s.n === cur.n ? 'on' : ''} ${S.doneSecs.has(s.key) ? 'done' : ''}" data-gostep="${s.n}" ${s.n === cur.n ? 'aria-current="step"' : ''}>
-      <i>${S.doneSecs.has(s.key) && s.n !== cur.n ? '✓' : s.n}</i><span>${s.short}</span>
-    </button>`).join('')}
+  <nav class="subnav no-print" aria-label="Your details">
+    ${WIZARD_STEPS.map(s => `<button type="button" data-gostep="${s.n}" class="${s.n === cur.n ? 'on' : ''}" aria-current="${s.n === cur.n ? 'page' : 'false'}">${s.short}</button>`).join('')}
   </nav>
   <div class="card wizard">
     <div class="wiz-head">
-      <div class="kicker">Step ${cur.n} of ${WIZARD_STEPS.length}</div>
       <h2>${cur.emoji} ${cur.title}</h2>
       <p class="sub wiz-lead">${cur.lead}</p>
     </div>
@@ -1048,14 +1043,13 @@ function renderAccumulation(el) {
     <p class="note">You will have paid in ${fmt(contribA)} (${P.partnerA.name}) and ${fmt(contribB)} (${P.partnerB.name}) of contributions by retirement.</p>
   </div>
 
-  <div class="card">
-    <div class="kicker">Year by year</div>
-    <h2>The path, base scenario</h2>
+  <details class="card fold">
+    <summary><span class="kicker">Year by year</span><h2>The path, base scenario</h2></summary>
     <div class="tbl-wrap"><table class="data">
       <tr><th>Year</th><th>${poss(P.partnerA.name)} pension</th><th>${poss(P.partnerB.name)} pension</th><th>ISAs</th><th>Total investable</th></tr>
       ${c.accBase.years.map(y => `<tr><td>${y.year}</td><td>${fmt(y.pensionA, y.year)}</td><td>${fmt(y.pensionB, y.year)}</td><td>${fmt(y.isaA + y.isaB, y.year)}</td><td>${fmt(total(y), y.year)}</td></tr>`).join('')}
     </table></div>
-  </div>`;
+  </details>`;
 }
 
 function renderSpending(el) {
@@ -1248,15 +1242,14 @@ function renderTax(el) {
     <p class="note">Phased takes a quarter of each year's withdrawal tax-free until the ${fmt(P.tax.pclsCap)} cap. Upfront takes all your tax-free cash at retirement and the proceeds are modelled as staying invested; tax on growth outside wrappers is not modelled.</p>
   </div>
 
-  <div class="card">
-    <div class="kicker">Band vessels</div>
-    <h2>Where HMRC takes it, year by year</h2>
+  <details class="card fold">
+    <summary><span class="kicker">Band vessels</span><h2>Where HMRC takes it, year by year</h2></summary>
     <p class="sub">Each partner has their own allowance and bands. Slide across the plan.</p>
     <div class="slider-row"><label for="tax-year">Plan year</label><output id="tax-year-out"></output></div>
     <input type="range" id="tax-year" min="0" max="${dd.rows.length - 1}" step="1" value="0">
     <div id="vessels"></div>
     <p class="note" id="vessel-note"></p>
-  </div>`;
+  </details>`;
 
   el.querySelectorAll('[data-strat]').forEach(d => {
     const go = () => { P.strategy = d.dataset.strat; changed(); };
@@ -1543,13 +1536,15 @@ function renderEstate(el) {
       <tr class="hl"><td>Net to your heirs</td><td>${fmt(es.netToHeirs, es.year)}</td><td></td></tr>
     </table></div>
 
-    <h3>Settings</h3>
-    <div class="grid2">
-      ${moneyField('Nil-rate band per person', 'iht.nilRateBand')}
-      ${moneyField('Residence nil-rate band', 'iht.residenceNRB')}
-      ${numField('Pensions join the estate from', 'iht.pensionsInEstateFrom', 'Announced for April 2027')}
-      <div class="field"><label class="switch" style="margin-top:1.2rem;"><input type="checkbox" id="iht-pens" ${P.iht.includePensions ? 'checked' : ''}> Apply the pension rule change</label></div>
-    </div>
+    <details class="subsection">
+      <summary>Adjust the IHT settings</summary>
+      <div class="grid2" style="margin-top:0.5rem;">
+        ${moneyField('Nil-rate band per person', 'iht.nilRateBand')}
+        ${moneyField('Residence nil-rate band', 'iht.residenceNRB')}
+        ${numField('Pensions join the estate from', 'iht.pensionsInEstateFrom', 'Announced for April 2027')}
+        <div class="field"><label class="switch" style="margin-top:1.2rem;"><input type="checkbox" id="iht-pens" ${P.iht.includePensions ? 'checked' : ''}> Apply the pension rule change</label></div>
+      </div>
+    </details>
     <p class="note">The residence nil-rate band taper above £2m is applied. Beneficiary income tax on inherited pensions after age 75 is not modelled: pensions shown passing gross. Gifting, trusts and insurance are for a conversation with an adviser, not a slider.</p>
   </div>`;
   wireInputs(el);

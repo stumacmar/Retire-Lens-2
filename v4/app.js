@@ -255,6 +255,31 @@ function areaPath(pts, base, X, Y) {
 }
 // Retirement-readiness ring: an SVG donut, 0–100%, colour-coded. Sweeps in on
 // tab entry via the .tab-enter hook (data-draw), reduced-motion permitting.
+// Count-up: on a fresh dashboard entrance, tween the KPI numbers from 0 to
+// their value (easeOutCubic). Parses "£31k", "To 92+", "100%", "£1.25m" into
+// prefix / number / suffix and reassembles each frame. Skipped for
+// reduced-motion, and only on navigation (never on live edits) so it never
+// jitters while typing.
+function animateCounts(root) {
+  if (!root) return;
+  try { if (!matchMedia('(prefers-reduced-motion: no-preference)').matches) return; } catch (e) { return; }
+  root.querySelectorAll('.kpi .v').forEach(el => {
+    const m = /^(\D*?)([\d,]+(?:\.\d+)?)(\D*)$/.exec(el.textContent.trim());
+    if (!m) return;
+    const pre = m[1], suf = m[3], dec = (m[2].split('.')[1] || '').length;
+    const target = parseFloat(m[2].replace(/,/g, ''));
+    if (!isFinite(target) || target === 0) return;
+    const fmtN = (v) => v.toLocaleString('en-GB', { minimumFractionDigits: dec, maximumFractionDigits: dec });
+    const dur = 620, t0 = performance.now();
+    const tick = (t) => {
+      const k = Math.min(1, (t - t0) / dur), e = 1 - Math.pow(1 - k, 3);
+      el.textContent = pre + fmtN(target * e) + suf;
+      if (k < 1) requestAnimationFrame(tick); else el.textContent = pre + fmtN(target) + suf;
+    };
+    requestAnimationFrame(tick);
+  });
+}
+
 function readinessRing(frac, caption) {
   const f = Math.max(0, Math.min(1, frac || 0));
   const r = 34, C = 2 * Math.PI * r;
@@ -544,7 +569,7 @@ function renderDashboard(el) {
     return `<button type="button" class="fan-preview no-print" data-goto-detail aria-label="See your money through retirement in detail">
       <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true">
         <path d="${areaPath(bandHi, bandLo, X, Y)}" fill="url(#gradFan)"/>
-        <path d="${linePath(tlPts, X, Y)}" fill="none" stroke="var(--tint)" stroke-width="2.4" vector-effect="non-scaling-stroke" stroke-linejoin="round"/>
+        <path d="${linePath(tlPts, X, Y)}" fill="none" stroke="var(--tint)" stroke-width="2.4" vector-effect="non-scaling-stroke" stroke-linejoin="round" pathLength="1" data-draw/>
       </svg>
       <span class="fan-cap"><span>Your money · ${tlY0}–${tlY1} · Poor to Positive</span><span class="fan-more">See detail ›</span></span>
     </button>`;
@@ -610,18 +635,20 @@ function renderDashboard(el) {
         ? `The income falls a little short in year one — a slightly lower target or a later start closes it.`
         : `The money runs short around age ${dd.exhaustedAgeA} — retiring later, saving a little more, or easing spending closes the gap.`);
     const readyFrac = mc ? mc.successProb : (survives ? (y1.shortfall > 1 ? 0.72 : 0.9) : 0.4);
-    return `<div class="card">
+    // Mockup-match hero: one confident statement + a compact confidence badge,
+    // no nested bordered box. The date is the headline; the verdict is the one
+    // green line; the ring is a small badge, not a second block.
+    return `<div class="card hero-card is-${cls}">
     <div class="kicker">${P.partnerA.name} and ${P.partnerB.name}</div>
-    <div class="someday-hero is-${cls}">
-      <div class="sd-main">
-        <span class="sd-eyebrow">${good ? 'Your Someday could be' : 'Your retirement target'}</span>
-        <span class="sd-date">April ${P.retireYear}</span>
-        <span class="sd-age">${good ? `You could stop work at ${ageAtRet}.` : `The plan you're aiming for — ${P.partnerA.name} at ${ageAtRet}.`}</span>
+    <div class="hero-top">
+      <div class="hero-lede">
+        <span class="hero-eyebrow">${good ? 'Your Someday' : 'Your target'}</span>
+        <h2 class="hero-headline">${good ? 'Retire' : 'Aiming for'} <span class="hl-date">April ${P.retireYear}</span><span class="hl-age"> · age ${ageAtRet}</span></h2>
+        <p class="verdict ${cls}">${bigVerdict}</p>
       </div>
-      ${readinessRing(readyFrac, 'Readiness')}
+      ${readinessRing(readyFrac, 'confidence')}
     </div>
-    <p class="verdict ${cls}">${bigVerdict}</p>
-    <p class="sub" style="margin-bottom:0;">${support} <a href="legal.html" style="color:inherit;">Why that matters</a>.</p>`;
+    <p class="hero-note">${support} <a href="legal.html">Why that matters</a>.</p>`;
   })()}
     ${scenarioSwitch()}
     <div class="kpis">
@@ -1708,7 +1735,7 @@ function activateTab(name, focusBtn) {
   try {
     if (matchMedia('(prefers-reduced-motion: no-preference)').matches) {
       const sec = document.getElementById('tab-' + name);
-      if (sec) { sec.classList.add('tab-enter'); setTimeout(() => sec.classList.remove('tab-enter'), 750); }
+      if (sec) { sec.classList.add('tab-enter'); setTimeout(() => sec.classList.remove('tab-enter'), 850); animateCounts(sec); }
     }
   } catch (e) {}
 }
@@ -1762,6 +1789,34 @@ function openSheet(innerHtml) {
   ov.querySelectorAll('[data-sheet-close]').forEach(b => b.onclick = closeSheet);
   _sheetKeydown = (e) => { if (e.key === 'Escape') closeSheet(); };
   document.addEventListener('keydown', _sheetKeydown);
+
+  // Native drag-to-dismiss from the grabber: follow the finger, and either
+  // fling closed past a threshold or spring back. Pointer capture keeps it
+  // smooth and needs no global listeners.
+  const sheet = ov.querySelector('.sheet');
+  const grip = ov.querySelector('.sheet-grip');
+  if (sheet && grip) {
+    let startY = 0, dy = 0, dragging = false;
+    grip.style.touchAction = 'none';
+    grip.addEventListener('pointerdown', (e) => {
+      dragging = true; startY = e.clientY; dy = 0;
+      sheet.style.transition = 'none';
+      try { grip.setPointerCapture(e.pointerId); } catch (err) {}
+    });
+    grip.addEventListener('pointermove', (e) => {
+      if (!dragging) return;
+      dy = Math.max(0, e.clientY - startY);
+      sheet.style.transform = `translateY(${dy}px)`;
+    });
+    const end = () => {
+      if (!dragging) return;
+      dragging = false; sheet.style.transition = '';
+      if (dy > 110) closeSheet(); else sheet.style.transform = '';
+      dy = 0;
+    };
+    grip.addEventListener('pointerup', end);
+    grip.addEventListener('pointercancel', end);
+  }
   return ov;
 }
 function openHint(title, bodyHtml) {

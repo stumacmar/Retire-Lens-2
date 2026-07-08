@@ -171,8 +171,9 @@ main { padding-top: 1rem; }
 .kpis { display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--sp-3); }
 @media (min-width: 640px) { .kpis { grid-template-columns: repeat(3, 1fr); } }
 .kpi {
-  background: var(--input-bg); border: 1px solid var(--card-edge); border-radius: var(--radius-sm);
+  background: var(--card); border: 0.5px solid var(--card-edge); border-radius: 16px;
   padding: var(--sp-4); display: flex; flex-direction: column; min-height: 5.4rem;
+  box-shadow: 0 1px 2px rgba(16,24,32,0.03), 0 4px 12px rgba(16,24,32,0.055);
 }
 /* 700 for supporting numerics; 800 is reserved for the lead "can we retire?" tiles */
 .kpi .v { font-family: var(--mono); font-weight: 700; font-size: 1.42rem; letter-spacing: -0.02em;
@@ -420,6 +421,15 @@ body[data-tab="events"] .hdr-actions { display: none; }
   .sheet-overlay { align-items: center; }
   .sheet { border-radius: 24px; border-bottom: 0.5px solid var(--card-edge); margin: 1rem; max-height: 86vh; }
 }
+
+/* Subtle fan preview on the answer page — a calm gradient teaser */
+.fan-preview { display: block; width: 100%; margin-top: var(--sp-5); padding: 0; border: none;
+  background: none; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.fan-preview svg { width: 100%; height: 96px; display: block; }
+.fan-cap { display: flex; justify-content: space-between; align-items: center; gap: 0.5rem;
+  margin-top: 0.4rem; font-size: 0.72rem; font-weight: 600; color: var(--ink-faint); }
+.fan-more { color: var(--tint); font-weight: 700; white-space: nowrap; }
+.fan-preview:active svg { opacity: 0.82; }
 
 /* "What could I change?" nudge chips on the Dashboard answer page */
 .nudge-head { margin: 1.3rem 0 0.6rem; }

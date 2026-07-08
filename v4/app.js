@@ -532,6 +532,28 @@ function renderDashboard(el) {
     tch.add(`<text x="${tch.X(dd.exhaustedYear) + 5}" y="26" style="font-size:11px" fill="var(--rose)">runs dry ${dd.exhaustedYear}</text>`);
   }
 
+  // Compact fan preview for the answer page — the Poor↔Positive wealth range
+  // as a soft gradient band with the live median on top. A calm, glanceable
+  // teaser (per the mockups) that taps through to the full detail.
+  const fanPreview = (() => {
+    if (!bandLo.length || !bandHi.length) return '';
+    const W = 720, H = 150, padL = 4, padR = 4, padT = 14, padB = 6;
+    const hi = tlMax * 1.06 || 1;
+    const X = (y) => padL + (y - tlY0) / (tlY1 - tlY0 || 1) * (W - padL - padR);
+    const Y = (v) => H - padB - (v / hi) * (H - padT - padB);
+    return `<button type="button" class="fan-preview no-print" data-goto-detail aria-label="See your money through retirement in detail">
+      <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true">
+        <defs><linearGradient id="fanBand" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="var(--tint)" stop-opacity="0.24"/>
+          <stop offset="1" stop-color="var(--tint)" stop-opacity="0.02"/>
+        </linearGradient></defs>
+        <path d="${areaPath(bandHi, bandLo, X, Y)}" fill="url(#fanBand)"/>
+        <path d="${linePath(tlPts, X, Y)}" fill="none" stroke="var(--tint)" stroke-width="2.4" vector-effect="non-scaling-stroke" stroke-linejoin="round"/>
+      </svg>
+      <span class="fan-cap"><span>Your money · ${tlY0}–${tlY1} · Poor to Positive</span><span class="fan-more">See detail ›</span></span>
+    </button>`;
+  })();
+
   // Where the retirement £ comes from, over the whole plan: one calm segmented
   // bar (sums the rows already computed — no engine call).
   let srcSP = 0, srcDB = 0, srcPen = 0, srcTFC = 0, srcIsa = 0;
@@ -613,6 +635,7 @@ function renderDashboard(el) {
       <div class="kpi ${mc ? (mc.successProb >= 0.85 ? 'good' : mc.successProb >= 0.6 ? 'warn' : 'bad') : ''}">
         <div class="v">${mc ? pct(mc.successProb) : '…'}</div><div class="k">How often the plan works${S.mcBusy ? ', running' : ''}</div></div>
     </div>
+    ${fanPreview}
     <div class="title-row nudge-head"><h3>What could I change?</h3></div>
     <div class="nudge-row no-print">
       <button type="button" class="nudge" data-nudge="year">🗓️ Retire later</button>
@@ -692,6 +715,11 @@ function renderDashboard(el) {
 
   el.querySelectorAll('[data-dashpage]').forEach(b => b.onclick = () => {
     S.dashPage = Number(b.dataset.dashpage); renderTab(); window.scrollTo({ top: 0, behavior: 'smooth' });
+  });
+
+  // Fan preview taps through to the full money-through-retirement detail.
+  el.querySelectorAll('[data-goto-detail]').forEach(b => b.onclick = () => {
+    S.dashPage = 3; renderTab(); window.scrollTo({ top: 0, behavior: 'smooth' });
   });
 
   // "What could I change?" nudges → jump to Explore and open the what-if lever,

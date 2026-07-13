@@ -32,8 +32,12 @@ export default function App() {
   const spendToday = Math.round(plan.targetNet);
   const conf = mc ? mc.successProb : (lasts ? 0.9 : 0.5);
 
+  // While a slider is actively dragged, show the live figure (no count-up
+  // re-tween → no stutter). Count-up plays on arrival and after you let go.
+  const [editing, setEditing] = useState(false);
   const spendAnim = useCountUp(spendToday);
   const confAnim = useCountUp(Math.round(conf * 100));
+  const shownSpend = editing ? spendToday : spendAnim;
 
   const viz = useMemo(() => {
     const base = series(plan, acc, dd);
@@ -62,10 +66,10 @@ export default function App() {
         <h1 className="mt-1 text-[1.85rem] leading-[1.18] font-extrabold tracking-tight">
           {lasts ? (
             <>You can spend about{' '}
-              <span className="tnum" style={{ color: 'var(--color-calm-strong)' }}>{fmtK(spendAnim)}</span>{' '}
+              <span className="tnum" style={{ color: 'var(--color-calm-strong)' }}>{fmtK(shownSpend)}</span>{' '}
               a year and stay comfortable into your {Math.floor(plan.horizonAge / 10) * 10}s.</>
           ) : (
-            <>At <span className="tnum">{fmtK(spendAnim)}</span> a year, it gets tight around{' '}
+            <>At <span className="tnum">{fmtK(shownSpend)}</span> a year, it gets tight around{' '}
               <span style={{ color: 'var(--color-hope)' }}>age {dd.exhaustedAgeA}</span>. A little less, or a little longer, holds it.</>
           )}
         </h1>
@@ -93,14 +97,17 @@ export default function App() {
       <section className="mt-5 rounded-3xl p-5"
                style={{ background: 'var(--color-surface)', border: '1px solid var(--color-hairline)',
                         boxShadow: '0 1px 2px rgba(20,30,26,0.04), 0 8px 24px rgba(20,30,26,0.05)' }}>
-        <h2 className="text-[0.72rem] font-bold uppercase tracking-widest" style={{ color: 'var(--color-ink-faint)' }}>What if…</h2>
-        <WhatIf label="I retire in" out={`${plan.retireYear} · age ${ageAtRetire}`}
+        <div className="flex items-baseline justify-between">
+          <h2 className="text-[0.72rem] font-bold uppercase tracking-widest" style={{ color: 'var(--color-ink-faint)' }}>Adjust your plan</h2>
+          <span className="text-[0.7rem]" style={{ color: 'var(--color-ink-faint)' }}>saves as you go</span>
+        </div>
+        <WhatIf label="Retire in" out={`${plan.retireYear} · age ${ageAtRetire}`} onEdit={setEditing}
           min={plan.startYear + 1} max={plan.startYear + 25} step={1} value={plan.retireYear}
           onChange={v => update({ retireYear: v })} />
-        <WhatIf label="I spend each year" out={fmt(spendToday)}
+        <WhatIf label="Spend each year" out={fmt(spendToday)} onEdit={setEditing}
           min={20000} max={120000} step={1000} value={plan.targetNet}
           onChange={v => update({ targetNet: v, spendingPlanOn: false })} />
-        <WhatIf label={`${plan.partnerA.name} saves monthly`} out={fmt(plan.partnerA.monthlyPension)}
+        <WhatIf label={`${plan.partnerA.name} saves monthly`} out={fmt(plan.partnerA.monthlyPension)} onEdit={setEditing}
           min={0} max={5000} step={50} value={plan.partnerA.monthlyPension}
           onChange={v => update((p: any) => ({ ...p, partnerA: { ...p.partnerA, monthlyPension: v } }))} />
       </section>
@@ -143,8 +150,9 @@ function TabButton({ icon, label, active, onClick }: { icon: React.ReactNode; la
   );
 }
 
-function WhatIf({ label, out, min, max, step, value, onChange }: {
-  label: string; out: string; min: number; max: number; step: number; value: number; onChange: (v: number) => void;
+function WhatIf({ label, out, min, max, step, value, onChange, onEdit }: {
+  label: string; out: string; min: number; max: number; step: number; value: number;
+  onChange: (v: number) => void; onEdit?: (b: boolean) => void;
 }) {
   return (
     <div className="mt-4 first:mt-3">
@@ -154,6 +162,10 @@ function WhatIf({ label, out, min, max, step, value, onChange }: {
       </div>
       <input type="range" min={min} max={max} step={step} value={value}
              onChange={e => onChange(Number(e.target.value))}
+             onPointerDown={() => onEdit?.(true)}
+             onPointerUp={() => onEdit?.(false)}
+             onPointerCancel={() => onEdit?.(false)}
+             onBlur={() => onEdit?.(false)}
              className="w-full mt-2" style={{ height: 28, accentColor: 'var(--color-calm)' }} aria-label={label} />
     </div>
   );
@@ -293,8 +305,8 @@ function ExploreBody({ plan, dd, estate }: { plan: any; dd: Drawdown; estate: an
       </div>
       {estate && (
         <div className="flex gap-3">
-          <StatCard label="Estate left at the end" value={fmtK(today(estate.netToHeirs, estate.year))} tone="calm" />
-          <StatCard label="Inheritance tax" value={fmtK(today(estate.iht, estate.year))} tone={estate.iht > 0 ? 'hope' : 'calm'} />
+          <StatCard label="Left to your family" value={fmtK(today(estate.netToHeirs, estate.year))} tone="calm" />
+          <StatCard label={estate.iht > 0 ? 'Inheritance tax — often reducible' : 'Inheritance tax'} value={fmtK(today(estate.iht, estate.year))} tone="ink" />
         </div>
       )}
       <div>

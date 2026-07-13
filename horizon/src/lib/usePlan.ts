@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { createEngine } from '../engine/engine';
 import type { Plan, Accum, Drawdown, MC } from '../engine/engine';
 
@@ -43,25 +43,34 @@ export function usePlan(): PlanResult {
 
   const growth = lens === 'bear' ? plan.growthBear : lens === 'bull' ? plan.growthBull : plan.growthBase;
 
+  // Deterministic maths is cheap → compute live on every change (smooth sliders).
   const derived = useMemo(() => {
     const P: Plan = { ...plan, growth };
     const acc = E.accumulate(P, growth);
     const dd = E.drawdown(P, { growth, startPots: acc.atRetirement });
-    // Poor / Positive envelope for the serene confidence band.
     const accBear = E.accumulate(P, plan.growthBear);
     const accBull = E.accumulate(P, plan.growthBull);
     const ddBear = E.drawdown(P, { growth: plan.growthBear, startPots: accBear.atRetirement });
     const ddBull = E.drawdown(P, { growth: plan.growthBull, startPots: accBull.atRetirement });
-    let mc: MC | null = null;
-    try { mc = E.runMonteCarlo(P, 500, P.mcSeed || 42); } catch { mc = null; }
     let estate: any = null;
     try { estate = E.estate(P); } catch { estate = null; }
     const a = acc.atRetirement;
     const potsAtRet = a.pensionA + a.pensionB + a.isaA + a.isaB;
-    return { acc, dd, ddBear, ddBull, mc, estate, potsAtRet };
+    return { acc, dd, ddBear, ddBull, estate, potsAtRet };
   }, [plan, growth]);
 
-  return { plan, lens, growth, update, setLens, ...derived };
+  // Monte-Carlo (500 paths) is the expensive bit → debounce it so dragging a
+  // slider never blocks on a full simulation. Confidence settles ~300ms after
+  // you stop moving. (UX audit fix: no jank on continuous input.)
+  const [mc, setMc] = useState<MC | null>(null);
+  useEffect(() => {
+    const id = setTimeout(() => {
+      try { setMc(E.runMonteCarlo({ ...plan, growth }, 500, plan.mcSeed || 42)); } catch { setMc(null); }
+    }, 300);
+    return () => clearTimeout(id);
+  }, [plan, growth]);
+
+  return { plan, lens, growth, update, setLens, mc, ...derived };
 }
 
 export { E };

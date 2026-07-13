@@ -39,6 +39,11 @@ body {
 }
 /* Tabular figures everywhere numbers live — calm, aligned. */
 .tnum { font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
+/* Accessibility: a clear, calm focus ring on every interactive control
+   (keyboard users could not see focus before — UX audit fix). */
+button:focus-visible, input:focus-visible, [role="switch"]:focus-visible, a:focus-visible {
+  outline: 2.5px solid var(--color-calm); outline-offset: 2px; border-radius: 12px;
+}
 @media (prefers-reduced-motion: reduce) {
   * { animation-duration: 0.001ms !important; transition-duration: 0.001ms !important; }
 }

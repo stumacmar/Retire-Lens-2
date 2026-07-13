@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from 'framer-motion';
-import type { ReactNode } from 'react';
+import { useEffect, type ReactNode } from 'react';
 
 /**
  * Glass bottom sheet. (HIG: materials + depth — a translucent layer over the
@@ -8,6 +8,13 @@ import type { ReactNode } from 'react';
 export default function Sheet({ open, onClose, title, children }: {
   open: boolean; onClose: () => void; title?: string; children: ReactNode;
 }) {
+  // Close on Escape (keyboard / a11y — surfaced by the UAT sweep).
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [open, onClose]);
   return (
     <AnimatePresence>
       {open && (

@@ -25,7 +25,14 @@ export interface Drawdown {
   exhaustedYear: number | null; lifetimeTax: number; [k: string]: any;
 }
 export interface Accum { atRetirement: any; years: any[]; [k: string]: any }
-export interface MC { successProb: number; confidenceAge: number; finalP10: number; finalP50: number; finalP90: number; [k: string]: any }
+export interface MC {
+  successProb: number; confidenceAge: number;
+  finalP10: number; finalP50: number; finalP90: number;
+  nPaths: number; medianTrim: number;
+  tracks: number[][];
+  perAgeSolvency: { age: number; p: number }[];
+  [k: string]: any;
+}
 export interface Engine {
   defaults(): Plan;
   freshStart(): Plan;

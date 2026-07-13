@@ -8,13 +8,17 @@ const KEY = 'horizon-plan-v1';
 
 export type Lens = 'bear' | 'base' | 'bull';
 
+export function hasSavedPlan(): boolean {
+  try { return !!localStorage.getItem(KEY); } catch { return false; }
+}
+
 function loadPlan(): Plan {
   try {
     const s = localStorage.getItem(KEY);
     if (s) return { ...E.defaults(), ...JSON.parse(s) };
   } catch { /* fall through */ }
-  // Seed with the worked example so the Horizon is alive on first open.
-  return E.defaults();
+  // New visitor: a gentle blank start (freshStart), completed via onboarding.
+  return E.freshStart();
 }
 
 export interface PlanResult {

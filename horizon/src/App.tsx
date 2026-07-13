@@ -469,6 +469,10 @@ function PeaceBody() {
           <div className="text-[0.88rem] leading-relaxed" style={{ color: 'var(--color-ink-dim)' }}>{d}</div>
         </div>
       ))}
+      <div className="flex flex-col gap-1 pt-1 text-center">
+        <a href="story.html" className="py-1.5 text-[0.9rem] font-semibold" style={{ color: 'var(--color-calm-strong)' }}>Why I built this →</a>
+        <a href="app.html" className="py-1.5 text-[0.85rem]" style={{ color: 'var(--color-ink-faint)' }}>Open the classic planner →</a>
+      </div>
     </div>
   );
 }

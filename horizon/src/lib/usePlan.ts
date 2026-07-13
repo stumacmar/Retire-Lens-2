@@ -23,6 +23,7 @@ export interface PlanResult {
   growth: number;
   acc: Accum; dd: Drawdown; ddBear: Drawdown; ddBull: Drawdown;
   mc: MC | null;
+  estate: any;
   potsAtRet: number;
   update: (patch: Partial<Plan> | ((p: Plan) => Plan)) => void;
   setLens: (l: Lens) => void;
@@ -53,9 +54,11 @@ export function usePlan(): PlanResult {
     const ddBull = E.drawdown(P, { growth: plan.growthBull, startPots: accBull.atRetirement });
     let mc: MC | null = null;
     try { mc = E.runMonteCarlo(P, 500, P.mcSeed || 42); } catch { mc = null; }
+    let estate: any = null;
+    try { estate = E.estate(P); } catch { estate = null; }
     const a = acc.atRetirement;
     const potsAtRet = a.pensionA + a.pensionB + a.isaA + a.isaB;
-    return { acc, dd, ddBear, ddBull, mc, potsAtRet };
+    return { acc, dd, ddBear, ddBull, mc, estate, potsAtRet };
   }, [plan, growth]);
 
   return { plan, lens, growth, update, setLens, ...derived };

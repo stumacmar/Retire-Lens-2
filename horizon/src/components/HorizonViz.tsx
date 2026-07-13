@@ -16,6 +16,7 @@ export interface HorizonProps {
   horizonYear: number;
   retireWealth: number;
   lasts: boolean;
+  dryYear?: number | null;
 }
 
 const W = 400, H = 250, padTop = 26, padBottom = 44;
@@ -34,7 +35,7 @@ function smooth(pts: { x: number; y: number }[]): string {
 }
 
 export default function HorizonViz(props: HorizonProps) {
-  const { base, low, high, startYear, retireYear, horizonYear, retireWealth, lasts } = props;
+  const { base, low, high, startYear, retireYear, horizonYear, retireWealth, lasts, dryYear } = props;
 
   const g = useMemo(() => {
     const yr0 = startYear, yr1 = horizonYear;
@@ -44,16 +45,16 @@ export default function HorizonViz(props: HorizonProps) {
     const y = (v: number) => H - padBottom - (Math.max(0, v) / maxW) * (H - padTop - padBottom);
     const map = (s: [number, number][]) => s.map(([yr, v]) => ({ x: x(yr), y: y(v) }));
     const baseP = map(base), lowP = map(low), highP = map(high);
-    // Confidence area: Positive across the top, Poor back along the bottom.
     const bandTop = smooth(highP);
     const bandBottomPts = [...lowP].reverse();
     const areaD = bandTop + ' L ' + bandBottomPts.map(p => `${p.x.toFixed(1)} ${p.y.toFixed(1)}`).join(' L ') + ' Z';
+    const dryX = dryYear ? x(dryYear) : null;
     return {
       areaD, baseD: smooth(baseP), maxW,
-      sunX: x(retireYear), sunY: y(retireWealth),
-      endX: x(horizonYear), endY: baseP.length ? baseP[baseP.length - 1].y : y(0),
+      sunX: x(retireYear), sunY: y(retireWealth), groundY: H - padBottom,
+      dryX,
     };
-  }, [base, low, high, startYear, retireYear, horizonYear, retireWealth]);
+  }, [base, low, high, startYear, retireYear, horizonYear, retireWealth, dryYear]);
 
   return (
     <svg viewBox={`0 0 ${W} ${H}`} width="100%" role="img"
@@ -93,9 +94,18 @@ export default function HorizonViz(props: HorizonProps) {
       <path d={`M0 ${H - padBottom + 12} C ${W * 0.25} ${H - padBottom + 2}, ${W * 0.5} ${H - padBottom + 20}, ${W * 0.75} ${H - padBottom + 8}
                 S ${W} ${H - padBottom + 4}, ${W} ${H - padBottom + 10} L ${W} ${H} L 0 ${H} Z`}
             fill="var(--color-calm)" opacity="0.14" />
-      {/* Age labels, whisper-quiet */}
+      {/* Where the money runs short — a gentle marker, never alarming */}
+      {g.dryX != null && (
+        <g>
+          <line x1={g.dryX} y1={padTop} x2={g.dryX} y2={g.groundY} stroke="var(--color-hope)" strokeWidth="1" strokeDasharray="3 4" opacity="0.6" />
+          <circle cx={g.dryX} cy={g.groundY} r="3.5" fill="var(--color-hope)" />
+        </g>
+      )}
+      {/* Age labels, whisper-quiet — Someday tucks under the sun only if there's room */}
       <text x="4" y={H - 10} fontSize="10" fill="var(--color-ink-faint)">Today</text>
-      <text x={g.sunX} y={H - 10} fontSize="10" fill="var(--color-hope)" textAnchor="middle" fontWeight="700">Someday</text>
+      {g.sunX > 56 && (
+        <text x={g.sunX} y={H - 10} fontSize="10" fill="var(--color-hope)" textAnchor="middle" fontWeight="700">Someday</text>
+      )}
       <text x={W - 4} y={H - 10} fontSize="10" fill="var(--color-ink-faint)" textAnchor="end">
         {lasts ? 'and beyond' : 'the far years'}
       </text>

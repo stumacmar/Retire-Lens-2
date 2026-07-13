@@ -1,0 +1,44 @@
+@import "tailwindcss";
+
+/* ── Someday · Horizon design tokens ──────────────────────────────────────
+   Calm, warm, Apple-serene. Deference: soft warm-neutral canvas so content
+   (the user's future) is the hero. Green/teal = calm; gold = hope. No harsh red. */
+@theme {
+  --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", system-ui, sans-serif;
+
+  --color-canvas: #f4f2ec;      /* warm off-white system background */
+  --color-surface: #fffefb;     /* card */
+  --color-ink: #1c2b27;
+  --color-ink-dim: #5c6b65;
+  --color-ink-faint: #8a978f;
+  --color-hairline: rgba(28, 43, 39, 0.08);
+
+  --color-calm: #2f9e86;        /* serene teal — primary/interactive */
+  --color-calm-strong: #1f7d69;
+  --color-hope: #d8a24a;        /* warm gold — positive/hope */
+  --color-dawn-1: #ffe9c7;      /* dawn gradient for the horizon sky */
+  --color-dawn-2: #ffd9a8;
+  --color-dusk: #cfe6de;
+
+  --radius-xl: 28px;
+  --radius-lg: 22px;
+  --radius-md: 16px;
+}
+
+:root { color-scheme: light; }
+* { -webkit-tap-highlight-color: transparent; }
+html, body, #root { height: 100%; }
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  background: var(--color-canvas);
+  color: var(--color-ink);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  overscroll-behavior-y: none;
+}
+/* Tabular figures everywhere numbers live — calm, aligned. */
+.tnum { font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
+@media (prefers-reduced-motion: reduce) {
+  * { animation-duration: 0.001ms !important; transition-duration: 0.001ms !important; }
+}

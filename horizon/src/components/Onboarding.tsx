@@ -86,7 +86,8 @@ export default function Onboarding({ plan, update, onDone, onExample }: {
         <MoneyField label="Pension pot today" value={plan.partnerA.pension} onChange={v => setA({ pension: v })} />
         <MoneyField label="Paying in monthly" value={plan.partnerA.monthlyPension} onChange={v => setA({ monthlyPension: v })} />
         <MoneyField label="ISAs today" value={plan.partnerA.isa} onChange={v => setA({ isa: v })} />
-        <MoneyField label="Company / final-salary pension a year (0 if none)" value={plan.partnerA.db} onChange={v => setA({ db: v })} />
+        <MoneyField label="Company / final-salary pension a year (0 if none)" value={plan.partnerA.db}
+          onChange={v => update((q: any) => ({ ...q, partnerA: { ...q.partnerA, db: v, dbStartYear: v > 0 ? q.retireYear : q.partnerA.dbStartYear } }))} />
         <div className="pt-1"><Toggle label="Planning with a partner" checked={addPartner} onChange={setAddPartner} /></div>
         {addPartner && (
           <div className="space-y-3 pt-1">
@@ -101,7 +102,8 @@ export default function Onboarding({ plan, update, onDone, onExample }: {
             <MoneyField label="Their pension pot today" value={plan.partnerB.pension} onChange={v => setB({ pension: v })} />
             <MoneyField label="They pay in monthly" value={plan.partnerB.monthlyPension} onChange={v => setB({ monthlyPension: v })} />
             <MoneyField label="Their ISAs today" value={plan.partnerB.isa} onChange={v => setB({ isa: v })} />
-            <MoneyField label="Their company / final-salary pension a year (0 if none)" value={plan.partnerB.db} onChange={v => setB({ db: v })} />
+            <MoneyField label="Their company / final-salary pension a year (0 if none)" value={plan.partnerB.db}
+              onChange={v => update((q: any) => ({ ...q, partnerB: { ...q.partnerB, db: v, dbStartYear: v > 0 ? q.retireYear : q.partnerB.dbStartYear } }))} />
           </div>
         )}
       </div>

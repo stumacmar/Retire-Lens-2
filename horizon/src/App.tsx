@@ -220,7 +220,11 @@ function PartnerCard({ p, name, set }: { p: any; name: 'partnerA' | 'partnerB'; 
         <NumField label="Birth year" value={who.birthYear} onChange={v => set({ birthYear: v })} />
         <NumField label="State Pension age" value={who.spAge} onChange={v => set({ spAge: v })} />
         <MoneyField label="State Pension a year" value={who.spAmount} onChange={v => set({ spAmount: v })} />
-        <MoneyField label="Company (DB) pension a year" value={who.db} onChange={v => set({ db: v })} />
+        <MoneyField label="Company / final-salary (DB) pension a year" value={who.db} onChange={v => set({ db: v })} />
+        {who.db > 0 && <>
+          <NumField label="…starts in (year)" value={who.dbStartYear} onChange={v => set({ dbStartYear: v })} />
+          <Toggle label="…rises with inflation" checked={!!who.dbIndexed} onChange={v => set({ dbIndexed: v })} />
+        </>}
         <MoneyField label="Paying into ISAs monthly" value={who.monthlyIsa} onChange={v => set({ monthlyIsa: v })} />
       </Accordion>
     </Group>

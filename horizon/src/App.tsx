@@ -124,10 +124,15 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-full mx-auto max-w-[560px] px-5"
+    <div className="min-h-full mx-auto max-w-[560px] lg:max-w-[1140px] px-5 lg:px-8"
          style={{ paddingBottom: 'calc(8.5rem + env(safe-area-inset-bottom))' }}>
 
-      <header className="pt-[calc(env(safe-area-inset-top)+1.1rem)] pb-1 flex items-baseline gap-2">
+      <header className="pt-[calc(env(safe-area-inset-top)+1.1rem)] pb-1 flex items-center gap-2.5">
+        <svg width="24" height="24" viewBox="0 0 42 42" fill="none" aria-hidden="true">
+          <path d="M9 27a12 12 0 0 1 24 0" stroke="var(--color-calm)" strokeWidth="3.2" strokeLinecap="round" />
+          <circle cx="21" cy="27" r="4.5" stroke="var(--color-calm)" strokeWidth="3.2" />
+          <path d="M5 33.5h32" stroke="var(--color-calm)" strokeWidth="3.2" strokeLinecap="round" opacity=".5" />
+        </svg>
         <span className="text-[1.15rem] font-extrabold tracking-tight">Someday</span>
         <span className="text-[0.75rem] italic" style={{ color: 'var(--color-ink-faint)' }}>see your horizon</span>
       </header>
@@ -153,7 +158,11 @@ export default function App() {
         </p>
       </section>
 
-      <div className="mt-4 -mx-1">
+      {/* Desktop: inputs on the left, the horizon large on the right (mobile keeps
+          the vision-first order: horizon, then controls). */}
+      <div className="lg:flex lg:gap-10 lg:items-start lg:mt-2">
+      <div className="lg:order-2 lg:w-[62%] lg:min-w-0">
+      <div className="mt-4 -mx-1 lg:mx-0">
         <HorizonViz base={viz.base} low={viz.low} high={viz.high}
           startYear={plan.startYear} retireYear={plan.retireYear} horizonYear={horizonYear}
           retireWealth={viz.atRetire} lasts={lasts} dryYear={dd.exhaustedYear}
@@ -164,13 +173,13 @@ export default function App() {
       {/* A quiet key so the shapes are legible — height is your total wealth. */}
       <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 px-1 text-[0.72rem]" style={{ color: 'var(--color-ink-dim)' }}>
         <span className="flex items-center gap-1.5">
-          <span style={{ width: 16, height: 3, borderRadius: 2, background: 'var(--color-calm-strong)', display: 'inline-block' }} /> Typical path
+          <span style={{ width: 16, height: 3, borderRadius: 2, background: 'var(--color-ocean)', display: 'inline-block' }} /> Typical path
         </span>
         <span className="flex items-center gap-1.5">
-          <span style={{ width: 12, height: 10, borderRadius: 3, background: 'var(--color-calm)', opacity: 0.28, display: 'inline-block' }} /> Poor–Positive range
+          <span style={{ width: 12, height: 10, borderRadius: 3, background: 'var(--color-sage)', opacity: 0.45, display: 'inline-block' }} /> Poor–Positive range
         </span>
         <span className="flex items-center gap-1.5">
-          <span style={{ width: 9, height: 9, borderRadius: 9, background: 'var(--color-hope)', display: 'inline-block' }} /> You stop work
+          <span style={{ width: 9, height: 9, borderRadius: 9, background: 'var(--color-calm)', display: 'inline-block' }} /> You stop work
         </span>
         {!lasts && <span className="flex items-center gap-1.5">
           <span style={{ width: 9, height: 9, borderRadius: 9, background: 'var(--color-hope)', display: 'inline-block' }} /> Money runs short
@@ -185,11 +194,13 @@ export default function App() {
           { value: 'bull', label: 'Positive', sub: pct(plan.growthBull, 0) },
         ]} />
       </div>
+      </div>
 
+      <div className="lg:order-1 lg:w-[38%] lg:min-w-0">
       {/* Live "what if" — direct manipulation, immediate feedback. */}
-      <section className="mt-5 rounded-3xl p-5"
+      <section className="mt-5 lg:mt-4 rounded-3xl p-5"
                style={{ background: 'var(--color-surface)', border: '1px solid var(--color-hairline)',
-                        boxShadow: '0 1px 2px rgba(20,30,26,0.04), 0 8px 24px rgba(20,30,26,0.05)' }}>
+                        boxShadow: '0 1px 2px rgba(60,50,35,0.05), 0 8px 24px rgba(60,50,35,0.06)' }}>
         <div className="flex items-baseline justify-between">
           <h2 className="text-[0.72rem] font-bold uppercase tracking-widest" style={{ color: 'var(--color-ink-faint)' }}>Adjust your plan</h2>
           <span className="text-[0.7rem]" style={{ color: 'var(--color-ink-faint)' }}>saves as you go</span>
@@ -209,7 +220,7 @@ export default function App() {
       {coach.length > 0 && (
         <section className="mt-4 rounded-3xl p-5"
                  style={{ background: 'var(--color-surface)', border: '1px solid var(--color-hairline)',
-                          boxShadow: '0 1px 2px rgba(20,30,26,0.04), 0 8px 24px rgba(20,30,26,0.05)' }}>
+                          boxShadow: '0 1px 2px rgba(60,50,35,0.05), 0 8px 24px rgba(60,50,35,0.06)' }}>
           <div className="flex items-center gap-2">
             <Lightbulb size={15} style={{ color: 'var(--color-hope)' }} />
             <h2 className="text-[0.72rem] font-bold uppercase tracking-widest" style={{ color: 'var(--color-ink-faint)' }}>Worth a thought</h2>
@@ -227,20 +238,35 @@ export default function App() {
           </p>
         </section>
       )}
+      </div>
+      </div>
+
+      {/* Desktop: three calm metrics along the bottom. */}
+      <div className="hidden lg:flex gap-8 mt-8">
+        <DeskStat value={lasts ? `age ${plan.horizonAge}+` : `age ${dd.exhaustedAgeA}`} label="Money lasts to"
+          desc={lasts ? 'Your income holds to your plan horizon in the central outlook.' : 'Where the pots run short on today’s settings — a lever away from safe.'}
+          color={lasts ? 'var(--color-ocean)' : 'var(--color-hope)'} />
+        {estate && <DeskStat value={fmtK(deflate(estate.netToHeirs, estate.year, plan.startYear, plan.inflation))} label="Legacy potential"
+          desc="What could pass to the people you love, in today’s money." color="var(--color-sage-strong)" />}
+        {mc && <DeskStat value={pct(mc.successProb)} label="Futures where it holds"
+          desc={`Across ${mc.nPaths} simulated market histories, lucky to unlucky.`} color="var(--color-calm-strong)" />}
+      </div>
 
       <p className="mt-4 text-center text-[0.8rem]" style={{ color: 'var(--color-ink-faint)' }}>
         One possible future, not a promise. Your figures never leave this device.
       </p>
 
-      <nav className="fixed bottom-0 left-0 right-0 z-40 flex justify-around"
+      <nav className="fixed bottom-0 left-0 right-0 z-40"
            style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 0.3rem)', paddingTop: '0.5rem',
                     background: 'color-mix(in srgb, var(--color-canvas) 82%, transparent)',
                     backdropFilter: 'saturate(180%) blur(22px)', WebkitBackdropFilter: 'saturate(180%) blur(22px)',
                     borderTop: '0.5px solid var(--color-hairline)' }}>
-        <TabButton icon={<Sunrise size={24} />} label="Horizon" active={sheet === null} onClick={() => setSheet(null)} />
-        <TabButton icon={<SlidersHorizontal size={24} />} label="Details" active={sheet === 'details'} onClick={() => setSheet('details')} />
-        <TabButton icon={<Compass size={24} />} label="Explore" active={sheet === 'explore'} onClick={() => setSheet('explore')} />
-        <TabButton icon={<ShieldCheck size={24} />} label="Peace" active={sheet === 'peace'} onClick={() => setSheet('peace')} />
+        <div className="flex justify-around mx-auto max-w-[560px]">
+          <TabButton icon={<Sunrise size={24} />} label="Horizon" active={sheet === null} onClick={() => setSheet(null)} />
+          <TabButton icon={<SlidersHorizontal size={24} />} label="Details" active={sheet === 'details'} onClick={() => setSheet('details')} />
+          <TabButton icon={<Compass size={24} />} label="Explore" active={sheet === 'explore'} onClick={() => setSheet('explore')} />
+          <TabButton icon={<ShieldCheck size={24} />} label="Peace" active={sheet === 'peace'} onClick={() => setSheet('peace')} />
+        </div>
       </nav>
 
       <Sheet open={sheet === 'details'} onClose={() => setSheet(null)} title="Your details">
@@ -259,6 +285,19 @@ export default function App() {
 
       {/* Print-only report — a fuller, adviser-ready PDF via the browser's Save as PDF. */}
       <PrintReport plan={plan} acc={acc} dd={dd} mc={mc} estate={estate} />
+    </div>
+  );
+}
+
+// Desktop-only bottom metric card (the mobile equivalents live in Explore).
+function DeskStat({ value, label, desc, color }: { value: string; label: string; desc: string; color: string }) {
+  return (
+    <div className="flex-1 rounded-3xl p-6"
+         style={{ background: 'var(--color-surface)', border: '1px solid var(--color-hairline)',
+                  boxShadow: '0 1px 2px rgba(60,50,35,0.05), 0 8px 24px rgba(60,50,35,0.06)' }}>
+      <div className="tnum text-[1.7rem] font-extrabold tracking-tight" style={{ color }}>{value}</div>
+      <div className="mt-0.5 text-[0.85rem] font-semibold">{label}</div>
+      <div className="mt-1 text-[0.76rem] leading-relaxed" style={{ color: 'var(--color-ink-faint)' }}>{desc}</div>
     </div>
   );
 }
@@ -292,7 +331,9 @@ function WhatIf({ label, out, min, max, step, value, onChange, onEdit }: {
              onPointerUp={() => onEdit?.(false)}
              onPointerCancel={() => onEdit?.(false)}
              onBlur={() => onEdit?.(false)}
-             className="w-full mt-2" style={{ height: 28, accentColor: 'var(--color-calm)' }} aria-label={label} />
+             className="w-full mt-2 dawn-range"
+             style={{ height: 28, '--fill': `${((value - min) / Math.max(1, max - min)) * 100}%` } as React.CSSProperties}
+             aria-label={label} />
     </div>
   );
 }
@@ -538,11 +579,11 @@ function fundingMix(dd: Drawdown) {
   }
   const total = Math.max(1, sp + db + pen + tfc + isa);
   return [
-    ['State Pension', sp, 'var(--color-calm)'],
-    ['Company pension', db, 'var(--color-dusk)'],
+    ['State Pension', sp, 'var(--color-ocean)'],
+    ['Company pension', db, 'var(--color-sage-strong)'],
     ['Pension draws (after tax)', pen, 'var(--color-calm-strong)'],
-    ['Tax-free cash', tfc, 'var(--color-hope)'],
-    ['ISAs & cash', isa, '#9bb8ae'],
+    ['Tax-free cash', tfc, 'var(--color-calm)'],
+    ['ISAs & cash', isa, 'var(--color-sage)'],
   ].filter(s => (s[1] as number) / total > 0.005).map(([n, v, c]) => ({ n, pct: (v as number) / total, c })) as { n: string; pct: number; c: string }[];
 }
 
@@ -567,10 +608,10 @@ function McFan({ mc, retireYear }: { mc: MC; retireYear: number }) {
   return (
     <svg viewBox={`0 0 ${g.W} ${g.H}`} width="100%" style={{ display: 'block' }} aria-label="Range of possible futures">
       <defs><linearGradient id="mcband" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0" stopColor="var(--color-calm)" stopOpacity="0.28" /><stop offset="1" stopColor="var(--color-calm)" stopOpacity="0.03" />
+        <stop offset="0" stopColor="var(--color-sage)" stopOpacity="0.30" /><stop offset="1" stopColor="var(--color-sage)" stopOpacity="0.03" />
       </linearGradient></defs>
       <path d={g.area} fill="url(#mcband)" />
-      <path d={g.mid} fill="none" stroke="var(--color-calm-strong)" strokeWidth="2" strokeLinejoin="round" />
+      <path d={g.mid} fill="none" stroke="var(--color-ocean)" strokeWidth="2" strokeLinejoin="round" />
     </svg>
   );
 }

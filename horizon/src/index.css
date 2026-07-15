@@ -2,23 +2,29 @@
 
 /* ── Someday · Horizon design tokens ──────────────────────────────────────
    Calm, warm, Apple-serene. Deference: soft warm-neutral canvas so content
-   (the user's future) is the hero. Green/teal = calm; gold = hope. No harsh red. */
+   (the user’s future) is the hero. Terracotta = act; sage = confidence;
+   ocean = the path; dusty rose = gentle concern. No harsh red. */
 @theme {
   --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", system-ui, sans-serif;
 
-  --color-canvas: #f4f2ec;      /* warm off-white system background */
-  --color-surface: #fffefb;     /* card */
-  --color-ink: #1c2b27;
-  --color-ink-dim: #5c6b65;
-  --color-ink-faint: #8a978f;
-  --color-hairline: rgba(28, 43, 39, 0.08);
+  /* Dawn identity: cream canvas, terracotta accent, sage confidence,
+     ocean path, dusty rose for gentle concern. Locked palette. */
+  --color-canvas: #F9F6F0;      /* warm cream page */
+  --color-surface: #F4F0E9;     /* card, a shade deeper than the page */
+  --color-ink: #2C2C2C;
+  --color-ink-dim: #6b655a;
+  --color-ink-faint: #a29a8c;
+  --color-hairline: rgba(44, 44, 44, 0.09);
 
-  --color-calm: #2f9e86;        /* serene teal — primary/interactive */
-  --color-calm-strong: #1f7d69;
-  --color-hope: #d8a24a;        /* warm gold — positive/hope */
-  --color-dawn-1: #ffe9c7;      /* dawn gradient for the horizon sky */
-  --color-dawn-2: #ffd9a8;
-  --color-dusk: #cfe6de;
+  --color-calm: #D4A373;        /* dawn terracotta — primary/interactive */
+  --color-calm-strong: #b9854f;
+  --color-hope: #b0837e;        /* deep dusty rose — gentle concern, never alarm */
+  --color-sage: #8FAE8B;        /* calm sage — confidence, positive states */
+  --color-sage-strong: #64805f;
+  --color-ocean: #3A5F7B;       /* tranquil ocean — the median path */
+  --color-dawn-1: #fbeedb;      /* dawn gradient for the horizon sky */
+  --color-dawn-2: #f5dfc0;
+  --color-dusk: #dfe5de;        /* sea-sage hills */
 
   --radius-xl: 28px;
   --radius-lg: 22px;
@@ -28,22 +34,25 @@
 :root { color-scheme: light dark; }
 
 /* ── Dark mode: dusk, not gloom. Same warmth, inverted values — the gold sun
-   and teal path glow against a deep green-black sky. Auto via the system. ── */
+   and ocean path glow against a warm near-black sky. Auto via the system. ── */
 @media (prefers-color-scheme: dark) {
   :root {
-    --color-canvas: #101714;
-    --color-surface: #1a231f;
-    --color-ink: #e9efeb;
-    --color-ink-dim: #a3b3ab;
-    --color-ink-faint: #6f7f77;
-    --color-hairline: rgba(233, 239, 235, 0.10);
+    --color-canvas: #161210;
+    --color-surface: #211c17;
+    --color-ink: #ede8e0;
+    --color-ink-dim: #b0a898;
+    --color-ink-faint: #7d766a;
+    --color-hairline: rgba(237, 232, 224, 0.10);
 
-    --color-calm: #35ab91;
-    --color-calm-strong: #62cdb2;   /* lighter for contrast on dark */
-    --color-hope: #e3b269;
-    --color-dawn-1: #26313a;        /* dusk-indigo sky */
-    --color-dawn-2: #33301f;        /* ember band above the hills */
-    --color-dusk: #223730;
+    --color-calm: #d3a06e;
+    --color-calm-strong: #e6c49a;   /* lighter for contrast on dark */
+    --color-hope: #cf9a92;
+    --color-sage: #7f9e7b;
+    --color-sage-strong: #a8c3a2;
+    --color-ocean: #8fb4d1;
+    --color-dawn-1: #2a323a;        /* dusk-indigo sky */
+    --color-dawn-2: #362b1d;        /* ember band above the hills */
+    --color-dusk: #242e23;
   }
 }
 
@@ -71,6 +80,38 @@ button:focus-visible, input:focus-visible, [role="switch"]:focus-visible, a:focu
   * { animation-duration: 0.001ms !important; transition-duration: 0.001ms !important; }
 }
 
+/* ── Dawn sliders: cream track, terracotta fill, paper-soft knob (the native
+   track renders near-black with accent-color — too harsh for this palette).
+   The filled portion is driven by --fill, set inline from the value. ── */
+input[type="range"].dawn-range {
+  -webkit-appearance: none; appearance: none;
+  background: transparent; cursor: pointer;
+}
+input[type="range"].dawn-range::-webkit-slider-runnable-track {
+  height: 6px; border-radius: 3px;
+  background: linear-gradient(90deg, var(--color-calm) var(--fill, 50%),
+              color-mix(in srgb, var(--color-ink) 11%, transparent) var(--fill, 50%));
+}
+input[type="range"].dawn-range::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none;
+  width: 22px; height: 22px; border-radius: 50%; margin-top: -8px;
+  background: var(--color-canvas);
+  border: 2px solid var(--color-calm);
+  box-shadow: 0 1px 3px rgba(60,50,35,0.20), 0 4px 10px rgba(60,50,35,0.10);
+}
+input[type="range"].dawn-range::-moz-range-track {
+  height: 6px; border-radius: 3px;
+  background: color-mix(in srgb, var(--color-ink) 11%, transparent);
+}
+input[type="range"].dawn-range::-moz-range-progress {
+  height: 6px; border-radius: 3px; background: var(--color-calm);
+}
+input[type="range"].dawn-range::-moz-range-thumb {
+  width: 22px; height: 22px; border-radius: 50%;
+  background: var(--color-canvas); border: 2px solid var(--color-calm);
+  box-shadow: 0 1px 3px rgba(60,50,35,0.20);
+}
+
 /* PDF export — a fuller, adviser-ready report via the browser's Save as PDF. */
 #print-summary { display: none; }
 @media print {
@@ -92,48 +133,48 @@ button:focus-visible, input:focus-visible, [role="switch"]:focus-visible, a:focu
 
   /* Type */
   #print-summary h1 { font-size: 27px; font-weight: 800; letter-spacing: -0.02em; margin: 2px 0 0; }
-  #print-summary h2 { font-size: 15px; font-weight: 800; letter-spacing: -0.01em; color: #14312a;
-    border-bottom: 2px solid #1f7d69; padding-bottom: 5px; margin: 0 0 12px; }
+  #print-summary h2 { font-size: 15px; font-weight: 800; letter-spacing: -0.01em; color: #3a332a;
+    border-bottom: 2px solid #b9854f; padding-bottom: 5px; margin: 0 0 12px; }
   #print-summary h3 { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em;
-    color: #5c6b65; margin: 0 0 7px; }
+    color: #6b655a; margin: 0 0 7px; }
   #print-summary .r-h3 { margin-top: 16px; }
 
   /* Cover */
   #print-summary .r-cover { padding-bottom: 6px; }
-  #print-summary .r-brand { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.12em; color: #1f7d69; }
-  #print-summary .r-sub { color: #5c6b65; margin: 3px 0 0; font-size: 11px; }
-  #print-summary .r-answer { font-size: 15px; font-weight: 700; line-height: 1.45; color: #14312a;
-    margin: 16px 0; padding: 12px 14px; background: #f1f6f4; border-left: 3px solid #1f7d69; border-radius: 0 8px 8px 0; }
+  #print-summary .r-brand { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.12em; color: #b9854f; }
+  #print-summary .r-sub { color: #6b655a; margin: 3px 0 0; font-size: 11px; }
+  #print-summary .r-answer { font-size: 15px; font-weight: 700; line-height: 1.45; color: #3a332a;
+    margin: 16px 0; padding: 12px 14px; background: #f7efe3; border-left: 3px solid #b9854f; border-radius: 0 8px 8px 0; }
   #print-summary .r-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 12px; margin-top: 6px; }
-  #print-summary .r-grid div { border: 1px solid #e2e6e2; border-radius: 8px; padding: 9px 11px; }
-  #print-summary .r-grid b { display: block; font-size: 16px; font-weight: 800; letter-spacing: -0.02em; color: #14312a; }
-  #print-summary .r-grid span { font-size: 9.5px; color: #5c6b65; }
+  #print-summary .r-grid div { border: 1px solid #e5dfd3; border-radius: 8px; padding: 9px 11px; }
+  #print-summary .r-grid b { display: block; font-size: 16px; font-weight: 800; letter-spacing: -0.02em; color: #3a332a; }
+  #print-summary .r-grid span { font-size: 9.5px; color: #6b655a; }
   #print-summary .r-note { margin-top: 16px; font-size: 9.5px; color: #6b7a72; line-height: 1.5; }
 
   /* Cards & key/value rows */
-  #print-summary .r-card { border: 1px solid #e2e6e2; border-radius: 8px; padding: 10px 12px; margin-bottom: 10px; }
+  #print-summary .r-card { border: 1px solid #e5dfd3; border-radius: 8px; padding: 10px 12px; margin-bottom: 10px; }
   #print-summary .r-card h3 { margin-bottom: 8px; }
   #print-summary .r-kv { display: flex; justify-content: space-between; gap: 12px;
-    padding: 3px 0; border-bottom: 1px solid #f0f2f0; }
+    padding: 3px 0; border-bottom: 1px solid #efeae0; }
   #print-summary .r-kv:last-child { border-bottom: 0; }
-  #print-summary .r-kv span { color: #5c6b65; }
+  #print-summary .r-kv span { color: #6b655a; }
   #print-summary .r-kv b { font-weight: 700; text-align: right; }
   #print-summary .r-lead { color: #3a453f; margin: 0 0 12px; }
 
   /* Tables */
   #print-summary .r-tbl { width: 100%; border-collapse: collapse; margin: 4px 0 6px; }
   #print-summary .r-tbl th { text-align: left; font-size: 9px; text-transform: uppercase; letter-spacing: 0.05em;
-    color: #5c6b65; border-bottom: 1.5px solid #cdd6d1; padding: 5px 6px; }
-  #print-summary .r-tbl td { padding: 4px 6px; border-bottom: 1px solid #eef1ef; }
+    color: #6b655a; border-bottom: 1.5px solid #d8d0c2; padding: 5px 6px; }
+  #print-summary .r-tbl td { padding: 4px 6px; border-bottom: 1px solid #efeae0; }
   #print-summary .r-tbl .r-r { text-align: right; font-variant-numeric: tabular-nums; }
   #print-summary .r-yby { font-size: 9px; }
   #print-summary .r-yby td, #print-summary .r-yby th { padding: 2.5px 5px; }
-  #print-summary .r-cap { font-size: 9px; color: #8a978f; margin: 4px 0 0; line-height: 1.5; }
+  #print-summary .r-cap { font-size: 9px; color: #a29a8c; margin: 4px 0 0; line-height: 1.5; }
 
   /* Lists & footer */
   #print-summary .r-list { margin: 6px 0 0; padding-left: 16px; }
   #print-summary .r-list li { margin-bottom: 7px; line-height: 1.5; }
-  #print-summary .r-list b { color: #14312a; }
-  #print-summary .r-foot { margin-top: 22px; padding-top: 10px; border-top: 1px solid #e2e6e2;
-    font-size: 9.5px; color: #8a978f; }
+  #print-summary .r-list b { color: #3a332a; }
+  #print-summary .r-foot { margin-top: 22px; padding-top: 10px; border-top: 1px solid #e5dfd3;
+    font-size: 9.5px; color: #a29a8c; }
 }

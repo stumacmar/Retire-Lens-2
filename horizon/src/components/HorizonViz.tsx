@@ -123,13 +123,13 @@ export default function HorizonViz(props: HorizonProps) {
           <stop offset="1" stopColor="var(--color-canvas)" stopOpacity="0" />
         </linearGradient>
         <linearGradient id="band" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stopColor="var(--color-calm)" stopOpacity="0.22" />
-          <stop offset="1" stopColor="var(--color-calm)" stopOpacity="0.02" />
+          <stop offset="0" stopColor="var(--color-sage)" stopOpacity="0.26" />
+          <stop offset="1" stopColor="var(--color-sage)" stopOpacity="0.03" />
         </linearGradient>
         <radialGradient id="sun" cx="0.5" cy="0.5" r="0.5">
-          <stop offset="0" stopColor="var(--color-hope)" stopOpacity="0.9" />
-          <stop offset="0.45" stopColor="var(--color-hope)" stopOpacity="0.5" />
-          <stop offset="1" stopColor="var(--color-hope)" stopOpacity="0" />
+          <stop offset="0" stopColor="var(--color-calm)" stopOpacity="0.7" />
+          <stop offset="0.45" stopColor="var(--color-calm)" stopOpacity="0.32" />
+          <stop offset="1" stopColor="var(--color-calm)" stopOpacity="0" />
         </radialGradient>
       </defs>
 
@@ -146,10 +146,10 @@ export default function HorizonViz(props: HorizonProps) {
       {/* Poor↔Positive confidence glow */}
       <path d={g.areaD} fill="url(#band)" />
       {/* Warm sun at the moment you stop work */}
-      <circle cx={g.sunX} cy={g.sunY} r="34" fill="url(#sun)" />
-      <circle cx={g.sunX} cy={g.sunY} r="7" fill="var(--color-hope)" />
+      <circle cx={g.sunX} cy={g.sunY} r="30" fill="url(#sun)" />
+      <circle cx={g.sunX} cy={g.sunY} r="7" fill="var(--color-calm)" />
       {/* The median path — the horizon line */}
-      <path d={g.baseD} fill="none" stroke="var(--color-calm-strong)" strokeWidth="2.4"
+      <path d={g.baseD} fill="none" stroke="var(--color-ocean)" strokeWidth="2.4"
             strokeLinecap="round" strokeLinejoin="round" pathLength={1}
             style={{ strokeDasharray: 1, strokeDashoffset: 0 }} />
       {/* Gentle hills grounding the scene */}
@@ -158,7 +158,7 @@ export default function HorizonViz(props: HorizonProps) {
             fill="var(--color-dusk)" opacity="0.6" />
       <path d={`M0 ${H - padBottom + 12} C ${W * 0.25} ${H - padBottom + 2}, ${W * 0.5} ${H - padBottom + 20}, ${W * 0.75} ${H - padBottom + 8}
                 S ${W} ${H - padBottom + 4}, ${W} ${H - padBottom + 10} L ${W} ${H} L 0 ${H} Z`}
-            fill="var(--color-calm)" opacity="0.14" />
+            fill="var(--color-sage)" opacity="0.14" />
       {/* Where the money runs short — a gentle marker, never alarming */}
       {g.dryX != null && (
         <g>
@@ -170,7 +170,7 @@ export default function HorizonViz(props: HorizonProps) {
       {sc && (
         <g pointerEvents="none">
           <line x1={sc.x} y1={padTop - 4} x2={sc.x} y2={g.groundY} stroke="var(--color-ink-dim)" strokeWidth="1" opacity="0.55" />
-          <circle cx={sc.x} cy={sc.y} r="5" fill="var(--color-calm-strong)" stroke="var(--color-surface)" strokeWidth="2" />
+          <circle cx={sc.x} cy={sc.y} r="5" fill="var(--color-ocean)" stroke="var(--color-surface)" strokeWidth="2" />
           <rect x={scLabelX - scLabel.length * 2.9 - 7} y={2} width={scLabel.length * 5.8 + 14} height={17}
                 rx="8.5" fill="var(--color-surface)" stroke="var(--color-hairline)" />
           <text x={scLabelX} y={14} fontSize="10.5" fontWeight="700" textAnchor="middle"
@@ -182,8 +182,8 @@ export default function HorizonViz(props: HorizonProps) {
       <text x="4" y={H - 10} fontSize="9" fill="var(--color-ink-faint)" opacity="0.75">{g.xTicks[0].label}</text>
       {g.sunX > 56 && g.sunX < W - 56 && (
         <>
-          <text x={g.sunX} y={H - 22} fontSize="10" fill="var(--color-hope)" textAnchor="middle" fontWeight="700">Someday</text>
-          <text x={g.sunX} y={H - 10} fontSize="9" fill="var(--color-hope)" textAnchor="middle" opacity="0.8">{g.xTicks[1].label}</text>
+          <text x={g.sunX} y={H - 22} fontSize="10" fill="var(--color-calm-strong)" textAnchor="middle" fontWeight="700">Someday</text>
+          <text x={g.sunX} y={H - 10} fontSize="9" fill="var(--color-calm-strong)" textAnchor="middle" opacity="0.8">{g.xTicks[1].label}</text>
         </>
       )}
       <text x={W - 4} y={H - 22} fontSize="10" fill="var(--color-ink-faint)" textAnchor="end">

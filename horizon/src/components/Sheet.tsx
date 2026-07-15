@@ -22,7 +22,7 @@ export default function Sheet({ open, onClose, title, children }: {
           className="fixed inset-0 z-50 flex items-end justify-center sm:items-center"
           initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
           transition={{ duration: 0.22 }}
-          style={{ background: 'rgba(20,30,26,0.32)', backdropFilter: 'blur(3px)' }}
+          style={{ background: 'rgba(44,38,30,0.35)', backdropFilter: 'blur(3px)' }}
           onClick={onClose}
           role="dialog" aria-modal="true" aria-label={title}
         >
@@ -38,7 +38,7 @@ export default function Sheet({ open, onClose, title, children }: {
               backdropFilter: 'saturate(180%) blur(26px)',
               WebkitBackdropFilter: 'saturate(180%) blur(26px)',
               borderRadius: 'var(--radius-xl) var(--radius-xl) 0 0',
-              boxShadow: '0 -12px 48px rgba(20,30,26,0.22)',
+              boxShadow: '0 -12px 48px rgba(60,50,35,0.25)',
               paddingBottom: 'calc(1.75rem + env(safe-area-inset-bottom))',
             }}
           >

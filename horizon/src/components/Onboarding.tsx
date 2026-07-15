@@ -49,7 +49,9 @@ export default function Onboarding({ plan, update, onDone, onExample }: {
         </div>
         <input type="range" min={1} max={30} value={yearsToRetire}
           onChange={e => set({ retireYear: startYear + Number(e.target.value) })}
-          className="w-full" style={{ height: 30, accentColor: 'var(--color-calm)' }} aria-label="Years until you stop work" />
+          className="w-full dawn-range"
+          style={{ height: 30, '--fill': `${((yearsToRetire - 1) / 29) * 100}%` } as React.CSSProperties}
+          aria-label="Years until you stop work" />
       </div>
       <span className="block text-[0.9rem] font-medium mb-2">What does “enough” look like each year?</span>
       <div className="flex gap-2 mb-3">

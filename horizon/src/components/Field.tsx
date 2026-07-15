@@ -91,9 +91,9 @@ export function Segmented<T extends string>({ options, value, onChange, small }:
           <button key={o.value} type="button" onClick={() => onChange(o.value)}
             className={`flex-1 rounded-2xl text-center transition-transform active:scale-[0.97] ${small ? 'py-2 px-1.5' : 'py-3 px-2'}`}
             style={{
-              background: on ? 'var(--color-calm)' : 'var(--color-canvas)',
+              background: on ? 'var(--color-sage)' : 'var(--color-canvas)',
               color: on ? '#fff' : 'var(--color-ink)',
-              border: '1px solid ' + (on ? 'var(--color-calm)' : 'var(--color-hairline)'),
+              border: '1px solid ' + (on ? 'var(--color-sage)' : 'var(--color-hairline)'),
             }}>
             <span className={`block font-bold ${small ? 'text-[0.78rem]' : 'text-[0.9rem]'}`}>{o.label}</span>
             {o.sub && <span className="block text-[0.7rem] opacity-80 tnum">{o.sub}</span>}

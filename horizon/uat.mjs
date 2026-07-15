@@ -139,7 +139,7 @@ for (const [t, m] of [['Details', 'Your details'], ['Explore', 'Explore'], ['Pea
 }
 
 await closeSheet();
-const mpath = () => p.$eval('svg path[stroke="var(--color-calm-strong)"]', e => e.getAttribute('d') || '').catch(() => '');
+const mpath = () => p.$eval('svg path[stroke="var(--color-ocean)"]', e => e.getAttribute('d') || '').catch(() => '');
 // Click the segmented buttons specifically (the legend also contains "Poor").
 await p.locator('button:has-text("Poor")').first().click(); await wait(700); const cP = await mpath();
 await p.locator('button:has-text("Positive")').first().click(); await wait(700); const cB = await mpath();

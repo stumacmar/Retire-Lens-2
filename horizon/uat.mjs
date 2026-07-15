@@ -159,6 +159,7 @@ await loadEx(); await tap('Details'); await wait(600);
 await check('36 details segmented Plan/People/Later', async () => (await has('Plan')) && (await has('People')) && (await has('Later')));
 await check('37 retire-in-year field', () => has('Retire in year'));
 await check('38 tax-free-cash options', () => has('Take none'));
+await check('38b income-tax region choice (Scotland)', () => has('Scotland'));
 await tap('A little each year'); await wait(400); await check('39 phased tax-free, no crash', () => pe.length === 0);
 await tap('All at once'); await wait(400); await check('40 upfront tax-free, no crash', () => pe.length === 0);
 await check('41 withdrawal-order options', async () => (await has('Pensions')) && (await has('Allowances')));

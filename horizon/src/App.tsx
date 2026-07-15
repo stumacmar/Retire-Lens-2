@@ -356,6 +356,14 @@ function DetailsBody({ plan, update, reset }: { plan: any; update: (p: any) => v
         <MoneyField label="Income you want each year" value={plan.targetNet} onChange={v => update({ targetNet: v, spendingPlanOn: false })} />
         <NumField label="Plan through to age" value={plan.horizonAge} onChange={v => update({ horizonAge: v })} />
       </Group>
+      <Group title="Where you pay income tax">
+        <Segmented small value={plan.tax?.region || 'ruk'}
+          onChange={(v: string) => update((p: any) => ({ ...p, tax: { ...p.tax, region: v } }))}
+          options={[{ value: 'ruk', label: 'England, Wales & NI' }, { value: 'scotland', label: 'Scotland' }]} />
+        <p className="text-[0.78rem]" style={{ color: 'var(--color-ink-faint)' }}>
+          Scottish income-tax bands differ (19%–48%). Every figure in the app recalculates on your choice.
+        </p>
+      </Group>
       <Group title="How you draw it">
         <span className="block text-[0.8rem] font-semibold" style={{ color: 'var(--color-ink-dim)' }}>Tax-free cash</span>
         <Segmented small value={plan.pclsMode} onChange={(v: string) => update({ pclsMode: v })}

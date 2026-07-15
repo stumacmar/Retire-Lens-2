@@ -17,6 +17,7 @@ export function createEngine() {
 
   // ── Tax constants (editable via assumptions) ─────────────────────────
   const TAX_DEFAULTS = {
+    region: 'ruk',              // 'ruk' (England/Wales/NI) | 'scotland'
     personalAllowance: 12570,
     basicRate: 0.20,
     higherRate: 0.40,
@@ -27,6 +28,21 @@ export function createEngine() {
     pclsCap: 268275,            // lifetime tax-free cash cap
     isaAnnualAllowance: 20000,
   };
+
+  // Scottish income tax 2025/26 (non-savings), bands in TAXABLE income above
+  // the allowance. Published gross ranges assume a full PA of 12,570:
+  // Starter 19% to 15,397 · Basic 20% to 27,491 · Intermediate 21% to 43,662
+  // Higher 42% to 75,000 · Advanced 45% to 125,140 · Top 48% above.
+  // The top-rate edge, like the rUK additional-rate edge, is statutory in
+  // taxable income (125,140), where the taper has already removed the PA.
+  const SCOT_BANDS = [
+    { upTo: 2827,     rate: 0.19 },
+    { upTo: 14921,    rate: 0.20 },
+    { upTo: 31092,    rate: 0.21 },
+    { upTo: 62430,    rate: 0.42 },
+    { upTo: 125140,   rate: 0.45 },
+    { upTo: Infinity, rate: 0.48 },
+  ];
 
   // ── Default assumptions: the Marshall workbook, February 2026 ────────
   function defaults() {
@@ -211,7 +227,16 @@ export function createEngine() {
     T = T || TAX_DEFAULTS;
     const pa = personalAllowanceFor(gross, T);
     const taxable = clamp0(gross - pa);
-    // Bands are measured in taxable income: basic to 37,700, higher to
+    if (T.region === 'scotland') {
+      let tax = 0, prev = 0;
+      for (const b of SCOT_BANDS) {
+        tax += clamp0(Math.min(taxable, b.upTo) - prev) * b.rate;
+        if (taxable <= b.upTo) break;
+        prev = b.upTo;
+      }
+      return tax;
+    }
+    // rUK bands are measured in taxable income: basic to 37,700, higher to
     // 125,140, additional above. The taper alters the allowance, not the
     // band edges, which is what creates the 60 pence zone.
     const basicBand = T.higherThreshold - T.personalAllowance;      // 37700
@@ -220,6 +245,20 @@ export function createEngine() {
     const inHigher = clamp0(Math.min(taxable, higherBandTop) - basicBand);
     const inAdditional = clamp0(taxable - higherBandTop);
     return inBasic * T.basicRate + inHigher * T.higherRate + inAdditional * T.additionalRate;
+  }
+
+  /** Gross band edges for the marginal-rate allocator, per region. */
+  function bandEdgesFor(T) {
+    if (T.region === 'scotland') {
+      return [T.personalAllowance, 15397, 27491, 43662, 75000, T.taperStart, T.additionalThreshold];
+    }
+    return [T.personalAllowance, T.higherThreshold, T.taperStart, T.additionalThreshold];
+  }
+
+  /** Gross ceiling for "fill the cheap bands" strategies: the point where
+   *  the marginal rate first exceeds ~21% (rUK 40% edge; Scottish 42% edge). */
+  function basicCeilFor(T) {
+    return T.region === 'scotland' ? 43662 : T.higherThreshold;
   }
 
   /** Gross pension draw needed so that draw minus tax nets `net`, given
@@ -419,7 +458,7 @@ export function createEngine() {
       // partner has the cheaper next pound, up to the next band edge, so
       // free allowances are always consumed before anyone pays basic rate
       // and both basic bands before anyone pays higher rate.
-      const bandEdges = [T.personalAllowance, T.higherThreshold, T.taperStart, T.additionalThreshold];
+      const bandEdges = bandEdgesFor(T);
       const nextEdge = (gross) => {
         for (const e of bandEdges) if (gross < e - 0.01) return e;
         return Infinity;
@@ -476,9 +515,10 @@ export function createEngine() {
           if (rem > 0.01) drawPensionNet(rem, null);
         }
       } else {
-        // sippfirst: pensions up to the basic rate threshold, ISA for the
-        // excess, then pensions again only if the ISA runs dry.
-        const basicNet = drawPensionNet(need, T.higherThreshold);
+        // sippfirst: pensions up to the cheap-band ceiling (rUK 40% edge,
+        // Scottish 42% edge), ISA for the excess, then pensions again only
+        // if the ISA runs dry.
+        const basicNet = drawPensionNet(need, basicCeilFor(T));
         let rem = need - basicNet;
         if (rem > 0.01) {
           const fromIsa = drawIsa(rem);
@@ -769,10 +809,10 @@ export function createEngine() {
         const target = targetForYear(P, year);
         let need = clamp0(target - guaranteedNet - eventNet);
 
-        // Pension draws to each partner's basic band, cheaper marginal first
+        // Pension draws to each partner's cheap bands, lower base first
         const draw = (base, pot, wantNet) => {
           if (pot <= 0.01 || wantNet <= 0.01) return { gross: 0, net: 0 };
-          const ceil = clamp0(T.higherThreshold - base);
+          const ceil = clamp0(basicCeilFor(T) - base);
           const gross = Math.min(grossForNet(wantNet, base, T), pot, ceil);
           const net = gross - (taxOn(base + gross, T) - taxOn(base, T));
           return { gross, net };
@@ -804,7 +844,7 @@ export function createEngine() {
             if (need <= 0.5) break;
             const pot = who === 'A' ? potA : potB;
             if (pot <= 0.01) continue;
-            const from = Math.max(base, T.higherThreshold);
+            const from = Math.max(base, basicCeilFor(T));
             const gross = Math.min(grossForNet(need, from, T), pot);
             const net = gross - (taxOn(from + gross, T) - taxOn(from, T));
             if (who === 'A') potA -= gross; else potB -= gross;
@@ -871,6 +911,13 @@ export function createEngine() {
     };
     check('Single person 57548 gross taxes 10451 (workbook parity)', taxOn(57548, T), 10451.2, 1);
     check('Single person 37548 gross taxes 4996 (workbook parity)', taxOn(37548, T), 4995.6, 1);
+    // Scottish bands 2025/26: 57,548 gross → taxable 44,978 →
+    // 2,827@19 + 12,094@20 + 16,171@21 + 13,886@42 = 12,183.96
+    const S = { ...T, region: 'scotland' };
+    check('Scotland 57548 gross taxes 12184', taxOn(57548, S), 12183.96, 1);
+    check('Scotland 15397 gross taxes 537 (starter only)', taxOn(15397, S), 537.13, 1);
+    check('Scotland marginal 42% above 43662', marginalRate(50000, S), 0.42, 0.005);
+    check('Scotland region flag does not disturb rUK maths', taxOn(57548, { ...T, region: 'ruk' }), taxOn(57548, T), 0.001);
     check('PA intact at 100000', personalAllowanceFor(100000, T), 12570, 0.01);
     check('PA zero at 125140', personalAllowanceFor(125140, T), 0, 0.01);
     check('60% marginal inside taper', marginalRate(110000, T), 0.60, 0.005);

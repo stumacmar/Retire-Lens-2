@@ -124,6 +124,7 @@ export default function PrintReport({ plan, acc, dd, mc, estate }: {
           <Row k="Plan horizon" v={`age ${plan.horizonAge} (${A.name}) — year ${horizonYear}`} />
           <Row k="Withdrawal order" v={stratName[plan.strategy] || plan.strategy} />
           <Row k="Tax-free cash (PCLS)" v={pclsName[plan.pclsMode] || plan.pclsMode} />
+          <Row k="Income-tax region" v={plan.tax?.region === 'scotland' ? 'Scotland (Scottish bands)' : 'England, Wales & NI'} />
         </div>
 
         <h3 className="r-h3">Spending as you age (age-phased step-downs)</h3>
@@ -255,15 +256,27 @@ export default function PrintReport({ plan, acc, dd, mc, estate }: {
         </div>
 
         <div className="r-two">
-          <div className="r-card"><h3>Income tax (UK 2025/26, England/Wales/NI)</h3>
-            <Row k="Personal allowance" v={fmt(plan.tax.personalAllowance)} />
-            <Row k="Basic rate / higher rate / additional" v={`${pct(plan.tax.basicRate)} / ${pct(plan.tax.higherRate)} / ${pct(plan.tax.additionalRate)}`} />
-            <Row k="Higher-rate threshold" v={fmt(plan.tax.higherThreshold)} />
-            <Row k="Additional-rate threshold" v={fmt(plan.tax.additionalThreshold)} />
-            <Row k="Allowance taper starts at" v={`${fmt(plan.tax.taperStart)} (£1 lost per £2 over)`} />
-            <Row k="Tax-free cash (PCLS) cap" v={fmt(plan.tax.pclsCap)} />
-            <Row k="ISA annual allowance" v={fmt(plan.tax.isaAnnualAllowance)} />
-          </div>
+          {plan.tax?.region === 'scotland' ? (
+            <div className="r-card"><h3>Income tax (Scotland, 2025/26)</h3>
+              <Row k="Personal allowance (UK-wide)" v={fmt(plan.tax.personalAllowance)} />
+              <Row k="Starter 19% / Basic 20%" v="to £15,397 / to £27,491" />
+              <Row k="Intermediate 21% / Higher 42%" v="to £43,662 / to £75,000" />
+              <Row k="Advanced 45% / Top 48%" v="to £125,140 / above" />
+              <Row k="Allowance taper starts at" v={`${fmt(plan.tax.taperStart)} (£1 lost per £2 over)`} />
+              <Row k="Tax-free cash (PCLS) cap" v={fmt(plan.tax.pclsCap)} />
+              <Row k="ISA annual allowance" v={fmt(plan.tax.isaAnnualAllowance)} />
+            </div>
+          ) : (
+            <div className="r-card"><h3>Income tax (UK 2025/26, England/Wales/NI)</h3>
+              <Row k="Personal allowance" v={fmt(plan.tax.personalAllowance)} />
+              <Row k="Basic rate / higher rate / additional" v={`${pct(plan.tax.basicRate)} / ${pct(plan.tax.higherRate)} / ${pct(plan.tax.additionalRate)}`} />
+              <Row k="Higher-rate threshold" v={fmt(plan.tax.higherThreshold)} />
+              <Row k="Additional-rate threshold" v={fmt(plan.tax.additionalThreshold)} />
+              <Row k="Allowance taper starts at" v={`${fmt(plan.tax.taperStart)} (£1 lost per £2 over)`} />
+              <Row k="Tax-free cash (PCLS) cap" v={fmt(plan.tax.pclsCap)} />
+              <Row k="ISA annual allowance" v={fmt(plan.tax.isaAnnualAllowance)} />
+            </div>
+          )}
           <div className="r-card"><h3>Inheritance tax</h3>
             <Row k="Nil-rate band" v={fmt(plan.iht.nilRateBand)} />
             <Row k="Residence nil-rate band" v={fmt(plan.iht.residenceNRB)} />
@@ -303,8 +316,9 @@ export default function PrintReport({ plan, acc, dd, mc, estate }: {
             tax rules and personal circumstances will differ, and past performance is not a guide to the future.</li>
           <li><b>Assumptions drive everything.</b> Small changes to growth, inflation or spending can materially change the
             outcome. Review the assumptions in Section 5 with your adviser.</li>
-          <li><b>Tax rules.</b> Based on UK 2025/26 rates and thresholds, which are subject to change. Scottish taxpayers
-            have different bands not reflected in these figures unless configured.</li>
+          <li><b>Tax rules.</b> Based on 2025/26 rates and thresholds for {plan.tax?.region === 'scotland'
+            ? 'Scotland (Scottish income-tax bands)' : 'England, Wales & Northern Ireland'}, which are subject to change.
+            The region can be switched in the app and everything recalculates.</li>
           <li><b>Privacy.</b> All figures were entered and computed on your own device. Nothing was uploaded or shared in
             producing this report.</li>
         </ul>

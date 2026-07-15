@@ -131,6 +131,14 @@ mono('E48 both partners DB together → bigger guaranteed than one', P => { setA
 mono('E49 Stuart pension to 0 → pots↓', P => setA(P, 'pension', 0), 'pots', -1);
 mono('E50 Carol ISA to 0 → pots↓', P => setB(P, 'isa', 0), 'pots', -1);
 
+// Scottish income-tax region (2025/26 bands)
+check('E51 Scotland: exact tax at 57,548 gross = 12,183.96',
+  Math.abs(E.taxOn(57548, { ...base().tax, region: 'scotland' }) - 12183.96) < 1);
+check('E52 Scotland: region flag leaves rUK maths untouched',
+  Math.abs(E.taxOn(57548, base().tax) - 10451.2) < 1);
+mono('E53 Scotland region changes lifetime tax (bands differ)',
+  P => { P.tax = { ...P.tax, region: 'scotland' }; }, 'tax', 0);
+
 // ─────────── PART B · UI actually captures inputs into the plan ───────────
 const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml', '.json': 'application/json' };
 const server = http.createServer((req, res) => {
@@ -247,6 +255,11 @@ await tap('All at once'); await wait(300);
 await acheck('U76 Details: PCLS upfront → plan', async () => (await plan()).pclsMode === 'upfront');
 await tap('ISAs'); await wait(300);
 await acheck('U77 Details: strategy ISAs-first → plan', async () => (await plan()).strategy === 'isafirst');
+// tax region segmented
+await seg('Scotland');
+await acheck('U77b Details: Scottish tax region → plan', async () => (await plan()).tax?.region === 'scotland');
+await seg('England, Wales & NI');
+await acheck('U77c Details: region back to rUK → plan', async () => (await plan()).tax?.region === 'ruk');
 // Later: step-downs, inheritance, lens
 await tap('Later'); await wait(400);
 const p1before = (await plan()).phase1On;

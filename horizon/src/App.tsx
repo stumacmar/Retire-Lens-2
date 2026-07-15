@@ -68,6 +68,26 @@ export default function App() {
   }, [plan, acc, dd, ddBear, ddBull]);
 
   const ageAtRetire = plan.retireYear - plan.partnerA.birthYear;
+  const ageNow = plan.startYear - plan.partnerA.birthYear;
+
+  // Spending Style (brief): the classic go-go / slow-go / no-go retirement
+  // spending shape, mapped honestly onto the engine's phased step-downs.
+  const spendStyle: 'gogo' | 'slowgo' | 'nogo' = plan.phase2On ? 'gogo' : plan.phase1On ? 'slowgo' : 'nogo';
+  const setSpendStyle = (v: string) => update(
+    v === 'gogo' ? { phase1On: true, phase2On: true }
+      : v === 'slowgo' ? { phase1On: true, phase2On: false }
+      : { phase1On: false, phase2On: false });
+
+  // Years of buffer: extend the horizon to 105 and see how far the money
+  // actually runs past your chosen age — headroom, in plain years.
+  const bufferYears = useMemo(() => {
+    if (!hasMoney) return null;
+    try {
+      const r = E.drawdown({ ...plan, growth: plan.growthBase, horizonAge: 105 });
+      if (r.exhaustedAgeA == null) return `${105 - plan.horizonAge}+`;
+      return String(Math.max(0, r.exhaustedAgeA - plan.horizonAge));
+    } catch { return null; }
+  }, [plan, hasMoney]);
 
   // The Coach — a few grounded, on-device thoughts computed from the same
   // verified engine (never generic tips). Prompts for an adviser, not advice.
@@ -141,8 +161,15 @@ export default function App() {
           <circle cx="21" cy="27" r="4.5" stroke="var(--color-calm)" strokeWidth="3.2" />
           <path d="M5 33.5h32" stroke="var(--color-calm)" strokeWidth="3.2" strokeLinecap="round" opacity=".5" />
         </svg>
-        <span className="text-[1.15rem] font-extrabold tracking-tight">Someday</span>
-        <span className="text-[0.75rem] italic" style={{ color: 'var(--color-ink-faint)' }}>see your horizon</span>
+        <div className="flex-1">
+          <div className="text-[1.15rem] font-extrabold tracking-tight leading-none">Someday</div>
+          <div className="text-[0.72rem] italic mt-0.5" style={{ color: 'var(--color-ink-faint)' }}>see your horizon</div>
+        </div>
+        <div className="hidden lg:flex items-center justify-center rounded-full text-[0.7rem] font-bold"
+             style={{ width: 34, height: 34, color: 'var(--color-canvas)',
+                      background: 'linear-gradient(145deg, var(--color-sage), var(--color-sage-strong))' }}>
+          {(plan.partnerA.name[0] || 'Y')}{(plan.partnerB.name[0] || 'P')}
+        </div>
       </header>
 
       {/* The answer — the single most important line, instantly obvious.
@@ -186,11 +213,19 @@ export default function App() {
           the vision-first order: horizon, then controls). */}
       <div className="lg:flex lg:gap-10 lg:items-start lg:mt-2">
       <div className="lg:order-2 lg:w-[62%] lg:min-w-0">
-      <div className="mt-4 -mx-1 lg:mx-0">
+      <div className="hidden lg:block mt-4">
+        <h2 className="text-[1.1rem] font-bold tracking-tight">Your Horizon</h2>
+        <p className="text-[0.78rem] mt-0.5" style={{ color: 'var(--color-ink-faint)' }}>
+          Projected wealth in today's money · drag to read a year, tap for detail
+        </p>
+      </div>
+      <div className="mt-4 lg:mt-2 -mx-1 lg:mx-0">
         <HorizonViz base={viz.base} low={viz.low} high={viz.high}
           startYear={plan.startYear} retireYear={plan.retireYear} horizonYear={horizonYear}
           retireWealth={viz.atRetire} lasts={lasts} dryYear={dd.exhaustedYear}
           inflation={plan.inflation} birthYear={plan.partnerA.birthYear}
+          spYear={Math.min(plan.partnerA.birthYear + plan.partnerA.spAge, plan.partnerB.birthYear + plan.partnerB.spAge)}
+          pclsTaken={plan.pclsMode !== 'none'}
           onYearTap={setYearSel} />
       </div>
 
@@ -221,8 +256,9 @@ export default function App() {
       </div>
 
       <div className="lg:order-1 lg:w-[38%] lg:min-w-0">
-      {/* Live "what if" — direct manipulation, immediate feedback. */}
-      <section className="mt-5 lg:mt-4 rounded-3xl p-5"
+      {/* Live "what if" — direct manipulation, immediate feedback (the compact
+          mobile card; the desktop brief card above replaces it at lg). */}
+      <section className="lg:hidden mt-5 rounded-3xl p-5"
                style={{ background: 'var(--color-surface)', border: '1px solid var(--color-hairline)',
                         boxShadow: '0 1px 2px rgba(60,50,35,0.05), 0 8px 24px rgba(60,50,35,0.06)' }}>
         <div className="flex items-baseline justify-between">
@@ -238,6 +274,48 @@ export default function App() {
         <WhatIf label={`${plan.partnerA.name} saves monthly`} out={fmt(plan.partnerA.monthlyPension)} onEdit={setEditing}
           min={0} max={5000} step={50} value={plan.partnerA.monthlyPension}
           onChange={v => update((p: any) => ({ ...p, partnerA: { ...p.partnerA, monthlyPension: v } }))} />
+      </section>
+
+      {/* Desktop: the full inputs card from the design brief. */}
+      <section className="hidden lg:block mt-4 rounded-2xl p-6"
+               style={{ background: 'var(--color-surface)', border: '1px solid var(--color-hairline)',
+                        boxShadow: '0 1px 2px rgba(60,50,35,0.05), 0 8px 24px rgba(60,50,35,0.06)' }}>
+        <h2 className="text-[1.1rem] font-bold tracking-tight mb-4">Your Horizon Inputs</h2>
+        <WhatIf label="Current Age" out={`${ageNow}`} onEdit={setEditing}
+          min={30} max={70} step={1} value={ageNow}
+          onChange={v => update((p: any) => ({ ...p, partnerA: { ...p.partnerA, birthYear: p.startYear - v } }))} />
+        <WhatIf label="Target Annual Net Income (£)" out={fmt(spendToday)} onEdit={setEditing}
+          min={20000} max={120000} step={500} value={plan.targetNet}
+          onChange={v => update({ targetNet: v, spendingPlanOn: false })} />
+        <div className="mt-5 space-y-3">
+          <MoneyField label="Current Pension Pot (£)" value={plan.partnerA.pension}
+            onChange={v => update((p: any) => ({ ...p, partnerA: { ...p.partnerA, pension: v } }))} />
+          <MoneyField label="Annual Contributions (£)" value={Math.round(plan.partnerA.monthlyPension * 12)}
+            onChange={v => update((p: any) => ({ ...p, partnerA: { ...p.partnerA, monthlyPension: v / 12 } }))} />
+          <NumField label="Desired Retirement Age" value={ageAtRetire}
+            onChange={v => update((p: any) => ({ ...p, retireYear: p.partnerA.birthYear + v }))} />
+        </div>
+        <div className="mt-5">
+          <span className="block text-[0.8rem] font-semibold mb-2" style={{ color: 'var(--color-ink-dim)' }}>Spending Style</span>
+          <Segmented small value={spendStyle} onChange={setSpendStyle} options={[
+            { value: 'gogo', label: 'Go-go', sub: 'more early, eases at 75 & 82' },
+            { value: 'slowgo', label: 'Slow-go', sub: 'eases from 75' },
+            { value: 'nogo', label: 'No-go', sub: 'flat throughout' },
+          ]} />
+        </div>
+        {mc && hasMoney && (
+          <div className="mt-5 rounded-2xl px-5 py-4 flex items-center gap-4"
+               style={{ background: 'color-mix(in srgb, var(--color-sage) 16%, var(--color-surface))' }}>
+            <span className="tnum text-[2rem] font-extrabold tracking-tight" style={{ color: 'var(--color-sage-strong)' }}>{pct(mc.successProb)}</span>
+            <span>
+              <span className="block text-[0.85rem] font-semibold leading-snug">Confidence in sustaining your lifestyle</span>
+              <span className="block text-[0.72rem] mt-0.5" style={{ color: 'var(--color-ink-faint)' }}>Across {mc.nPaths} simulated market futures</span>
+            </span>
+          </div>
+        )}
+        <p className="mt-3 text-[0.7rem] text-right" style={{ color: 'var(--color-ink-faint)' }}>
+          {plan.partnerA.name}'s figures · {plan.partnerB.name}'s and more in Details · saves as you go
+        </p>
       </section>
 
       {/* The Coach — quiet, grounded nudges computed from your own numbers. */}
@@ -265,15 +343,15 @@ export default function App() {
       </div>
       </div>
 
-      {/* Desktop: three calm metrics along the bottom. */}
+      {/* Desktop: three calm metrics along the bottom (per the design brief). */}
       {hasMoney && <div className="hidden lg:flex gap-8 mt-8">
-        <DeskStat value={lasts ? `age ${plan.horizonAge}+` : `age ${dd.exhaustedAgeA}`} label="Money lasts to"
-          desc={lasts ? 'Your income holds to your plan horizon in the central outlook.' : 'Where the pots run short on today’s settings — a lever away from safe.'}
+        <DeskStat value={lasts ? `age ${plan.horizonAge}+` : `age ${dd.exhaustedAgeA}`} label="Sustainable to"
+          desc={lasts ? 'Your income holds through your plan horizon in the central outlook.' : 'Where the pots run short on today’s settings — a lever away from safe.'}
           color={lasts ? 'var(--color-ocean)' : 'var(--color-hope)'} />
-        {estate && <DeskStat value={fmtK(deflate(estate.netToHeirs, estate.year, plan.startYear, plan.inflation))} label="Legacy potential"
+        {estate && <DeskStat value={fmtK(deflate(estate.netToHeirs, estate.year, plan.startYear, plan.inflation))} label="Legacy Potential"
           desc="What could pass to the people you love, in today’s money." color="var(--color-sage-strong)" />}
-        {mc && <DeskStat value={pct(mc.successProb)} label="Futures where it holds"
-          desc={`Across ${mc.nPaths} simulated market histories, lucky to unlucky.`} color="var(--color-calm-strong)" />}
+        {bufferYears != null && <DeskStat value={`${bufferYears} years`} label="Years of Buffer"
+          desc={`Spare room beyond age ${plan.horizonAge} if you live longer than planned.`} color="var(--color-calm-strong)" />}
       </div>}
 
       <p className="mt-4 text-center text-[0.8rem]" style={{ color: 'var(--color-ink-faint)' }}>

@@ -20,6 +20,8 @@ export interface HorizonProps {
   dryYear?: number | null;
   inflation?: number;         // for today's-money scrub readout
   birthYear?: number;         // partner A, for the age readout
+  spYear?: number | null;     // earliest State Pension start (milestone)
+  pclsTaken?: boolean;        // tax-free cash taken at retirement (milestone)
   onYearTap?: (year: number) => void;   // open the year drill-down sheet
 }
 
@@ -40,7 +42,7 @@ function smooth(pts: { x: number; y: number }[]): string {
 
 export default function HorizonViz(props: HorizonProps) {
   const { base, low, high, startYear, retireYear, horizonYear, retireWealth, lasts, dryYear,
-          inflation = 0, birthYear, onYearTap } = props;
+          inflation = 0, birthYear, spYear, pclsTaken, onYearTap } = props;
 
   // Scrub-to-read: drag horizontally to run a finger along your future;
   // a light tap opens the full year breakdown. Vertical pans still scroll.
@@ -189,15 +191,37 @@ export default function HorizonViz(props: HorizonProps) {
                 fill="var(--color-ink)" className="tnum">{scLabel}</text>
         </g>
       )}
-      {/* Age labels, whisper-quiet — Someday tucks under the sun only if there's room */}
+      {/* Freedom Point — the softly glowing moment you stop work, named */}
+      {!emptyPlan && (() => {
+        const beside = g.sunX < 110;                     // sun near the left edge → label to its right
+        const fx = beside ? g.sunX + 13 : Math.min(W - 56, g.sunX);
+        const fy = Math.max(padTop + 26, g.sunY - 30);   // clear of the top pad and the sun
+        return (
+          <g textAnchor={beside ? 'start' : 'middle'} pointerEvents="none">
+            <text x={fx} y={fy - 11} fontSize="8.5" fontWeight="700" letterSpacing="1.4" fill="var(--color-calm-strong)">FREEDOM POINT</text>
+            <text x={fx} y={fy} fontSize="8.5" fill="var(--color-ink-faint)">
+              {retireYear}{birthYear != null ? ` · age ${retireYear - birthYear}` : ''}
+            </text>
+          </g>
+        );
+      })()}
+      {/* Milestones along the timeline, whisper-quiet */}
+      {!emptyPlan && spYear != null && spYear > startYear && spYear < horizonYear && (
+        <g pointerEvents="none">
+          <line x1={((spYear - startYear) / Math.max(1, horizonYear - startYear)) * W} y1={padTop + 6}
+                x2={((spYear - startYear) / Math.max(1, horizonYear - startYear)) * W} y2={g.groundY}
+                stroke="var(--color-ink)" strokeOpacity="0.07" />
+          <text x={Math.min(W - 62, Math.max(62, ((spYear - startYear) / Math.max(1, horizonYear - startYear)) * W))} y={g.groundY - 6}
+                fontSize="7.5" fill="var(--color-ink-faint)" textAnchor="middle">State Pension begins · {spYear}</text>
+        </g>
+      )}
+      {!emptyPlan && pclsTaken && (
+        <text x={Math.min(W - 40, Math.max(40, g.sunX))} y={g.groundY - 6}
+              fontSize="7.5" fill="var(--color-ink-faint)" textAnchor="middle" pointerEvents="none">PCLS taken · {retireYear}</text>
+      )}
+      {/* Age labels, whisper-quiet */}
       <text x="4" y={H - 22} fontSize="10" fill="var(--color-ink-faint)">Today</text>
       <text x="4" y={H - 10} fontSize="9" fill="var(--color-ink-faint)" opacity="0.75">{g.xTicks[0].label}</text>
-      {g.sunX > 56 && g.sunX < W - 56 && (
-        <>
-          <text x={g.sunX} y={H - 22} fontSize="10" fill="var(--color-calm-strong)" textAnchor="middle" fontWeight="700">Someday</text>
-          <text x={g.sunX} y={H - 10} fontSize="9" fill="var(--color-calm-strong)" textAnchor="middle" opacity="0.8">{g.xTicks[1].label}</text>
-        </>
-      )}
       <text x={W - 4} y={H - 22} fontSize="10" fill="var(--color-ink-faint)" textAnchor="end">
         {lasts ? 'and beyond' : 'the far years'}
       </text>

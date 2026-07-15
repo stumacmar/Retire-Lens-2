@@ -7,8 +7,8 @@ const shellStyle = { background: 'var(--color-canvas)', border: '1px solid var(-
 export function MoneyField({ label, value, onChange, prefix = '£' }: {
   label: string; value: number; onChange: (v: number) => void; prefix?: string;
 }) {
-  const [text, setText] = useState(String(Math.round(value)));
-  useEffect(() => { setText(String(Math.round(value))); }, [value]);
+  const [text, setText] = useState(Math.round(value).toLocaleString('en-GB'));
+  useEffect(() => { setText(Math.round(value).toLocaleString('en-GB')); }, [value]);
   return (
     <label className="block">
       <span className="block text-[0.8rem] font-semibold mb-1.5" style={{ color: 'var(--color-ink-dim)' }}>{label}</span>

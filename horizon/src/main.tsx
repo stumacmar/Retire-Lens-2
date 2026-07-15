@@ -8,3 +8,11 @@ createRoot(document.getElementById('root')!).render(
     <App />
   </StrictMode>,
 );
+
+// Offline excellence: a conservative service worker (network-first shell,
+// stale-while-revalidate assets). Registration failure is harmless.
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js').catch(() => { /* e.g. private mode */ });
+  });
+}

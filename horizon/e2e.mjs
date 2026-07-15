@@ -148,7 +148,12 @@ p.on('console', m => { if (m.type() === 'error' && !/404|favicon/i.test(m.text()
 p.on('pageerror', e => pe.push(e.message));
 const wait = ms => p.waitForTimeout(ms);
 const plan = async () => p.evaluate(() => { try { return JSON.parse(localStorage.getItem('horizon-plan-v1') || '{}'); } catch { return {}; } });
-const tap = async t => { try { await p.locator(`text=${t}`).first().click({ timeout: 4000 }); return true; } catch { return false; } };
+// Buttons-first: every tap target in the app is a button, so prefer the
+// accessible-name match — prose (e.g. Coach copy) can never hijack a tap.
+const tap = async t => {
+  try { await p.getByRole('button', { name: t }).first().click({ timeout: 4000 }); return true; }
+  catch { try { await p.locator(`text=${t}`).first().click({ timeout: 2000 }); return true; } catch { return false; } }
+};
 // Exact-name button (segmented tabs: 'Plan' would otherwise substring-match "Adjust your plan").
 const seg = async t => { try { await p.getByRole('button', { name: t, exact: true }).first().click({ timeout: 4000 }); await wait(300); return true; } catch { return false; } };
 // Set a labelled MoneyField/NumField. Uses Playwright fill + blur with awaits

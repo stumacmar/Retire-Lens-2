@@ -25,7 +25,28 @@
   --radius-md: 16px;
 }
 
-:root { color-scheme: light; }
+:root { color-scheme: light dark; }
+
+/* ── Dark mode: dusk, not gloom. Same warmth, inverted values — the gold sun
+   and teal path glow against a deep green-black sky. Auto via the system. ── */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-canvas: #101714;
+    --color-surface: #1a231f;
+    --color-ink: #e9efeb;
+    --color-ink-dim: #a3b3ab;
+    --color-ink-faint: #6f7f77;
+    --color-hairline: rgba(233, 239, 235, 0.10);
+
+    --color-calm: #35ab91;
+    --color-calm-strong: #62cdb2;   /* lighter for contrast on dark */
+    --color-hope: #e3b269;
+    --color-dawn-1: #26313a;        /* dusk-indigo sky */
+    --color-dawn-2: #33301f;        /* ember band above the hills */
+    --color-dusk: #223730;
+  }
+}
+
 * { -webkit-tap-highlight-color: transparent; }
 html, body, #root { height: 100%; }
 /* Keep the fixed bottom tab bar from ever covering content it scrolls to. */
@@ -54,6 +75,7 @@ button:focus-visible, input:focus-visible, [role="switch"]:focus-visible, a:focu
 #print-summary { display: none; }
 @media print {
   @page { size: A4; margin: 16mm 14mm; }
+  :root { color-scheme: light; }
   html, body { background: #fff !important; }
   body * { visibility: hidden; }
   #print-summary, #print-summary * { visibility: visible; }

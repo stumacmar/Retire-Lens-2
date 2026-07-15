@@ -41,10 +41,9 @@ jobs:
           cd horizon && npm ci && npm run build && cd ..
           rm -f assets/index-*.js assets/index-*.css horizon-app/assets/index-*.js horizon-app/assets/index-*.css
           mkdir -p assets horizon-app/assets
-          cp horizon/dist/index.html index.html
-          cp horizon/dist/assets/* assets/
-          cp horizon/dist/index.html horizon-app/index.html
-          cp horizon/dist/assets/* horizon-app/assets/
+          # Whole dist (index, hashed assets, PWA manifest/sw/icons) → site root + subpath
+          cp -r horizon/dist/. .
+          cp -r horizon/dist/. horizon-app/
 
       - name: Setup Pages
         uses: actions/configure-pages@v4

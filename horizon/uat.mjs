@@ -74,7 +74,12 @@ const h1 = async () => (await p.$eval('h1', e => e.textContent).catch(() => ''))
 const bodyT = async () => (await p.$eval('body', e => e.innerText).catch(() => ''));
 const visH1 = async () => p.$$eval('h1', els => els.filter(e => e.offsetParent !== null).length).catch(() => 0);
 const inputHasValue = async v => p.$$eval('input', (els, val) => els.some(e => e.value === val), v).catch(() => false);
-const tap = async t => { try { await p.locator(`text=${t}`).first().click({ timeout: 4000 }); return true; } catch { return false; } };
+// Buttons-first: every tap target in the app is a button, so prefer the
+// accessible-name match — prose (e.g. Coach copy) can never hijack a tap.
+const tap = async t => {
+  try { await p.getByRole('button', { name: t }).first().click({ timeout: 4000 }); return true; }
+  catch { try { await p.locator(`text=${t}`).first().click({ timeout: 2000 }); return true; } catch { return false; } }
+};
 const sheetOpen = async () => (await p.locator('[role=dialog]').count()) > 0;
 const closeSheet = async () => { if (await sheetOpen()) { await p.keyboard.press('Escape'); await wait(500); } };
 async function setRange(i, v) { try { await p.$$eval('input[type=range]', (els, [a, val]) => { const el = els[a]; if (!el) return; const s = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set; s.call(el, String(val)); el.dispatchEvent(new Event('input', { bubbles: true })); el.dispatchEvent(new Event('change', { bubbles: true })); }, [i, v]); } catch { /* ignore */ } }

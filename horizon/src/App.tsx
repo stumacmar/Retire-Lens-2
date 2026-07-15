@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Sunrise, SlidersHorizontal, Compass, ShieldCheck, Plus, X, Download, RotateCcw } from 'lucide-react';
+import { Sunrise, SlidersHorizontal, Compass, ShieldCheck, Plus, X, Download, RotateCcw, Lightbulb } from 'lucide-react';
 import { usePlan, hasSavedPlan, E } from './lib/usePlan';
 import type { Accum, Drawdown, MC } from './engine/engine';
 import { fmt, fmtK, pct, deflate } from './lib/format';
@@ -28,6 +28,7 @@ export default function App() {
   const S = usePlan();
   const { plan, dd, acc, ddBear, ddBull, mc, estate, lens, setLens, update } = S;
   const [sheet, setSheet] = useState<Tab | null>(null);
+  const [yearSel, setYearSel] = useState<number | null>(null);
   const [onboarded, setOnboarded] = useState(hasSavedPlan());
 
   const resetAll = () => {
@@ -60,6 +61,58 @@ export default function App() {
   }, [plan, acc, dd, ddBear, ddBull]);
 
   const ageAtRetire = plan.retireYear - plan.partnerA.birthYear;
+
+  // The Coach — a few grounded, on-device thoughts computed from the same
+  // verified engine (never generic tips). Prompts for an adviser, not advice.
+  const coach = useMemo(() => {
+    const items: { t: string; b: string }[] = [];
+    try {
+      const P = { ...plan, growth: plan.growthBase };
+      // All Coach figures in today's money, like the rest of the app.
+      const realTax = (r: any) => r.lifetimeTaxReal ?? r.lifetimeTax;
+      const labels: Record<string, string> = {
+        sippfirst: 'pensions first, ISA for the excess',
+        pafirst: 'pensions to the free allowances, then ISA',
+        isafirst: 'ISA first, pensions deferred',
+      };
+      const runs = (['sippfirst', 'pafirst', 'isafirst'] as const)
+        .map(id => ({ id, tax: realTax(E.drawdown({ ...P, strategy: id })) }));
+      const cur = runs.find(s => s.id === plan.strategy);
+      const best = [...runs].sort((a, b) => a.tax - b.tax)[0];
+      if (cur && best && best.id !== cur.id && cur.tax - best.tax > 2500) {
+        items.push({
+          t: `A different drawdown order could save ~${fmtK(cur.tax - best.tax)} in tax`,
+          b: `Over the whole journey (today's money), “${labels[best.id]}” pays the least income tax. You can switch it in your settings and watch the effect live.`,
+        });
+      }
+      if (plan.pclsMode === 'none') {
+        const now = E.drawdown(P);
+        const phased = E.drawdown({ ...P, pclsMode: 'phased' });
+        const save = realTax(now) - realTax(phased);
+        if (save > 2500 && (phased.exhaustedAgeA == null || phased.exhaustedAgeA >= (now.exhaustedAgeA ?? 999))) {
+          items.push({
+            t: `Phased tax-free cash could save ~${fmtK(save)} in tax`,
+            b: 'Taking a slice of your 25% tax-free amount with each withdrawal lowers the tax on every year’s income, over the whole journey (today’s money).',
+          });
+        }
+      }
+      if (mc && mc.successProb < 0.75) {
+        const now = E.drawdown(P);
+        const oneMore = E.drawdown({ ...P, retireYear: plan.retireYear + 1 });
+        const gain = deflate(oneMore.endWealth - now.endWealth, horizonYear, plan.startYear, plan.inflation);
+        items.push({
+          t: 'The plan is sensitive to rough markets',
+          b: `It holds in ${Math.round(mc.successProb * 100)}% of simulated futures. One more working year adds roughly ${fmtK(Math.max(0, gain))} of headroom; a small trim to spending does similar work.`,
+        });
+      } else if (mc && mc.successProb >= 0.9 && estate && estate.iht > 0) {
+        items.push({
+          t: 'Strong plan — the estate is now the bigger question',
+          b: `With ${Math.round(mc.successProb * 100)}% of futures holding, the ~${fmtK(deflate(estate.iht, estate.year, plan.startYear, plan.inflation))} inheritance-tax exposure matters more than running out. Gifting and allowances are worth an adviser conversation.`,
+        });
+      }
+    } catch { /* the coach must never break the horizon */ }
+    return items.slice(0, 3);
+  }, [plan, mc, estate, horizonYear]);
 
   // New visitor → the calm vision-first onboarding (all hooks run above first).
   if (!onboarded) {
@@ -103,7 +156,9 @@ export default function App() {
       <div className="mt-4 -mx-1">
         <HorizonViz base={viz.base} low={viz.low} high={viz.high}
           startYear={plan.startYear} retireYear={plan.retireYear} horizonYear={horizonYear}
-          retireWealth={viz.atRetire} lasts={lasts} dryYear={dd.exhaustedYear} />
+          retireWealth={viz.atRetire} lasts={lasts} dryYear={dd.exhaustedYear}
+          inflation={plan.inflation} birthYear={plan.partnerA.birthYear}
+          onYearTap={setYearSel} />
       </div>
 
       {/* A quiet key so the shapes are legible — height is your total wealth. */}
@@ -120,7 +175,7 @@ export default function App() {
         {!lasts && <span className="flex items-center gap-1.5">
           <span style={{ width: 9, height: 9, borderRadius: 9, background: 'var(--color-hope)', display: 'inline-block' }} /> Money runs short
         </span>}
-        <span style={{ color: 'var(--color-ink-faint)' }}>· height = total wealth</span>
+        <span style={{ color: 'var(--color-ink-faint)' }}>· height = total wealth · tap any year for detail</span>
       </div>
 
       <div className="mt-3">
@@ -150,6 +205,29 @@ export default function App() {
           onChange={v => update((p: any) => ({ ...p, partnerA: { ...p.partnerA, monthlyPension: v } }))} />
       </section>
 
+      {/* The Coach — quiet, grounded nudges computed from your own numbers. */}
+      {coach.length > 0 && (
+        <section className="mt-4 rounded-3xl p-5"
+                 style={{ background: 'var(--color-surface)', border: '1px solid var(--color-hairline)',
+                          boxShadow: '0 1px 2px rgba(20,30,26,0.04), 0 8px 24px rgba(20,30,26,0.05)' }}>
+          <div className="flex items-center gap-2">
+            <Lightbulb size={15} style={{ color: 'var(--color-hope)' }} />
+            <h2 className="text-[0.72rem] font-bold uppercase tracking-widest" style={{ color: 'var(--color-ink-faint)' }}>Worth a thought</h2>
+          </div>
+          <div className="mt-1">
+            {coach.map((c, i) => (
+              <div key={i} className="py-2.5" style={{ borderTop: i ? '1px solid var(--color-hairline)' : 'none' }}>
+                <div className="text-[0.92rem] font-semibold">{c.t}</div>
+                <div className="mt-0.5 text-[0.84rem] leading-relaxed" style={{ color: 'var(--color-ink-dim)' }}>{c.b}</div>
+              </div>
+            ))}
+          </div>
+          <p className="mt-1 text-[0.72rem]" style={{ color: 'var(--color-ink-faint)' }}>
+            Computed from your own figures, on this device. Prompts to explore — not advice.
+          </p>
+        </section>
+      )}
+
       <p className="mt-4 text-center text-[0.8rem]" style={{ color: 'var(--color-ink-faint)' }}>
         One possible future, not a promise. Your figures never leave this device.
       </p>
@@ -174,6 +252,10 @@ export default function App() {
       <Sheet open={sheet === 'peace'} onClose={() => setSheet(null)} title="Peace of mind">
         <PeaceBody />
       </Sheet>
+      <Sheet open={yearSel != null} onClose={() => setYearSel(null)}
+             title={yearSel != null ? `${yearSel} · a closer look` : undefined}>
+        {yearSel != null && <YearDetail plan={plan} acc={acc} dd={dd} year={yearSel} />}
+      </Sheet>
 
       {/* Print-only report — a fuller, adviser-ready PDF via the browser's Save as PDF. */}
       <PrintReport plan={plan} acc={acc} dd={dd} mc={mc} estate={estate} />
@@ -182,8 +264,11 @@ export default function App() {
 }
 
 function TabButton({ icon, label, active, onClick }: { icon: React.ReactNode; label: string; active: boolean; onClick: () => void }) {
+  // A tiny haptic tick where the platform supports it (progressive enhancement;
+  // iOS Safari has no vibration API — the spring animation carries the feel there).
+  const tap = () => { try { (navigator as any).vibrate?.(8); } catch { /* no-op */ } onClick(); };
   return (
-    <button onClick={onClick} className="flex flex-col items-center gap-1 px-3 py-1"
+    <button onClick={tap} className="flex flex-col items-center gap-1 px-3 py-1"
             style={{ color: active ? 'var(--color-calm-strong)' : 'var(--color-ink-faint)' }}>
       <motion.span animate={{ scale: active ? 1.08 : 1 }} transition={{ type: 'spring', stiffness: 400, damping: 20 }}>{icon}</motion.span>
       <span className="text-[0.62rem] font-semibold">{label}</span>
@@ -350,6 +435,75 @@ function DetailsBody({ plan, update, reset }: { plan: any; update: (p: any) => v
         </div>
       </Group>
       </>}
+    </div>
+  );
+}
+
+// One year, up close — the bottom-sheet drill-down behind a tap on the horizon.
+function YearDetail({ plan, acc, dd, year }: { plan: any; acc: Accum; dd: Drawdown; year: number }) {
+  const D = (v: number) => deflate(v, year, plan.startYear, plan.inflation);
+  const ageA = year - plan.partnerA.birthYear, ageB = year - plan.partnerB.birthYear;
+  const r = (dd.rows as any[]).find(x => x.year === year);
+  const a = (acc.years as any[]).find((x: any) => x.year === year);
+
+  const Line = ({ k, v, tone, strong }: { k: string; v: string; tone?: string; strong?: boolean }) => (
+    <div className="flex items-baseline justify-between py-1.5" style={{ borderTop: '1px solid var(--color-hairline)' }}>
+      <span className={`text-[0.88rem] ${strong ? 'font-bold' : ''}`} style={{ color: strong ? 'var(--color-ink)' : 'var(--color-ink-dim)' }}>{k}</span>
+      <span className={`tnum text-[0.95rem] ${strong ? 'font-extrabold' : 'font-semibold'}`} style={{ color: tone || 'var(--color-ink)' }}>{v}</span>
+    </div>
+  );
+  const Cap = ({ children }: { children: React.ReactNode }) => (
+    <h3 className="text-[0.7rem] font-bold uppercase tracking-widest mt-4 mb-1" style={{ color: 'var(--color-ink-faint)' }}>{children}</h3>
+  );
+
+  if (r) {
+    const spend = D(r.target), sp = D(r.spA + r.spB), db = D(r.dbA + r.dbB);
+    const gross = D(r.grossA + r.grossB), tfc = D(r.tfcA + r.tfcB), isaDraw = D(r.isaDraw + (r.cashDraw || 0));
+    const tax = D(r.tax);
+    return (
+      <div className="pb-2">
+        <p className="text-[0.9rem] -mt-2 mb-1" style={{ color: 'var(--color-ink-dim)' }}>
+          {plan.partnerA.name} is {ageA}, {plan.partnerB.name} is {ageB}. All figures in today's money.
+        </p>
+        <Cap>The year's income</Cap>
+        <Line k="Spending target" v={fmt(spend)} strong />
+        {sp > 0.5 && <Line k="State Pension" v={fmt(sp)} />}
+        {db > 0.5 && <Line k="Company pension" v={fmt(db)} />}
+        {gross > 0.5 && <Line k="Pension withdrawals (gross)" v={fmt(gross)} />}
+        {tfc > 0.5 && <Line k="Tax-free cash" v={fmt(tfc)} tone="var(--color-hope)" />}
+        {isaDraw > 0.5 && <Line k="ISA & cash withdrawals" v={fmt(isaDraw)} />}
+        <Line k="Income tax paid" v={`−${fmt(tax)}`} tone="var(--color-hope)" />
+        <Line k="Net income delivered" v={fmt(D(r.netIncome))} strong />
+        {r.shortfall > 1 && <Line k="Shortfall this year" v={fmt(D(r.shortfall))} tone="var(--color-hope)" strong />}
+        {(r.eventLabels || []).length > 0 && <Line k={`Events: ${r.eventLabels.join(', ')}`} v={r.eventCost > 0 ? `−${fmt(D(r.eventCost))}` : `+${fmt(D(r.eventInflow))}`} />}
+        <Cap>Left at the end of the year</Cap>
+        <Line k={`${plan.partnerA.name}'s pension`} v={fmt(D(r.potA))} />
+        <Line k={`${plan.partnerB.name}'s pension`} v={fmt(D(r.potB))} />
+        <Line k="ISA & cash pots" v={fmt(D(r.isaA + r.isaB + (r.cash || 0)))} />
+        <Line k="Total wealth" v={fmt(D(r.wealth))} strong tone="var(--color-calm-strong)" />
+        <p className="mt-3 text-[0.75rem]" style={{ color: 'var(--color-ink-faint)' }}>
+          Marginal tax rates this year: {plan.partnerA.name} {pct(r.marginalA)}, {plan.partnerB.name} {pct(r.marginalB)}.
+        </p>
+      </div>
+    );
+  }
+
+  // Before retirement: the saving years.
+  const pots = a
+    ? { pA: a.pensionA, pB: a.pensionB, isa: a.isaA + a.isaB + (a.cash || 0) }
+    : { pA: plan.partnerA.pension, pB: plan.partnerB.pension, isa: plan.partnerA.isa + plan.partnerB.isa + (plan.cash || 0) };
+  const contrib = (plan.partnerA.monthlyPension + plan.partnerB.monthlyPension + plan.partnerA.monthlyIsa + plan.partnerB.monthlyIsa) * 12;
+  return (
+    <div className="pb-2">
+      <p className="text-[0.9rem] -mt-2 mb-1" style={{ color: 'var(--color-ink-dim)' }}>
+        {plan.partnerA.name} is {ageA}, {plan.partnerB.name} is {ageB} — still saving, {plan.retireYear - year} year{plan.retireYear - year === 1 ? '' : 's'} to go. Today's money.
+      </p>
+      <Cap>Pots this year</Cap>
+      <Line k={`${plan.partnerA.name}'s pension`} v={fmt(D(pots.pA))} />
+      <Line k={`${plan.partnerB.name}'s pension`} v={fmt(D(pots.pB))} />
+      <Line k="ISA & cash pots" v={fmt(D(pots.isa))} />
+      <Line k="Total" v={fmt(D(pots.pA + pots.pB + pots.isa))} strong tone="var(--color-calm-strong)" />
+      {contrib > 0 && <Line k="Going in this year" v={`+${fmt(contrib)}`} tone="var(--color-calm-strong)" />}
     </div>
   );
 }
@@ -579,6 +733,7 @@ function PeaceBody() {
     ['One possible future', 'This shows a range of outcomes across 500+ market histories — a way to think, not a promise.'],
     ['Not financial advice', 'A calm place to explore your own numbers. For decisions, a good adviser is worth their fee.'],
     ['UK-aware', 'State Pension, ISAs, pensions, tax-free cash and inheritance tax, modelled for two people with different ages.'],
+    ['Feels like an app', 'Add it to your Home Screen (Share → Add to Home Screen) for the full-screen experience — it works offline too.'],
   ];
   return (
     <div className="space-y-3 pb-2">

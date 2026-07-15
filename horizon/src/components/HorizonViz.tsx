@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { fmtK } from '../lib/format';
 
 /**
@@ -18,6 +18,9 @@ export interface HorizonProps {
   retireWealth: number;
   lasts: boolean;
   dryYear?: number | null;
+  inflation?: number;         // for today's-money scrub readout
+  birthYear?: number;         // partner A, for the age readout
+  onYearTap?: (year: number) => void;   // open the year drill-down sheet
 }
 
 const W = 400, H = 250, padTop = 26, padBottom = 44;
@@ -36,7 +39,21 @@ function smooth(pts: { x: number; y: number }[]): string {
 }
 
 export default function HorizonViz(props: HorizonProps) {
-  const { base, low, high, startYear, retireYear, horizonYear, retireWealth, lasts, dryYear } = props;
+  const { base, low, high, startYear, retireYear, horizonYear, retireWealth, lasts, dryYear,
+          inflation = 0, birthYear, onYearTap } = props;
+
+  // Scrub-to-read: drag horizontally to run a finger along your future;
+  // a light tap opens the full year breakdown. Vertical pans still scroll.
+  const svgRef = useRef<SVGSVGElement | null>(null);
+  const [scrub, setScrub] = useState<number | null>(null);
+  const downX = useRef(0);
+  const moved = useRef(0);
+  const yearAt = (clientX: number) => {
+    const r = svgRef.current?.getBoundingClientRect();
+    if (!r || r.width < 1) return startYear;
+    const f = Math.min(1, Math.max(0, (clientX - r.left) / r.width));
+    return Math.round(startYear + f * (horizonYear - startYear));
+  };
 
   const g = useMemo(() => {
     const yr0 = startYear, yr1 = horizonYear;
@@ -64,16 +81,41 @@ export default function HorizonViz(props: HorizonProps) {
       { x: x(retireYear), label: String(retireYear) },
       { x: x(yr1), label: String(yr1) },
     ];
+    const byYear = new Map<number, { x: number; y: number; v: number }>();
+    for (const [yr, v] of base) byYear.set(yr, { x: x(yr), y: y(v), v });
     return {
       areaD, baseD: smooth(baseP), maxW,
       sunX: x(retireYear), sunY: y(retireWealth), groundY: H - padBottom,
-      dryX, yTicks, xTicks,
+      dryX, yTicks, xTicks, byYear,
     };
   }, [base, low, high, startYear, retireYear, horizonYear, retireWealth, dryYear]);
 
+  const sc = scrub != null ? g.byYear.get(scrub) : undefined;
+  const scToday = sc ? sc.v / Math.pow(1 + inflation, (scrub as number) - startYear) : 0;
+  const scLabel = sc
+    ? `${scrub}${birthYear != null ? ` · age ${(scrub as number) - birthYear}` : ''} · ${fmtK(scToday)}`
+    : '';
+  const scLabelX = sc ? Math.min(W - 8 - scLabel.length * 2.7, Math.max(8 + scLabel.length * 2.7, sc.x)) : 0;
+
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} width="100%" role="img"
-         aria-label="Your wealth over retirement, a calm horizon" style={{ display: 'block' }}>
+    <svg ref={svgRef} viewBox={`0 0 ${W} ${H}`} width="100%" role="img"
+         aria-label="Your wealth over retirement, a calm horizon. Drag to read a year, tap for detail."
+         style={{ display: 'block', touchAction: 'pan-y', cursor: 'crosshair' }}
+         onPointerDown={e => {
+           svgRef.current?.setPointerCapture(e.pointerId);
+           downX.current = e.clientX; moved.current = 0;
+           setScrub(yearAt(e.clientX));
+         }}
+         onPointerMove={e => {
+           if (scrub == null) return;
+           moved.current = Math.max(moved.current, Math.abs(e.clientX - downX.current));
+           setScrub(yearAt(e.clientX));
+         }}
+         onPointerUp={e => {
+           if (scrub != null && moved.current < 6) onYearTap?.(yearAt(e.clientX));
+           setScrub(null);
+         }}
+         onPointerCancel={() => setScrub(null)}>
       <defs>
         <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
           <stop offset="0" stopColor="var(--color-dawn-1)" />
@@ -122,6 +164,17 @@ export default function HorizonViz(props: HorizonProps) {
         <g>
           <line x1={g.dryX} y1={padTop} x2={g.dryX} y2={g.groundY} stroke="var(--color-hope)" strokeWidth="1" strokeDasharray="3 4" opacity="0.6" />
           <circle cx={g.dryX} cy={g.groundY} r="3.5" fill="var(--color-hope)" />
+        </g>
+      )}
+      {/* Scrub guide — run a finger along the future */}
+      {sc && (
+        <g pointerEvents="none">
+          <line x1={sc.x} y1={padTop - 4} x2={sc.x} y2={g.groundY} stroke="var(--color-ink-dim)" strokeWidth="1" opacity="0.55" />
+          <circle cx={sc.x} cy={sc.y} r="5" fill="var(--color-calm-strong)" stroke="var(--color-surface)" strokeWidth="2" />
+          <rect x={scLabelX - scLabel.length * 2.9 - 7} y={2} width={scLabel.length * 5.8 + 14} height={17}
+                rx="8.5" fill="var(--color-surface)" stroke="var(--color-hairline)" />
+          <text x={scLabelX} y={14} fontSize="10.5" fontWeight="700" textAnchor="middle"
+                fill="var(--color-ink)" className="tnum">{scLabel}</text>
         </g>
       )}
       {/* Age labels, whisper-quiet — Someday tucks under the sun only if there's room */}

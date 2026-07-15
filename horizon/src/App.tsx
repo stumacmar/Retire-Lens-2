@@ -9,6 +9,7 @@ import HorizonViz from './components/HorizonViz';
 import Sheet from './components/Sheet';
 import Accordion from './components/Accordion';
 import Onboarding from './components/Onboarding';
+import PrintReport from './components/PrintReport';
 import { MoneyField, NumField, PctField, Toggle, Segmented } from './components/Field';
 
 // Continuous wealth series (today → horizon) from the engine output.
@@ -25,7 +26,7 @@ type Tab = 'horizon' | 'details' | 'explore' | 'peace';
 
 export default function App() {
   const S = usePlan();
-  const { plan, dd, acc, ddBear, ddBull, mc, estate, potsAtRet, lens, setLens, update } = S;
+  const { plan, dd, acc, ddBear, ddBull, mc, estate, lens, setLens, update } = S;
   const [sheet, setSheet] = useState<Tab | null>(null);
   const [onboarded, setOnboarded] = useState(hasSavedPlan());
 
@@ -174,23 +175,8 @@ export default function App() {
         <PeaceBody />
       </Sheet>
 
-      {/* Print-only summary — a calm one-page PDF via the browser's Save as PDF. */}
-      <div id="print-summary" aria-hidden="true">
-        <h1>Someday — your plan</h1>
-        <p className="ps-sub">{plan.partnerA.name} &amp; {plan.partnerB.name} · retiring {new Date(plan.retireYear, 3).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })}, at {ageAtRetire}</p>
-        <p className="ps-answer">{lasts
-          ? `You can spend about ${fmtK(spendToday)} a year and stay comfortable into your ${Math.floor(plan.horizonAge / 10) * 10}s.`
-          : `At ${fmtK(spendToday)} a year, the money gets tight around age ${dd.exhaustedAgeA}.`}</p>
-        <div className="ps-grid">
-          <div><b>{fmtK(spendToday)}</b><span>Spending a year (today's money)</span></div>
-          <div><b>{mc ? pct(mc.successProb) : '—'}</b><span>Of futures it holds</span></div>
-          <div><b>{fmtK(deflate(potsAtRet, plan.retireYear, plan.startYear, plan.inflation))}</b><span>Pots at retirement</span></div>
-          <div><b>{lasts ? `${plan.horizonAge}+` : `age ${dd.exhaustedAgeA}`}</b><span>Money lasts to</span></div>
-          <div><b>{fmtK((dd as any).lifetimeTaxReal ?? dd.lifetimeTax)}</b><span>Lifetime income tax</span></div>
-          {estate && <div><b>{fmtK(deflate(estate.netToHeirs, estate.year, plan.startYear, plan.inflation))}</b><span>Left to family</span></div>}
-        </div>
-        <p className="ps-foot">One possible future, not a promise. A modelling tool, not financial advice. Prepared privately on your own device with Someday.</p>
-      </div>
+      {/* Print-only report — a fuller, adviser-ready PDF via the browser's Save as PDF. */}
+      <PrintReport plan={plan} acc={acc} dd={dd} mc={mc} estate={estate} />
     </div>
   );
 }
@@ -599,8 +585,12 @@ function PeaceBody() {
       <button onClick={() => window.print()}
         className="flex items-center justify-center gap-2 w-full rounded-2xl py-3.5 font-bold text-white active:scale-[0.98] transition-transform"
         style={{ background: 'var(--color-calm)' }}>
-        <Download size={18} /> Save a summary (PDF)
+        <Download size={18} /> Save the full report (PDF)
       </button>
+      <p className="text-[0.82rem] leading-relaxed px-1" style={{ color: 'var(--color-ink-dim)' }}>
+        A multi-page report you can read or take to an adviser — your holdings, the plan, year-by-year projections,
+        the Monte-Carlo and tax analysis, and every assumption behind the numbers.
+      </p>
       {rows.map(([t, d]) => (
         <div key={t} className="rounded-2xl p-4" style={{ background: 'var(--color-canvas)' }}>
           <div className="font-bold mb-0.5">{t}</div>

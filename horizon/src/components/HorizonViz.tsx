@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { fmtK } from '../lib/format';
 
 /**
  * The Horizon — a serene landscape, not a chart. (HIG: content over chrome,
@@ -49,10 +50,24 @@ export default function HorizonViz(props: HorizonProps) {
     const bandBottomPts = [...lowP].reverse();
     const areaD = bandTop + ' L ' + bandBottomPts.map(p => `${p.x.toFixed(1)} ${p.y.toFixed(1)}`).join(' L ') + ' Z';
     const dryX = dryYear ? x(dryYear) : null;
+    // A calm y-scale: a few round £ gridlines so the shape has a sense of size.
+    const niceStep = (v: number) => {
+      const raw = v / 3, mag = Math.pow(10, Math.floor(Math.log10(raw || 1)));
+      const n = raw / mag;
+      return (n >= 5 ? 5 : n >= 2 ? 2 : 1) * mag;
+    };
+    const step = niceStep(maxW);
+    const yTicks: { y: number; label: string }[] = [];
+    for (let v = 0; v <= maxW + 1; v += step) yTicks.push({ y: y(v), label: fmtK(v) });
+    const xTicks = [
+      { x: x(yr0), label: String(yr0) },
+      { x: x(retireYear), label: String(retireYear) },
+      { x: x(yr1), label: String(yr1) },
+    ];
     return {
       areaD, baseD: smooth(baseP), maxW,
       sunX: x(retireYear), sunY: y(retireWealth), groundY: H - padBottom,
-      dryX,
+      dryX, yTicks, xTicks,
     };
   }, [base, low, high, startYear, retireYear, horizonYear, retireWealth, dryYear]);
 
@@ -78,6 +93,14 @@ export default function HorizonViz(props: HorizonProps) {
 
       {/* Dawn sky wash */}
       <rect x="0" y="0" width={W} height={H - padBottom + 10} fill="url(#sky)" />
+      {/* Faint £ gridlines — a quiet sense of scale (the y-axis) */}
+      {g.yTicks.map((t, i) => (
+        <g key={i}>
+          <line x1="0" y1={t.y} x2={W} y2={t.y} stroke="var(--color-hairline)" strokeWidth="1"
+                opacity={i === 0 ? 0.9 : 0.4} strokeDasharray={i === 0 ? undefined : '2 5'} />
+          {i > 0 && <text x="3" y={t.y - 3} fontSize="9" fill="var(--color-ink-faint)">{t.label}</text>}
+        </g>
+      ))}
       {/* Poor↔Positive confidence glow */}
       <path d={g.areaD} fill="url(#band)" />
       {/* Warm sun at the moment you stop work */}
@@ -102,13 +125,18 @@ export default function HorizonViz(props: HorizonProps) {
         </g>
       )}
       {/* Age labels, whisper-quiet — Someday tucks under the sun only if there's room */}
-      <text x="4" y={H - 10} fontSize="10" fill="var(--color-ink-faint)">Today</text>
-      {g.sunX > 56 && (
-        <text x={g.sunX} y={H - 10} fontSize="10" fill="var(--color-hope)" textAnchor="middle" fontWeight="700">Someday</text>
+      <text x="4" y={H - 22} fontSize="10" fill="var(--color-ink-faint)">Today</text>
+      <text x="4" y={H - 10} fontSize="9" fill="var(--color-ink-faint)" opacity="0.75">{g.xTicks[0].label}</text>
+      {g.sunX > 56 && g.sunX < W - 56 && (
+        <>
+          <text x={g.sunX} y={H - 22} fontSize="10" fill="var(--color-hope)" textAnchor="middle" fontWeight="700">Someday</text>
+          <text x={g.sunX} y={H - 10} fontSize="9" fill="var(--color-hope)" textAnchor="middle" opacity="0.8">{g.xTicks[1].label}</text>
+        </>
       )}
-      <text x={W - 4} y={H - 10} fontSize="10" fill="var(--color-ink-faint)" textAnchor="end">
+      <text x={W - 4} y={H - 22} fontSize="10" fill="var(--color-ink-faint)" textAnchor="end">
         {lasts ? 'and beyond' : 'the far years'}
       </text>
+      <text x={W - 4} y={H - 10} fontSize="9" fill="var(--color-ink-faint)" textAnchor="end" opacity="0.75">{g.xTicks[2].label}</text>
     </svg>
   );
 }

@@ -1,6 +1,6 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Sunrise, SlidersHorizontal, Compass, ShieldCheck, Plus, X, Download } from 'lucide-react';
+import { Sunrise, SlidersHorizontal, Compass, ShieldCheck, Plus, X, Download, RotateCcw } from 'lucide-react';
 import { usePlan, hasSavedPlan, E } from './lib/usePlan';
 import type { Accum, Drawdown, MC } from './engine/engine';
 import { fmt, fmtK, pct, deflate } from './lib/format';
@@ -28,6 +28,15 @@ export default function App() {
   const { plan, dd, acc, ddBear, ddBull, mc, estate, potsAtRet, lens, setLens, update } = S;
   const [sheet, setSheet] = useState<Tab | null>(null);
   const [onboarded, setOnboarded] = useState(hasSavedPlan());
+
+  const resetAll = () => {
+    if (typeof window !== 'undefined' &&
+        !window.confirm('Start over? This clears every figure on this device and returns to the welcome screen.')) return;
+    update(() => E.freshStart());
+    setLens('base');
+    setSheet(null);
+    setOnboarded(false);
+  };
 
   const horizonYear = plan.partnerA.birthYear + plan.horizonAge;
   const lasts = dd.exhaustedAgeA == null;
@@ -62,7 +71,7 @@ export default function App() {
 
   return (
     <div className="min-h-full mx-auto max-w-[560px] px-5"
-         style={{ paddingBottom: 'calc(6rem + env(safe-area-inset-bottom))' }}>
+         style={{ paddingBottom: 'calc(8.5rem + env(safe-area-inset-bottom))' }}>
 
       <header className="pt-[calc(env(safe-area-inset-top)+1.1rem)] pb-1 flex items-baseline gap-2">
         <span className="text-[1.15rem] font-extrabold tracking-tight">Someday</span>
@@ -94,6 +103,23 @@ export default function App() {
         <HorizonViz base={viz.base} low={viz.low} high={viz.high}
           startYear={plan.startYear} retireYear={plan.retireYear} horizonYear={horizonYear}
           retireWealth={viz.atRetire} lasts={lasts} dryYear={dd.exhaustedYear} />
+      </div>
+
+      {/* A quiet key so the shapes are legible — height is your total wealth. */}
+      <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 px-1 text-[0.72rem]" style={{ color: 'var(--color-ink-dim)' }}>
+        <span className="flex items-center gap-1.5">
+          <span style={{ width: 16, height: 3, borderRadius: 2, background: 'var(--color-calm-strong)', display: 'inline-block' }} /> Typical path
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span style={{ width: 12, height: 10, borderRadius: 3, background: 'var(--color-calm)', opacity: 0.28, display: 'inline-block' }} /> Poor–Positive range
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span style={{ width: 9, height: 9, borderRadius: 9, background: 'var(--color-hope)', display: 'inline-block' }} /> You stop work
+        </span>
+        {!lasts && <span className="flex items-center gap-1.5">
+          <span style={{ width: 9, height: 9, borderRadius: 9, background: 'var(--color-hope)', display: 'inline-block' }} /> Money runs short
+        </span>}
+        <span style={{ color: 'var(--color-ink-faint)' }}>· height = total wealth</span>
       </div>
 
       <div className="mt-3">
@@ -139,7 +165,7 @@ export default function App() {
       </nav>
 
       <Sheet open={sheet === 'details'} onClose={() => setSheet(null)} title="Your details">
-        <DetailsBody plan={plan} update={update} />
+        <DetailsBody plan={plan} update={update} reset={resetAll} />
       </Sheet>
       <Sheet open={sheet === 'explore'} onClose={() => setSheet(null)} title="Explore">
         <ExploreBody plan={plan} dd={dd} estate={estate} mc={mc} />
@@ -213,25 +239,25 @@ function PartnerCard({ p, name, set }: { p: any; name: 'partnerA' | 'partnerB'; 
   const who = p[name];
   return (
     <Group title={who.name}>
-      <MoneyField label="Pension pot today" value={who.pension} onChange={v => set({ pension: v })} />
-      <MoneyField label="Paying in monthly" value={who.monthlyPension} onChange={v => set({ monthlyPension: v })} />
+      <MoneyField label="Workplace pension (defined contribution) today" value={who.pension} onChange={v => set({ pension: v })} />
+      <MoneyField label="Paying into pension monthly" value={who.monthlyPension} onChange={v => set({ monthlyPension: v })} />
+      <MoneyField label="Company / final-salary (defined benefit) pension a year" value={who.db} onChange={v => set({ db: v })} />
+      {who.db > 0 && <>
+        <NumField label="…starts in (year)" value={who.dbStartYear} onChange={v => set({ dbStartYear: v })} />
+        <Toggle label="…rises with inflation" checked={!!who.dbIndexed} onChange={v => set({ dbIndexed: v })} />
+      </>}
       <MoneyField label="ISAs today" value={who.isa} onChange={v => set({ isa: v })} />
-      <Accordion title="More — State Pension, company pension">
+      <MoneyField label="Paying into ISAs monthly" value={who.monthlyIsa} onChange={v => set({ monthlyIsa: v })} />
+      <Accordion title="More — State Pension">
         <NumField label="Birth year" value={who.birthYear} onChange={v => set({ birthYear: v })} />
         <NumField label="State Pension age" value={who.spAge} onChange={v => set({ spAge: v })} />
         <MoneyField label="State Pension a year" value={who.spAmount} onChange={v => set({ spAmount: v })} />
-        <MoneyField label="Company / final-salary (DB) pension a year" value={who.db} onChange={v => set({ db: v })} />
-        {who.db > 0 && <>
-          <NumField label="…starts in (year)" value={who.dbStartYear} onChange={v => set({ dbStartYear: v })} />
-          <Toggle label="…rises with inflation" checked={!!who.dbIndexed} onChange={v => set({ dbIndexed: v })} />
-        </>}
-        <MoneyField label="Paying into ISAs monthly" value={who.monthlyIsa} onChange={v => set({ monthlyIsa: v })} />
       </Accordion>
     </Group>
   );
 }
 
-function DetailsBody({ plan, update }: { plan: any; update: (p: any) => void }) {
+function DetailsBody({ plan, update, reset }: { plan: any; update: (p: any) => void; reset: () => void }) {
   const setA = (patch: any) => update((p: any) => ({ ...p, partnerA: { ...p.partnerA, ...patch } }));
   const setB = (patch: any) => update((p: any) => ({ ...p, partnerB: { ...p.partnerB, ...patch } }));
   const setInherit = (patch: any) => update((p: any) => ({ ...p, inherit: { ...p.inherit, ...patch } }));
@@ -241,6 +267,9 @@ function DetailsBody({ plan, update }: { plan: any; update: (p: any) => void }) 
   const setEvent = (i: number, patch: any) => update((p: any) => ({ ...p, lifeEvents: p.lifeEvents.map((e: any, j: number) => j === i ? { ...e, ...patch } : e) }));
   const delEvent = (i: number) => update((p: any) => ({ ...p, lifeEvents: p.lifeEvents.filter((_: any, j: number) => j !== i) }));
   const [sect, setSect] = useState<'plan' | 'people' | 'later'>('plan');
+
+  // Landing on a fresh segment should start at its top, not mid-scroll.
+  useEffect(() => { document.querySelector('[data-sheet-scroll]')?.scrollTo({ top: 0 }); }, [sect]);
 
   return (
     <div className="space-y-6 pb-2">
@@ -264,6 +293,16 @@ function DetailsBody({ plan, update }: { plan: any; update: (p: any) => void }) 
         <Segmented small value={plan.strategy} onChange={(v: string) => update({ strategy: v })}
           options={[{ value: 'sippfirst', label: 'Pensions' }, { value: 'isafirst', label: 'ISAs' }, { value: 'pafirst', label: 'Allowances' }]} />
       </Group>
+      <div className="pt-2">
+        <button onClick={reset}
+          className="flex items-center justify-center gap-2 w-full rounded-2xl py-3 font-semibold text-[0.9rem] active:scale-[0.98] transition-transform"
+          style={{ background: 'var(--color-canvas)', color: 'var(--color-hope)', border: '1px solid var(--color-hairline)' }}>
+          <RotateCcw size={16} /> Start over — clear everything
+        </button>
+        <p className="mt-2 text-center text-[0.75rem]" style={{ color: 'var(--color-ink-faint)' }}>
+          Wipes every figure on this device and returns to the welcome screen.
+        </p>
+      </div>
       </>}
 
       {sect === 'people' && <>
@@ -273,16 +312,16 @@ function DetailsBody({ plan, update }: { plan: any; update: (p: any) => void }) 
 
       {sect === 'later' && <>
       <Group title="Spending as you age">
-        <p className="text-[0.82rem]" style={{ color: 'var(--color-ink-dim)' }}>Most people spend less later. Two gentle step-downs.</p>
+        <p className="text-[0.82rem]" style={{ color: 'var(--color-ink-dim)' }}>Most people spend less later. Both figures are measured against your full retirement spend — so {pct(plan.phase2Cut, 0)} at {plan.phase2Age} means {pct(1 - plan.phase2Cut, 0)} of today's plan, not a cut on top of the first.</p>
         <Toggle label={`Ease spending from ${plan.phase1Age}`} checked={plan.phase1On} onChange={v => update({ phase1On: v })} />
         {plan.phase1On && <div className="grid grid-cols-2 gap-3">
           <NumField label="From age" value={plan.phase1Age} onChange={v => update({ phase1Age: v })} />
           <PctField label="Spend less by" value={plan.phase1Cut} onChange={v => update({ phase1Cut: v })} />
         </div>}
-        <Toggle label={`A further step-down from ${plan.phase2Age}`} checked={plan.phase2On} onChange={v => update({ phase2On: v })} />
+        <Toggle label={`A deeper step-down from ${plan.phase2Age}`} checked={plan.phase2On} onChange={v => update({ phase2On: v })} />
         {plan.phase2On && <div className="grid grid-cols-2 gap-3">
           <NumField label="From age" value={plan.phase2Age} onChange={v => update({ phase2Age: v })} />
-          <PctField label="A further" value={plan.phase2Cut} onChange={v => update({ phase2Cut: v })} />
+          <PctField label="Spend less by (total)" value={plan.phase2Cut} onChange={v => update({ phase2Cut: v })} />
         </div>}
       </Group>
 
@@ -392,21 +431,67 @@ function ExploreBody({ plan, dd, estate, mc }: { plan: any; dd: Drawdown; estate
   const today = (v: number, year: number) => deflate(v, year, plan.startYear, plan.inflation);
   const lifeTax = (dd as any).lifetimeTaxReal ?? dd.lifetimeTax;
   const mix = fundingMix(dd);
+  const horizonYear = plan.partnerA.birthYear + plan.horizonAge;
+  const nowP10 = mc ? deflate(mc.finalP10, horizonYear, plan.startYear, plan.inflation) : 0;
+  const nowP50 = mc ? deflate(mc.finalP50, horizonYear, plan.startYear, plan.inflation) : 0;
+  const nowP90 = mc ? deflate(mc.finalP90, horizonYear, plan.startYear, plan.inflation) : 0;
+
+  // Withdrawal-order tax comparison (the same three strategies, one engine).
+  const strat = useMemo(() => {
+    try { return (E as any).compareStrategies(plan) as { id: string; label: string; lifetimeTax: number; endWealth: number; exhaustedAgeA: number | null }[]; }
+    catch { return []; }
+  }, [plan]);
+  const bestTax = strat.length ? Math.min(...strat.map(s => s.lifetimeTax)) : 0;
+
+  // Rich year-by-year: opening → drawn → growth → tax → closing, per person or combined.
+  const [tv, setTv] = useState<'A' | 'B' | 'combined'>('combined');
+  const sp: any = (dd as any).startPots || {};
+  const rows = dd.rows as any[];
+  const table = rows.map((r, i) => {
+    const prev = rows[i - 1];
+    const D = (v: number) => today(v, r.year);
+    if (tv === 'combined') {
+      const start = i === 0 ? (sp.pensionA + sp.pensionB + sp.isaA + sp.isaB + (sp.cash || 0)) : prev.wealth;
+      const drawn = r.grossA + r.grossB + r.tfcA + r.tfcB + r.isaDraw + r.cashDraw;
+      const closing = r.wealth;
+      return { year: r.year, age: `${r.ageA}/${r.ageB}`, start: D(start), drawn: D(drawn), ret: D(closing - (start - drawn)), tax: D(r.tax), closing: D(closing) };
+    }
+    const A = tv === 'A';
+    const start = i === 0 ? ((A ? sp.pensionA : sp.pensionB) + (A ? sp.isaA : sp.isaB))
+      : ((A ? prev.potA : prev.potB) + (A ? prev.isaA : prev.isaB));
+    const drawn = (A ? r.grossA : r.grossB) + (A ? r.tfcA : r.tfcB) + (A ? r.isaDrawA : r.isaDrawB);
+    const closing = (A ? r.potA : r.potB) + (A ? r.isaA : r.isaB);
+    return { year: r.year, age: A ? r.ageA : r.ageB, start: D(start), drawn: D(drawn), ret: D(closing - (start - drawn)), tax: D(A ? r.taxA : r.taxB), closing: D(closing) };
+  });
+
   return (
     <div className="space-y-5 pb-2">
+      {/* ── Monte Carlo ─────────────────────────────────────────── */}
       {mc && (
         <div className="rounded-2xl p-4" style={{ background: 'var(--color-canvas)' }}>
           <div className="flex items-baseline justify-between mb-1">
-            <span className="text-[0.9rem] font-semibold">Range of futures</span>
+            <span className="text-[0.9rem] font-semibold">Monte Carlo · range of futures</span>
             <span className="tnum text-[0.9rem] font-bold" style={{ color: 'var(--color-calm-strong)' }}>{pct(mc.successProb)} hold</span>
           </div>
           <McFan mc={mc} retireYear={plan.retireYear} />
-          <p className="text-[0.72rem] mt-1" style={{ color: 'var(--color-ink-faint)' }}>
-            {mc.nPaths} market histories · lucky to unlucky. Typical line in the middle.
+          <p className="text-[0.72rem] mt-1 mb-3" style={{ color: 'var(--color-ink-faint)' }}>
+            {mc.nPaths} random market histories · lucky to unlucky. Typical line in the middle.
+          </p>
+          <div className="grid grid-cols-3 gap-2 text-center">
+            {[['Unlucky', nowP10, '10th'], ['Typical', nowP50, '50th'], ['Lucky', nowP90, '90th']].map(([l, v, p]) => (
+              <div key={l as string} className="rounded-xl py-2" style={{ background: 'var(--color-surface)' }}>
+                <div className="tnum text-[1.05rem] font-extrabold" style={{ color: 'var(--color-calm-strong)' }}>{fmtK(v as number)}</div>
+                <div className="text-[0.68rem]" style={{ color: 'var(--color-ink-faint)' }}>{l} · {p} pctile</div>
+              </div>
+            ))}
+          </div>
+          <p className="text-[0.72rem] mt-2 text-center" style={{ color: 'var(--color-ink-dim)' }}>
+            Wealth left at {plan.horizonAge} (today's money). Confidence stays above {pct(mc.threshold ?? 0.85, 0)} until age <b className="tnum">{mc.confidenceAge}</b>.
           </p>
         </div>
       )}
 
+      {/* ── Income mix ──────────────────────────────────────────── */}
       <div>
         <h3 className="text-[0.72rem] font-bold uppercase tracking-widest mb-2" style={{ color: 'var(--color-ink-faint)' }}>Where your income comes from</h3>
         <div className="flex rounded-full overflow-hidden h-3.5">
@@ -432,22 +517,71 @@ function ExploreBody({ plan, dd, estate, mc }: { plan: any; dd: Drawdown; estate
           <StatCard label={estate.iht > 0 ? 'Inheritance tax — often reducible' : 'Inheritance tax'} value={fmtK(today(estate.iht, estate.year))} tone="ink" />
         </div>
       )}
-      <div>
-        <h3 className="text-[0.72rem] font-bold uppercase tracking-widest mb-2" style={{ color: 'var(--color-ink-faint)' }}>Year by year</h3>
-        <div className="space-y-2">
-          {dd.rows.filter((_: any, i: number) => i % 3 === 0 || i === dd.rows.length - 1).map((r: any) => {
-            const pots = today(r.potA + r.potB + r.isaA + r.isaB + (r.cash || 0), r.year);
-            return (
-              <div key={r.year} className="flex items-center justify-between rounded-2xl px-4 py-3" style={{ background: 'var(--color-canvas)' }}>
-                <div>
-                  <div className="font-semibold tnum">{r.year} · age {r.ageA}</div>
-                  <div className="text-[0.78rem]" style={{ color: 'var(--color-ink-faint)' }}>spend {fmtK(today(r.target, r.year))}</div>
+
+      {/* ── Tax: which order to draw from ───────────────────────── */}
+      {strat.length > 0 && (
+        <div>
+          <h3 className="text-[0.72rem] font-bold uppercase tracking-widest mb-2" style={{ color: 'var(--color-ink-faint)' }}>Withdrawal order & tax</h3>
+          <div className="space-y-2">
+            {strat.map(s => {
+              const active = s.id === plan.strategy, best = Math.abs(s.lifetimeTax - bestTax) < 1;
+              return (
+                <div key={s.id} className="flex items-center justify-between rounded-2xl px-4 py-3"
+                     style={{ background: 'var(--color-canvas)', border: '1px solid ' + (active ? 'var(--color-calm)' : 'transparent') }}>
+                  <div className="pr-3">
+                    <div className="text-[0.86rem] font-semibold">{s.label}</div>
+                    <div className="text-[0.72rem]" style={{ color: 'var(--color-ink-faint)' }}>
+                      {active ? 'Your current choice' : 'Alternative'}{best ? ' · lowest lifetime tax' : ''}
+                    </div>
+                  </div>
+                  <div className="tnum font-bold text-right" style={{ color: best ? 'var(--color-calm-strong)' : 'var(--color-ink)' }}>{fmtK(s.lifetimeTax)}</div>
                 </div>
-                <div className="tnum font-bold" style={{ color: pots > 0 ? 'var(--color-calm-strong)' : 'var(--color-hope)' }}>{fmtK(pots)} left</div>
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
+          <p className="text-[0.72rem] mt-1.5" style={{ color: 'var(--color-ink-faint)' }}>Lifetime income tax across the whole plan. Change the order in Details → Plan.</p>
         </div>
+      )}
+
+      {/* ── Year by year ────────────────────────────────────────── */}
+      <div>
+        <div className="flex items-baseline justify-between mb-2">
+          <h3 className="text-[0.72rem] font-bold uppercase tracking-widest" style={{ color: 'var(--color-ink-faint)' }}>Year by year</h3>
+        </div>
+        <Segmented small value={tv} onChange={setTv} options={[
+          { value: 'combined', label: 'Combined' },
+          { value: 'A', label: plan.partnerA.name },
+          { value: 'B', label: plan.partnerB.name },
+        ]} />
+        <div className="mt-2 overflow-x-auto rounded-2xl" style={{ background: 'var(--color-canvas)' }}>
+          <table className="w-full text-[0.78rem]" style={{ borderCollapse: 'collapse', minWidth: 420 }}>
+            <thead>
+              <tr style={{ color: 'var(--color-ink-faint)' }}>
+                <th className="text-left font-semibold px-3 py-2">Year</th>
+                <th className="text-right font-semibold px-2 py-2">Start</th>
+                <th className="text-right font-semibold px-2 py-2">Drawn</th>
+                <th className="text-right font-semibold px-2 py-2">Return</th>
+                <th className="text-right font-semibold px-2 py-2">Tax</th>
+                <th className="text-right font-semibold px-3 py-2">Closing</th>
+              </tr>
+            </thead>
+            <tbody>
+              {table.map((r, i) => (
+                <tr key={r.year} style={{ borderTop: '1px solid var(--color-hairline)', background: i % 2 ? 'transparent' : 'color-mix(in srgb, var(--color-surface) 50%, transparent)' }}>
+                  <td className="px-3 py-2 tnum font-semibold whitespace-nowrap">{r.year} <span style={{ color: 'var(--color-ink-faint)' }}>· {r.age}</span></td>
+                  <td className="px-2 py-2 tnum text-right" style={{ color: 'var(--color-ink-dim)' }}>{fmtK(r.start)}</td>
+                  <td className="px-2 py-2 tnum text-right" style={{ color: 'var(--color-hope)' }}>−{fmtK(r.drawn)}</td>
+                  <td className="px-2 py-2 tnum text-right" style={{ color: r.ret >= 0 ? 'var(--color-calm-strong)' : 'var(--color-hope)' }}>{r.ret >= 0 ? '+' : '−'}{fmtK(Math.abs(r.ret))}</td>
+                  <td className="px-2 py-2 tnum text-right" style={{ color: 'var(--color-ink-dim)' }}>{fmtK(r.tax)}</td>
+                  <td className="px-3 py-2 tnum text-right font-bold" style={{ color: r.closing > 0 ? 'var(--color-ink)' : 'var(--color-hope)' }}>{fmtK(r.closing)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <p className="text-[0.72rem] mt-1.5" style={{ color: 'var(--color-ink-faint)' }}>
+          Today's money. Start − Drawn + Return = Closing. {tv === 'combined' ? 'Both pots and ISAs together.' : `${tv === 'A' ? plan.partnerA.name : plan.partnerB.name}'s pension and ISA only — State Pension and DB income sit outside the pot.`}
+        </p>
       </div>
     </div>
   );

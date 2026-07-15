@@ -134,9 +134,11 @@ for (const [t, m] of [['Details', 'Your details'], ['Explore', 'Explore'], ['Pea
 }
 
 await closeSheet();
-await tap('Poor'); await wait(700); const cP = await p.$$eval('b', e => e.map(x => x.textContent).find(t => /%/.test(t)) || '').catch(() => '');
-await tap('Positive'); await wait(700); const cB = await p.$$eval('b', e => e.map(x => x.textContent).find(t => /%/.test(t)) || '').catch(() => '');
-await check('30 lens changes confidence (Poor≠Positive)', () => cP !== cB);
+const mpath = () => p.$eval('svg path[stroke="var(--color-calm-strong)"]', e => e.getAttribute('d') || '').catch(() => '');
+// Click the segmented buttons specifically (the legend also contains "Poor").
+await p.locator('button:has-text("Poor")').first().click(); await wait(700); const cP = await mpath();
+await p.locator('button:has-text("Positive")').first().click(); await wait(700); const cB = await mpath();
+await check('30 lens reshapes the horizon (Poor≠Positive)', () => !!cP && cP !== cB);
 await tap('Base'); await wait(500);
 await check('31 Base lens, no crash', () => pe.length === 0);
 await check('32 exactly one visible h1', async () => (await visH1()) === 1);
@@ -158,8 +160,8 @@ await check('41 withdrawal-order options', async () => (await has('Pensions')) &
 await tap('ISAs'); await wait(400); await check('42 strategy switch, no crash', () => pe.length === 0);
 await tap('People'); await wait(400);
 await check('43 partner names present', async () => /Stuart|Carol/.test(await bodyT()));
-await check('44 pension pot field', () => has('Pension pot today'));
-await tap('More — State Pension, company pension'); await wait(500);
+await check('44 pension pot field', () => has('Workplace pension'));
+await tap('More — State Pension'); await wait(500);
 await check('45 accordion opens (State Pension age)', () => has('State Pension age'));
 await tap('Later'); await wait(400);
 await check('46 spending step-down toggle', () => has('Ease spending from'));

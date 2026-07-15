@@ -44,7 +44,7 @@ export default function Sheet({ open, onClose, title, children }: {
           >
             <div className="mx-auto mt-2.5 mb-3 h-[5px] w-10 rounded-full"
                  style={{ background: 'var(--color-hairline)' }} />
-            <div className="px-6 pt-1 max-h-[80vh] overflow-y-auto">
+            <div data-sheet-scroll className="px-6 pt-1 max-h-[80vh] overflow-y-auto">
               {title && <h2 className="text-[1.35rem] font-bold tracking-tight mb-4">{title}</h2>}
               {children}
             </div>

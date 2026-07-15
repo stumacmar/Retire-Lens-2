@@ -28,6 +28,8 @@
 :root { color-scheme: light; }
 * { -webkit-tap-highlight-color: transparent; }
 html, body, #root { height: 100%; }
+/* Keep the fixed bottom tab bar from ever covering content it scrolls to. */
+html { scroll-padding-bottom: 7rem; }
 body {
   margin: 0;
   font-family: var(--font-sans);

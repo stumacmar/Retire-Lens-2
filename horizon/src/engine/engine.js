@@ -169,10 +169,14 @@ export function createEngine() {
   }
 
   function phaseFactor(P, ageA) {
-    let f = 1;
-    if (P.phase1On && ageA >= P.phase1Age) f *= (1 - P.phase1Cut);
-    if (P.phase2On && ageA >= P.phase2Age) f *= (1 - P.phase2Cut);
-    return f;
+    // Step-downs are TOTAL reductions from the full retirement spend, not
+    // compounding cuts. At the later age you spend `phase2Cut` less than your
+    // baseline (marginal from baseline), not `phase2Cut` less than the already
+    // reduced phase-1 level. The deepest applicable tier wins.
+    let cut = 0;
+    if (P.phase1On && ageA >= P.phase1Age) cut = P.phase1Cut;
+    if (P.phase2On && ageA >= P.phase2Age) cut = Math.max(cut, P.phase2Cut);
+    return 1 - cut;
   }
 
   /** Net spending target for a calendar year, nominal. */
@@ -362,12 +366,13 @@ export function createEngine() {
 
       // Funding
       let grossA = 0, grossB = 0, tfcA = 0, tfcB = 0, isaDraw = 0, cashDraw = 0;
+      let isaDrawA = 0, isaDrawB = 0;
 
       const drawIsa = (amt) => {
         let rem = amt;
         const c = Math.min(cash, rem); cash -= c; cashDraw += c; rem -= c;
-        const fa = Math.min(isaA, rem); isaA -= fa; rem -= fa;
-        const fb = Math.min(isaB, rem); isaB -= fb; rem -= fb;
+        const fa = Math.min(isaA, rem); isaA -= fa; rem -= fa; isaDrawA += fa;
+        const fb = Math.min(isaB, rem); isaB -= fb; rem -= fb; isaDrawB += fb;
         isaDraw += (amt - rem) - c;
         return amt - rem;
       };
@@ -507,7 +512,7 @@ export function createEngine() {
         guaranteed: baseA + baseB,
         grossA, grossB, tfcA, tfcB,
         taxA, taxB, tax: totalTax,
-        isaDraw, cashDraw,
+        isaDraw, isaDrawA, isaDrawB, cashDraw,
         eventCost, eventInflow: eventIncome + eventInvested, eventLabels,
         target, netIncome, shortfall,
         potA, potB, isaA, isaB, cash, wealth,

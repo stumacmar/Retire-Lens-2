@@ -177,23 +177,24 @@ await tap('£43k'); await wait(150);
 await tap('Continue'); await wait(400);
 await p.fill('input[placeholder=You]', 'Stuart').catch(() => {});
 await acheck('U51 onboarding: name captured', async () => (await plan()).partnerA?.name === 'Stuart');
-await setField('Pension pot today', 600000);
+await setField('Workplace pension', 600000);
 await acheck('U52 onboarding: Stuart pension captured', async () => (await plan()).partnerA?.pension === 600000);
-await setField('Paying in monthly', 3000);
+await setField('Paying into your pension', 3000);
 await acheck('U53 onboarding: Stuart monthly captured', async () => (await plan()).partnerA?.monthlyPension === 3000);
 await setField('ISAs today', 47000);
 await acheck('U54 onboarding: Stuart ISA captured', async () => (await plan()).partnerA?.isa === 47000);
-await setField('Company / final-salary pension a year (0 if none)', 9000);
+await setField('final-salary (defined benefit) pension a year', 9000);
 await acheck('U55 onboarding: Stuart DB amount captured', async () => (await plan()).partnerA?.db === 9000);
 await acheck('U56 onboarding: Stuart DB start = retire year (the fix)', async () => { const P = await plan(); return P.partnerA.dbStartYear === P.retireYear; });
-await p.click('[role=switch]').catch(() => {}); await wait(300);
+// Target the partner switch by name (a DB-indexation switch may precede it now).
+await p.locator('[role=switch]:has-text("Planning with a partner")').click().catch(() => {}); await wait(300);
 await p.fill('input[placeholder=Partner]', 'Carol').catch(() => {});
 await acheck('U57 onboarding: partner name captured', async () => (await plan()).partnerB?.name === 'Carol');
-await setField('Their pension pot today', 46000);
+await setField('Their workplace pension', 46000);
 await acheck('U58 onboarding: Carol pension captured', async () => (await plan()).partnerB?.pension === 46000);
 await setField('Their ISAs today', 46000);
 await acheck('U59 onboarding: Carol ISA captured', async () => (await plan()).partnerB?.isa === 46000);
-await setField('Their company / final-salary pension a year (0 if none)', 5000);
+await setField('Their company / final-salary', 5000);
 await acheck('U60 onboarding: Carol DB captured (the reported bug)', async () => (await plan()).partnerB?.db === 5000);
 await acheck('U61 onboarding: Carol DB start = retire year', async () => { const P = await plan(); return P.partnerB.dbStartYear === P.retireYear; });
 await tap('See my horizon'); await wait(900);
@@ -204,14 +205,14 @@ await acheck('U63 answer renders after DB entry', async () => /spend about|gets 
 await wait(700);
 // Details: zero both DBs, confidence should drop (guaranteed income removed)
 await tap('Details'); await wait(500); await tap('People'); await wait(400);
-const accs = await p.$$('text=More — State Pension, company pension');
+const accs = await p.$$('text=More — State Pension');
 for (const a of accs) { await a.click().catch(() => {}); await wait(250); }
 await acheck('U64 Details: Stuart DB start-year field appears when DB>0', async () => (await p.locator('text=…starts in (year)').count()) >= 1);
 await acheck('U65 Details: DB indexation toggle appears when DB>0', async () => (await p.locator('text=…rises with inflation').count()) >= 1);
-await setField('Company / final-salary (DB) pension a year', 0); // this hits Stuart's (first match)
+await setField('final-salary (defined benefit) pension a year', 0); // this hits Stuart's (first match)
 await acheck('U66 Details: setting Stuart DB=0 updates plan', async () => (await plan()).partnerA?.db === 0);
 // set Stuart DB start year via UI (re-enter DB first)
-await setField('Company / final-salary (DB) pension a year', 11000);
+await setField('final-salary (defined benefit) pension a year', 11000);
 await wait(300);
 await acheck('U67 Details: re-entering Stuart DB updates plan', async () => (await plan()).partnerA?.db === 11000);
 await setField('…starts in (year)', 2036);
@@ -225,7 +226,7 @@ await acheck('U70 Details: State Pension amount → plan', async () => (await pl
 await setField('Paying into ISAs monthly', 200);
 await acheck('U71 Details: monthly ISA → plan', async () => (await plan()).partnerA?.monthlyIsa === 200);
 // Carol side (second card of the same label) — proves BOTH partners' DB works
-await setField('Company / final-salary (DB) pension a year', 7000, 1);
+await setField('final-salary (defined benefit) pension a year', 7000, 1);
 await acheck('U72 Details: Carol DB editable → plan (both partners work)', async () => (await plan()).partnerB?.db === 7000);
 
 // core plan fields

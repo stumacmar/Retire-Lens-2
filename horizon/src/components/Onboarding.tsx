@@ -83,11 +83,15 @@ export default function Onboarding({ plan, update, onDone, onExample }: {
             style={{ background: 'var(--color-canvas)', border: '1px solid var(--color-hairline)' }} />
         </label>
         <NumField label="Your birth year" value={plan.partnerA.birthYear} onChange={v => setA({ birthYear: v })} />
-        <MoneyField label="Pension pot today" value={plan.partnerA.pension} onChange={v => setA({ pension: v })} />
-        <MoneyField label="Paying in monthly" value={plan.partnerA.monthlyPension} onChange={v => setA({ monthlyPension: v })} />
-        <MoneyField label="ISAs today" value={plan.partnerA.isa} onChange={v => setA({ isa: v })} />
-        <MoneyField label="Company / final-salary pension a year (0 if none)" value={plan.partnerA.db}
+        <MoneyField label="Workplace pension (defined contribution) today" value={plan.partnerA.pension} onChange={v => setA({ pension: v })} />
+        <MoneyField label="Paying into your pension monthly" value={plan.partnerA.monthlyPension} onChange={v => setA({ monthlyPension: v })} />
+        <MoneyField label="Company / final-salary (defined benefit) pension a year (0 if none)" value={plan.partnerA.db}
           onChange={v => update((q: any) => ({ ...q, partnerA: { ...q.partnerA, db: v, dbStartYear: v > 0 ? q.retireYear : q.partnerA.dbStartYear } }))} />
+        {plan.partnerA.db > 0 && (
+          <div className="pt-0.5"><Toggle label="…and it rises with inflation" checked={!!plan.partnerA.dbIndexed} onChange={v => setA({ dbIndexed: v })} /></div>
+        )}
+        <MoneyField label="ISAs today" value={plan.partnerA.isa} onChange={v => setA({ isa: v })} />
+        <MoneyField label="Paying into ISAs monthly" value={plan.partnerA.monthlyIsa} onChange={v => setA({ monthlyIsa: v })} />
         <div className="pt-1"><Toggle label="Planning with a partner" checked={addPartner} onChange={setAddPartner} /></div>
         {addPartner && (
           <div className="space-y-3 pt-1">
@@ -99,11 +103,15 @@ export default function Onboarding({ plan, update, onDone, onExample }: {
                 style={{ background: 'var(--color-canvas)', border: '1px solid var(--color-hairline)' }} />
             </label>
             <NumField label="Their birth year" value={plan.partnerB.birthYear} onChange={v => setB({ birthYear: v })} />
-            <MoneyField label="Their pension pot today" value={plan.partnerB.pension} onChange={v => setB({ pension: v })} />
-            <MoneyField label="They pay in monthly" value={plan.partnerB.monthlyPension} onChange={v => setB({ monthlyPension: v })} />
-            <MoneyField label="Their ISAs today" value={plan.partnerB.isa} onChange={v => setB({ isa: v })} />
-            <MoneyField label="Their company / final-salary pension a year (0 if none)" value={plan.partnerB.db}
+            <MoneyField label="Their workplace pension (defined contribution) today" value={plan.partnerB.pension} onChange={v => setB({ pension: v })} />
+            <MoneyField label="Paying into their pension monthly" value={plan.partnerB.monthlyPension} onChange={v => setB({ monthlyPension: v })} />
+            <MoneyField label="Their company / final-salary (defined benefit) pension a year (0 if none)" value={plan.partnerB.db}
               onChange={v => update((q: any) => ({ ...q, partnerB: { ...q.partnerB, db: v, dbStartYear: v > 0 ? q.retireYear : q.partnerB.dbStartYear } }))} />
+            {plan.partnerB.db > 0 && (
+              <div className="pt-0.5"><Toggle label="…and it rises with inflation" checked={!!plan.partnerB.dbIndexed} onChange={v => setB({ dbIndexed: v })} /></div>
+            )}
+            <MoneyField label="Their ISAs today" value={plan.partnerB.isa} onChange={v => setB({ isa: v })} />
+            <MoneyField label="Paying into their ISAs monthly" value={plan.partnerB.monthlyIsa} onChange={v => setB({ monthlyIsa: v })} />
           </div>
         )}
       </div>

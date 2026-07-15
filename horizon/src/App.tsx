@@ -274,6 +274,24 @@ export default function App() {
         <WhatIf label={`${plan.partnerA.name} saves monthly`} out={fmt(plan.partnerA.monthlyPension)} onEdit={setEditing}
           min={0} max={5000} step={50} value={plan.partnerA.monthlyPension}
           onChange={v => update((p: any) => ({ ...p, partnerA: { ...p.partnerA, monthlyPension: v } }))} />
+        <div className="mt-5">
+          <span className="block text-[0.8rem] font-semibold mb-2" style={{ color: 'var(--color-ink-dim)' }}>Spending Style</span>
+          <Segmented small value={spendStyle} onChange={setSpendStyle} options={[
+            { value: 'gogo', label: 'Go-go', sub: 'eases at 75 & 82' },
+            { value: 'slowgo', label: 'Slow-go', sub: 'eases from 75' },
+            { value: 'nogo', label: 'No-go', sub: 'flat throughout' },
+          ]} />
+        </div>
+        {mc && hasMoney && (
+          <div className="mt-4 rounded-2xl px-4 py-3.5 flex items-center gap-4"
+               style={{ background: 'color-mix(in srgb, var(--color-sage) 16%, var(--color-surface))' }}>
+            <span className="tnum text-[1.7rem] font-extrabold tracking-tight" style={{ color: 'var(--color-sage-strong)' }}>{pct(mc.successProb)}</span>
+            <span>
+              <span className="block text-[0.82rem] font-semibold leading-snug">Confidence in sustaining your lifestyle</span>
+              <span className="block text-[0.7rem] mt-0.5" style={{ color: 'var(--color-ink-faint)' }}>Across {mc.nPaths} simulated market futures</span>
+            </span>
+          </div>
+        )}
       </section>
 
       {/* Desktop: the full inputs card from the design brief. */}
@@ -344,7 +362,7 @@ export default function App() {
       </div>
 
       {/* Desktop: three calm metrics along the bottom (per the design brief). */}
-      {hasMoney && <div className="hidden lg:flex gap-8 mt-8">
+      {hasMoney && <div className="flex flex-col lg:flex-row gap-3 lg:gap-8 mt-6 lg:mt-8">
         <DeskStat value={lasts ? `age ${plan.horizonAge}+` : `age ${dd.exhaustedAgeA}`} label="Sustainable to"
           desc={lasts ? 'Your income holds through your plan horizon in the central outlook.' : 'Where the pots run short on today’s settings — a lever away from safe.'}
           color={lasts ? 'var(--color-ocean)' : 'var(--color-hope)'} />

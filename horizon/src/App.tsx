@@ -28,8 +28,15 @@ export default function App() {
   const S = usePlan();
   const { plan, dd, acc, ddBear, ddBull, mc, estate, lens, setLens, update } = S;
   const [sheet, setSheet] = useState<Tab | null>(null);
+  const [detailsSect, setDetailsSect] = useState<'plan' | 'people' | 'later'>('plan');
   const [yearSel, setYearSel] = useState<number | null>(null);
   const [onboarded, setOnboarded] = useState(hasSavedPlan());
+
+  // A plan with no money in it is a blank canvas — show the invitation,
+  // not a broken chart and an alarming zero-confidence sentence.
+  const A = plan.partnerA, B = plan.partnerB;
+  const hasMoney = (A.pension + A.isa + A.monthlyPension + A.monthlyIsa + A.db
+    + B.pension + B.isa + B.monthlyPension + B.monthlyIsa + B.db + (plan.cash || 0)) > 0;
 
   const resetAll = () => {
     if (typeof window !== 'undefined' &&
@@ -66,6 +73,7 @@ export default function App() {
   // verified engine (never generic tips). Prompts for an adviser, not advice.
   const coach = useMemo(() => {
     const items: { t: string; b: string }[] = [];
+    if (!hasMoney) return items;   // nothing sensible to say about a blank plan
     try {
       const P = { ...plan, growth: plan.growthBase };
       // All Coach figures in today's money, like the rest of the app.
@@ -112,7 +120,7 @@ export default function App() {
       }
     } catch { /* the coach must never break the horizon */ }
     return items.slice(0, 3);
-  }, [plan, mc, estate, horizonYear]);
+  }, [plan, mc, estate, horizonYear, hasMoney]);
 
   // New visitor → the calm vision-first onboarding (all hooks run above first).
   if (!onboarded) {
@@ -137,11 +145,14 @@ export default function App() {
         <span className="text-[0.75rem] italic" style={{ color: 'var(--color-ink-faint)' }}>see your horizon</span>
       </header>
 
-      {/* The answer — the single most important line, instantly obvious. */}
+      {/* The answer — the single most important line, instantly obvious.
+          With no money in the plan yet, invite rather than alarm: a zero plan
+          is a blank canvas, not a crisis. */}
       <section className="pt-3">
         <p className="text-[0.85rem] font-semibold tracking-wide" style={{ color: 'var(--color-ink-dim)' }}>
           {plan.partnerA.name} &amp; {plan.partnerB.name}
         </p>
+        {hasMoney ? (<>
         <h1 className="mt-1 text-[1.85rem] leading-[1.18] font-extrabold tracking-tight">
           {lasts ? (
             <>You can spend about{' '}
@@ -156,6 +167,19 @@ export default function App() {
           Retiring {new Date(plan.retireYear, 3).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })}, at {ageAtRetire}.
           {mc && <> In about <b className="tnum" style={{ color: 'var(--color-ink)' }}>{Math.round(confAnim)}%</b> of possible futures, it holds.</>}
         </p>
+        </>) : (<>
+        <h1 className="mt-1 text-[1.85rem] leading-[1.18] font-extrabold tracking-tight">
+          Let&rsquo;s draw your horizon.
+        </h1>
+        <p className="mt-2.5 text-[0.95rem]" style={{ color: 'var(--color-ink-dim)' }}>
+          Add your pensions, ISAs and savings — the picture appears the moment you do, and it never leaves this device.
+        </p>
+        <button onClick={() => { setDetailsSect('people'); setSheet('details'); }}
+          className="mt-4 rounded-2xl px-6 py-3.5 font-bold text-[1rem] text-white active:scale-[0.98] transition-transform"
+          style={{ background: 'var(--color-calm)' }}>
+          Add your numbers
+        </button>
+        </>)}
       </section>
 
       {/* Desktop: inputs on the left, the horizon large on the right (mobile keeps
@@ -171,7 +195,7 @@ export default function App() {
       </div>
 
       {/* A quiet key so the shapes are legible — height is your total wealth. */}
-      <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 px-1 text-[0.72rem]" style={{ color: 'var(--color-ink-dim)' }}>
+      {hasMoney && <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 px-1 text-[0.72rem]" style={{ color: 'var(--color-ink-dim)' }}>
         <span className="flex items-center gap-1.5">
           <span style={{ width: 16, height: 3, borderRadius: 2, background: 'var(--color-ocean)', display: 'inline-block' }} /> Typical path
         </span>
@@ -185,7 +209,7 @@ export default function App() {
           <span style={{ width: 9, height: 9, borderRadius: 9, background: 'var(--color-hope)', display: 'inline-block' }} /> Money runs short
         </span>}
         <span style={{ color: 'var(--color-ink-faint)' }}>· height = total wealth · tap any year for detail</span>
-      </div>
+      </div>}
 
       <div className="mt-3">
         <Segmented value={lens} onChange={setLens} options={[
@@ -242,7 +266,7 @@ export default function App() {
       </div>
 
       {/* Desktop: three calm metrics along the bottom. */}
-      <div className="hidden lg:flex gap-8 mt-8">
+      {hasMoney && <div className="hidden lg:flex gap-8 mt-8">
         <DeskStat value={lasts ? `age ${plan.horizonAge}+` : `age ${dd.exhaustedAgeA}`} label="Money lasts to"
           desc={lasts ? 'Your income holds to your plan horizon in the central outlook.' : 'Where the pots run short on today’s settings — a lever away from safe.'}
           color={lasts ? 'var(--color-ocean)' : 'var(--color-hope)'} />
@@ -250,7 +274,7 @@ export default function App() {
           desc="What could pass to the people you love, in today’s money." color="var(--color-sage-strong)" />}
         {mc && <DeskStat value={pct(mc.successProb)} label="Futures where it holds"
           desc={`Across ${mc.nPaths} simulated market histories, lucky to unlucky.`} color="var(--color-calm-strong)" />}
-      </div>
+      </div>}
 
       <p className="mt-4 text-center text-[0.8rem]" style={{ color: 'var(--color-ink-faint)' }}>
         One possible future, not a promise. Your figures never leave this device.
@@ -263,14 +287,14 @@ export default function App() {
                     borderTop: '0.5px solid var(--color-hairline)' }}>
         <div className="flex justify-around mx-auto max-w-[560px]">
           <TabButton icon={<Sunrise size={24} />} label="Horizon" active={sheet === null} onClick={() => setSheet(null)} />
-          <TabButton icon={<SlidersHorizontal size={24} />} label="Details" active={sheet === 'details'} onClick={() => setSheet('details')} />
+          <TabButton icon={<SlidersHorizontal size={24} />} label="Details" active={sheet === 'details'} onClick={() => { setDetailsSect('plan'); setSheet('details'); }} />
           <TabButton icon={<Compass size={24} />} label="Explore" active={sheet === 'explore'} onClick={() => setSheet('explore')} />
           <TabButton icon={<ShieldCheck size={24} />} label="Peace" active={sheet === 'peace'} onClick={() => setSheet('peace')} />
         </div>
       </nav>
 
       <Sheet open={sheet === 'details'} onClose={() => setSheet(null)} title="Your details">
-        <DetailsBody plan={plan} update={update} reset={resetAll} />
+        <DetailsBody plan={plan} update={update} reset={resetAll} initial={detailsSect} />
       </Sheet>
       <Sheet open={sheet === 'explore'} onClose={() => setSheet(null)} title="Explore">
         <ExploreBody plan={plan} dd={dd} estate={estate} mc={mc} />
@@ -369,7 +393,7 @@ function PartnerCard({ p, name, set }: { p: any; name: 'partnerA' | 'partnerB'; 
   );
 }
 
-function DetailsBody({ plan, update, reset }: { plan: any; update: (p: any) => void; reset: () => void }) {
+function DetailsBody({ plan, update, reset, initial }: { plan: any; update: (p: any) => void; reset: () => void; initial?: 'plan' | 'people' | 'later' }) {
   const setA = (patch: any) => update((p: any) => ({ ...p, partnerA: { ...p.partnerA, ...patch } }));
   const setB = (patch: any) => update((p: any) => ({ ...p, partnerB: { ...p.partnerB, ...patch } }));
   const setInherit = (patch: any) => update((p: any) => ({ ...p, inherit: { ...p.inherit, ...patch } }));
@@ -378,7 +402,7 @@ function DetailsBody({ plan, update, reset }: { plan: any; update: (p: any) => v
   }));
   const setEvent = (i: number, patch: any) => update((p: any) => ({ ...p, lifeEvents: p.lifeEvents.map((e: any, j: number) => j === i ? { ...e, ...patch } : e) }));
   const delEvent = (i: number) => update((p: any) => ({ ...p, lifeEvents: p.lifeEvents.filter((_: any, j: number) => j !== i) }));
-  const [sect, setSect] = useState<'plan' | 'people' | 'later'>('plan');
+  const [sect, setSect] = useState<'plan' | 'people' | 'later'>(initial ?? 'plan');
 
   // Landing on a fresh segment should start at its top, not mid-scroll.
   useEffect(() => { document.querySelector('[data-sheet-scroll]')?.scrollTo({ top: 0 }); }, [sect]);

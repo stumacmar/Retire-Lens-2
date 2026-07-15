@@ -90,7 +90,11 @@ export default function HorizonViz(props: HorizonProps) {
     };
   }, [base, low, high, startYear, retireYear, horizonYear, retireWealth, dryYear]);
 
-  const sc = scrub != null ? g.byYear.get(scrub) : undefined;
+  // Below ~£10k of peak wealth the axis and scrub are meaningless noise —
+  // treat the chart as a blank canvas and invite instead.
+  const emptyPlan = g.maxW < 10000;
+
+  const sc = !emptyPlan && scrub != null ? g.byYear.get(scrub) : undefined;
   const scToday = sc ? sc.v / Math.pow(1 + inflation, (scrub as number) - startYear) : 0;
   const scLabel = sc
     ? `${scrub}${birthYear != null ? ` · age ${(scrub as number) - birthYear}` : ''} · ${fmtK(scToday)}`
@@ -102,6 +106,7 @@ export default function HorizonViz(props: HorizonProps) {
          aria-label="Your wealth over retirement, a calm horizon. Drag to read a year, tap for detail."
          style={{ display: 'block', touchAction: 'pan-y', cursor: 'crosshair' }}
          onPointerDown={e => {
+           if (g.maxW < 10000) return;
            svgRef.current?.setPointerCapture(e.pointerId);
            downX.current = e.clientX; moved.current = 0;
            setScrub(yearAt(e.clientX));
@@ -136,7 +141,7 @@ export default function HorizonViz(props: HorizonProps) {
       {/* Dawn sky wash */}
       <rect x="0" y="0" width={W} height={H - padBottom + 10} fill="url(#sky)" />
       {/* Faint £ gridlines — a quiet sense of scale (the y-axis) */}
-      {g.yTicks.map((t, i) => (
+      {!emptyPlan && g.yTicks.map((t, i) => (
         <g key={i}>
           <line x1="0" y1={t.y} x2={W} y2={t.y} stroke="var(--color-hairline)" strokeWidth="1"
                 opacity={i === 0 ? 0.9 : 0.4} strokeDasharray={i === 0 ? undefined : '2 5'} />
@@ -160,10 +165,17 @@ export default function HorizonViz(props: HorizonProps) {
                 S ${W} ${H - padBottom + 4}, ${W} ${H - padBottom + 10} L ${W} ${H} L 0 ${H} Z`}
             fill="var(--color-sage)" opacity="0.14" />
       {/* Where the money runs short — a gentle marker, never alarming */}
-      {g.dryX != null && (
+      {g.dryX != null && !emptyPlan && (
         <g>
           <line x1={g.dryX} y1={padTop} x2={g.dryX} y2={g.groundY} stroke="var(--color-hope)" strokeWidth="1" strokeDasharray="3 4" opacity="0.6" />
           <circle cx={g.dryX} cy={g.groundY} r="3.5" fill="var(--color-hope)" />
+        </g>
+      )}
+      {/* Blank canvas: a quiet invitation instead of a broken axis */}
+      {emptyPlan && (
+        <g textAnchor="middle" fill="var(--color-ink-faint)">
+          <text x={W / 2} y={H / 2 - 30} fontSize="12" fontWeight="650" fill="var(--color-ink-dim)">Your horizon will draw itself</text>
+          <text x={W / 2} y={H / 2 - 13} fontSize="10.5">as soon as you add your pensions, ISAs or savings.</text>
         </g>
       )}
       {/* Scrub guide — run a finger along the future */}

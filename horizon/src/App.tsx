@@ -554,26 +554,26 @@ function ExploreBody({ plan, dd, estate, mc }: { plan: any; dd: Drawdown; estate
           { value: 'B', label: plan.partnerB.name },
         ]} />
         <div className="mt-2 overflow-x-auto rounded-2xl" style={{ background: 'var(--color-canvas)' }}>
-          <table className="w-full text-[0.78rem]" style={{ borderCollapse: 'collapse', minWidth: 420 }}>
+          <table className="w-full text-[0.72rem]" style={{ borderCollapse: 'collapse', minWidth: 348 }}>
             <thead>
               <tr style={{ color: 'var(--color-ink-faint)' }}>
-                <th className="text-left font-semibold px-3 py-2">Year</th>
-                <th className="text-right font-semibold px-2 py-2">Start</th>
-                <th className="text-right font-semibold px-2 py-2">Drawn</th>
-                <th className="text-right font-semibold px-2 py-2">Return</th>
-                <th className="text-right font-semibold px-2 py-2">Tax</th>
-                <th className="text-right font-semibold px-3 py-2">Closing</th>
+                <th className="text-left font-semibold pl-2.5 pr-1 py-2">Year</th>
+                <th className="text-right font-semibold px-1 py-2">Start</th>
+                <th className="text-right font-semibold px-1 py-2">Drawn</th>
+                <th className="text-right font-semibold px-1 py-2">Return</th>
+                <th className="text-right font-semibold px-1 py-2">Tax</th>
+                <th className="text-right font-semibold pl-1 pr-2.5 py-2">Closing</th>
               </tr>
             </thead>
             <tbody>
               {table.map((r, i) => (
                 <tr key={r.year} style={{ borderTop: '1px solid var(--color-hairline)', background: i % 2 ? 'transparent' : 'color-mix(in srgb, var(--color-surface) 50%, transparent)' }}>
-                  <td className="px-3 py-2 tnum font-semibold whitespace-nowrap">{r.year} <span style={{ color: 'var(--color-ink-faint)' }}>· {r.age}</span></td>
-                  <td className="px-2 py-2 tnum text-right" style={{ color: 'var(--color-ink-dim)' }}>{fmtK(r.start)}</td>
-                  <td className="px-2 py-2 tnum text-right" style={{ color: 'var(--color-hope)' }}>−{fmtK(r.drawn)}</td>
-                  <td className="px-2 py-2 tnum text-right" style={{ color: r.ret >= 0 ? 'var(--color-calm-strong)' : 'var(--color-hope)' }}>{r.ret >= 0 ? '+' : '−'}{fmtK(Math.abs(r.ret))}</td>
-                  <td className="px-2 py-2 tnum text-right" style={{ color: 'var(--color-ink-dim)' }}>{fmtK(r.tax)}</td>
-                  <td className="px-3 py-2 tnum text-right font-bold" style={{ color: r.closing > 0 ? 'var(--color-ink)' : 'var(--color-hope)' }}>{fmtK(r.closing)}</td>
+                  <td className="pl-2.5 pr-1 py-2 tnum font-semibold whitespace-nowrap">{r.year}<span className="text-[0.64rem]" style={{ color: 'var(--color-ink-faint)' }}> ·{r.age}</span></td>
+                  <td className="px-1 py-2 tnum text-right whitespace-nowrap" style={{ color: 'var(--color-ink-dim)' }}>{fmtK(r.start)}</td>
+                  <td className="px-1 py-2 tnum text-right whitespace-nowrap" style={{ color: 'var(--color-hope)' }}>−{fmtK(r.drawn)}</td>
+                  <td className="px-1 py-2 tnum text-right whitespace-nowrap" style={{ color: r.ret >= 0 ? 'var(--color-calm-strong)' : 'var(--color-hope)' }}>{r.ret >= 0 ? '+' : '−'}{fmtK(Math.abs(r.ret))}</td>
+                  <td className="px-1 py-2 tnum text-right whitespace-nowrap" style={{ color: 'var(--color-ink-dim)' }}>{fmtK(r.tax)}</td>
+                  <td className="pl-1 pr-2.5 py-2 tnum text-right font-bold whitespace-nowrap" style={{ color: r.closing > 0 ? 'var(--color-ink)' : 'var(--color-hope)' }}>{fmtK(r.closing)}</td>
                 </tr>
               ))}
             </tbody>

@@ -124,6 +124,15 @@ export default function App() {
           });
         }
       }
+      for (const who of [plan.partnerA, plan.partnerB]) {
+        if (((who.pclsTaken || 0) > 0 || (who.crystallised || 0) > 0) && who.monthlyPension * 12 > 10000) {
+          items.push({
+            t: `${who.name} may be limited to £10,000 of pension saving a year`,
+            b: 'Flexibly accessing a pension can trigger the Money Purchase Annual Allowance, capping tax-relieved contributions at £10,000 a year. The current contributions exceed that — one to confirm with an adviser.',
+          });
+          break;
+        }
+      }
       if (mc && mc.successProb < 0.75) {
         const now = E.drawdown(P);
         const oneMore = E.drawdown({ ...P, retireYear: plan.retireYear + 1 });
@@ -480,6 +489,14 @@ function PartnerCard({ p, name, set }: { p: any; name: 'partnerA' | 'partnerB'; 
       </>}
       <MoneyField label="ISAs today" value={who.isa} onChange={v => set({ isa: v })} />
       <MoneyField label="Paying into ISAs monthly" value={who.monthlyIsa} onChange={v => set({ monthlyIsa: v })} />
+      <Accordion title="Already taken tax-free cash or accessed the pension?">
+        <MoneyField label="Tax-free cash already taken" value={who.pclsTaken || 0} onChange={v => set({ pclsTaken: v })} />
+        <MoneyField label="Pension already accessed (crystallised)" value={who.crystallised || 0} onChange={v => set({ crystallised: v })} />
+        <p className="text-[0.78rem] leading-relaxed" style={{ color: 'var(--color-ink-faint)' }}>
+          Only the untouched part of a pension can still pay 25% tax-free, and the lifetime cash cap
+          (£268,275) is reduced by what you've already taken. New contributions rebuild the untouched part.
+        </p>
+      </Accordion>
       <Accordion title="More — State Pension">
         <NumField label="Birth year" value={who.birthYear} onChange={v => set({ birthYear: v })} />
         <NumField label="State Pension age" value={who.spAge} onChange={v => set({ spAge: v })} />
@@ -529,9 +546,21 @@ function DetailsBody({ plan, update, reset, initial }: { plan: any; update: (p: 
         <span className="block text-[0.8rem] font-semibold" style={{ color: 'var(--color-ink-dim)' }}>Tax-free cash</span>
         <Segmented small value={plan.pclsMode} onChange={(v: string) => update({ pclsMode: v })}
           options={[{ value: 'none', label: 'Take none' }, { value: 'phased', label: 'A little each year' }, { value: 'upfront', label: 'All at once' }]} />
+        <p className="text-[0.78rem] leading-relaxed" style={{ color: 'var(--color-ink-faint)' }}>
+          {plan.pclsMode === 'none' && 'Leaves the 25% invested inside the pension — simplest, but every withdrawal is fully taxable.'}
+          {plan.pclsMode === 'phased' && 'Crystallises a slice with each withdrawal, so a quarter of each draw is tax-free — often the most tax-efficient, if you still have untouched pension and cap.'}
+          {plan.pclsMode === 'upfront' && 'Takes all available tax-free cash at retirement and reinvests it — certainty now, but future growth on it sits outside the pension wrapper.'}
+          {' '}Capped at £268,275 across your lifetime, less anything already taken (set under People).
+        </p>
         <span className="block text-[0.8rem] font-semibold pt-1" style={{ color: 'var(--color-ink-dim)' }}>Which pot first</span>
         <Segmented small value={plan.strategy} onChange={(v: string) => update({ strategy: v })}
           options={[{ value: 'sippfirst', label: 'Pensions' }, { value: 'isafirst', label: 'ISAs' }, { value: 'pafirst', label: 'Allowances' }]} />
+        <p className="text-[0.78rem] leading-relaxed" style={{ color: 'var(--color-ink-faint)' }}>
+          {plan.strategy === 'sippfirst' && 'Draws pensions up to the cheap tax bands first, topping up from ISAs — keeps ISAs growing tax-free for later.'}
+          {plan.strategy === 'isafirst' && 'Spends ISAs first and defers pensions — can preserve pension tax shelter, at the cost of using up the tax-free pot early.'}
+          {plan.strategy === 'pafirst' && 'Takes only what the free personal allowances cover from pensions, then ISAs — minimises tax now, draws pensions slowly.'}
+          {' '}This is an advice-grade decision — compare the lifetime tax of all three in Explore, and talk it through with an adviser before acting.
+        </p>
       </Group>
       <div className="pt-2">
         <button onClick={reset}

@@ -139,6 +139,18 @@ check('E52 Scotland: region flag leaves rUK maths untouched',
 mono('E53 Scotland region changes lifetime tax (bands differ)',
   P => { P.tax = { ...P.tax, region: 'scotland' }; }, 'tax', 0);
 
+// Already-accessed pensions (prior PCLS / crystallisation)
+{
+  const Pph = base(); Pph.pclsMode = 'phased';
+  const t0 = E.drawdown(Pph).lifetimeTax;
+  const P1 = base(); P1.pclsMode = 'phased';
+  P1.partnerA = { ...P1.partnerA, pclsTaken: 165000, crystallised: 400000 };
+  const t1 = E.drawdown(P1).lifetimeTax;
+  check('E54 prior PCLS + crystallisation reduce the tax-free benefit (tax ↑)', t1 > t0 + 1);
+  const tn = E.drawdown(base()).lifetimeTax;
+  check('E55 partially-accessed phased still beats take-none (tax between)', t1 <= tn + 0.5);
+}
+
 // ─────────── PART B · UI actually captures inputs into the plan ───────────
 const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml', '.json': 'application/json' };
 const server = http.createServer((req, res) => {
@@ -238,6 +250,14 @@ await setField('State Pension a year', 11500);
 await acheck('U70 Details: State Pension amount → plan', async () => (await plan()).partnerA?.spAmount === 11500);
 await setField('Paying into ISAs monthly', 200);
 await acheck('U71 Details: monthly ISA → plan', async () => (await plan()).partnerA?.monthlyIsa === 200);
+// Already-accessed block (open the accordion, set both fields)
+await tap('Already taken tax-free cash'); await wait(400);
+await setField('Tax-free cash already taken', 165000);
+await acheck('U72a Details: prior PCLS → plan', async () => (await plan()).partnerA?.pclsTaken === 165000);
+await setField('Pension already accessed (crystallised)', 400000);
+await acheck('U72b Details: crystallised amount → plan', async () => (await plan()).partnerA?.crystallised === 400000);
+await setField('Tax-free cash already taken', 0);
+await setField('Pension already accessed (crystallised)', 0);
 // Carol side (second card of the same label) — proves BOTH partners' DB works
 await setField('final-salary (defined benefit) pension a year', 7000, 1);
 await acheck('U72 Details: Carol DB editable → plan (both partners work)', async () => (await plan()).partnerB?.db === 7000);

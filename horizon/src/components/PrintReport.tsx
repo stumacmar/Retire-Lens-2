@@ -72,6 +72,10 @@ export default function PrintReport({ plan, acc, dd, mc, estate }: {
       <Row k="Monthly ISA contribution" v={`${fmt(p.monthlyIsa)} (${fmt(p.monthlyIsa * 12)}/yr)`} />
       <Row k="Defined-benefit pension (a year)" v={p.db > 0 ? `${fmt(p.db)}, from ${p.dbStartYear}, ${p.dbIndexed ? 'rises with inflation' : 'level (no indexation)'}` : 'None'} />
       <Row k="State Pension" v={`${fmt(p.spAmount)}/yr from age ${p.spAge}`} />
+      {((p.pclsTaken || 0) > 0 || (p.crystallised || 0) > 0) && <>
+        <Row k="Tax-free cash already taken" v={fmt(p.pclsTaken || 0)} />
+        <Row k="Pension already accessed (crystallised)" v={fmt(p.crystallised || 0)} />
+      </>}
     </>
   );
 
@@ -295,8 +299,10 @@ export default function PrintReport({ plan, acc, dd, mc, estate }: {
             money and indexed to their year by the inflation assumption. Outputs are shown in today's money unless labelled.</li>
           <li><b>Contributions &amp; growth.</b> Monthly pension and ISA contributions are added through the accumulation
             years with mid-year growth; pots then grow at the scenario rate and are drawn down in retirement.</li>
-          <li><b>Tax-free cash.</b> PCLS is a balance-sheet transfer, not income; capped at {fmt(plan.tax.pclsCap)}.
-            If taken upfront it is assumed reinvested alongside ISAs.</li>
+          <li><b>Tax-free cash.</b> PCLS is a balance-sheet transfer, not income; capped at {fmt(plan.tax.pclsCap)}
+            across a lifetime, less anything already taken. Only the untouched (uncrystallised) part of a pension
+            — including new contributions — can pay further tax-free cash. If taken upfront it is assumed
+            reinvested alongside ISAs.</li>
           <li><b>Guaranteed income first.</b> Each year, State and defined-benefit pensions are counted first; the
             shortfall to your target is met from pots in the chosen order.</li>
           <li><b>Defined-benefit pensions</b> are held level unless you mark them as rising with inflation.</li>

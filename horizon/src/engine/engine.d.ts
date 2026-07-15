@@ -2,6 +2,8 @@ export interface Partner {
   name: string; birthYear: number; spAge: number; spAmount: number;
   pension: number; isa: number; monthlyPension: number; monthlyIsa: number;
   db: number; dbStartYear: number; dbIndexed: boolean;
+  pclsTaken?: number;      // tax-free cash already taken (reduces the lifetime cap)
+  crystallised?: number;   // pot already accessed; pays no further tax-free cash
 }
 export interface Plan {
   startYear: number; retireYear: number; horizonAge: number;

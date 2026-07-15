@@ -63,6 +63,8 @@ export function createEngine() {
         db: 0,
         dbStartYear: 2030,
         dbIndexed: false,
+        pclsTaken: 0,           // tax-free cash already taken (reduces the cap)
+        crystallised: 0,        // pot already accessed; pays no further TFC
       },
       partnerB: {
         name: 'Carol',
@@ -76,6 +78,8 @@ export function createEngine() {
         db: 5000,               // defined benefit, per year
         dbStartYear: 2030,
         dbIndexed: false,       // workbook drawdown holds DB flat
+        pclsTaken: 0,
+        crystallised: 0,
       },
 
       growth: 0.07,             // the live slider rate
@@ -290,16 +294,20 @@ export function createEngine() {
     const g = growthOverride == null ? P.growth : growthOverride;
     const years = [];
     const warnings = [];
-    let a = { pension: P.partnerA.pension, isa: P.partnerA.isa };
-    let b = { pension: P.partnerB.pension, isa: P.partnerB.isa };
+    let a = { pension: P.partnerA.pension, isa: P.partnerA.isa,
+              uncrys: clamp0(P.partnerA.pension - (P.partnerA.crystallised || 0)) };
+    let b = { pension: P.partnerB.pension, isa: P.partnerB.isa,
+              uncrys: clamp0(P.partnerB.pension - (P.partnerB.crystallised || 0)) };
     let cash = P.cash;
     const events = effectiveEvents(P);
 
     for (let y = P.startYear; y < P.retireYear; y++) {
       const contribHalf = 1 + g / 2;
       a.pension = a.pension * (1 + g) + P.partnerA.monthlyPension * 12 * contribHalf;
+      a.uncrys = a.uncrys * (1 + g) + P.partnerA.monthlyPension * 12 * contribHalf;
       a.isa = a.isa * (1 + g) + P.partnerA.monthlyIsa * 12 * contribHalf;
       b.pension = b.pension * (1 + g) + P.partnerB.monthlyPension * 12 * contribHalf;
+      b.uncrys = b.uncrys * (1 + g) + P.partnerB.monthlyPension * 12 * contribHalf;
       b.isa = b.isa * (1 + g) + P.partnerB.monthlyIsa * 12 * contribHalf;
       cash = cash * (1 + (P.cashGrowth || 0));   // cash earns its own fixed rate
       // Pre-retirement life events, today's money indexed to the year
@@ -323,15 +331,15 @@ export function createEngine() {
       }
       years.push({
         year: y + 1,
-        pensionA: a.pension, isaA: a.isa,
-        pensionB: b.pension, isaB: b.isa,
+        pensionA: a.pension, isaA: a.isa, uncrysA: a.uncrys,
+        pensionB: b.pension, isaB: b.isa, uncrysB: b.uncrys,
         cash,
         house: P.house * Math.pow(1 + P.houseGrowth, y + 1 - P.startYear),
       });
     }
     const last = years[years.length - 1] || {
-      year: P.startYear, pensionA: a.pension, isaA: a.isa,
-      pensionB: b.pension, isaB: b.isa, cash,
+      year: P.startYear, pensionA: a.pension, isaA: a.isa, uncrysA: a.uncrys,
+      pensionB: b.pension, isaB: b.isa, uncrysB: b.uncrys, cash,
       house: P.house,
     };
     return { years, atRetirement: last, warnings };
@@ -353,17 +361,22 @@ export function createEngine() {
     let potA = acc.pensionA, potB = acc.pensionB;
     let isaA = acc.isaA, isaB = acc.isaB;
     let cash = acc.cash || 0;
-    let pclsUsedA = 0, pclsUsedB = 0;
+    // Only the uncrystallised (never-accessed) part of a pot can still pay
+    // tax-free cash, and the lifetime cap is reduced by anything already taken.
+    let uncrysA = acc.uncrysA != null ? acc.uncrysA : potA;
+    let uncrysB = acc.uncrysB != null ? acc.uncrysB : potB;
+    let pclsUsedA = P.partnerA.pclsTaken || 0;
+    let pclsUsedB = P.partnerB.pclsTaken || 0;
 
     // PCLS upfront: crystallise everything at retirement, take 25% capped.
     // Proceeds are treated as invested alongside the ISAs so they keep
     // compounding; any further tax on that wrapper is out of scope and
     // noted in the UI.
     if (P.pclsMode === 'upfront') {
-      const tfcA0 = Math.min(potA * 0.25, T.pclsCap);
-      potA -= tfcA0; isaA += tfcA0; pclsUsedA = tfcA0;
-      const tfcB0 = Math.min(potB * 0.25, T.pclsCap);
-      potB -= tfcB0; isaB += tfcB0; pclsUsedB = tfcB0;
+      const tfcA0 = Math.min(uncrysA * 0.25, clamp0(T.pclsCap - pclsUsedA));
+      potA -= tfcA0; isaA += tfcA0; pclsUsedA += tfcA0; uncrysA = 0;
+      const tfcB0 = Math.min(uncrysB * 0.25, clamp0(T.pclsCap - pclsUsedB));
+      potB -= tfcB0; isaB += tfcB0; pclsUsedB += tfcB0; uncrysB = 0;
     }
 
     const endYear = P.partnerA.birthYear + P.horizonAge;
@@ -423,34 +436,37 @@ export function createEngine() {
         const pot = isA ? potA : potB;
         if (pot <= 0.01 || wantNet <= 0.01) return 0;
         const base = (isA ? baseA : baseB) + (isA ? grossA : grossB);
+        const uncrys = isA ? uncrysA : uncrysB;
         const pclsLeft = clamp0(T.pclsCap - (isA ? pclsUsedA : pclsUsedB));
-        const phased = P.pclsMode === 'phased' && pclsLeft > 0;
+        const phased = P.pclsMode === 'phased' && pclsLeft > 0 && uncrys > 0.01;
         const ceil = grossCeil == null ? Infinity : clamp0(grossCeil - base);
         if (ceil <= 0.01) return 0;
         if (phased) {
+          const tfFor = (gr) => Math.min(Math.min(gr, uncrys) * 0.25, pclsLeft);
           let lo = 0, hi = Math.min(pot, wantNet * 2 + 100000);
           for (let i = 0; i < 50; i++) {
             const mid = (lo + hi) / 2;
-            const tf = Math.min(mid * 0.25, pclsLeft);
+            const tf = tfFor(mid);
             const taxable = mid - tf;
             const net = tf + taxable - (taxOn(base + taxable, T) - taxOn(base, T));
             if (net < wantNet) lo = mid; else hi = mid;
           }
           let gross = Math.min((lo + hi) / 2, pot);
           // Respect the ceiling on the taxable part
-          if (gross - Math.min(gross * 0.25, pclsLeft) > ceil) {
+          if (gross - tfFor(gross) > ceil) {
             gross = Math.min(gross, ceil / 0.75);
           }
-          const tf = Math.min(gross * 0.25, pclsLeft);
+          const tf = tfFor(gross);
           const taxable = gross - tf;
           const net = tf + taxable - (taxOn(base + taxable, T) - taxOn(base, T));
-          if (isA) { pclsUsedA += tf; tfcA += tf; grossA += taxable; potA -= gross; }
-          else { pclsUsedB += tf; tfcB += tf; grossB += taxable; potB -= gross; }
+          if (isA) { pclsUsedA += tf; tfcA += tf; grossA += taxable; potA -= gross; uncrysA = clamp0(uncrysA - gross); }
+          else { pclsUsedB += tf; tfcB += tf; grossB += taxable; potB -= gross; uncrysB = clamp0(uncrysB - gross); }
           return net;
         }
         let gross = Math.min(grossForNet(wantNet, base, T), pot, ceil);
         const net = gross - (taxOn(base + gross, T) - taxOn(base, T));
-        if (isA) { grossA += gross; potA -= gross; } else { grossB += gross; potB -= gross; }
+        if (isA) { grossA += gross; potA -= gross; uncrysA = clamp0(uncrysA - gross); }
+        else { grossB += gross; potB -= gross; uncrysB = clamp0(uncrysB - gross); }
         return net;
       };
 
@@ -539,6 +555,7 @@ export function createEngine() {
 
       // Grow remaining pots, then land invested windfalls with half growth
       potA *= (1 + g); potB *= (1 + g);
+      uncrysA *= (1 + g); uncrysB *= (1 + g);
       isaA *= (1 + g); isaB *= (1 + g);
       cash *= (1 + (P.cashGrowth || 0));   // cash grows at its own fixed rate
       if (eventInvested > 0) isaA += eventInvested * (1 + g / 2);
@@ -926,6 +943,29 @@ export function createEngine() {
     // Stuart's allowance at zero tax.
     const P = defaults();
     const dd = drawdown(P);
+    // Already-accessed pensions: a fully used cash cap or fully crystallised
+    // pots must remove ALL tax-free benefit (phased == take-none), and prior
+    // PCLS must never increase it.
+    const Pph = { ...defaults(), pclsMode: 'phased' };
+    const taxNone = drawdown(defaults()).lifetimeTax;
+    const taxCapUsed = drawdown({ ...Pph,
+      partnerA: { ...Pph.partnerA, pclsTaken: T.pclsCap },
+      partnerB: { ...Pph.partnerB, pclsTaken: T.pclsCap } }).lifetimeTax;
+    check('Used-up cash cap: phased == take-none tax', taxCapUsed, taxNone, 1);
+    // (new contributions are always uncrystallised, so stop them to isolate)
+    const noContrib = (q) => ({ ...q, monthlyPension: 0 });
+    const taxNoneNC = drawdown({ ...defaults(),
+      partnerA: noContrib({ ...defaults().partnerA }),
+      partnerB: noContrib({ ...defaults().partnerB }) }).lifetimeTax;
+    const taxCrys = drawdown({ ...Pph,
+      partnerA: noContrib({ ...Pph.partnerA, crystallised: 9e9 }),
+      partnerB: noContrib({ ...Pph.partnerB, crystallised: 9e9 }) }).lifetimeTax;
+    check('Fully crystallised pots (no new savings): phased == take-none tax', taxCrys, taxNoneNC, 1);
+    const taxPhased = drawdown(Pph).lifetimeTax;
+    const taxPartial = drawdown({ ...Pph,
+      partnerA: { ...Pph.partnerA, pclsTaken: 165000, crystallised: 400000 } }).lifetimeTax;
+    check('Prior PCLS + crystallisation raises lifetime tax vs untouched (order preserved)',
+      (taxPhased <= taxPartial + 0.5 && taxPartial <= taxNone + 0.5) ? 0 : 1, 0, 0.1);
     const y0 = dd.rows[0];
     check('Year one: free allowance used before basic rate (tax below merged single-person)',
       y0.tax < taxOn(y0.guaranteed + y0.grossA + y0.grossB, T) ? 0 : 1, 0, 0.5);

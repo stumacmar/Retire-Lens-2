@@ -24,10 +24,31 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: horizon/package-lock.json
+
+      # Build the Horizon app from source and stage it into the site root, so
+      # the deployed assets always match the committed source (no hand-copied,
+      # possibly-stale build artifacts). Other pages (app.html, story.html, v4/)
+      # are left untouched.
+      - name: Build Horizon and stage into site root
+        run: |
+          cd horizon && npm ci && npm run build && cd ..
+          rm -f assets/index-*.js assets/index-*.css horizon-app/assets/index-*.js horizon-app/assets/index-*.css
+          mkdir -p assets horizon-app/assets
+          cp horizon/dist/index.html index.html
+          cp horizon/dist/assets/* assets/
+          cp horizon/dist/index.html horizon-app/index.html
+          cp horizon/dist/assets/* horizon-app/assets/
+
       - name: Setup Pages
         uses: actions/configure-pages@v4
-      
+
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:

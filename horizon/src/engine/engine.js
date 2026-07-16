@@ -65,6 +65,10 @@ export function createEngine() {
         dbIndexed: false,
         pclsTaken: 0,           // tax-free cash already taken (reduces the cap)
         crystallised: 0,        // pot already accessed; pays no further TFC
+        tfcRate: 0.25,          // blended tax-free entitlement on untouched funds
+        income: 0,              // annual income, for the allowance-taper warning
+        dbTransferValue: 0,     // CETV if quoted (display/report only)
+        pots: [],               // optional scheme list (UI aggregates into the above)
       },
       partnerB: {
         name: 'Carol',
@@ -80,6 +84,10 @@ export function createEngine() {
         dbIndexed: false,       // workbook drawdown holds DB flat
         pclsTaken: 0,
         crystallised: 0,
+        tfcRate: 0.25,
+        income: 0,
+        dbTransferValue: 0,
+        pots: [],
       },
 
       growth: 0.07,             // the live slider rate
@@ -367,15 +375,17 @@ export function createEngine() {
     let uncrysB = acc.uncrysB != null ? acc.uncrysB : potB;
     let pclsUsedA = P.partnerA.pclsTaken || 0;
     let pclsUsedB = P.partnerB.pclsTaken || 0;
+    const rateA = Math.min(1, Math.max(0, P.partnerA.tfcRate == null ? 0.25 : P.partnerA.tfcRate));
+    const rateB = Math.min(1, Math.max(0, P.partnerB.tfcRate == null ? 0.25 : P.partnerB.tfcRate));
 
     // PCLS upfront: crystallise everything at retirement, take 25% capped.
     // Proceeds are treated as invested alongside the ISAs so they keep
     // compounding; any further tax on that wrapper is out of scope and
     // noted in the UI.
     if (P.pclsMode === 'upfront') {
-      const tfcA0 = Math.min(uncrysA * 0.25, clamp0(T.pclsCap - pclsUsedA));
+      const tfcA0 = Math.min(uncrysA * rateA, clamp0(T.pclsCap - pclsUsedA));
       potA -= tfcA0; isaA += tfcA0; pclsUsedA += tfcA0; uncrysA = 0;
-      const tfcB0 = Math.min(uncrysB * 0.25, clamp0(T.pclsCap - pclsUsedB));
+      const tfcB0 = Math.min(uncrysB * rateB, clamp0(T.pclsCap - pclsUsedB));
       potB -= tfcB0; isaB += tfcB0; pclsUsedB += tfcB0; uncrysB = 0;
     }
 
@@ -437,12 +447,13 @@ export function createEngine() {
         if (pot <= 0.01 || wantNet <= 0.01) return 0;
         const base = (isA ? baseA : baseB) + (isA ? grossA : grossB);
         const uncrys = isA ? uncrysA : uncrysB;
+        const rate = isA ? rateA : rateB;
         const pclsLeft = clamp0(T.pclsCap - (isA ? pclsUsedA : pclsUsedB));
-        const phased = P.pclsMode === 'phased' && pclsLeft > 0 && uncrys > 0.01;
+        const phased = P.pclsMode === 'phased' && pclsLeft > 0 && uncrys > 0.01 && rate > 0;
         const ceil = grossCeil == null ? Infinity : clamp0(grossCeil - base);
         if (ceil <= 0.01) return 0;
         if (phased) {
-          const tfFor = (gr) => Math.min(Math.min(gr, uncrys) * 0.25, pclsLeft);
+          const tfFor = (gr) => Math.min(Math.min(gr, uncrys) * rate, pclsLeft);
           let lo = 0, hi = Math.min(pot, wantNet * 2 + 100000);
           for (let i = 0; i < 50; i++) {
             const mid = (lo + hi) / 2;
@@ -966,6 +977,21 @@ export function createEngine() {
       partnerA: { ...Pph.partnerA, pclsTaken: 165000, crystallised: 400000 } }).lifetimeTax;
     check('Prior PCLS + crystallisation raises lifetime tax vs untouched (order preserved)',
       (taxPhased <= taxPartial + 0.5 && taxPartial <= taxNone + 0.5) ? 0 : 1, 0, 0.1);
+    // Protected / zero tax-free entitlements (blended rate)
+    const small = () => { const q = defaults();
+      q.partnerA = { ...q.partnerA, pension: 200000, monthlyPension: 0 };
+      q.partnerB = { ...q.partnerB, pension: 150000, monthlyPension: 0, db: 0 };
+      q.targetNet = 40000; return q; };
+    const smPh = { ...small(), pclsMode: 'phased' };
+    const tRate0 = drawdown({ ...smPh,
+      partnerA: { ...smPh.partnerA, tfcRate: 0 },
+      partnerB: { ...smPh.partnerB, tfcRate: 0 } }).lifetimeTax;
+    check('Zero tax-free entitlement: phased == take-none tax', tRate0, drawdown(small()).lifetimeTax, 1);
+    const t25 = drawdown(smPh).lifetimeTax;
+    const t50 = drawdown({ ...smPh,
+      partnerA: { ...smPh.partnerA, tfcRate: 0.5 },
+      partnerB: { ...smPh.partnerB, tfcRate: 0.5 } }).lifetimeTax;
+    check('Protected 50% entitlement cuts tax vs standard 25%', t50 < t25 - 1 ? 0 : 1, 0, 0.1);
     const y0 = dd.rows[0];
     check('Year one: free allowance used before basic rate (tax below merged single-person)',
       y0.tax < taxOn(y0.guaranteed + y0.grossA + y0.grossB, T) ? 0 : 1, 0, 0.5);

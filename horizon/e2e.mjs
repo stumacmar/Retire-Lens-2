@@ -151,6 +151,20 @@ mono('E53 Scotland region changes lifetime tax (bands differ)',
   check('E55 partially-accessed phased still beats take-none (tax between)', t1 <= tn + 0.5);
 }
 
+// Protected / scheme-specific tax-free entitlements (blended rate)
+{
+  const sm = base(); sm.pclsMode = 'phased'; sm.targetNet = 40000;
+  sm.partnerA = { ...sm.partnerA, pension: 200000, monthlyPension: 0 };
+  sm.partnerB = { ...sm.partnerB, pension: 150000, monthlyPension: 0, db: 0 };
+  const t25 = E.drawdown(sm).lifetimeTax;
+  const t50 = E.drawdown({ ...sm,
+    partnerA: { ...sm.partnerA, tfcRate: 0.5 }, partnerB: { ...sm.partnerB, tfcRate: 0.5 } }).lifetimeTax;
+  check('E56 protected 50% TFC entitlement cuts lifetime tax vs 25%', t50 < t25 - 1);
+  const t0 = E.drawdown({ ...sm,
+    partnerA: { ...sm.partnerA, tfcRate: 0 }, partnerB: { ...sm.partnerB, tfcRate: 0 } }).lifetimeTax;
+  check('E57 zero TFC entitlement == take-none tax', Math.abs(t0 - E.drawdown({ ...sm, pclsMode: 'none' }).lifetimeTax) < 1);
+}
+
 // ─────────── PART B · UI actually captures inputs into the plan ───────────
 const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml', '.json': 'application/json' };
 const server = http.createServer((req, res) => {
@@ -258,6 +272,18 @@ await setField('Pension already accessed (crystallised)', 400000);
 await acheck('U72b Details: crystallised amount → plan', async () => (await plan()).partnerA?.crystallised === 400000);
 await setField('Tax-free cash already taken', 0);
 await setField('Pension already accessed (crystallised)', 0);
+// Advanced mode: scheme list aggregates into the plan
+await p.locator('[role=switch]:has-text("Advanced")').click().catch(() => {}); await wait(350);
+await acheck('U72c Details: advanced mode → plan', async () => (await plan()).advanced === true);
+await tap('Add a scheme'); await wait(300);
+await acheck('U72d first scheme seeds from the existing pot', async () => {
+  const P = await plan(); return (P.partnerA.pots || []).length === 1 && P.partnerA.pots[0].value === P.partnerA.pension; });
+await setField('Value', 250000);
+await acheck('U72e scheme edit aggregates into the pension total', async () => (await plan()).partnerA?.pension === 250000);
+await tap('Add a scheme'); await wait(300);
+await setField('Value', 100000, 1);
+await acheck('U72f two schemes sum into the pot (350k)', async () => (await plan()).partnerA?.pension === 350000);
+await p.locator('[role=switch]:has-text("Advanced")').click().catch(() => {}); await wait(300);
 // Carol side (second card of the same label) — proves BOTH partners' DB works
 await setField('final-salary (defined benefit) pension a year', 7000, 1);
 await acheck('U72 Details: Carol DB editable → plan (both partners work)', async () => (await plan()).partnerB?.db === 7000);

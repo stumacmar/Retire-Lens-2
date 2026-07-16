@@ -4,6 +4,10 @@ export interface Partner {
   db: number; dbStartYear: number; dbIndexed: boolean;
   pclsTaken?: number;      // tax-free cash already taken (reduces the lifetime cap)
   crystallised?: number;   // pot already accessed; pays no further tax-free cash
+  tfcRate?: number;        // blended tax-free entitlement on untouched funds (default 0.25)
+  income?: number;         // annual income, for the allowance-taper warning
+  dbTransferValue?: number; // CETV if quoted (display/report only)
+  pots?: any[];            // optional scheme list (UI aggregates into the fields above)
 }
 export interface Plan {
   startYear: number; retireYear: number; horizonAge: number;

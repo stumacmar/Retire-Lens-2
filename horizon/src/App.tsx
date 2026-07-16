@@ -125,10 +125,26 @@ export default function App() {
         }
       }
       for (const who of [plan.partnerA, plan.partnerB]) {
-        if (((who.pclsTaken || 0) > 0 || (who.crystallised || 0) > 0) && who.monthlyPension * 12 > 10000) {
+        const annual = who.monthlyPension * 12;
+        const accessed = (who.pclsTaken || 0) > 0 || (who.crystallised || 0) > 0;
+        const income = who.income || 0;
+        const tapered = income > 260000 ? Math.max(10000, 60000 - (income - 260000) / 2) : 60000;
+        const allowance = accessed ? Math.min(10000, tapered) : tapered;
+        if (annual > allowance) {
           items.push({
-            t: `${who.name} may be limited to £10,000 of pension saving a year`,
-            b: 'Flexibly accessing a pension can trigger the Money Purchase Annual Allowance, capping tax-relieved contributions at £10,000 a year. The current contributions exceed that — one to confirm with an adviser.',
+            t: `${who.name}'s pension saving may exceed the ~${fmtK(allowance)} annual allowance`,
+            b: accessed
+              ? 'Flexibly accessing a pension can trigger the Money Purchase Annual Allowance (£10,000 a year of tax-relieved saving). The current contributions exceed that — one to confirm with an adviser.'
+              : 'High incomes taper the £60,000 annual allowance down to as little as £10,000. Contributions above it can trigger a tax charge — worth an adviser check. The projection itself is unchanged.',
+          });
+          break;
+        }
+      }
+      for (const who of [plan.partnerA, plan.partnerB]) {
+        if ((who.db || 0) > 0 && (who.dbTransferValue || 0) > 0) {
+          items.push({
+            t: `${who.name}'s DB transfer value is ~${((who.dbTransferValue || 0) / who.db).toFixed(0)}× the annual pension`,
+            b: 'For context only: giving up index-linked guaranteed income is rarely right, and transfers over £30,000 legally require regulated financial advice. The plan models the pension as kept.',
           });
           break;
         }
@@ -476,11 +492,71 @@ function Group({ title, children }: { title: string; children: React.ReactNode }
   );
 }
 
-function PartnerCard({ p, name, set }: { p: any; name: 'partnerA' | 'partnerB'; set: (patch: any) => void }) {
+// Aggregate a scheme list into what the tax engine needs: total value, total
+// accessed, and a blended tax-free rate weighted by untouched value.
+function aggregatePots(pots: any[]) {
+  const val = (q: any) => Number(q.value) || 0;
+  const acc = (q: any) => Math.min(Number(q.accessed) || 0, val(q));
+  const unc = (q: any) => Math.max(0, val(q) - acc(q));
+  const totalUnc = pots.reduce((s, q) => s + unc(q), 0);
+  return {
+    pension: pots.reduce((s, q) => s + val(q), 0),
+    crystallised: pots.reduce((s, q) => s + acc(q), 0),
+    tfcRate: totalUnc > 0
+      ? pots.reduce((s, q) => s + ((Number(q.tfcPct) || 25) / 100) * unc(q), 0) / totalUnc
+      : 0.25,
+  };
+}
+
+function SchemeList({ who, set }: { who: any; set: (patch: any) => void }) {
+  const pots = who.pots || [];
+  const commit = (next: any[]) => set({ pots: next, ...aggregatePots(next) });
+  const edit = (i: number, patch: any) => commit(pots.map((q: any, j: number) => (j === i ? { ...q, ...patch } : q)));
+  const add = () => commit([...pots, pots.length === 0
+    ? { label: 'Scheme 1', value: who.pension || 0, accessed: who.crystallised || 0, tfcPct: 25 }
+    : { label: `Scheme ${pots.length + 1}`, value: 0, accessed: 0, tfcPct: 25 }]);
+  const del = (i: number) => commit(pots.filter((_: any, j: number) => j !== i));
+  return (
+    <div className="rounded-2xl p-3 space-y-3" style={{ background: 'var(--color-canvas)' }}>
+      <div className="flex items-baseline justify-between gap-2">
+        <span className="text-[0.8rem] font-semibold" style={{ color: 'var(--color-ink-dim)' }}>Pension schemes (DC)</span>
+        {pots.length > 0 && (
+          <span className="tnum text-[0.72rem] text-right" style={{ color: 'var(--color-ink-faint)' }}>
+            total {fmtK(who.pension || 0)} · untouched {fmtK(Math.max(0, (who.pension || 0) - (who.crystallised || 0)))} · tax-free {Math.round((who.tfcRate ?? 0.25) * 100)}%
+          </span>
+        )}
+      </div>
+      {pots.map((q: any, i: number) => (
+        <div key={i} className="rounded-xl p-3 space-y-2" style={{ background: 'var(--color-surface)', border: '1px solid var(--color-hairline)' }}>
+          <div className="flex items-center gap-2">
+            <input className="flex-1 bg-transparent outline-none font-semibold text-[0.92rem]" value={q.label}
+              onChange={e => edit(i, { label: e.target.value })} aria-label="Scheme name" />
+            <button onClick={() => del(i)} aria-label="Remove scheme" style={{ color: 'var(--color-ink-faint)' }}><X size={15} /></button>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <MoneyField label="Value" value={q.value || 0} onChange={v => edit(i, { value: v })} />
+            <MoneyField label="Already accessed" value={q.accessed || 0} onChange={v => edit(i, { accessed: v })} />
+          </div>
+          <NumField label="Tax-free entitlement (25 unless protected)" value={q.tfcPct ?? 25} suffix="%" onChange={v => edit(i, { tfcPct: v })} />
+        </div>
+      ))}
+      <button onClick={add} className="flex items-center justify-center gap-1.5 w-full rounded-xl py-2.5 text-[0.85rem] font-semibold"
+        style={{ background: 'var(--color-surface)', color: 'var(--color-calm-strong)', border: '1px solid var(--color-hairline)' }}>
+        <Plus size={15} /> Add a scheme
+      </button>
+    </div>
+  );
+}
+
+function PartnerCard({ p, name, set, adv }: { p: any; name: 'partnerA' | 'partnerB'; set: (patch: any) => void; adv?: boolean }) {
   const who = p[name];
+  const hasPots = (who.pots || []).length > 0;
   return (
     <Group title={who.name}>
-      <MoneyField label="Workplace pension (defined contribution) today" value={who.pension} onChange={v => set({ pension: v })} />
+      {!(adv && hasPots) &&
+        <MoneyField label="Workplace pension (defined contribution) today" value={who.pension}
+          onChange={v => set({ pension: v, pots: [], tfcRate: 0.25 })} />}
+      {adv && <SchemeList who={who} set={set} />}
       <MoneyField label="Paying into pension monthly" value={who.monthlyPension} onChange={v => set({ monthlyPension: v })} />
       <MoneyField label="Company / final-salary (defined benefit) pension a year" value={who.db} onChange={v => set({ db: v })} />
       {who.db > 0 && <>
@@ -489,9 +565,19 @@ function PartnerCard({ p, name, set }: { p: any; name: 'partnerA' | 'partnerB'; 
       </>}
       <MoneyField label="ISAs today" value={who.isa} onChange={v => set({ isa: v })} />
       <MoneyField label="Paying into ISAs monthly" value={who.monthlyIsa} onChange={v => set({ monthlyIsa: v })} />
+      {adv && <>
+        <MoneyField label="Annual income (for the pension-allowance taper)" value={who.income || 0} onChange={v => set({ income: v })} />
+        {who.db > 0 && <MoneyField label="DB transfer value (CETV), if quoted" value={who.dbTransferValue || 0} onChange={v => set({ dbTransferValue: v })} />}
+      </>}
       <Accordion title="Already taken tax-free cash or accessed the pension?">
         <MoneyField label="Tax-free cash already taken" value={who.pclsTaken || 0} onChange={v => set({ pclsTaken: v })} />
-        <MoneyField label="Pension already accessed (crystallised)" value={who.crystallised || 0} onChange={v => set({ crystallised: v })} />
+        {adv && hasPots ? (
+          <p className="text-[0.78rem]" style={{ color: 'var(--color-ink-faint)' }}>
+            Accessed amounts come from your scheme list above ({fmtK(who.crystallised || 0)} in total).
+          </p>
+        ) : (
+          <MoneyField label="Pension already accessed (crystallised)" value={who.crystallised || 0} onChange={v => set({ crystallised: v })} />
+        )}
         <p className="text-[0.78rem] leading-relaxed" style={{ color: 'var(--color-ink-faint)' }}>
           Only the untouched part of a pension can still pay 25% tax-free, and the lifetime cash cap
           (£268,275) is reduced by what you've already taken. New contributions rebuild the untouched part.
@@ -575,8 +661,14 @@ function DetailsBody({ plan, update, reset, initial }: { plan: any; update: (p: 
       </>}
 
       {sect === 'people' && <>
-      <PartnerCard p={plan} name="partnerA" set={setA} />
-      <PartnerCard p={plan} name="partnerB" set={setB} />
+      <div>
+        <Toggle label="Advanced — schemes, allowances & transfer values" checked={!!plan.advanced} onChange={v => update({ advanced: v })} />
+        <p className="text-[0.78rem] mt-1" style={{ color: 'var(--color-ink-faint)' }}>
+          For multiple pensions with different histories, protected tax-free cash, the allowance taper and DB transfer values.
+        </p>
+      </div>
+      <PartnerCard p={plan} name="partnerA" set={setA} adv={!!plan.advanced} />
+      <PartnerCard p={plan} name="partnerB" set={setB} adv={!!plan.advanced} />
       </>}
 
       {sect === 'later' && <>

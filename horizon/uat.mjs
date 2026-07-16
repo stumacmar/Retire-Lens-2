@@ -167,6 +167,7 @@ await tap('ISAs'); await wait(400); await check('42 strategy switch, no crash', 
 await tap('People'); await wait(400);
 await check('43 partner names present', async () => /Stuart|Carol/.test(await bodyT()));
 await check('44 pension pot field', () => has('Workplace pension'));
+await check('44b advanced-mode toggle present', () => has('Advanced'));
 await tap('More — State Pension'); await wait(500);
 await check('45 accordion opens (State Pension age)', () => has('State Pension age'));
 await tap('Later'); await wait(400);

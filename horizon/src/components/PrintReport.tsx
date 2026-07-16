@@ -76,6 +76,10 @@ export default function PrintReport({ plan, acc, dd, mc, estate }: {
         <Row k="Tax-free cash already taken" v={fmt(p.pclsTaken || 0)} />
         <Row k="Pension already accessed (crystallised)" v={fmt(p.crystallised || 0)} />
       </>}
+      {(p.pots || []).length > 0 && <Row k="Schemes" v={(p.pots as any[]).map((q: any) =>
+        `${q.label}: ${fmt(q.value || 0)}${(q.accessed || 0) > 0 ? ` (accessed ${fmt(q.accessed)})` : ''}${(q.tfcPct ?? 25) !== 25 ? ` · TFC ${q.tfcPct}%` : ''}`).join(' · ')} />}
+      {(p.income || 0) > 0 && <Row k="Annual income (for allowance taper)" v={fmt(p.income)} />}
+      {(p.dbTransferValue || 0) > 0 && <Row k="DB transfer value (CETV)" v={fmt(p.dbTransferValue)} />}
     </>
   );
 
@@ -302,7 +306,10 @@ export default function PrintReport({ plan, acc, dd, mc, estate }: {
           <li><b>Tax-free cash.</b> PCLS is a balance-sheet transfer, not income; capped at {fmt(plan.tax.pclsCap)}
             across a lifetime, less anything already taken. Only the untouched (uncrystallised) part of a pension
             — including new contributions — can pay further tax-free cash. If taken upfront it is assumed
-            reinvested alongside ISAs.</li>
+            reinvested alongside ISAs. Protected scheme entitlements are blended into one tax-free rate per
+            person, weighted by untouched value.</li>
+          <li><b>Allowances.</b> The annual allowance, its taper for high incomes and the MPAA are flagged as
+            warnings; they are not modelled as contribution caps or tax charges in the projection.</li>
           <li><b>Guaranteed income first.</b> Each year, State and defined-benefit pensions are counted first; the
             shortfall to your target is met from pots in the chosen order.</li>
           <li><b>Defined-benefit pensions</b> are held level unless you mark them as rising with inflation.</li>

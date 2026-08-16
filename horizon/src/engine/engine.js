@@ -117,6 +117,11 @@ export function createEngine() {
       strategy: 'sippfirst',    // 'sippfirst' | 'isafirst' | 'pafirst'
       pclsMode: 'none',         // 'none' | 'upfront' | 'phased'
 
+      // How the money is run, chosen up front. null means not yet chosen, so
+      // the app asks once. Purely a record of the choice: the maths follows
+      // from `architecture` below.
+      approach: null,           // null | 'traditional' | 'derisking'
+
       // ── Retirement architecture (optional overlay, default OFF) ────────
       // Models a real plan architecture rather than one blended growth rate:
       //   · a gilt ladder holding N years of net need (the "envelopes")
@@ -885,6 +890,7 @@ export function createEngine() {
   function assessStructure(P, opts) {
     opts = opts || {};
     const n = opts.paths || 500;
+    const wantDrivers = opts.drivers !== false;
     const seed = P.mcSeed || 42;                 // same seed both sides: same markets
     const AR = archOf(P);
     const on = runMonteCarlo({ ...P, architecture: { ...AR, on: true } }, n, seed);
@@ -900,10 +906,10 @@ export function createEngine() {
 
     // Which part of the structure did the work? Same seed, one piece removed.
     const piece = (patch) => runMonteCarlo({ ...P, architecture: { ...AR, on: true, ...patch } }, n, seed).ceSpend;
-    const drivers = [
+    const drivers = wantDrivers ? [
       { key: 'rules', label: 'Written spending rules', worth: on.ceSpend - piece({ rulesOn: false }) },
       { key: 'ladder', label: 'The gilt ladder', worth: on.ceSpend - piece({ ladderYears: 0 }) },
-    ].sort((a, b) => b.worth - a.worth);
+    ].sort((a, b) => b.worth - a.worth) : [];
 
     return {
       paths: n, riskAversion: on.riskAversion,

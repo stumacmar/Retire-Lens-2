@@ -15,6 +15,8 @@ export interface Plan {
   growth: number; growthBear: number; growthBase: number; growthBull: number;
   inflation: number; mcPaths: number; mcSeed: number;
   targetNet: number; spendingPlanOn: boolean;
+  approach?: 'traditional' | 'derisking' | null;
+  architecture?: any;
   phase1Age: number; phase1Cut: number; phase1On: boolean;
   phase2Age: number; phase2Cut: number; phase2On: boolean;
   strategy: string; pclsMode: string;

@@ -10,6 +10,7 @@ import Sheet from './components/Sheet';
 import Accordion from './components/Accordion';
 import Onboarding from './components/Onboarding';
 import PrintReport from './components/PrintReport';
+import Approach, { DERISKING_ARCHITECTURE } from './components/Approach';
 import { MoneyField, NumField, PctField, Toggle, Segmented } from './components/Field';
 
 // Continuous wealth series (today → horizon) from the engine output.
@@ -186,8 +187,14 @@ export default function App() {
     return (
       <Onboarding plan={plan} update={update}
         onDone={() => { update((p: any) => ({ ...p })); setOnboarded(true); }}
-        onExample={() => { update(() => E.defaults()); setOnboarded(true); }} />
+        onExample={() => { update(() => ({ ...E.defaults(), approach: 'traditional' })); setOnboarded(true); }} />
     );
+  }
+
+  // The framing choice, asked once — including for plans saved before it
+  // existed, which is why it lives here rather than inside onboarding.
+  if (plan.approach == null) {
+    return <Approach plan={plan} update={update} onDone={() => { /* plan now carries the choice */ }} />;
   }
 
   return (
@@ -500,21 +507,17 @@ function WhatIf({ label, out, min, max, step, value, onChange, onEdit }: {
 // ── Plan structure: the architecture controls ───────────────────────────
 // A real plan is not one growth rate. It is a shape: safe money for the next
 // few years, a growth engine behind it, and written rules for when to trim.
-const ARCH_PRESET = {
-  on: true,
-  ladderYears: 7, refill: 'whenUp', refillMin: 0,
-  equityReal: 0.05, equitySd: 0.16, goldReal: 0.01, goldSd: 0.14, goldPct: 0.15,
-  giltReal: 0.015,
-  rulesOn: true, longevityAge: 95,
-  cutBelow: 0.90, cutBy: 0.10, raiseAbove: 1.25, raiseBy: 0.05, raiseLagYears: 2,
-  floorMult: 0.75, capMult: 1.25,
-  parachuteOn: true, parachuteBelow: 0.75, parachuteFrom: 80, parachuteFraction: 0.5,
-  annuityOn: false, careOn: false, stressPath: 'none',
-};
+const ARCH_PRESET = DERISKING_ARCHITECTURE;
 
 function ArchitectureSection({ plan, update }: { plan: any; update: (p: any) => void }) {
   const A = plan.architecture || {};
-  const set = (patch: any) => update((p: any) => ({ ...p, architecture: { ...p.architecture, ...patch } }));
+  // Keep the recorded approach in step with the switch, so the two can never
+  // disagree about what the plan is doing.
+  const set = (patch: any) => update((p: any) => ({
+    ...p,
+    ...(patch.on === undefined ? {} : { approach: patch.on ? 'derisking' : 'traditional' }),
+    architecture: { ...p.architecture, ...patch },
+  }));
   const on = !!A.on;
   return (
     <>

@@ -197,6 +197,14 @@ mono('E53 Scotland region changes lifetime tax (bands differ)',
     ['clear', 'modest', 'marginal', 'against'].includes(w.verdict));
 }
 
+// The up-front choice records itself and drives the maths
+{
+  const P = base();
+  check('E75 a fresh plan has no approach recorded yet', E.freshStart().approach == null);
+  check('E76 approach does not disturb the projection',
+    Math.abs(E.drawdown({ ...P, approach: 'derisking' }).endWealth - E.drawdown(P).endWealth) < 0.01);
+}
+
 // Protected / scheme-specific tax-free entitlements (blended rate)
 {
   const sm = base(); sm.pclsMode = 'phased'; sm.targetNet = 40000;
@@ -283,6 +291,13 @@ await setField('Their company / final-salary', 5000);
 await acheck('U60 onboarding: Carol DB captured (the reported bug)', async () => (await plan()).partnerB?.db === 5000);
 await acheck('U61 onboarding: Carol DB start = retire year', async () => { const P = await plan(); return P.partnerB.dbStartYear === P.retireYear; });
 await tap('See my horizon'); await wait(900);
+// The framing choice now sits between setup and the horizon
+await acheck('U60a approach screen appears before the horizon',
+  async () => /How should the money be run/i.test(await p.$eval('h1', e => e.textContent).catch(() => '')));
+await tap('De-risking'); await wait(900);
+await acheck('U60b choosing de-risking records the approach', async () => (await plan()).approach === 'derisking');
+await acheck('U60c choosing de-risking arms the architecture', async () => (await plan()).architecture?.on === true);
+await acheck('U60d de-risking uses the 7-year ladder', async () => (await plan()).architecture?.ladderYears === 7);
 await acheck('U62 completes to Horizon with DB captured for both', async () => { const P = await plan(); return P.partnerA.db === 9000 && P.partnerB.db === 5000; });
 await acheck('U63 answer renders after DB entry', async () => /spend about|gets tight/i.test(await p.$eval('h1', e => e.textContent).catch(() => '')));
 

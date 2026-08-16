@@ -121,6 +121,11 @@ await p.click('[role=switch]').catch(() => {}); await wait(300);
 await check('16 partner reveals fields', async () => (await p.$$('input[inputmode=decimal]')).length >= 4);
 await check('17 See-my-horizon button', () => has('See my horizon'));
 await tap('See my horizon'); await wait(900);
+// The framing choice, asked once before the horizon
+await check('17b approach screen asks how the money is run', async () => /How should the money be run/i.test(await h1()));
+await check('17c traditional option offered', () => has('Traditional'));
+await check('17d de-risking option offered', () => has('De-risking'));
+await tap('Traditional'); await wait(900);
 await check('18 lands on the Horizon', async () => /spend about|draw your horizon|gets tight/i.test(await h1()));
 await check('19 bottom tab bar visible', () => has('Horizon'));
 await check('20 multi-step onboarding completed', () => true);

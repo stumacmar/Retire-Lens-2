@@ -153,6 +153,9 @@ export function createEngine() {
         parachuteOn: false, parachuteBelow: 0.75, parachuteFrom: 80, parachuteFraction: 0.5,
         // Deterministic stress path applied to the growth engine
         stressPath: 'none',     // 'none' | 'japan' | 'gfc' | 'stagflation'
+        // How much a lean year hurts, for the worth-it verdict. Standard
+        // constant-relative-risk-aversion: 2 relaxed, 4 typical, 8 cautious.
+        riskAversion: 4,
       },
 
       // Inheritance as a first-class assumption. Amount is today's money.
@@ -873,6 +876,42 @@ export function createEngine() {
     return { base, baseReal, tests };
   }
 
+  // ── Is the structure worth it? ───────────────────────────────────────
+  // Survival alone cannot answer this: a rule that trims spending scores as
+  // a "success" precisely for cutting what you live on. So both plans are
+  // judged on the spending they actually deliver, priced with a standard
+  // risk-averse utility, and the legacy difference is reported alongside
+  // rather than hidden inside one score.
+  function assessStructure(P, opts) {
+    opts = opts || {};
+    const n = opts.paths || 500;
+    const seed = P.mcSeed || 42;                 // same seed both sides: same markets
+    const AR = archOf(P);
+    const on = runMonteCarlo({ ...P, architecture: { ...AR, on: true } }, n, seed);
+    const off = runMonteCarlo({ ...P, architecture: { ...AR, on: false } }, n, seed);
+
+    const planTargetReal = P.targetNet;
+    const ceGain = on.ceSpend - off.ceSpend;
+    const ceGainPct = planTargetReal > 0 ? ceGain / planTargetReal : 0;
+    const legacyDelta = on.legacyP50Real - off.legacyP50Real;
+
+    const mag = Math.abs(ceGainPct);
+    const verdict = ceGain <= 0 ? 'against' : mag >= 0.05 ? 'clear' : mag >= 0.015 ? 'modest' : 'marginal';
+
+    // Which part of the structure did the work? Same seed, one piece removed.
+    const piece = (patch) => runMonteCarlo({ ...P, architecture: { ...AR, on: true, ...patch } }, n, seed).ceSpend;
+    const drivers = [
+      { key: 'rules', label: 'Written spending rules', worth: on.ceSpend - piece({ rulesOn: false }) },
+      { key: 'ladder', label: 'The gilt ladder', worth: on.ceSpend - piece({ ladderYears: 0 }) },
+    ].sort((a, b) => b.worth - a.worth);
+
+    return {
+      paths: n, riskAversion: on.riskAversion,
+      on, off, ceGain, ceGainPct, legacyDelta, verdict, drivers,
+      planTargetReal,
+    };
+  }
+
   // ── Architecture comparison: does the structure actually earn its keep? ─
   // Runs the same plan four ways so the UI never has to assert a benefit it
   // has not measured: no structure, structure, structure without the ladder,
@@ -1073,7 +1112,16 @@ export function createEngine() {
     const goldNomMean = (1 + AR.goldReal) * (1 + P.inflation) - 1;
     const spendMults = [];
 
+    // Scoring the outcome that actually matters: the spending delivered.
+    // Utility is standard CRRA, so a lean year hurts more than a plump year
+    // helps — which is the whole reason anyone builds a structure.
+    const gamma = Math.max(0, AR.riskAversion == null ? 4 : AR.riskAversion);
+    const SPEND_FLOOR = 2000;      // keeps utility finite in a ruined year
+    let utilSum = 0, utilN = 0;
+    const avgSpends = [], worstRatios = [], leanShares = [];
+
     for (let p = 0; p < nPaths; p++) {
+      let pathSpend = 0, pathYears = 0, pathWorstRatio = 1, pathLeanYears = 0;
       let potA = acc.pensionA, potB = acc.pensionB;
       let isa = acc.isaA + acc.isaB;
       let cash = acc.cash || 0;
@@ -1110,7 +1158,8 @@ export function createEngine() {
           else if (ev.invest) isa += amt;
           else eventNet += amt;
         }
-        const target = targetForYear(P, year) * spendMult;
+        const planTarget = targetForYear(P, year);      // what the plan intends
+        const target = planTarget * spendMult;          // what the rules allow
         if (archOn && AR.careOn && ageA >= AR.careFromAge && ageA < AR.careFromAge + AR.careYears) {
           eventNet -= clamp0(AR.careAnnual) * infl;
         }
@@ -1158,6 +1207,21 @@ export function createEngine() {
             need -= net;
           }
         }
+        // What this year actually paid for, in today's money. A year trimmed
+        // by the rules counts as reduced spending, exactly like a year the
+        // pots could not fund — otherwise a strategy that cuts spending
+        // would score as a "success" for cutting it.
+        const deliveredReal = clamp0(target - clamp0(need)) / infl;
+        const planReal = planTarget / infl;
+        pathSpend += deliveredReal;
+        pathYears++;
+        const ratio = planReal > 1 ? deliveredReal / planReal : 1;
+        if (ratio < pathWorstRatio) pathWorstRatio = ratio;
+        if (ratio < 0.99) pathLeanYears++;
+        const c = Math.max(SPEND_FLOOR, deliveredReal);
+        utilSum += gamma === 1 ? Math.log(c) : Math.pow(c, 1 - gamma) / (1 - gamma);
+        utilN++;
+
         if (need > 1) {
           ok = false;
           const covered = clamp0(target - need) / Math.max(1, target);
@@ -1221,6 +1285,9 @@ export function createEngine() {
         if (p < 60) track.push(potA + potB + isa + cash);
       }
       spendMults.push(spendMult);
+      avgSpends.push(pathYears ? pathSpend / pathYears : 0);
+      worstRatios.push(pathWorstRatio);
+      leanShares.push(pathYears ? pathLeanYears / pathYears : 0);
       if (ok) successes++;
       else trims.push(1 - minCoverage);
       finals.push(potA + potB + isa + cash);
@@ -1239,6 +1306,11 @@ export function createEngine() {
     }
     finals.sort((x, y) => x - y);
     const pctile = (q) => finals[Math.min(finals.length - 1, Math.floor(q * finals.length))];
+    const pct10 = (arr, q) => {
+      if (!arr.length) return 0;
+      const a = arr.slice().sort((x, y) => x - y);
+      return a[Math.min(a.length - 1, Math.floor((q == null ? 0.1 : q) * a.length))];
+    };
     trims.sort((x, y) => x - y);
     return {
       nPaths,
@@ -1255,6 +1327,24 @@ export function createEngine() {
       medianSpendMult: spendMults.length
         ? spendMults.slice().sort((x, y) => x - y)[Math.floor(spendMults.length / 2)] : 1,
       worstSpendMult: spendMults.length ? Math.min(...spendMults) : 1,
+
+      // ── Outcome measured as spending delivered (today's money) ──
+      // ceSpend is the certainty-equivalent: the level, guaranteed every year,
+      // that would leave you as well off as this uncertain plan. It is the one
+      // number that can honestly compare a plan that trims with a plan that
+      // gambles, because it prices both the shortfalls and the trims.
+      ceSpend: (() => {
+        if (!utilN) return 0;
+        const m = utilSum / utilN;
+        return gamma === 1 ? Math.exp(m) : Math.pow(m * (1 - gamma), 1 / (1 - gamma));
+      })(),
+      riskAversion: gamma,
+      spendP10: pct10(avgSpends), spendP50: pct10(avgSpends, 0.5), spendP90: pct10(avgSpends, 0.9),
+      worstYearRatioP50: pct10(worstRatios, 0.5),
+      worstYearRatioP10: pct10(worstRatios, 0.1),
+      leanShareP50: pct10(leanShares, 0.5),
+      legacyP10Real: pctile(0.10) / inflFactor(P, endYear),
+      legacyP50Real: pctile(0.50) / inflFactor(P, endYear),
     };
   }
 
@@ -1355,6 +1445,18 @@ export function createEngine() {
     check('House parachute releases only once, and only when off track',
       para.architecture.parachuteYear != null
         && drawdown(arch({ parachuteOn: true, parachuteBelow: 0.05 })).architecture.parachuteYear == null ? 0 : 1, 0, 0.1);
+    // The worth-it verdict must be built on delivered spending, not survival.
+    const mcA = runMonteCarlo(arch(), 120, 3);
+    check('Certainty-equivalent spending is a positive, sane figure',
+      mcA.ceSpend > 1000 && mcA.ceSpend < AP.targetNet * 1.5 ? 0 : 1, 0, 0.1);
+    check('A trimmed year counts as reduced spending, not as a success',
+      mcA.worstYearRatioP10 < 1 ? 0 : 1, 0, 0.1);
+    // More risk aversion can never raise the certainty equivalent of the same
+    // uncertain plan (it is a penalty for dispersion, not a bonus).
+    const ceLow = runMonteCarlo({ ...AP, architecture: { ...AP.architecture, on: true, riskAversion: 2 } }, 120, 3).ceSpend;
+    const ceHigh = runMonteCarlo({ ...AP, architecture: { ...AP.architecture, on: true, riskAversion: 8 } }, 120, 3).ceSpend;
+    check('Higher risk aversion never raises the certainty equivalent',
+      ceHigh <= ceLow + 1 ? 0 : 1, 0, 0.1);
     const y0 = dd.rows[0];
     check('Year one: free allowance used before basic rate (tax below merged single-person)',
       y0.tax < taxOn(y0.guaranteed + y0.grossA + y0.grossB, T) ? 0 : 1, 0, 0.5);
@@ -1367,7 +1469,7 @@ export function createEngine() {
     spendingAnnual, phaseFactor, targetForYear, effectiveEvents, eventNominal,
     accumulate, drawdown, compareStrategies,
     stressTests, sensitivityGrid, tornado, lifetimeTotals, estate,
-    runMonteCarlo, runAssertions, compareArchitecture, archOf, fundedRatio,
+    runMonteCarlo, runAssertions, compareArchitecture, assessStructure, archOf, fundedRatio,
     TAX_DEFAULTS,
   };
 }

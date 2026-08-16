@@ -181,6 +181,22 @@ mono('E53 Scotland region changes lifetime tax (bands differ)',
   check('E67 Monte Carlo reports how hard the rules worked', mcOn.worstSpendMult <= 1 && mcOn.worstSpendMult >= 0.5);
 }
 
+// The worth-it verdict: judged on spending delivered, not on survival
+{
+  const P = base(); P.architecture = { ...P.architecture, on: true };
+  const w = E.assessStructure(P, { paths: 150 });
+  check('E68 verdict compares both plans through the same markets', w.paths === 150 && w.on && w.off);
+  check('E69 certainty-equivalent spending is sane', w.on.ceSpend > 1000 && w.on.ceSpend < P.targetNet * 1.5);
+  check('E70 a trimmed year counts as reduced spending', w.on.worstYearRatioP10 < 1);
+  check('E71 verdict names which piece did the work', w.drivers.length === 2 && w.drivers[0].worth >= w.drivers[1].worth);
+  check('E72 the legacy cost is reported, not hidden', typeof w.legacyDelta === 'number');
+  const cautious = E.assessStructure({ ...P, architecture: { ...P.architecture, riskAversion: 8 } }, { paths: 150 });
+  const relaxed = E.assessStructure({ ...P, architecture: { ...P.architecture, riskAversion: 2 } }, { paths: 150 });
+  check('E73 higher risk aversion never raises the certainty equivalent', cautious.on.ceSpend <= relaxed.on.ceSpend + 1);
+  check('E74 verdict is one of the four defined outcomes',
+    ['clear', 'modest', 'marginal', 'against'].includes(w.verdict));
+}
+
 // Protected / scheme-specific tax-free entitlements (blended rate)
 {
   const sm = base(); sm.pclsMode = 'phased'; sm.targetNet = 40000;

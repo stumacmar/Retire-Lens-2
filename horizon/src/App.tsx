@@ -605,6 +605,17 @@ function ArchitectureSection({ plan, update }: { plan: any; update: (p: any) => 
         </p>
       </Group>
 
+      <Group title="How the verdict is judged">
+        <span className="block text-[0.8rem] font-semibold" style={{ color: 'var(--color-ink-dim)' }}>How much a lean year hurts</span>
+        <Segmented small value={String(A.riskAversion ?? 4)} onChange={(v: string) => set({ riskAversion: Number(v) })}
+          options={[{ value: '2', label: 'Relaxed' }, { value: '4', label: 'Typical' }, { value: '8', label: 'Cautious' }]} />
+        <p className="text-[0.78rem] leading-relaxed" style={{ color: 'var(--color-ink-faint)' }}>
+          Explore answers <b>is the structure worth it</b> by comparing the spending each plan actually delivers, not
+          by counting survivals — a rule that trims spending must not score as a win for cutting what you live on.
+          This setting says how much more a lean year hurts than a plump one helps, which is what decides the verdict.
+        </p>
+      </Group>
+
       <Group title="Stress the sequence">
         <span className="block text-[0.8rem] font-semibold" style={{ color: 'var(--color-ink-dim)' }}>Force a historic bad start</span>
         <Segmented small value={A.stressPath || 'none'} onChange={(v: string) => set({ stressPath: v })}
@@ -1016,7 +1027,15 @@ function ExploreBody({ plan, dd, estate, mc }: { plan: any; dd: Drawdown; estate
   // when the overlay is on — it is four full projections plus Monte Carlo.
   const archCmp = useMemo(() => {
     if (!plan.architecture?.on) return null;
-    try { return (E as any).compareArchitecture(plan, 300); } catch { return null; }
+    try { return (E as any).compareArchitecture(plan, 250); } catch { return null; }
+  }, [plan]);
+
+  // The verdict, judged on the spending actually delivered rather than on
+  // survival — a rule that trims spending must not score as a success for
+  // cutting what you live on.
+  const worthIt = useMemo(() => {
+    if (!plan.architecture?.on) return null;
+    try { return (E as any).assessStructure(plan, { paths: 400 }); } catch { return null; }
   }, [plan]);
 
   // Withdrawal-order tax comparison (the same three strategies, one engine).
@@ -1101,44 +1120,84 @@ function ExploreBody({ plan, dd, estate, mc }: { plan: any; dd: Drawdown; estate
         </div>
       )}
 
-        {archCmp && (() => {
-        const full = archCmp.variants.find((v: any) => v.label === 'Full architecture');
-        const none = archCmp.variants.find((v: any) => v.label === 'No structure');
+      {worthIt && (() => {
+        const w = worthIt;
+        const title = w.verdict === 'clear' ? 'Yes — clearly'
+          : w.verdict === 'modest' ? 'Yes, modestly'
+          : w.verdict === 'marginal' ? 'It is a close call'
+          : 'Not on these numbers';
+        const tone = w.verdict === 'against' ? 'var(--color-hope)' : 'var(--color-sage-strong)';
+        // Each line is coloured by whether the structure is actually better on
+        // that measure — never by the headline verdict, or a row that goes the
+        // other way would be dressed up as a win.
+        const Cmp = ({ k, a, b, note, better }: { k: string; a: string; b: string; note?: string; better?: number }) => (
+          <div className="px-4 py-3" style={{ borderTop: '1px solid var(--color-hairline)' }}>
+            <div className="flex items-baseline justify-between gap-3">
+              <span className="text-[0.85rem] font-semibold">{k}</span>
+              <span className="text-right">
+                <span className="tnum block text-[0.95rem] font-bold"
+                      style={{ color: better == null || Math.abs(better) < 1e-9 ? 'var(--color-ink)'
+                        : better > 0 ? 'var(--color-sage-strong)' : 'var(--color-hope)' }}>{a}</span>
+                <span className="tnum block text-[0.72rem]" style={{ color: 'var(--color-ink-faint)' }}>without it {b}</span>
+              </span>
+            </div>
+            {note && <p className="mt-1 text-[0.72rem] leading-relaxed" style={{ color: 'var(--color-ink-faint)' }}>{note}</p>}
+          </div>
+        );
         return (
           <div>
             <h3 className="text-[0.72rem] font-bold uppercase tracking-widest mb-2" style={{ color: 'var(--color-ink-faint)' }}>Is the structure worth it?</h3>
-            <div className="rounded-3xl overflow-hidden" style={{ border: '1px solid var(--color-hairline)' }}>
-              {archCmp.variants.map((v: any, i: number) => {
-                const best = v.label === 'Full architecture';
-                return (
-                  <div key={v.label} className="flex items-baseline justify-between gap-3 px-4 py-3"
-                       style={{ background: best ? 'color-mix(in srgb, var(--color-sage) 14%, var(--color-surface))' : 'var(--color-surface)',
-                                borderTop: i ? '1px solid var(--color-hairline)' : 'none' }}>
-                    <span className="text-[0.88rem] font-semibold">{v.label}</span>
-                    <span className="text-right">
-                      <span className="tnum block text-[0.95rem] font-bold"
-                            style={{ color: best ? 'var(--color-sage-strong)' : 'var(--color-ink)' }}>
-                        {v.successProb != null ? pct(v.successProb) : '—'} hold
-                      </span>
-                      <span className="tnum block text-[0.72rem]" style={{ color: 'var(--color-ink-faint)' }}>
-                        legacy {fmtK(v.endWealthReal)}{v.worstSpendMult < 0.999 ? ` · worst trim ×${v.worstSpendMult.toFixed(2)}` : ''}
-                      </span>
-                    </span>
-                  </div>
-                );
-              })}
+            <div className="rounded-3xl overflow-hidden" style={{ background: 'var(--color-surface)', border: '1px solid var(--color-hairline)' }}>
+              <div className="px-4 pt-4 pb-3">
+                <div className="text-[1.3rem] font-extrabold tracking-tight" style={{ color: tone }}>{title}</div>
+                <p className="mt-1 text-[0.84rem] leading-relaxed" style={{ color: 'var(--color-ink-dim)' }}>
+                  Judged on the spending it actually delivers — a year the rules trim counts as spending less, exactly
+                  like a year the pots cannot fund. On that basis the structure is worth about{' '}
+                  <b style={{ color: tone }}>{fmt(Math.abs(Math.round(w.ceGain)))} a year</b>{' '}
+                  {w.ceGain >= 0 ? 'more' : 'less'} dependable spending, for life.
+                </p>
+              </div>
+              <Cmp k="Dependable spending, every year"
+                a={fmt(Math.round(w.on.ceSpend))} b={fmt(Math.round(w.off.ceSpend))} better={w.on.ceSpend - w.off.ceSpend}
+                note={`The guaranteed amount that would leave you equally well off once the bad futures are counted alongside the good (risk aversion ${w.riskAversion}).`} />
+              <Cmp k="Spending in the worst 1-in-10 futures"
+                a={fmt(Math.round(w.on.spendP10))} b={fmt(Math.round(w.off.spendP10))}
+                better={w.on.spendP10 - w.off.spendP10}
+                note={Math.abs(w.on.spendP10 - w.off.spendP10) / Math.max(1, w.off.spendP10) < 0.02
+                  ? 'Close to a tie on this measure — the difference shows up in how often, and how early, the lean years arrive.' : undefined} />
+              <Cmp k="Leanest year, typical future"
+                a={`${Math.round(w.on.worstYearRatioP50 * 100)}% of plan`}
+                b={`${Math.round(w.off.worstYearRatioP50 * 100)}% of plan`}
+                better={w.on.worstYearRatioP50 - w.off.worstYearRatioP50}
+                note="A structured plan trims early and by choice; an unstructured one holds full spending until it cannot." />
+              <Cmp k="Legacy left, typical future"
+                a={fmtK(w.on.legacyP50Real)} b={fmtK(w.off.legacyP50Real)} better={w.legacyDelta}
+                note={w.legacyDelta < 0
+                  ? `This is the price: about ${fmtK(Math.abs(w.legacyDelta))} less passed on in the middle outcome. Dependable spending is bought with growth given up.`
+                  : undefined} />
             </div>
-            {full && none && full.successProb != null && none.successProb != null && (
-              <p className="mt-2 text-[0.78rem] leading-relaxed" style={{ color: 'var(--color-ink-dim)' }}>
-                The structure moves the share of futures that hold from <b>{pct(none.successProb)}</b> to <b>{pct(full.successProb)}</b>
-                {full.endWealthReal < none.endWealthReal
-                  ? <>, and costs expected legacy — {fmtK(none.endWealthReal)} down to {fmtK(full.endWealthReal)}. Safety is bought, not free:
-                    safer assets and a rule that trims spending leave you with less in the good futures and far more often
-                    standing in the bad ones.</>
-                  : <>, at an expected legacy of {fmtK(full.endWealthReal)}.</>}
+            <div className="mt-3 rounded-3xl overflow-hidden" style={{ background: 'var(--color-surface)', border: '1px solid var(--color-hairline)' }}>
+              <div className="px-4 pt-3 pb-1 text-[0.72rem] font-bold uppercase tracking-widest" style={{ color: 'var(--color-ink-faint)' }}>What is doing the work</div>
+              {w.drivers.map((d: any) => (
+                <div key={d.key} className="flex items-baseline justify-between gap-3 px-4 py-2.5">
+                  <span className="text-[0.85rem]">{d.label}</span>
+                  <span className="tnum text-[0.9rem] font-bold" style={{ color: d.worth > 0 ? 'var(--color-sage-strong)' : 'var(--color-ink-faint)' }}>
+                    {d.worth > 0 ? '+' : ''}{fmt(Math.round(d.worth))}/yr
+                  </span>
+                </div>
+              ))}
+              <p className="px-4 pb-3 text-[0.72rem] leading-relaxed" style={{ color: 'var(--color-ink-faint)' }}>
+                Each figure is what you give up by removing that piece and leaving the rest in place, so they overlap
+                rather than add up. Both plans are run through the same {w.paths} simulated markets.
               </p>
-            )}
+            </div>
+          </div>
+        );
+      })()}
 
+      {archCmp && (() => {
+        return (
+          <div>
             <h3 className="mt-5 text-[0.72rem] font-bold uppercase tracking-widest mb-2" style={{ color: 'var(--color-ink-faint)' }}>If the bad decade starts the day you stop</h3>
             <div className="rounded-3xl overflow-hidden" style={{ border: '1px solid var(--color-hairline)' }}>
               {archCmp.stress.map((t: any, i: number) => (

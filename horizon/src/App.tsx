@@ -28,7 +28,7 @@ export default function App() {
   const S = usePlan();
   const { plan, dd, acc, ddBear, ddBull, mc, estate, lens, setLens, update } = S;
   const [sheet, setSheet] = useState<Tab | null>(null);
-  const [detailsSect, setDetailsSect] = useState<'plan' | 'people' | 'later'>('plan');
+  const [detailsSect, setDetailsSect] = useState<'plan' | 'people' | 'later' | 'arch'>('plan');
   const [yearSel, setYearSel] = useState<number | null>(null);
   const [onboarded, setOnboarded] = useState(hasSavedPlan());
 
@@ -121,6 +121,20 @@ export default function App() {
           items.push({
             t: `Phased tax-free cash could save ~${fmtK(save)} in tax`,
             b: 'Taking a slice of your 25% tax-free amount with each withdrawal lowers the tax on every year’s income, over the whole journey (today’s money).',
+          });
+        }
+      }
+      if (plan.architecture?.on && (dd as any).architecture?.on) {
+        const a = (dd as any).architecture;
+        if (a.spendMultFinal < 0.999) {
+          items.push({
+            t: `Your written rules end up trimming spending to ×${a.spendMultFinal.toFixed(2)}`,
+            b: 'On the central path the funded ratio falls far enough to fire the trim rule. That is the rule working as designed — but worth knowing the plan leans on it, rather than being comfortable without it.',
+          });
+        } else if (a.fundedRatioFinal != null && a.fundedRatioFinal > 1.4) {
+          items.push({
+            t: 'The plan finishes well over-funded',
+            b: `The funded ratio ends around ${Math.round(a.fundedRatioFinal * 100)}%. Either the spending target is lower than it needs to be, or there is room to bring the date forward — both worth testing on the Horizon.`,
           });
         }
       }
@@ -483,6 +497,129 @@ function WhatIf({ label, out, min, max, step, value, onChange, onEdit }: {
   );
 }
 
+// ── Plan structure: the architecture controls ───────────────────────────
+// A real plan is not one growth rate. It is a shape: safe money for the next
+// few years, a growth engine behind it, and written rules for when to trim.
+const ARCH_PRESET = {
+  on: true,
+  ladderYears: 7, refill: 'whenUp', refillMin: 0,
+  equityReal: 0.05, equitySd: 0.16, goldReal: 0.01, goldSd: 0.14, goldPct: 0.15,
+  giltReal: 0.015,
+  rulesOn: true, longevityAge: 95,
+  cutBelow: 0.90, cutBy: 0.10, raiseAbove: 1.25, raiseBy: 0.05, raiseLagYears: 2,
+  floorMult: 0.75, capMult: 1.25,
+  parachuteOn: true, parachuteBelow: 0.75, parachuteFrom: 80, parachuteFraction: 0.5,
+  annuityOn: false, careOn: false, stressPath: 'none',
+};
+
+function ArchitectureSection({ plan, update }: { plan: any; update: (p: any) => void }) {
+  const A = plan.architecture || {};
+  const set = (patch: any) => update((p: any) => ({ ...p, architecture: { ...p.architecture, ...patch } }));
+  const on = !!A.on;
+  return (
+    <>
+      <Group title="Plan structure">
+        <Toggle label="Model the plan's structure, not one growth rate" checked={on} onChange={v => set({ on: v })} />
+        <p className="text-[0.78rem] leading-relaxed" style={{ color: 'var(--color-ink-faint)' }}>
+          Off, everything grows at a single rate. On, your money is split into a <b>gilt ladder</b> holding the next
+          few years of spending and a <b>growth engine</b>, with an annual top-up and written rules for trimming.
+          It is how a real plan survives a bad decade — and it is measured, not assumed: see Explore.
+        </p>
+        {!on && (
+          <button onClick={() => set(ARCH_PRESET)}
+            className="w-full rounded-2xl py-3 font-bold text-[0.95rem] text-white active:scale-[0.98] transition-transform"
+            style={{ background: 'var(--color-calm)' }}>
+            Set up the standard architecture
+          </button>
+        )}
+      </Group>
+
+      {on && <>
+      <Group title="The gilt ladder (your envelopes)">
+        <NumField label="Years of spending held in gilts" value={A.ladderYears ?? 7} onChange={v => set({ ladderYears: Math.max(0, Math.min(15, v)) })} />
+        <span className="block text-[0.8rem] font-semibold" style={{ color: 'var(--color-ink-dim)' }}>The conveyor belt</span>
+        <Segmented small value={A.refill || 'whenUp'} onChange={(v: string) => set({ refill: v })}
+          options={[{ value: 'whenUp', label: 'Top up only after a good year' }, { value: 'always', label: 'Top up every year' }]} />
+        <p className="text-[0.78rem] leading-relaxed" style={{ color: 'var(--color-ink-faint)' }}>
+          Each envelope is sized to one year's spending after your guaranteed income. Spending comes out of the
+          envelopes, so the engine is never sold into a fallen market. Index-linked gilts held to maturity are
+          modelled as a known real return — which is the whole point of the ladder.
+        </p>
+        <PctField label="Gilt real return (after inflation)" value={A.giltReal ?? 0.015} onChange={v => set({ giltReal: v })} />
+      </Group>
+
+      <Group title="The growth engine">
+        <PctField label="Equity real return" value={A.equityReal ?? 0.05} onChange={v => set({ equityReal: v })} />
+        <PctField label="Equity volatility" value={A.equitySd ?? 0.16} onChange={v => set({ equitySd: v })} />
+        <PctField label="Gold & diversifiers — share of the engine" value={A.goldPct ?? 0.15} onChange={v => set({ goldPct: v })} />
+        <PctField label="Gold real return" value={A.goldReal ?? 0.01} onChange={v => set({ goldReal: v })} />
+        <p className="text-[0.78rem] leading-relaxed" style={{ color: 'var(--color-ink-faint)' }}>
+          A single low-cost global all-world fund is the usual engine. Returns here are <b>real</b> — the Poor /
+          Base / Positive lens shifts them all together.
+        </p>
+      </Group>
+
+      <Group title="Written spending rules">
+        <Toggle label="Trim and treat on a funded-ratio trigger" checked={A.rulesOn !== false} onChange={v => set({ rulesOn: v })} />
+        <p className="text-[0.78rem] leading-relaxed" style={{ color: 'var(--color-ink-faint)' }}>
+          The funded ratio is everything you have, over everything you still need to a conservative age — so the
+          rule fires on the plan's health, not on a market headline.
+        </p>
+        <NumField label="Longevity age used as the denominator" value={A.longevityAge ?? 95} onChange={v => set({ longevityAge: v })} />
+        <PctField label="Trim spending when the ratio falls below" value={A.cutBelow ?? 0.9} onChange={v => set({ cutBelow: v })} />
+        <PctField label="…trim by" value={A.cutBy ?? 0.1} onChange={v => set({ cutBy: v })} />
+        <PctField label="Allow a treat when the ratio is above" value={A.raiseAbove ?? 1.25} onChange={v => set({ raiseAbove: v })} />
+        <NumField label="…only after this many good years (the lag)" value={A.raiseLagYears ?? 2} onChange={v => set({ raiseLagYears: v })} />
+        <PctField label="Never trim below this share of plan spending" value={A.floorMult ?? 0.75} onChange={v => set({ floorMult: v })} />
+      </Group>
+
+      <Group title="The annuity review">
+        <Toggle label="Buy guaranteed income at a planned date" checked={!!A.annuityOn} onChange={v => set({ annuityOn: v })} />
+        {A.annuityOn && <>
+          <NumField label="Year of the review" value={A.annuityYear ?? 2037} onChange={v => set({ annuityYear: v })} />
+          <MoneyField label="Amount to convert (today's money)" value={A.annuityAmount ?? 150000} onChange={v => set({ annuityAmount: v })} />
+          <PctField label="Annuity rate" value={A.annuityRate ?? 0.06} onChange={v => set({ annuityRate: v })} />
+          <Toggle label="Rises with inflation" checked={A.annuityIndexed !== false} onChange={v => set({ annuityIndexed: v })} />
+          <p className="text-[0.78rem]" style={{ color: 'var(--color-ink-faint)' }}>
+            Converts part of the pension into taxable income for life. Rates quoted today are a guide only — an
+            advice-grade decision to take with quotes in hand.
+          </p>
+        </>}
+      </Group>
+
+      <Group title="Care, and the house as a parachute">
+        <Toggle label="Model a block of care costs" checked={!!A.careOn} onChange={v => set({ careOn: v })} />
+        {A.careOn && <>
+          <NumField label="From age" value={A.careFromAge ?? 85} onChange={v => set({ careFromAge: v })} />
+          <MoneyField label="Cost a year (today's money)" value={A.careAnnual ?? 45000} onChange={v => set({ careAnnual: v })} />
+          <NumField label="For how many years" value={A.careYears ?? 4} onChange={v => set({ careYears: v })} />
+        </>}
+        <Toggle label="Release housing wealth if the plan goes off track" checked={!!A.parachuteOn} onChange={v => set({ parachuteOn: v })} />
+        {A.parachuteOn && <>
+          <NumField label="Not before age" value={A.parachuteFrom ?? 80} onChange={v => set({ parachuteFrom: v })} />
+          <PctField label="Only if the funded ratio falls below" value={A.parachuteBelow ?? 0.75} onChange={v => set({ parachuteBelow: v })} />
+          <PctField label="Share of the house released" value={A.parachuteFraction ?? 0.5} onChange={v => set({ parachuteFraction: v })} />
+        </>}
+        <p className="text-[0.78rem] leading-relaxed" style={{ color: 'var(--color-ink-faint)' }}>
+          The house stays out of core funding — it is released once, late, and only if the plan is genuinely off track.
+        </p>
+      </Group>
+
+      <Group title="Stress the sequence">
+        <span className="block text-[0.8rem] font-semibold" style={{ color: 'var(--color-ink-dim)' }}>Force a historic bad start</span>
+        <Segmented small value={A.stressPath || 'none'} onChange={(v: string) => set({ stressPath: v })}
+          options={[{ value: 'none', label: 'Normal' }, { value: 'japan', label: 'Japan 1990' },
+                    { value: 'gfc', label: 'GFC 2008' }, { value: 'stagflation', label: '1970s' }]} />
+        <p className="text-[0.78rem] leading-relaxed" style={{ color: 'var(--color-ink-faint)' }}>
+          Replays an approximate historic real-return sequence through your growth engine from the year you stop
+          work. Illustrative shapes of a bad decade, not precise history.
+        </p>
+      </Group>
+      </>}
+    </>
+  );
+}
+
 function Group({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <section>
@@ -592,7 +729,7 @@ function PartnerCard({ p, name, set, adv }: { p: any; name: 'partnerA' | 'partne
   );
 }
 
-function DetailsBody({ plan, update, reset, initial }: { plan: any; update: (p: any) => void; reset: () => void; initial?: 'plan' | 'people' | 'later' }) {
+function DetailsBody({ plan, update, reset, initial }: { plan: any; update: (p: any) => void; reset: () => void; initial?: 'plan' | 'people' | 'later' | 'arch' }) {
   const setA = (patch: any) => update((p: any) => ({ ...p, partnerA: { ...p.partnerA, ...patch } }));
   const setB = (patch: any) => update((p: any) => ({ ...p, partnerB: { ...p.partnerB, ...patch } }));
   const setInherit = (patch: any) => update((p: any) => ({ ...p, inherit: { ...p.inherit, ...patch } }));
@@ -601,7 +738,7 @@ function DetailsBody({ plan, update, reset, initial }: { plan: any; update: (p: 
   }));
   const setEvent = (i: number, patch: any) => update((p: any) => ({ ...p, lifeEvents: p.lifeEvents.map((e: any, j: number) => j === i ? { ...e, ...patch } : e) }));
   const delEvent = (i: number) => update((p: any) => ({ ...p, lifeEvents: p.lifeEvents.filter((_: any, j: number) => j !== i) }));
-  const [sect, setSect] = useState<'plan' | 'people' | 'later'>(initial ?? 'plan');
+  const [sect, setSect] = useState<'plan' | 'people' | 'later' | 'arch'>(initial ?? 'plan');
 
   // Landing on a fresh segment should start at its top, not mid-scroll.
   useEffect(() => { document.querySelector('[data-sheet-scroll]')?.scrollTo({ top: 0 }); }, [sect]);
@@ -611,7 +748,8 @@ function DetailsBody({ plan, update, reset, initial }: { plan: any; update: (p: 
       {/* Segment the sheet so it's never one long scroll (UX audit fix). */}
       <div className="sticky top-0 z-10 -mx-6 px-6 pb-2" style={{ background: 'color-mix(in srgb, var(--color-surface) 92%, transparent)' }}>
         <Segmented small value={sect} onChange={setSect}
-          options={[{ value: 'plan', label: 'Plan' }, { value: 'people', label: 'People' }, { value: 'later', label: 'Later' }]} />
+          options={[{ value: 'plan', label: 'Plan' }, { value: 'people', label: 'People' },
+                    { value: 'later', label: 'Later' }, { value: 'arch', label: 'Structure' }]} />
       </div>
 
       {sect === 'plan' && <>
@@ -670,6 +808,8 @@ function DetailsBody({ plan, update, reset, initial }: { plan: any; update: (p: 
       <PartnerCard p={plan} name="partnerA" set={setA} adv={!!plan.advanced} />
       <PartnerCard p={plan} name="partnerB" set={setB} adv={!!plan.advanced} />
       </>}
+
+      {sect === 'arch' && <ArchitectureSection plan={plan} update={update} />}
 
       {sect === 'later' && <>
       <Group title="Spending as you age">
@@ -771,6 +911,12 @@ function YearDetail({ plan, acc, dd, year }: { plan: any; acc: Accum; dd: Drawdo
         <Line k={`${plan.partnerB.name}'s pension`} v={fmt(D(r.potB))} />
         <Line k="ISA & cash pots" v={fmt(D(r.isaA + r.isaB + (r.cash || 0)))} />
         <Line k="Total wealth" v={fmt(D(r.wealth))} strong tone="var(--color-calm-strong)" />
+        {r.ladder > 0 && <Line k="…of which the gilt ladder" v={fmt(D(r.ladder))} />}
+        {r.engine > 0 && <Line k="…of which the growth engine" v={fmt(D(r.engine))} />}
+        {r.fundedRatio != null && <Line k="Funded ratio" v={`${Math.round(r.fundedRatio * 100)}%`}
+          tone={r.fundedRatio < 0.9 ? 'var(--color-hope)' : 'var(--color-sage-strong)'} />}
+        {r.spendMult != null && Math.abs(r.spendMult - 1) > 0.001 &&
+          <Line k="Spending rule in force" v={`×${r.spendMult.toFixed(2)}`} tone="var(--color-hope)" />}
         <p className="mt-3 text-[0.75rem]" style={{ color: 'var(--color-ink-faint)' }}>
           Marginal tax rates this year: {plan.partnerA.name} {pct(r.marginalA)}, {plan.partnerB.name} {pct(r.marginalB)}.
         </p>
@@ -866,6 +1012,13 @@ function ExploreBody({ plan, dd, estate, mc }: { plan: any; dd: Drawdown; estate
   const nowP50 = mc ? deflate(mc.finalP50, horizonYear, plan.startYear, plan.inflation) : 0;
   const nowP90 = mc ? deflate(mc.finalP90, horizonYear, plan.startYear, plan.inflation) : 0;
 
+  // Does the structure earn its keep? Measured, never asserted. Only run
+  // when the overlay is on — it is four full projections plus Monte Carlo.
+  const archCmp = useMemo(() => {
+    if (!plan.architecture?.on) return null;
+    try { return (E as any).compareArchitecture(plan, 300); } catch { return null; }
+  }, [plan]);
+
   // Withdrawal-order tax comparison (the same three strategies, one engine).
   const strat = useMemo(() => {
     try { return (E as any).compareStrategies(plan) as { id: string; label: string; lifetimeTax: number; endWealth: number; exhaustedAgeA: number | null }[]; }
@@ -947,6 +1100,72 @@ function ExploreBody({ plan, dd, estate, mc }: { plan: any; dd: Drawdown; estate
           <StatCard label={estate.iht > 0 ? 'Inheritance tax — often reducible' : 'Inheritance tax'} value={fmtK(today(estate.iht, estate.year))} tone="ink" />
         </div>
       )}
+
+        {archCmp && (() => {
+        const full = archCmp.variants.find((v: any) => v.label === 'Full architecture');
+        const none = archCmp.variants.find((v: any) => v.label === 'No structure');
+        return (
+          <div>
+            <h3 className="text-[0.72rem] font-bold uppercase tracking-widest mb-2" style={{ color: 'var(--color-ink-faint)' }}>Is the structure worth it?</h3>
+            <div className="rounded-3xl overflow-hidden" style={{ border: '1px solid var(--color-hairline)' }}>
+              {archCmp.variants.map((v: any, i: number) => {
+                const best = v.label === 'Full architecture';
+                return (
+                  <div key={v.label} className="flex items-baseline justify-between gap-3 px-4 py-3"
+                       style={{ background: best ? 'color-mix(in srgb, var(--color-sage) 14%, var(--color-surface))' : 'var(--color-surface)',
+                                borderTop: i ? '1px solid var(--color-hairline)' : 'none' }}>
+                    <span className="text-[0.88rem] font-semibold">{v.label}</span>
+                    <span className="text-right">
+                      <span className="tnum block text-[0.95rem] font-bold"
+                            style={{ color: best ? 'var(--color-sage-strong)' : 'var(--color-ink)' }}>
+                        {v.successProb != null ? pct(v.successProb) : '—'} hold
+                      </span>
+                      <span className="tnum block text-[0.72rem]" style={{ color: 'var(--color-ink-faint)' }}>
+                        legacy {fmtK(v.endWealthReal)}{v.worstSpendMult < 0.999 ? ` · worst trim ×${v.worstSpendMult.toFixed(2)}` : ''}
+                      </span>
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+            {full && none && full.successProb != null && none.successProb != null && (
+              <p className="mt-2 text-[0.78rem] leading-relaxed" style={{ color: 'var(--color-ink-dim)' }}>
+                The structure moves the share of futures that hold from <b>{pct(none.successProb)}</b> to <b>{pct(full.successProb)}</b>
+                {full.endWealthReal < none.endWealthReal
+                  ? <>, and costs expected legacy — {fmtK(none.endWealthReal)} down to {fmtK(full.endWealthReal)}. Safety is bought, not free:
+                    safer assets and a rule that trims spending leave you with less in the good futures and far more often
+                    standing in the bad ones.</>
+                  : <>, at an expected legacy of {fmtK(full.endWealthReal)}.</>}
+              </p>
+            )}
+
+            <h3 className="mt-5 text-[0.72rem] font-bold uppercase tracking-widest mb-2" style={{ color: 'var(--color-ink-faint)' }}>If the bad decade starts the day you stop</h3>
+            <div className="rounded-3xl overflow-hidden" style={{ border: '1px solid var(--color-hairline)' }}>
+              {archCmp.stress.map((t: any, i: number) => (
+                <div key={t.key} className="px-4 py-3" style={{ background: 'var(--color-surface)', borderTop: i ? '1px solid var(--color-hairline)' : 'none' }}>
+                  <div className="text-[0.88rem] font-semibold">{t.label}</div>
+                  <div className="mt-1 flex items-baseline justify-between gap-3 text-[0.8rem]">
+                    <span style={{ color: 'var(--color-ink-dim)' }}>With your structure</span>
+                    <span className="tnum font-semibold" style={{ color: 'var(--color-sage-strong)' }}>
+                      {t.withArch.exhaustedAgeA ? `runs short at ${t.withArch.exhaustedAgeA}` : `holds · ${fmtK(t.withArch.endReal)} left`}
+                    </span>
+                  </div>
+                  <div className="flex items-baseline justify-between gap-3 text-[0.8rem]">
+                    <span style={{ color: 'var(--color-ink-dim)' }}>Without it</span>
+                    <span className="tnum font-semibold" style={{ color: 'var(--color-hope)' }}>
+                      {t.without.exhaustedAgeA ? `runs short at ${t.without.exhaustedAgeA}` : `holds · ${fmtK(t.without.endReal)} left`}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <p className="mt-2 text-[0.75rem]" style={{ color: 'var(--color-ink-faint)' }}>
+              Approximate historic real-return sequences replayed through your growth engine from the year you stop work
+              — illustrative shapes of a bad decade, not precise history.
+            </p>
+          </div>
+        );
+      })()}
 
       {/* ── Tax: which order to draw from ───────────────────────── */}
       {strat.length > 0 && (

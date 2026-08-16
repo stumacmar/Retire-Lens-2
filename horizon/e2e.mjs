@@ -151,6 +151,36 @@ mono('E53 Scotland region changes lifetime tax (bands differ)',
   check('E55 partially-accessed phased still beats take-none (tax between)', t1 <= tn + 0.5);
 }
 
+// Plan architecture: ladder, rules, annuity, care, parachute
+{
+  const arch = (patch) => { const P = base(); P.architecture = { ...P.architecture, on: true, ...(patch || {}) }; return P; };
+  const exh = (r) => r.exhaustedAgeA == null ? 999 : r.exhaustedAgeA;
+  check('E58 architecture off leaves the projection untouched',
+    Math.abs(E.drawdown({ ...base(), architecture: { ...base().architecture, on: false } }).endWealth
+      - E.drawdown(base()).endWealth) < 0.01);
+  const jpL = E.drawdown(arch({ stressPath: 'japan', rulesOn: false }));
+  const jpN = E.drawdown(arch({ stressPath: 'japan', rulesOn: false, ladderYears: 0 }));
+  check('E59 gilt ladder buys years through a Japan-style start', exh(jpL) > exh(jpN));
+  const jpR = E.drawdown(arch({ stressPath: 'japan', rulesOn: true }));
+  check('E60 written rules never shorten a stressed plan', exh(jpR) >= exh(jpL));
+  check('E61 written rules trim spending when stressed', jpR.architecture.spendMultFinal < 1);
+  const ann = E.drawdown(arch({ annuityOn: true, annuityYear: base().retireYear + 5, annuityAmount: 150000 }));
+  const aRow = ann.rows.find(r => r.year === base().retireYear + 6);
+  check('E62 annuity review creates guaranteed income', aRow && aRow.annuity > 1000);
+  check('E63 care costs reduce wealth at the horizon',
+    E.drawdown(arch({ careOn: true, careFromAge: 84, careAnnual: 45000, careYears: 4 })).endWealth
+      < E.drawdown(arch()).endWealth);
+  check('E64 house parachute fires only when off track',
+    E.drawdown(arch({ stressPath: 'japan', parachuteOn: true, parachuteFrom: 75, parachuteBelow: 0.9 })).architecture.parachuteYear != null
+      && E.drawdown(arch({ parachuteOn: true, parachuteBelow: 0.05 })).architecture.parachuteYear == null);
+  const rows = E.drawdown(arch()).rows;
+  check('E65 ladder + engine reconcile to investable wealth',
+    rows.every(r => Math.abs((r.ladder + r.engine) - (r.potA + r.potB + r.isaA + r.isaB)) < 5));
+  const mcOn = E.runMonteCarlo(arch(), 200, 11), mcOff = E.runMonteCarlo(base(), 200, 11);
+  check('E66 architecture changes Monte Carlo outcomes', Math.abs(mcOn.successProb - mcOff.successProb) > 0.01);
+  check('E67 Monte Carlo reports how hard the rules worked', mcOn.worstSpendMult <= 1 && mcOn.worstSpendMult >= 0.5);
+}
+
 // Protected / scheme-specific tax-free entitlements (blended rate)
 {
   const sm = base(); sm.pclsMode = 'phased'; sm.targetNet = 40000;
@@ -284,6 +314,16 @@ await tap('Add a scheme'); await wait(300);
 await setField('Value', 100000, 1);
 await acheck('U72f two schemes sum into the pot (350k)', async () => (await plan()).partnerA?.pension === 350000);
 await p.locator('[role=switch]:has-text("Advanced")').click().catch(() => {}); await wait(300);
+// Structure tab: the preset wires up the whole architecture
+await tap('Structure'); await wait(400);
+await acheck('U72g Structure section opens', async () => (await p.locator('text=Plan structure').count()) > 0);
+await tap('Set up the standard architecture'); await wait(600);
+await acheck('U72h preset turns the architecture on', async () => (await plan()).architecture?.on === true);
+await acheck('U72i preset uses a 7-year ladder', async () => (await plan()).architecture?.ladderYears === 7);
+await acheck('U72j preset arms the written rules', async () => (await plan()).architecture?.rulesOn === true);
+await p.locator('[role=switch]').first().click().catch(() => {}); await wait(400);
+await acheck('U72k architecture can be switched back off', async () => (await plan()).architecture?.on === false);
+await tap('People'); await wait(300);
 // Carol side (second card of the same label) — proves BOTH partners' DB works
 await setField('final-salary (defined benefit) pension a year', 7000, 1);
 await acheck('U72 Details: Carol DB editable → plan (both partners work)', async () => (await plan()).partnerB?.db === 7000);

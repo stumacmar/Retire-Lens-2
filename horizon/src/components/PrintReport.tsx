@@ -134,6 +134,30 @@ export default function PrintReport({ plan, acc, dd, mc, estate }: {
           <Row k="Tax-free cash (PCLS)" v={pclsName[plan.pclsMode] || plan.pclsMode} />
           <Row k="Income-tax region" v={plan.tax?.region === 'scotland' ? 'Scotland (Scottish bands)' : 'England, Wales & NI'} />
         </div>
+        {plan.architecture?.on && (() => {
+          const A = plan.architecture, ar = (dd as any).architecture || {};
+          return (
+            <>
+              <h3 className="r-h3">Plan structure</h3>
+              <div className="r-card">
+                <Row k="Gilt ladder (envelopes)" v={`${A.ladderYears} years of net need, topped up ${A.refill === 'always' ? 'every year' : 'after a positive year'}`} />
+                <Row k="Ladder real return" v={`${pct(A.giltReal)} (index-linked gilts held to maturity)`} />
+                <Row k="Growth engine" v={`${pct(1 - A.goldPct)} equity at ${pct(A.equityReal)} real (vol ${pct(A.equitySd)}), ${pct(A.goldPct)} gold/diversifiers at ${pct(A.goldReal)} real`} />
+                <Row k="Written spending rules" v={A.rulesOn
+                  ? `Trim ${pct(A.cutBy)} below a funded ratio of ${A.cutBelow}; allow ${pct(A.raiseBy)} above ${A.raiseAbove} after ${A.raiseLagYears} good years; floor ${pct(A.floorMult)} of plan spending`
+                  : 'Off'} />
+                <Row k="Funded-ratio longevity age" v={A.longevityAge} />
+                {A.annuityOn && <Row k="Annuity review" v={`${fmt(A.annuityAmount)} converted in ${A.annuityYear} at ${pct(A.annuityRate)}${A.annuityIndexed ? ', index-linked' : ', level'}`} />}
+                {A.careOn && <Row k="Care modelled" v={`${fmt(A.careAnnual)} a year from age ${A.careFromAge} for ${A.careYears} years`} />}
+                {A.parachuteOn && <Row k="House parachute" v={`Release ${pct(A.parachuteFraction)} of the house, not before age ${A.parachuteFrom}, only below a funded ratio of ${A.parachuteBelow}`} />}
+                {A.stressPath && A.stressPath !== 'none' && <Row k="Stress path applied" v={`${A.stressPath} sequence (illustrative)`} />}
+                <Row k="Outcome of the rules on the central path" v={ar.spendMultFinal != null
+                  ? `Spending ends at ${(ar.spendMultFinal * 100).toFixed(0)}% of plan${ar.parachuteYear ? `; house released in ${ar.parachuteYear}` : ''}`
+                  : '—'} />
+              </div>
+            </>
+          );
+        })()}
 
         <h3 className="r-h3">Spending as you age (age-phased step-downs)</h3>
         <div className="r-card">
@@ -308,6 +332,13 @@ export default function PrintReport({ plan, acc, dd, mc, estate }: {
             — including new contributions — can pay further tax-free cash. If taken upfront it is assumed
             reinvested alongside ISAs. Protected scheme entitlements are blended into one tax-free rate per
             person, weighted by untouched value.</li>
+          {plan.architecture?.on && <li><b>Plan structure.</b> The ladder and the growth engine are modelled at household
+            level: spending is met from the ladder first so the engine is not sold into a fallen market, each sleeve earns
+            its own return, and the blended household return is then applied to every wrapper — so tax and wrapper
+            accounting are unchanged and totals reconcile. Index-linked gilts held to maturity are treated as a known real
+            return. Which wrapper physically holds the gilts is not modelled. Stress paths are approximate historic real
+            sequences, illustrative of the shape of a bad decade rather than precise history. The accumulation years before
+            retirement still use the single growth rate.</li>}
           <li><b>Allowances.</b> The annual allowance, its taper for high incomes and the MPAA are flagged as
             warnings; they are not modelled as contribution caps or tax charges in the projection.</li>
           <li><b>Guaranteed income first.</b> Each year, State and defined-benefit pensions are counted first; the

@@ -117,6 +117,44 @@ export function createEngine() {
       strategy: 'sippfirst',    // 'sippfirst' | 'isafirst' | 'pafirst'
       pclsMode: 'none',         // 'none' | 'upfront' | 'phased'
 
+      // ── Retirement architecture (optional overlay, default OFF) ────────
+      // Models a real plan architecture rather than one blended growth rate:
+      //   · a gilt ladder holding N years of net need (the "envelopes")
+      //   · a growth engine (global equity + gold/diversifiers)
+      //   · an annual conveyor-belt top-up of the ladder from the engine
+      //   · mechanical spending rules driven by a funded ratio
+      //   · a planned annuity review, care costs, house as last-resort
+      // With on:false every figure is identical to the simple model.
+      architecture: {
+        on: false,
+        // Sleeves. Real returns; the growth lens shifts them together.
+        equityReal: 0.05,       // global all-world equity, real
+        equitySd: 0.16,
+        goldReal: 0.01,         // gold / diversifiers, real
+        goldSd: 0.14,
+        goldPct: 0.15,          // share of the growth engine
+        giltReal: 0.015,        // index-linked gilts held to maturity, real
+        // The ladder (envelopes) and the conveyor belt
+        ladderYears: 7,
+        refill: 'whenUp',       // 'whenUp' | 'always'
+        refillMin: 0,           // top up only if the engine returned above this
+        // Mechanical spending rules
+        rulesOn: true,
+        longevityAge: 95,       // conservative denominator for the funded ratio
+        cutBelow: 0.90, cutBy: 0.10,
+        raiseAbove: 1.25, raiseBy: 0.05, raiseLagYears: 2,
+        floorMult: 0.75, capMult: 1.25,
+        // Planned annuity review
+        annuityOn: false, annuityYear: 2037, annuityAmount: 150000,
+        annuityRate: 0.06, annuityIndexed: true,
+        // Care
+        careOn: false, careFromAge: 85, careAnnual: 45000, careYears: 4,
+        // House parachute (downsize / release, once)
+        parachuteOn: false, parachuteBelow: 0.75, parachuteFrom: 80, parachuteFraction: 0.5,
+        // Deterministic stress path applied to the growth engine
+        stressPath: 'none',     // 'none' | 'japan' | 'gfc' | 'stagflation'
+      },
+
       // Inheritance as a first-class assumption. Amount is today's money.
       inherit: { on: false, year: 2035, amount: 100000, invest: true },
 
@@ -294,6 +332,68 @@ export function createEngine() {
     return taxOn(gross + 1, T) - taxOn(gross, T);
   }
 
+  // ── Retirement architecture ──────────────────────────────────────────
+  // Historic real equity sequences, APPROXIMATE and illustrative — they are
+  // for stress-testing the shape of a bad start, not for precise history.
+  const STRESS_PATHS = {
+    japan: [-0.38, 0.02, -0.25, 0.09, 0.08, 0.01, -0.06, -0.20, -0.06, 0.58,
+            -0.25, -0.19, -0.18, 0.24, 0.09, 0.03, 0.02, -0.42, 0.06, -0.01],
+    gfc: [-0.37, 0.26, 0.14, -0.01, 0.15, 0.29, 0.10, -0.02, 0.08, 0.20],
+    stagflation: [-0.10, -0.34, -0.57, 1.00, -0.05, 0.40, 0.03, 0.05],
+  };
+
+  // Old saved plans have no architecture block; merge over the defaults.
+  let ARCH_DEFAULTS = null;
+  function archOf(P) {
+    if (!ARCH_DEFAULTS) ARCH_DEFAULTS = defaults().architecture;
+    return { ...ARCH_DEFAULTS, ...(P.architecture || {}) };
+  }
+
+  // Envelope sizing: the exact net amount needed after guaranteed income,
+  // for each of the next N years, in nominal terms.
+  function ladderTarget(AR, needNow, inflation) {
+    let t = 0;
+    for (let k = 0; k < AR.ladderYears; k++) t += needNow * Math.pow(1 + inflation, k);
+    return t;
+  }
+
+  // Funded ratio: everything you have, over everything you still need, both
+  // discounted at the ladder's real rate to a conservative longevity age.
+  function fundedRatio(AR, { wealthReal, spendReal, guaranteedNetReal, ageA }) {
+    const n = Math.max(1, AR.longevityAge - ageA);
+    const r = Math.max(0.001, AR.giltReal);
+    const af = (1 - Math.pow(1 + r, -n)) / r;          // annuity factor
+    const needPV = clamp0(spendReal) * af;
+    const havePV = clamp0(wealthReal) + clamp0(guaranteedNetReal) * af;
+    return needPV > 1 ? havePV / needPV : 99;
+  }
+
+  // One year of the architecture: spend from the envelopes first (never sell
+  // the growth engine into a fallen market), grow each sleeve on its own
+  // return, then run the conveyor belt back up to target.
+  function sleeveYear(sleeve, draw, rGrowth, rGilt, target, AR) {
+    let ladder = sleeve.ladder, growth = sleeve.growth;
+    const fromLadder = Math.min(ladder, draw);
+    ladder -= fromLadder;
+    growth = clamp0(growth - (draw - fromLadder));
+    ladder *= (1 + rGilt);
+    growth *= (1 + rGrowth);
+    if (AR.refill === 'always' || rGrowth > AR.refillMin) {
+      const move = Math.min(clamp0(target - ladder), growth);
+      ladder += move; growth -= move;
+    }
+    return { ladder, growth, total: ladder + growth };
+  }
+
+  // Nominal sleeve returns for a given real-return shift (the growth lens).
+  function sleeveRates(AR, P, lensShift) {
+    const engineReal = AR.equityReal * (1 - AR.goldPct) + AR.goldReal * AR.goldPct;
+    return {
+      gilt: (1 + AR.giltReal + lensShift) * (1 + P.inflation) - 1,
+      growth: (1 + engineReal + lensShift) * (1 + P.inflation) - 1,
+    };
+  }
+
   // ── Accumulation: start year to retirement, year by year ─────────────
   // Mid-year convention on contributions. Reproduces the workbook's
   // future-value formulas to within about one percent, and stays honest
@@ -393,9 +493,34 @@ export function createEngine() {
     const rows = [];
     let lifetimeTax = 0, lifetimeTaxReal = 0, exhaustedYear = null;
 
+    // ── Architecture overlay state (inert when architecture.on is false) ──
+    const AR = archOf(P);
+    const archOn = !!AR.on;
+    const RATES = sleeveRates(AR, P, archOn ? (g - P.growthBase) : 0);
+    const stress = STRESS_PATHS[AR.stressPath] || null;
+    let sleeve = null;              // { ladder, growth } household sleeves
+    let spendMult = 1, raiseStreak = 0;
+    let annuityToday = 0, annuityBought = false;   // today's-money annuity income
+    let parachuteUsed = false, parachuteYear = null;
+    let lastRatio = null;
+
     for (let year = P.retireYear; year <= endYear; year++) {
       const infl = inflFactor(P, year);
       const ageA = ageIn(P.partnerA, year), ageB = ageIn(P.partnerB, year);
+      // Household investable wealth before this year's draws (the sleeves
+      // track the same money, split by asset rather than by wrapper).
+      const investStart = potA + potB + isaA + isaB;
+
+      // Planned annuity review: convert part of the pot into guaranteed,
+      // taxable income for life. Bought at the start of the year.
+      if (archOn && AR.annuityOn && !annuityBought && year >= AR.annuityYear) {
+        const cost = Math.min(clamp0(AR.annuityAmount) * infl, potA);
+        potA -= cost; uncrysA = clamp0(uncrysA - cost);
+        annuityToday = (cost * AR.annuityRate) / infl;   // held in today's money
+        annuityBought = true;
+      }
+      const annuityNom = annuityBought
+        ? annuityToday * (AR.annuityIndexed ? infl : inflFactor(P, AR.annuityYear)) : 0;
 
       // Guaranteed income per partner, nominal
       const dbA = (P.partnerA.db && year >= P.partnerA.dbStartYear)
@@ -405,14 +530,22 @@ export function createEngine() {
       const spA = ageA >= P.partnerA.spAge ? P.partnerA.spAmount * infl : 0;
       const spB = ageB >= P.partnerB.spAge ? P.partnerB.spAmount * infl : 0;
 
-      const baseA = dbA + spA;   // taxable base income per partner
+      const baseA = dbA + spA + annuityNom;   // taxable base income per partner
       const baseB = dbB + spB;
       const guaranteedNet = baseA + baseB - taxOn(baseA, T) - taxOn(baseB, T);
 
-      // This year's net need
-      const target = targetForYear(P, year);
+      // This year's net need. The mechanical rules scale it by a multiplier
+      // that only ever moves on a funded-ratio trigger (see end of loop).
+      const target = targetForYear(P, year) * spendMult;
       let eventCost = 0, eventIncome = 0, eventInvested = 0;
       const eventLabels = [];
+      // Care: a late-life cost block, funded like any other spending.
+      let careCost = 0;
+      if (archOn && AR.careOn && ageA >= AR.careFromAge && ageA < AR.careFromAge + AR.careYears) {
+        careCost = clamp0(AR.careAnnual) * infl;
+        eventCost += careCost;
+        eventLabels.push('care');
+      }
       for (const ev of events) {
         if (ev.year !== year || year < P.retireYear) continue;
         const amt = eventNominal(P, ev);
@@ -564,14 +697,78 @@ export function createEngine() {
         - totalTax + isaDraw + cashDraw + eventIncome;
       const shortfall = clamp0(target + eventCost - netIncome);
 
-      // Grow remaining pots, then land invested windfalls with half growth
-      potA *= (1 + g); potB *= (1 + g);
-      uncrysA *= (1 + g); uncrysB *= (1 + g);
-      isaA *= (1 + g); isaB *= (1 + g);
+      // Growth. Simple model: one rate. Architecture: the ladder funds the
+      // year's draws and earns the gilt rate; only the growth engine takes
+      // the market. The blended household return is then applied to each
+      // wrapper, so tax accounting is untouched and totals reconcile.
+      let gYear = g;
+      let ladderNow = 0, engineNow = 0;
+      if (archOn) {
+        const investAfter = potA + potB + isaA + isaB;
+        const drawn = clamp0(investStart - investAfter);
+        const tgt = ladderTarget(AR, need, P.inflation);
+        if (!sleeve) {
+          const L = Math.min(investStart, tgt);
+          sleeve = { ladder: L, growth: clamp0(investStart - L) };
+        } else {
+          // Resync to the wrappers (windfalls and rounding land there).
+          const tot = sleeve.ladder + sleeve.growth;
+          const k = tot > 1 ? investStart / tot : 1;
+          sleeve = { ladder: sleeve.ladder * k, growth: sleeve.growth * k };
+        }
+        const i = year - P.retireYear;
+        const rGrowth = stress && i < stress.length
+          ? (1 + stress[i]) * (1 + P.inflation) - 1
+          : RATES.growth;
+        const next = sleeveYear(sleeve, drawn, rGrowth, RATES.gilt, tgt, AR);
+        sleeve = { ladder: next.ladder, growth: next.growth };
+        ladderNow = next.ladder; engineNow = next.growth;
+        gYear = investAfter > 1 ? (next.total / investAfter) - 1 : 0;
+      }
+      potA *= (1 + gYear); potB *= (1 + gYear);
+      uncrysA *= (1 + gYear); uncrysB *= (1 + gYear);
+      isaA *= (1 + gYear); isaB *= (1 + gYear);
       cash *= (1 + (P.cashGrowth || 0));   // cash grows at its own fixed rate
-      if (eventInvested > 0) isaA += eventInvested * (1 + g / 2);
+      if (eventInvested > 0) isaA += eventInvested * (1 + gYear / 2);
 
-      const wealth = potA + potB + isaA + isaB + cash;
+      let wealth = potA + potB + isaA + isaB + cash;
+
+      // The written rules: measure the funded ratio, then act on it.
+      let ratio = null, ruleMove = null;
+      if (archOn && AR.rulesOn) {
+        ratio = fundedRatio(AR, {
+          wealthReal: wealth / infl,
+          spendReal: target / infl,
+          guaranteedNetReal: guaranteedNet / infl,
+          ageA,
+        });
+        if (ratio < AR.cutBelow) {
+          const next = Math.max(AR.floorMult, spendMult * (1 - AR.cutBy));
+          if (next < spendMult - 1e-9) ruleMove = 'cut';
+          spendMult = next; raiseStreak = 0;
+        } else if (ratio > AR.raiseAbove) {
+          // A lag on the upward "treat" rule, so one good year cannot raise it.
+          raiseStreak++;
+          if (raiseStreak >= AR.raiseLagYears) {
+            const next = Math.min(AR.capMult, spendMult * (1 + AR.raiseBy));
+            if (next > spendMult + 1e-9) ruleMove = 'raise';
+            spendMult = next; raiseStreak = 0;
+          }
+        } else raiseStreak = 0;
+        lastRatio = ratio;
+
+        // The house is a parachute, not core funding: released once, late,
+        // and only if the plan is genuinely off track.
+        if (AR.parachuteOn && !parachuteUsed && ageA >= AR.parachuteFrom && ratio < AR.parachuteBelow) {
+          const houseVal = (P.house || 0) * Math.pow(1 + (P.houseGrowth || 0), year - P.startYear);
+          const release = clamp0(houseVal * AR.parachuteFraction);
+          if (release > 0) {
+            cash += release; wealth += release;
+            parachuteUsed = true; parachuteYear = year;
+            eventLabels.push('house released');
+          }
+        }
+      }
       if (exhaustedYear == null && wealth < 100 && shortfall > 1) exhaustedYear = year;
 
       rows.push({
@@ -586,6 +783,10 @@ export function createEngine() {
         potA, potB, isaA, isaB, cash, wealth,
         marginalA: marginalRate(baseA + grossA, T),
         marginalB: marginalRate(baseB + grossB, T),
+        // Architecture (null / 0 when the overlay is off)
+        fundedRatio: ratio, spendMult, ruleMove,
+        ladder: ladderNow, engine: engineNow,
+        careCost, annuity: annuityNom, blendedGrowth: gYear,
       });
     }
 
@@ -597,6 +798,11 @@ export function createEngine() {
       endWealth: last ? last.wealth : 0,
       endPots: last ? { potA: last.potA, potB: last.potB, isaA: last.isaA, isaB: last.isaB, cash: last.cash } : null,
       startPots: acc,
+      architecture: archOn ? {
+        on: true, spendMultFinal: spendMult, fundedRatioFinal: lastRatio,
+        annuityIncomeToday: annuityToday, parachuteYear,
+        ladderFinal: sleeve ? sleeve.ladder : 0, engineFinal: sleeve ? sleeve.growth : 0,
+      } : { on: false },
     };
   }
 
@@ -665,6 +871,55 @@ export function createEngine() {
         };
       });
     return { base, baseReal, tests };
+  }
+
+  // ── Architecture comparison: does the structure actually earn its keep? ─
+  // Runs the same plan four ways so the UI never has to assert a benefit it
+  // has not measured: no structure, structure, structure without the ladder,
+  // structure without the written rules — plus the deterministic stress paths.
+  function compareArchitecture(P, paths) {
+    const n = paths || 400;
+    const AR = archOf(P);
+    const withArch = (patch) => ({ ...P, architecture: { ...AR, on: true, ...(patch || {}) } });
+    const simple = { ...P, architecture: { ...AR, on: false } };
+
+    const run = (Q, label) => {
+      const dd = drawdown({ ...Q, growth: Q.growthBase });
+      let mc = null;
+      try { mc = runMonteCarlo(Q, n, Q.mcSeed || 42); } catch { mc = null; }
+      return {
+        label,
+        endWealth: dd.endWealth,
+        endWealthReal: dd.endWealth / inflFactor(Q, Q.partnerA.birthYear + Q.horizonAge),
+        exhaustedAgeA: dd.exhaustedAgeA,
+        lifetimeTaxReal: dd.lifetimeTaxReal,
+        successProb: mc ? mc.successProb : null,
+        worstSpendMult: mc ? mc.worstSpendMult : 1,
+        medianSpendMult: mc ? mc.medianSpendMult : 1,
+      };
+    };
+
+    const variants = [
+      run(simple, 'No structure'),
+      run(withArch(), 'Full architecture'),
+      run(withArch({ ladderYears: 0 }), 'Without the ladder'),
+      run(withArch({ rulesOn: false }), 'Without the rules'),
+    ];
+
+    // Deterministic bad-sequence tests, in today's money at the horizon.
+    const stress = ['japan', 'gfc', 'stagflation'].map(key => {
+      const a = drawdown({ ...withArch({ stressPath: key }), growth: P.growthBase });
+      const b = drawdown({ ...simple, growth: P.growthBase, architecture: { ...AR, on: true, ladderYears: 0, rulesOn: false, stressPath: key } });
+      const f = inflFactor(P, P.partnerA.birthYear + P.horizonAge);
+      return {
+        key,
+        label: key === 'japan' ? 'Japan 1990 (lost decades)'
+          : key === 'gfc' ? 'Global financial crisis 2008' : 'Stagflation 1972',
+        withArch: { endReal: a.endWealth / f, exhaustedAgeA: a.exhaustedAgeA, spendMult: a.architecture.spendMultFinal },
+        without: { endReal: b.endWealth / f, exhaustedAgeA: b.exhaustedAgeA },
+      };
+    });
+    return { variants, stress };
   }
 
   // ── Sensitivity grid: withdrawal level x growth rate ─────────────────
@@ -808,12 +1063,24 @@ export function createEngine() {
     const finals = [];
     const trims = [];
 
+    // Architecture overlay: the ladder is what turns a bad sequence from a
+    // failure into a dip, so it has to be modelled here, not just in the
+    // deterministic run.
+    const AR = archOf(P);
+    const archOn = !!AR.on;
+    const RATES = sleeveRates(AR, P, 0);
+    const eqNomMean = (1 + AR.equityReal) * (1 + P.inflation) - 1;
+    const goldNomMean = (1 + AR.goldReal) * (1 + P.inflation) - 1;
+    const spendMults = [];
+
     for (let p = 0; p < nPaths; p++) {
       let potA = acc.pensionA, potB = acc.pensionB;
       let isa = acc.isaA + acc.isaB;
       let cash = acc.cash || 0;
       let ok = true, minCoverage = 1;
       const track = [];
+      let sleeve = null, spendMult = 1, raiseStreak = 0;
+      let annuityToday = 0, annuityBought = false, parachuteUsed = false;
       for (let i = 0; i < nYears; i++) {
         const year = P.retireYear + i;
         const infl = inflFactor(P, year);
@@ -823,7 +1090,16 @@ export function createEngine() {
         const spB = ageB >= P.partnerB.spAge ? P.partnerB.spAmount * infl : 0;
         const dbA = (P.partnerA.db && year >= P.partnerA.dbStartYear) ? P.partnerA.db * (P.partnerA.dbIndexed ? infl : 1) : 0;
         const dbB = (P.partnerB.db && year >= P.partnerB.dbStartYear) ? P.partnerB.db * (P.partnerB.dbIndexed ? infl : 1) : 0;
-        const baseA = spA + dbA, baseB = spB + dbB;
+        const investStart = potA + potB + isa;
+        if (archOn && AR.annuityOn && !annuityBought && year >= AR.annuityYear) {
+          const cost = Math.min(clamp0(AR.annuityAmount) * infl, potA);
+          potA -= cost;
+          annuityToday = (cost * AR.annuityRate) / infl;
+          annuityBought = true;
+        }
+        const annuityNom = annuityBought
+          ? annuityToday * (AR.annuityIndexed ? infl : inflFactor(P, AR.annuityYear)) : 0;
+        const baseA = spA + dbA + annuityNom, baseB = spB + dbB;
         const guaranteedNet = baseA + baseB - taxOn(baseA, T) - taxOn(baseB, T);
 
         let eventNet = 0;
@@ -834,7 +1110,10 @@ export function createEngine() {
           else if (ev.invest) isa += amt;
           else eventNet += amt;
         }
-        const target = targetForYear(P, year);
+        const target = targetForYear(P, year) * spendMult;
+        if (archOn && AR.careOn && ageA >= AR.careFromAge && ageA < AR.careFromAge + AR.careYears) {
+          eventNet -= clamp0(AR.careAnnual) * infl;
+        }
         let need = clamp0(target - guaranteedNet - eventNet);
 
         // Pension draws to each partner's cheap bands, lower base first
@@ -890,13 +1169,58 @@ export function createEngine() {
         // the deterministic engine
         const u1 = Math.max(rand(), 1e-12), u2 = rand();
         const z = Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2);
-        const r = P.mcMean + P.mcSd * z;
+        let r = P.mcMean + P.mcSd * z;
+
+        if (archOn) {
+          // Equity and gold drawn independently, so diversification earns its
+          // place; index-linked gilts held to maturity are treated as known
+          // in real terms — which is the whole argument for the envelopes.
+          const u3 = Math.max(rand(), 1e-12), u4 = rand();
+          const z2 = Math.sqrt(-2 * Math.log(u3)) * Math.cos(2 * Math.PI * u4);
+          const rEq = eqNomMean + AR.equitySd * z;
+          const rGold = goldNomMean + AR.goldSd * z2;
+          const rGrowth = rEq * (1 - AR.goldPct) + rGold * AR.goldPct;
+          const investAfter = potA + potB + isa;
+          const drawn = clamp0(investStart - investAfter);
+          const tgt = ladderTarget(AR, need > 0 ? target - guaranteedNet : clamp0(target - guaranteedNet), P.inflation);
+          if (!sleeve) {
+            const L = Math.min(investStart, tgt);
+            sleeve = { ladder: L, growth: clamp0(investStart - L) };
+          } else {
+            const tot = sleeve.ladder + sleeve.growth;
+            const k = tot > 1 ? investStart / tot : 1;
+            sleeve = { ladder: sleeve.ladder * k, growth: sleeve.growth * k };
+          }
+          const next = sleeveYear(sleeve, drawn, rGrowth, RATES.gilt, tgt, AR);
+          sleeve = { ladder: next.ladder, growth: next.growth };
+          r = investAfter > 1 ? (next.total / investAfter) - 1 : 0;
+        }
+
         potA = clamp0(potA * (1 + r));
         potB = clamp0(potB * (1 + r));
         isa = clamp0(isa * (1 + r));
         cash = clamp0(cash * (1 + (P.cashGrowth || 0)));   // fixed rate, not random
+
+        if (archOn && AR.rulesOn) {
+          const wealthNow = potA + potB + isa + cash;
+          const ratio = fundedRatio(AR, {
+            wealthReal: wealthNow / infl, spendReal: target / infl,
+            guaranteedNetReal: guaranteedNet / infl, ageA,
+          });
+          if (ratio < AR.cutBelow) { spendMult = Math.max(AR.floorMult, spendMult * (1 - AR.cutBy)); raiseStreak = 0; }
+          else if (ratio > AR.raiseAbove) {
+            raiseStreak++;
+            if (raiseStreak >= AR.raiseLagYears) { spendMult = Math.min(AR.capMult, spendMult * (1 + AR.raiseBy)); raiseStreak = 0; }
+          } else raiseStreak = 0;
+          if (AR.parachuteOn && !parachuteUsed && ageA >= AR.parachuteFrom && ratio < AR.parachuteBelow) {
+            const houseVal = (P.house || 0) * Math.pow(1 + (P.houseGrowth || 0), year - P.startYear);
+            cash += clamp0(houseVal * AR.parachuteFraction);
+            parachuteUsed = true;
+          }
+        }
         if (p < 60) track.push(potA + potB + isa + cash);
       }
+      spendMults.push(spendMult);
       if (ok) successes++;
       else trims.push(1 - minCoverage);
       finals.push(potA + potB + isa + cash);
@@ -927,6 +1251,10 @@ export function createEngine() {
       finalP10: pctile(0.10), finalP50: pctile(0.50), finalP90: pctile(0.90),
       medianTrim: trims.length ? trims[Math.floor(trims.length / 2)] : 0,
       tracks,
+      // How hard the written rules had to work, across all paths
+      medianSpendMult: spendMults.length
+        ? spendMults.slice().sort((x, y) => x - y)[Math.floor(spendMults.length / 2)] : 1,
+      worstSpendMult: spendMults.length ? Math.min(...spendMults) : 1,
     };
   }
 
@@ -992,6 +1320,41 @@ export function createEngine() {
       partnerA: { ...smPh.partnerA, tfcRate: 0.5 },
       partnerB: { ...smPh.partnerB, tfcRate: 0.5 } }).lifetimeTax;
     check('Protected 50% entitlement cuts tax vs standard 25%', t50 < t25 - 1 ? 0 : 1, 0, 0.1);
+    // ── Architecture: every claim the UI makes, measured ──────────────
+    const AP = defaults();
+    const arch = (patch) => ({ ...AP, architecture: { ...AP.architecture, on: true, ...(patch || {}) } });
+    check('Architecture off leaves the projection untouched',
+      drawdown({ ...AP, architecture: { ...AP.architecture, on: false } }).endWealth, dd.endWealth, 0.01);
+    // The ladder is the sequence-of-returns defence: under a Japan-style start
+    // it must beat the identical plan with no envelopes.
+    // What a ladder actually buys is TIME through a bad start, not a bigger
+    // final pot: under a Japan-style sequence the envelopes must push the
+    // shortfall out by years. (It is insurance, and insurance has a cost —
+    // the UI says so rather than claiming a free lunch.)
+    const jpLadder = drawdown(arch({ stressPath: 'japan', rulesOn: false }));
+    const jpNone = drawdown(arch({ stressPath: 'japan', rulesOn: false, ladderYears: 0 }));
+    const exh = (r) => r.exhaustedAgeA == null ? 999 : r.exhaustedAgeA;
+    check('Gilt ladder buys years through a Japan-style sequence',
+      exh(jpLadder) > exh(jpNone) ? 0 : 1, 0, 0.1);
+    // The written rules must never make a stressed plan fail sooner.
+    const jpRules = drawdown(arch({ stressPath: 'japan', rulesOn: true }));
+    check('Spending rules never shorten a stressed plan',
+      (jpRules.exhaustedAgeA == null ? 999 : jpRules.exhaustedAgeA)
+        >= (jpLadder.exhaustedAgeA == null ? 999 : jpLadder.exhaustedAgeA) ? 0 : 1, 0, 0.1);
+    check('Spending rules cut below 1.0 in a Japan-style sequence',
+      jpRules.architecture.spendMultFinal < 1 ? 0 : 1, 0, 0.1);
+    // Annuity: pot converts into guaranteed taxable income for life.
+    const ann = drawdown(arch({ annuityOn: true, annuityYear: AP.retireYear + 7, annuityAmount: 150000 }));
+    const annRow = ann.rows.find(r => r.year === AP.retireYear + 8);
+    check('Annuity purchase creates guaranteed income', annRow && annRow.annuity > 1000 ? 0 : 1, 0, 0.1);
+    // Care and the house parachute.
+    const care = drawdown(arch({ careOn: true, careFromAge: 84, careAnnual: 45000, careYears: 4 }));
+    check('Care costs reduce wealth at the horizon',
+      care.endWealth < drawdown(arch()).endWealth ? 0 : 1, 0, 0.1);
+    const para = drawdown(arch({ stressPath: 'japan', parachuteOn: true, parachuteFrom: 75, parachuteBelow: 0.9 }));
+    check('House parachute releases only once, and only when off track',
+      para.architecture.parachuteYear != null
+        && drawdown(arch({ parachuteOn: true, parachuteBelow: 0.05 })).architecture.parachuteYear == null ? 0 : 1, 0, 0.1);
     const y0 = dd.rows[0];
     check('Year one: free allowance used before basic rate (tax below merged single-person)',
       y0.tax < taxOn(y0.guaranteed + y0.grossA + y0.grossB, T) ? 0 : 1, 0, 0.5);
@@ -1004,7 +1367,7 @@ export function createEngine() {
     spendingAnnual, phaseFactor, targetForYear, effectiveEvents, eventNominal,
     accumulate, drawdown, compareStrategies,
     stressTests, sensitivityGrid, tornado, lifetimeTotals, estate,
-    runMonteCarlo, runAssertions,
+    runMonteCarlo, runAssertions, compareArchitecture, archOf, fundedRatio,
     TAX_DEFAULTS,
   };
 }

@@ -3,24 +3,27 @@
 **See the day you can afford to stop — an income-first UK retirement planner**
 
 > "Can I retire at age X with £Y net income, and how robust is that outcome?"
-> (Formerly "RetireLens". The live app is `index.html`, powered by `v4/`.)
+> (Formerly "RetireLens". The live app is **Horizon** in `horizon/`, deployed to `index.html`; the classic planner remains at `app.html`, powered by `v4/`.)
 
 100% private — all calculations run in-browser. Your planning data never leaves your device, and the app makes **no third-party requests** (Chart.js and the Inter font are self-hosted in `vendor/`).
 
 ## Product / going live
 
-RetireLens ships as a sellable product with a marketing site, legal pages and a
-soft access gate:
+Someday is **free, with an optional paid tier — Someday Plus** — sold through
+Lemon Squeezy (merchant of record) and unlocked with a licence key. No account,
+no backend, no tracking; the only network request the app ever makes is the
+licence check, and only if you buy Plus.
 
-- `landing.html` — marketing page with pricing
-- `guide.html` — how-to guide
-- `legal.html` — disclaimer, terms & privacy
-- `config/product.js` — single place to set branding, price, domain, Stripe link and the paywall switch
-- `js/access.js` — disclaimer gate (always on) + optional access-code paywall
-- **`LAUNCH.md`** — step-by-step go-live checklist (domain, DNS, Stripe, codes)
+- `horizon/` — the live app (Vite + React + TypeScript), built by CI into the site root
+- `horizon/src/config/product.ts` — prices, checkout links, licence policy (the one file to edit)
+- `horizon/src/lib/entitlement.ts` — licence activation/validation, offline grace
+- `horizon/src/components/Plus.tsx` — the upgrade sheet, locks and key entry
+- `legal.html` — disclaimer, terms & privacy (fill in the bracketed trader details before charging)
+- **`LAUNCH.md`** — step-by-step go-live checklist (Lemon Squeezy, legal, domain, deploy)
 
-The disclaimer must be accepted once; the paywall is **off by default** until you
-add a Stripe link and flip `paywallEnabled` in `config/product.js`.
+| Free | Plus (£49/yr or £129 lifetime) |
+|---|---|
+| The answer, the Horizon, confidence, what-ifs, spending styles, dates that matter | Adviser-ready PDF report, year-by-year + tax analysis, withdrawal-order comparison, full Coach, advanced pension detail, plan-structure controls, estate & IHT view, each April's tax-year refresh |
 
 ## Quick Start
 
@@ -44,7 +47,7 @@ engine/           Pure calculation functions — no UI, no side effects
   spendingPolicy.js Age-based spending rules (go-go/slow-go/no-go)
   + 13 more       DB pension, healthcare, legacy, milestones, etc.
 
-config/           UK tax rates (2025/26), pension rules, scenario presets
+config/           UK tax rates (2026/27), pension rules, scenario presets
 ui/               Mobile-first components, screens, export (PDF/Excel/QR)
 src/ux/           UX orchestration: pathfinder, journeys, onboarding
 js/app.js         Main application orchestrator
@@ -65,7 +68,7 @@ tests/            12 test suites, 630+ assertions
 - **Monte Carlo** — seeded PRNG (Mulberry32) for reproducible results
 - **Export** — PDF reports, Excel data, QR code sharing
 
-## Tax Year 2025/26 Defaults
+## Tax Year 2026/27 Defaults
 
 | Parameter | Value |
 |---|---|
@@ -75,7 +78,7 @@ tests/            12 test suites, 630+ assertions
 | Additional Rate | 45% (£125,141+) |
 | PCLS (Tax-Free Cash) | 25% of pension pot |
 | State Pension Age | 67 |
-| Full State Pension | £230.25/week |
+| Full State Pension | £241.30/week (£12,548 a year) |
 | ISA Annual Allowance | £20,000 |
 | Default Real Return | 4% after inflation |
 

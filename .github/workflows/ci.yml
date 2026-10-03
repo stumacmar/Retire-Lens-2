@@ -20,6 +20,9 @@ jobs:
         with:
           node-version: '20'
           cache: 'npm'
+          cache-dependency-path: |
+            package-lock.json
+            horizon/package-lock.json
 
       - name: Install dependencies
         run: npm ci
@@ -29,6 +32,20 @@ jobs:
 
       - name: Run stress tests
         run: npm run test:stress
+
+      # Horizon is the live product (built from horizon/ and deployed to the
+      # site root). Its UAT and end-to-end sweeps are blocking gates.
+      - name: Install Horizon dependencies
+        run: cd horizon && npm ci
+
+      - name: Install Chromium for the Horizon sweeps
+        run: cd horizon && npx --no-install playwright-core install --with-deps chromium
+
+      - name: Horizon UAT sweep (builds, then 120+ checks)
+        run: cd horizon && npm run uat
+
+      - name: Horizon end-to-end (engine ↔ UI data flow)
+        run: cd horizon && node e2e.mjs
 
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium

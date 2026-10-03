@@ -5,9 +5,10 @@
  * and external links. Everything a non-developer needs to change to go live
  * lives here. See LAUNCH.md for the step-by-step launch checklist.
  *
- * DEFAULT MODEL: free to use, with a "pay what you think it's worth" donation
- * ask (`model: 'donation'`). The fixed-fee paywall below is an optional
- * alternative, off unless you set `model: 'paywall'` and `paywallEnabled: true`.
+ * NOTE (October 2026): the live product is Horizon (`horizon/`), which has its
+ * own free + Plus model configured in `horizon/src/config/product.ts` and
+ * sold through Lemon Squeezy. This file only drives the legacy "classic"
+ * planner at app.html, which stays free with no donation ask and no paywall.
  *
  * IMPORTANT: This is a 100% client-side static app with no backend, so the
  * paywall is a "soft" gate — it deters casual users and supports honest

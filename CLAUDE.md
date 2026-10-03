@@ -4,6 +4,18 @@
 
 RetireLens 2 is a UK retirement planning engine answering: "Can I retire at age X with £Y net income?" It runs 100% client-side in the browser with no backend.
 
+## Which app is live
+
+The deployed product is **Horizon** (`horizon/`): Vite + React 19 + TypeScript + Tailwind v4, with the verified engine copied byte-for-byte into `horizon/src/engine/engine.js`. CI builds it into the site root. The vanilla app described below is the legacy "classic" planner at `app.html`.
+
+Horizon essentials:
+- `horizon/src/config/product.ts` — free/Plus pricing, Lemon Squeezy checkout links, licence policy, disclaimer version.
+- `horizon/src/lib/entitlement.ts` — licence activate/validate against the Lemon Squeezy licence API; `useEntitlement()` exposes `plus`.
+- `horizon/src/components/Plus.tsx` — `Locked`, `PlusPill`, `PlusSheetBody`. Gate a feature with `plus ? <Feature/> : <Locked …/>`.
+- `horizon/src/components/Disclaimer.tsx` — accept-once gate (bump `disclaimerVersion` to re-ask).
+- Tests: `cd horizon && npm run uat` (builds, 120+ checks) and `node e2e.mjs` (140+ checks). Both run as a seeded Plus customer and then exercise the free tier; both are blocking in CI.
+- Tax year constants: `TAX_YEAR`, `TAX_DEFAULTS`, `SCOT_BANDS` in the Horizon engine; `config/defaults.js` for the legacy app. Roll both every April.
+
 ## Tech Stack
 
 - Pure JavaScript ES6 modules (no framework, no build step)
@@ -14,7 +26,7 @@ RetireLens 2 is a UK retirement planning engine answering: "Can I retire at age 
 ## Architecture
 
 - `engine/` — Pure, stateless calculation functions (tax, projections, Monte Carlo, withdrawals). No UI or DOM access.
-- `config/` — UK tax rates (2025/26), pension rules, scenario presets.
+- `config/` — UK tax rates (2026/27), pension rules, scenario presets.
 - `ui/` — Components, screens, export modules. All DOM interaction lives here.
 - `src/ux/` — UX orchestration: pathfinder triage, user journeys, onboarding flow.
 - `js/app.js` — Main application orchestrator (2700 lines, monolithic).
@@ -48,4 +60,4 @@ All test files use custom runners (not Jest) via `node tests/<file>.js`.
 
 ## Version
 
-v1.0.0 — UK Tax Year 2025/26 rates.
+v1.1.0 — UK Tax Year 2026/27 rates.

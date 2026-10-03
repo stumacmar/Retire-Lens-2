@@ -1,259 +1,188 @@
-# Launching RetireLens (free, with donations)
+# Launching Someday (free + Plus)
 
-This is your go-live checklist. The app is built and works today. By **default
-it is free to use, with a "pay what you think it's worth" donation ask** — no
-paywall. Everything a non-developer needs to change lives in
-**`config/product.js`**.
+The go-live checklist. The app is built and tested; this is the operator's
+side. By default Someday is **free to use, with an optional paid tier,
+Someday Plus**, sold through **Lemon Squeezy** as merchant of record (they
+take the payment, charge the right VAT for the buyer's country, send the
+receipt and issue the licence key). Nothing here touches the calculation
+engine, and every step is reversible.
 
-Nothing here touches the calculation engine. All steps are reversible.
-
-> Prefer to charge a fixed fee instead of asking for donations? That's fully
-> supported — skip to *Optional: charge a fixed fee (paywall)* near the end.
+Everything a non-developer needs to change lives in one file:
+**`horizon/src/config/product.ts`**.
 
 ---
 
-## The short version (free + donations)
+## The short version
 
-1. Set your details in `config/product.js` (Step 1).
-2. Buy a domain and point it at GitHub Pages (Steps 2–3).
-3. Add a donations link — Buy Me a Coffee / Ko-fi / PayPal (Step 4a).
-4. Fill in your real name/contact in `legal.html` (Step 7 — required by law even
-   for a free site, because the host keeps server logs).
-5. Push. Done.
-
-The pieces:
+1. Create a Lemon Squeezy store and one product, *Someday Plus*, with two
+   variants (Yearly subscription £49, Lifetime £129) and licence keys on (Step 1).
+2. Paste the two checkout links, and optionally the store/product IDs, into
+   `horizon/src/config/product.ts` (Step 2).
+3. Fill in your real name and contact address in `legal.html` (Step 3 — required
+   by UK consumer law before charging).
+4. Buy a domain and point it at GitHub Pages (Steps 4–5). Optional but recommended.
+5. Push to `main`. CI builds Horizon and deploys it (Step 6).
+6. Buy a copy yourself and activate it (Step 7).
 
 | Piece | Where | You do it? |
 |---|---|---|
-| Branding, email, donation link | `config/product.js` | ✅ edit values |
-| Domain name | `CNAME` + `config/product.js` | ✅ buy + set |
-| Donations (default) | Buy Me a Coffee / Ko-fi / PayPal | ✅ create, paste URL |
-| Hosting | GitHub Pages (already set up) | ✅ enable custom domain |
-| Legal + controller identity | `legal.html` | ⚠️ fill in + review |
-| Fixed-fee paywall (optional) | Stripe + access codes | ⏭️ only if charging |
+| Prices, checkout links, store/product IDs | `horizon/src/config/product.ts` | ✅ edit values |
+| Store, product, variants, licence keys | lemonsqueezy.com dashboard | ✅ create, copy links |
+| Trader identity (name, address) | `legal.html` | ⚠️ fill in (legally required) |
+| Domain name | `CNAME` + `horizon/src/config/product.ts` | ✅ buy + set (optional) |
+| Hosting + build | GitHub Pages via `.github/workflows/deploy.yml` | ✅ already set up |
 
 ---
 
-## Step 1 — Set your product details
+## What is free and what is Plus
 
-Open **`config/product.js`** and set:
+| Free | Plus |
+|---|---|
+| Onboarding, single or couple, no account | The adviser-ready PDF report |
+| The answer, the Horizon chart, Poor/Base/Positive lenses | Year-by-year table and lifetime tax analysis |
+| Monte Carlo confidence score and fan | Withdrawal-order comparison and the full Coach |
+| Spending style and what-if sliders | Advanced mode: multiple schemes, protected tax-free cash, allowance taper, DB transfer values |
+| Dates that matter, income mix, lifetime tax | Plan-structure (de-risking) controls and "is it worth it" |
+| Scottish tax and every correctness feature | Estate and inheritance-tax view |
+| One plan saved on this device | Each April's tax-year refresh, for as long as Plus is active |
 
-```js
-name: 'RetireLens',
-domain: 'retirelens.co.uk',          // your domain
-supportEmail: 'hello@retirelens.co.uk',
-price: '£4.99',
+The gate lives in `horizon/src/lib/entitlement.ts` and `horizon/src/components/Plus.tsx`.
+To move a feature between tiers, search `App.tsx` for `plus ?` / `<Locked`.
+
+### Pricing rationale (October 2026)
+
+UK consumer planners: Isaac £79.99/yr (or £7.99/mo), RetireEasy £60–80/yr,
+EvolveMyRetirement about £50/yr. US tools: ProjectionLab $129/yr, Boldin $168/yr.
+Someday has no cloud sync or account, so it sits just under the UK middle at
+**£49 a year**, with **£129 lifetime** (about 2.6 years' worth) for people who
+dislike subscriptions. Change either in `product.ts` and in Lemon Squeezy.
+
+---
+
+## Step 1 — Lemon Squeezy store and product
+
+1. Sign up at lemonsqueezy.com and create a store (it needs your legal name and
+   address for the receipts; payouts go to your bank).
+2. **Products → New product**: name *Someday Plus*, type *Digital product*.
+3. Under **Variants**, create two:
+   - **Yearly** — pricing *Subscription*, £49, billed yearly.
+   - **Lifetime** — pricing *Single payment*, £129.
+4. On the product, turn on **Generate licence keys**. Set the **activation
+   limit** to 3 (a phone, a tablet, a laptop). For the subscription variant
+   leave *licence expires with subscription* on, so a lapsed plan stops working
+   after the grace period.
+5. Tax: enable **VAT collection** so Lemon Squeezy charges and remits the
+   right rate per country. Prices in the app are described as *including VAT*.
+6. Optional: on the receipt email, add a button linking to
+   `https://YOUR-DOMAIN/?licence=[license_key]` if Lemon Squeezy's variables
+   support it in your plan. The app activates automatically from that link.
+   Without it, the customer pastes the key from the email — the app walks them through it.
+
+## Step 2 — Paste the links into the app
+
+For each variant, **Share → Checkout link** and copy the URL. Then in
+`horizon/src/config/product.ts`:
+
+```ts
+annual:   { ..., checkoutUrl: 'https://YOUR-STORE.lemonsqueezy.com/checkout/buy/....' },
+lifetime: { ..., checkoutUrl: 'https://YOUR-STORE.lemonsqueezy.com/checkout/buy/....' },
 ```
 
-These flow through the app, the gate, and the marketing pages automatically.
+Until a link is filled in, that tier's button shows "Coming soon" and is
+disabled, so nothing breaks before launch.
 
----
+Optional hardening: set `lemonSqueezy.storeId` and `productIds` (both numbers
+appear in the dashboard URL and in the licence API response). The app then
+refuses keys issued by any other store or product.
 
-## Step 2 — Buy a domain
+Also set `supportEmail` and, if you buy a domain, use it consistently.
 
-1. Buy your domain from any registrar (Namecheap, Cloudflare, GoDaddy, 123-Reg).
-   `retirelens.co.uk` is pre-filled everywhere; change it if you pick another.
-2. If you choose a different name, update **two** places:
-   - `CNAME` (the single line — this is what GitHub Pages reads)
-   - `config/product.js` → `domain`
+## Step 3 — Legal pages (required before charging)
 
-A `.co.uk` is typically £5–10/year and signals UK relevance, which fits the
-UK-only tax engine.
+Open `legal.html` and replace every bracketed field in section 2 ("Who you're
+dealing with") and section 3 ("Who is the data controller"):
 
----
+- `[YOUR NAME OR COMPANY]`
+- `[YOUR TOWN/CITY]`
+- `[YOUR CONTACT ADDRESS]`
 
-## Step 3 — Point the domain at GitHub Pages
+UK consumer law (Consumer Contracts Regulations 2013) requires a trader's real
+identity and geographic address to be shown before purchase. Lemon Squeezy is
+the merchant of record, which carries most of the consumer-contract burden,
+but the licence to use Plus is granted by you, so your identity still needs to
+be there. The page already describes the free/Plus model, the licence check,
+and the 14-day cancellation position. Read it once; have a solicitor look if
+you want certainty.
 
-At your registrar's DNS settings, add these records:
+### What the app sends, and when (for the privacy notice)
 
-**Apex domain (`retirelens.co.uk`)** — four `A` records to GitHub's IPs:
+Nothing, unless the person buys Plus. Then, on activation and roughly weekly
+afterwards, the app POSTs the licence key and a short device label ("Safari on
+iPhone") to `api.lemonsqueezy.com`. No planning figures ever leave the device.
+This is disclosed in the disclaimer screen, the Plus sheet and the privacy notice.
+
+## Step 4 — Buy a domain (optional, recommended)
+
+Any registrar. A `.co.uk` is typically £5–10/year and signals UK relevance.
+`someday.money` is the name used in the config; change `supportEmail` and the
+`CNAME` file if you pick another. If you skip this, the site works at
+`https://stumacmar.github.io/Retire-Lens-2/`.
+
+## Step 5 — Point the domain at GitHub Pages
+
+Create a file called `CNAME` at the repo root containing only your domain
+(e.g. `someday.money`). At your registrar add:
 
 ```
-A   @   185.199.108.153
-A   @   185.199.109.153
-A   @   185.199.110.153
-A   @   185.199.111.153
+A      @    185.199.108.153
+A      @    185.199.109.153
+A      @    185.199.110.153
+A      @    185.199.111.153
+CNAME  www  stumacmar.github.io
 ```
 
-**`www` subdomain** — one `CNAME` record:
+Then in GitHub → Settings → Pages set the custom domain and tick *Enforce HTTPS*.
 
-```
-CNAME   www   <your-github-username>.github.io
-```
+## Step 6 — Ship it
 
-Then in GitHub → your repo → **Settings → Pages**:
-- Source: *Deploy from a branch* is not used here — this repo deploys via the
-  **Deploy to GitHub Pages** Action on push to `main`.
-- Under *Custom domain*, enter `retirelens.co.uk` and save.
-- Tick **Enforce HTTPS** once the certificate is issued (can take an hour).
+Push to `main`. Two workflows run:
 
-The `CNAME` file in the repo root is copied into the deploy automatically, so
-the custom domain sticks across deploys.
+- **CI** — unit tests, stress test, then the Horizon UAT (120+ checks) and
+  end-to-end sweep (140+ checks). The sweeps run both as a Plus customer and as
+  a free user, so a gating mistake fails the build.
+- **Deploy** — builds `horizon/` from source and publishes it to the site root
+  (and `/horizon-app/` for old links).
 
----
+## Step 7 — Test the real purchase
 
-> ⏭️ **Steps 4–6 are only for the fixed-fee paywall.** If you're launching
-> free-with-donations (the default), skip to **Step 7** and see the
-> *Donations* section below for the one thing you need to add.
-
-## Optional (paywall only) · Step 4 — Create your Stripe Payment Link
-
-1. Create a free [Stripe](https://stripe.com) account.
-2. **Products → Payment links → New**. Create a product "RetireLens — Lifetime
-   access", price £4.99, one-time.
-3. Under *After payment*, choose **Show confirmation page** and add a message
-   like: *"Thanks! Your access code is below — enter it in the planner to
-   unlock."* (You'll paste a code here per sale, or automate — see Step 5.)
-4. Copy the payment link URL and paste it into `config/product.js`:
-
-   ```js
-   stripePaymentLink: 'https://buy.stripe.com/xxxxxxxx',
-   ```
-
-> **Fulfilment options.** The simplest launch is manual: when Stripe emails you
-> a sale, reply with a fresh access code. To automate, use Stripe's
-> confirmation page or a Zapier/Make automation that emails a code on
-> `checkout.session.completed`. Codes are just strings — see Step 5.
+Lemon Squeezy has **Test mode** (toggle in the dashboard). In test mode, buy
+Plus with the test card `4242 4242 4242 4242`, open the receipt, paste the key
+into *Get Plus → Already have a licence key?* and confirm everything unlocks
+and that *Remove from this device* works. Then switch the store to live mode
+and copy the **live** checkout links into `product.ts` (test and live links differ).
 
 ---
 
-## Step 5 — Mint access codes
+## Operating it
 
-Codes look like `RL-AB3K-7M` and are validated in the browser by a checksum, so
-you can generate as many as you like without a code list in the source.
+- **Each April**: update the tax constants in `horizon/src/engine/engine.js`
+  (`TAX_YEAR`, `TAX_DEFAULTS`, `SCOT_BANDS`) and `config/defaults.js`, run the
+  tests, push. That refresh is the thing yearly customers are paying for.
+- **Refunds**: issue them in Lemon Squeezy; it disables the key, and the app
+  locks within a week (or at once on the next activation attempt).
+- **"My key says activation limit reached"**: the customer can remove the key
+  from an old device in the app; or raise the activation limit on the product;
+  or deactivate an instance in the Lemon Squeezy order page.
+- **Hand-issued access** (reviewers, friends): create a 100% discount code in
+  Lemon Squeezy rather than special-casing the app. They get a real key.
 
-**Easiest way** — open the deployed site, open your browser's dev console
-(F12 → Console) and run:
+## What the gate is, honestly
 
-```js
-__rlGenerateCode(10)   // returns 10 valid codes
-```
-
-Copy them somewhere safe and hand one to each buyer.
-
-- Hand-issued codes (press, reviewers, refunds) can also be added to
-  `extraValidCodes` in `config/product.js`.
-- Changing `CODE_SALT` in `js/access.js` invalidates all previously issued
-  codes — only do that if you need to reset.
-
----
-
-## Step 6 — Turn the paywall on
-
-In `config/product.js`:
-
-```js
-paywallEnabled: true,
-```
-
-While this is `false` (the default), the planner is fully open — good for
-testing and for launch day before your Stripe link is ready. Flip it to `true`
-when you're ready to charge. The disclaimer gate is always on regardless.
-
----
-
-## Step 7 — Review the legal pages
-
-`legal.html` contains a disclaimer, terms of use and a privacy policy written
-for a UK, personal, non-commercial project. **Read them.** If you're trading
-commercially, have a solicitor check them. At minimum:
-
-- **Fill in your trader identity (required by law).** In `legal.html`, section
-  2 → *"Who you're dealing with"*, replace `[YOUR NAME OR COMPANY]`,
-  `[YOUR TOWN/CITY]` and `[YOUR CONTACT ADDRESS]` with your real details. UK
-  consumer law (Consumer Contracts Regulations 2013) requires a genuine trader
-  identity and contact address to be shown **before** purchase. Then set
-  `traderIdentityComplete: true` in `config/product.js` as a reminder that it's done.
-- Confirm the support email is correct.
-- Confirm the "not FCA-regulated / not financial advice" wording matches how you
-  market it.
-- Confirm the cancellation/refund wording matches your Stripe setup. The terms
-  state that buyers consent to immediate digital supply and waive the 14-day
-  cancellation right — mirror that on your Stripe confirmation page.
-
-Bump `disclaimerVersion` in `config/product.js` if you materially change the
-disclaimer — it forces every user to re-accept.
-
-### Data protection / UK GDPR
-
-RetireLens is privacy-friendly by design: your users' financial figures are
-processed entirely in their browser and never reach you. That removes most of
-the usual data-protection burden, but once you take payments you do handle
-*some* personal data (buyers' payment/contact details, server logs). Before
-charging:
-
-- **Fill in the controller details** in the `legal.html` privacy notice
-  (section 3 → "Who is the data controller") — same real name/contact as your
-  trader identity.
-- **Check whether you must pay the ICO data protection fee.** Most UK
-  businesses that process personal data for their own commercial purposes must
-  register with the ICO and pay an annual fee (typically £40–£60). Use the
-  ICO's short self-assessment: <https://ico.org.uk/for-organisations/data-protection-fee/>.
-- **Rely on Stripe's built-in compliance for payments.** Stripe acts as its own
-  controller/processor, provides a Data Processing Agreement, and handles card
-  data (PCI) and international-transfer safeguards. You don't store card details.
-- **No cookie banner is required** as shipped: the app uses only strictly
-  necessary local storage and runs no analytics, ads, or third-party trackers
-  (Chart.js and the Inter font are self-hosted, so there are no third-party
-  requests at all). If you later add analytics, you must add a compliant
-  consent banner and update the privacy notice.
-- **Handle rights requests** sent to your support email within one month. Local
-  planning data is erased by the user via "Reset & Start Over"; you only need to
-  action requests about data you actually hold (e.g. payment records).
-
----
-
-## Step 8 — Ship it
-
-```bash
-git add -A
-git commit -m "launch config"
-git push
-```
-
-The Deploy Action publishes to GitHub Pages automatically. Visit your domain,
-accept the disclaimer, and (if the paywall is on) test a code.
-
----
-
-## Site structure (already set up)
-
-- `index.html` — the **homepage**: your story, features, how-it-works and the
-  donation ask. This is what visitors see at your domain root.
-- `app.html` — the **planner** itself (with the disclaimer gate).
-- `guide.html`, `legal.html` — how-to and legal pages.
-
-All the links, the deploy workflow, and the E2E tests already point at these.
-
-## Donations ("pay what you think it's worth")
-
-The default model is **free to use, with a donation ask** — no paywall. To turn
-the donate button on:
-
-1. Create a donations link — the easiest are
-   [Buy Me a Coffee](https://buymeacoffee.com), [Ko-fi](https://ko-fi.com),
-   PayPal.me, or a Stripe donation Payment Link. All let supporters choose their
-   own amount.
-2. Paste it into `config/product.js` → `donationLink`. Tweak `donationHeadline`
-   and `donationBlurb` if you like — your story is already there.
-
-Until a link is set, the donate button simply opens the planner, so nothing
-looks broken. The homepage and the planner footer both surface the ask.
-
-To charge a fixed fee instead of asking for donations, set `model: 'paywall'`
-and `paywallEnabled: true` in `config/product.js` and follow steps 4–6 above.
-
----
-
-## Hardening the paywall (optional, later)
-
-The soft gate is fine to launch. If sharing becomes a problem, add a tiny
-serverless check without moving the whole app off static hosting:
-
-1. Store issued codes (or Stripe customer emails) in a serverless KV store.
-2. Add a Netlify/Cloudflare Function `POST /validate` that checks a code and
-   returns `{ valid: true }`.
-3. In `js/access.js`, replace `isValidAccessCode` with a `fetch` to that
-   function. Everything else stays the same.
-
-This keeps hosting cheap while making codes individually revocable.
+Someday has no server. The licence check is a genuine check against Lemon
+Squeezy, so a refunded or lapsed key stops working. But the app runs in the
+customer's browser, and anyone who edits their own browser storage can forge a
+record. That is true of every client-side product and is the standard trade-off
+for a privacy-first tool. The design goal is a fair gate for honest customers,
+not a vault. If piracy ever matters, the next step is a small Cloudflare
+Worker that signs licence responses, which is a day's work and changes nothing
+for customers.

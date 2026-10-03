@@ -85,15 +85,23 @@ const closeSheet = async () => { if (await sheetOpen()) { await p.keyboard.press
 async function setRange(i, v) { try { await p.$$eval('input[type=range]', (els, [a, val]) => { const el = els[a]; if (!el) return; const s = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set; s.call(el, String(val)); el.dispatchEvent(new Event('input', { bubbles: true })); el.dispatchEvent(new Event('change', { bubbles: true })); }, [i, v]); } catch { /* ignore */ } }
 // Clear per-navigation (NOT via addInitScript — that would wipe storage on every
 // reload and break the persistence checks). Clean load = visit, clear, reload.
+// Most of the sweep runs as a Plus customer (every feature reachable). A
+// pre-validated licence record is seeded locally, so no network is touched.
+// The free tier is exercised explicitly at the end.
+const PLUS = JSON.stringify({ key: 'uat-seeded-licence', instanceId: 'uat', instanceName: 'UAT', status: 'active', expiresAt: null, activatedAt: Date.now(), validatedAt: Date.now(), variantName: 'Lifetime' });
+const seedPlus = () => p.evaluate(v => localStorage.setItem('someday-licence-v1', v), PLUS).catch(() => {});
+const acceptDisclaimer = async () => { if (await has('I understand')) { await tap('I understand'); await wait(700); } };
 const fresh = async () => {
   await p.goto(URL, { waitUntil: 'networkidle' });
   await p.evaluate(() => localStorage.clear()).catch(() => {});
+  await seedPlus();
   await p.reload({ waitUntil: 'networkidle' }); await wait(700);
 };
 async function loadEx() { // robust: retry the example tap; wait for the plan to persist
   await fresh();
   for (let i = 0; i < 3; i++) { await tap('worked example'); await wait(1000); if (!/Begin/.test(await bodyT())) break; }
   await p.waitForFunction(() => !!localStorage.getItem('horizon-plan-v1'), { timeout: 3000 }).catch(() => {});
+  await acceptDisclaimer();
 }
 
 await fresh();
@@ -121,6 +129,10 @@ await p.click('[role=switch]').catch(() => {}); await wait(300);
 await check('16 partner reveals fields', async () => (await p.$$('input[inputmode=decimal]')).length >= 4);
 await check('17 See-my-horizon button', () => has('See my horizon'));
 await tap('See my horizon'); await wait(900);
+// The disclaimer, accepted once before the first horizon
+await check('17a disclaimer shown once, before the horizon', async () => /calm place to think/i.test(await h1()));
+await check('17a2 disclaimer links to the legal page', async () => (await p.$('a[href="legal.html"]')) != null);
+await tap('I understand'); await wait(800);
 // The framing choice, asked once before the horizon
 await check('17b approach screen asks how the money is run', async () => /How should the money be run/i.test(await h1()));
 await check('17c traditional option offered', () => has('Traditional'));
@@ -194,6 +206,7 @@ await check('55 no £NaN after edits', async () => !/£NaN/.test(await bodyT()))
 await tap('Explore'); await wait(800);
 await check('56 Monte-Carlo fan renders', () => has('Range of futures'));
 await check('57 income breakdown', () => has('Where your income comes from'));
+await check('57b dates that matter (personal timeline)', async () => (await has('Dates that matter')) && /State Pension starts, at 67/.test(await bodyT()));
 await check('58 svg present', () => $('svg'));
 await check('59 lifetime-tax card', () => has('Lifetime income tax'));
 await check('60 money-lasts card', async () => /Money lasts|Runs short/.test(await bodyT()));
@@ -258,6 +271,40 @@ await check('97 no NaN/undefined leaking to UI', async () => !/\bNaN\b|\bundefin
 await check('98 no £NaN anywhere', async () => !/£NaN/.test(await p.content()));
 await check('99 zero console errors overall', () => ce.length === 0);
 await check('100 zero uncaught page errors overall', () => pe.length === 0);
+
+// ── Free tier: the answer stays whole, depth is locked honestly ──────────
+await p.evaluate(() => localStorage.removeItem('someday-licence-v1')).catch(() => {});
+await p.reload({ waitUntil: 'networkidle' }); await wait(900);
+await check('101 free: disclaimer not asked again', async () => !/calm place to think/i.test(await h1()));
+await check('102 free: the answer still renders', async () => /spend about|gets tight/i.test(await h1()));
+await check('103 free: confidence % still shown', async () => /% of possible futures/.test(await bodyT()));
+await check('104 free: Get Plus pill in header', () => $('button[aria-label="Get Someday Plus"]'));
+await tap('Explore'); await wait(900);
+await check('105 free: Monte Carlo stays free', () => has('Range of futures'));
+await check('106 free: lifetime-tax card stays free', () => has('Lifetime income tax'));
+await check('107 free: estate picture is locked', () => has('The estate picture'));
+await check('108 free: withdrawal order locked', async () => /Withdrawal order & tax/.test(await bodyT()) && !(await has('lowest lifetime tax')));
+await check('109 free: year-by-year locked with a preview', () => has('Every year, in full'));
+await check('110 free: lock opens the Plus sheet', async () => { await p.getByRole('button', { name: 'See what Plus adds' }).first().click(); await wait(700); return has('Already have a licence key?'); });
+await check('111 free: both prices shown', async () => (await has('£49')) && (await has('£129')));
+await check('112 free: checkout buttons disabled until configured', async () => (await p.$$eval('button:disabled', e => e.filter(x => /Coming soon/.test(x.textContent)).length)) === 2);
+await tap('Already have a licence key?'); await wait(300);
+await p.fill('input[aria-label="Licence key"]', 'not-a-key'); await tap('Activate on this device'); await wait(500);
+await check('113 free: malformed key is refused locally (no network)', async () => /doesn’t look like a licence key/.test(await bodyT()));
+await closeSheet();
+await tap('Details'); await wait(500); await tap('People'); await wait(300);
+await check('114 free: advanced detail locked', async () => (await has('Advanced detail')) && (await p.locator('[role=switch]:has-text("Advanced")').count()) === 0);
+await tap('Structure'); await wait(300);
+await check('115 free: structure tab locked', async () => (await has('Plan structure')) && !(await has('Set up the standard architecture')));
+await closeSheet();
+await tap('Peace'); await wait(500);
+await check('116 free: report button routes to Plus', async () => { await tap('Save the full report'); await wait(600); return has('Already have a licence key?'); });
+await check('117 free: print report not rendered', async () => (await p.$('#print-summary')) == null);
+await closeSheet();
+await seedPlus(); await p.reload({ waitUntil: 'networkidle' }); await wait(900);
+await check('118 plus: pill shows active', () => $('button[aria-label="Someday Plus — active"]'));
+await check('119 plus: print report rendered', async () => (await p.$('#print-summary')) != null);
+await check('120 free/plus sweep: zero page errors', () => pe.length === 0);
 
 console.log(`\n═══ Horizon UAT: ${pass}/${pass + fail} passed ═══`);
 if (fails.length) console.log('\nFAILURES:\n' + fails.map(f => '  ' + f).join('\n'));

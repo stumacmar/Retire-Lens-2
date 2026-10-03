@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Sunrise, SlidersHorizontal, Compass, ShieldCheck, Plus, X, Download, RotateCcw, Lightbulb } from 'lucide-react';
+import { Sunrise, SlidersHorizontal, Compass, ShieldCheck, Plus, X, Download, RotateCcw, Lightbulb, Sparkles } from 'lucide-react';
 import { usePlan, hasSavedPlan, E } from './lib/usePlan';
 import type { Accum, Drawdown, MC } from './engine/engine';
 import { fmt, fmtK, pct, deflate } from './lib/format';
@@ -12,6 +12,11 @@ import Onboarding from './components/Onboarding';
 import PrintReport from './components/PrintReport';
 import Approach, { DERISKING_ARCHITECTURE } from './components/Approach';
 import { MoneyField, NumField, PctField, Toggle, Segmented } from './components/Field';
+import Disclaimer, { disclaimerAccepted } from './components/Disclaimer';
+import Dates from './components/Dates';
+import { PlusPill, Locked, PlusSheetBody } from './components/Plus';
+import { EntitlementContext, useEntitlement, useEntitlementState } from './lib/entitlement';
+import { PRODUCT } from './config/product';
 
 // Continuous wealth series (today → horizon) from the engine output.
 function series(plan: any, acc: Accum, dd: Drawdown): [number, number][] {
@@ -23,15 +28,24 @@ function series(plan: any, acc: Accum, dd: Drawdown): [number, number][] {
   return [start, ...pre, ...post];
 }
 
-type Tab = 'horizon' | 'details' | 'explore' | 'peace';
+type Tab = 'horizon' | 'details' | 'explore' | 'peace' | 'plus';
 
+// Free + Plus: one entitlement state for the whole app, read anywhere via context.
 export default function App() {
+  const ent = useEntitlementState();
+  return <EntitlementContext.Provider value={ent}><Horizon /></EntitlementContext.Provider>;
+}
+
+function Horizon() {
+  const { plus } = useEntitlement();
   const S = usePlan();
   const { plan, dd, acc, ddBear, ddBull, mc, estate, lens, setLens, update } = S;
   const [sheet, setSheet] = useState<Tab | null>(null);
   const [detailsSect, setDetailsSect] = useState<'plan' | 'people' | 'later' | 'arch'>('plan');
   const [yearSel, setYearSel] = useState<number | null>(null);
   const [onboarded, setOnboarded] = useState(hasSavedPlan());
+  const [disclaimerOk, setDisclaimerOk] = useState(disclaimerAccepted());
+  const openPlus = () => setSheet('plus');
 
   // A plan with no money in it is a blank canvas — show the invitation,
   // not a broken chart and an alarming zero-confidence sentence.
@@ -191,6 +205,12 @@ export default function App() {
     );
   }
 
+  // Accepted once: guidance not advice, estimates not promises. Shown to
+  // returning users too, the first time after it was introduced or revised.
+  if (!disclaimerOk) {
+    return <Disclaimer onAccept={() => setDisclaimerOk(true)} />;
+  }
+
   // The framing choice, asked once — including for plans saved before it
   // existed, which is why it lives here rather than inside onboarding.
   if (plan.approach == null) {
@@ -211,6 +231,7 @@ export default function App() {
           <div className="text-[1.15rem] font-extrabold tracking-tight leading-none">Someday</div>
           <div className="text-[0.72rem] italic mt-0.5" style={{ color: 'var(--color-ink-faint)' }}>see your horizon</div>
         </div>
+        <PlusPill plus={plus} onClick={openPlus} />
         <div className="hidden lg:flex items-center justify-center rounded-full text-[0.7rem] font-bold"
              style={{ width: 34, height: 34, color: 'var(--color-canvas)',
                       background: 'linear-gradient(145deg, var(--color-sage), var(--color-sage-strong))' }}>
@@ -394,13 +415,23 @@ export default function App() {
           <div className="mt-1">
             {coach.map((c, i) => (
               <div key={i} className="py-2.5" style={{ borderTop: i ? '1px solid var(--color-hairline)' : 'none' }}>
-                <div className="text-[0.92rem] font-semibold">{c.t}</div>
-                <div className="mt-0.5 text-[0.84rem] leading-relaxed" style={{ color: 'var(--color-ink-dim)' }}>{c.b}</div>
+                {(plus || i === 0) ? (<>
+                  <div className="text-[0.92rem] font-semibold">{c.t}</div>
+                  <div className="mt-0.5 text-[0.84rem] leading-relaxed" style={{ color: 'var(--color-ink-dim)' }}>{c.b}</div>
+                </>) : (
+                  // Free: the first thought in full; the rest named, not hidden.
+                  <button onClick={openPlus} className="w-full text-left flex items-start gap-2">
+                    <span className="text-[0.92rem] font-semibold" style={{ color: 'var(--color-ink-dim)' }}>{c.t}</span>
+                    <span className="ml-auto shrink-0 rounded-full px-2 py-0.5 text-[0.64rem] font-bold uppercase tracking-wider"
+                      style={{ background: 'color-mix(in srgb, var(--color-calm) 18%, transparent)', color: 'var(--color-calm-strong)' }}>Plus</span>
+                  </button>
+                )}
               </div>
             ))}
           </div>
           <p className="mt-1 text-[0.72rem]" style={{ color: 'var(--color-ink-faint)' }}>
             Computed from your own figures, on this device. Prompts to explore — not advice.
+            {!plus && coach.length > 1 && ' The first is free; Plus opens the rest.'}
           </p>
         </section>
       )}
@@ -436,21 +467,24 @@ export default function App() {
       </nav>
 
       <Sheet open={sheet === 'details'} onClose={() => setSheet(null)} title="Your details">
-        <DetailsBody plan={plan} update={update} reset={resetAll} initial={detailsSect} />
+        <DetailsBody plan={plan} update={update} reset={resetAll} initial={detailsSect} plus={plus} onUpgrade={openPlus} />
       </Sheet>
       <Sheet open={sheet === 'explore'} onClose={() => setSheet(null)} title="Explore">
-        <ExploreBody plan={plan} dd={dd} estate={estate} mc={mc} />
+        <ExploreBody plan={plan} dd={dd} estate={estate} mc={mc} plus={plus} onUpgrade={openPlus} />
       </Sheet>
       <Sheet open={sheet === 'peace'} onClose={() => setSheet(null)} title="Peace of mind">
-        <PeaceBody />
+        <PeaceBody plus={plus} onUpgrade={openPlus} />
+      </Sheet>
+      <Sheet open={sheet === 'plus'} onClose={() => setSheet(null)} title={PRODUCT.plusName}>
+        <PlusSheetBody />
       </Sheet>
       <Sheet open={yearSel != null} onClose={() => setYearSel(null)}
              title={yearSel != null ? `${yearSel} · a closer look` : undefined}>
         {yearSel != null && <YearDetail plan={plan} acc={acc} dd={dd} year={yearSel} />}
       </Sheet>
 
-      {/* Print-only report — a fuller, adviser-ready PDF via the browser's Save as PDF. */}
-      <PrintReport plan={plan} acc={acc} dd={dd} mc={mc} estate={estate} />
+      {/* Print-only report — a fuller, adviser-ready PDF via the browser's Save as PDF. Plus. */}
+      {plus && <PrintReport plan={plan} acc={acc} dd={dd} mc={mc} estate={estate} />}
     </div>
   );
 }
@@ -743,7 +777,7 @@ function PartnerCard({ p, name, set, adv }: { p: any; name: 'partnerA' | 'partne
   );
 }
 
-function DetailsBody({ plan, update, reset, initial }: { plan: any; update: (p: any) => void; reset: () => void; initial?: 'plan' | 'people' | 'later' | 'arch' }) {
+function DetailsBody({ plan, update, reset, initial, plus, onUpgrade }: { plan: any; update: (p: any) => void; reset: () => void; initial?: 'plan' | 'people' | 'later' | 'arch'; plus: boolean; onUpgrade: () => void }) {
   const setA = (patch: any) => update((p: any) => ({ ...p, partnerA: { ...p.partnerA, ...patch } }));
   const setB = (patch: any) => update((p: any) => ({ ...p, partnerB: { ...p.partnerB, ...patch } }));
   const setInherit = (patch: any) => update((p: any) => ({ ...p, inherit: { ...p.inherit, ...patch } }));
@@ -813,17 +847,27 @@ function DetailsBody({ plan, update, reset, initial }: { plan: any; update: (p: 
       </>}
 
       {sect === 'people' && <>
-      <div>
-        <Toggle label="Advanced — schemes, allowances & transfer values" checked={!!plan.advanced} onChange={v => update({ advanced: v })} />
-        <p className="text-[0.78rem] mt-1" style={{ color: 'var(--color-ink-faint)' }}>
-          For multiple pensions with different histories, protected tax-free cash, the allowance taper and DB transfer values.
-        </p>
-      </div>
-      <PartnerCard p={plan} name="partnerA" set={setA} adv={!!plan.advanced} />
-      <PartnerCard p={plan} name="partnerB" set={setB} adv={!!plan.advanced} />
+      {plus ? (
+        <div>
+          <Toggle label="Advanced — schemes, allowances & transfer values" checked={!!plan.advanced} onChange={v => update({ advanced: v })} />
+          <p className="text-[0.78rem] mt-1" style={{ color: 'var(--color-ink-faint)' }}>
+            For multiple pensions with different histories, protected tax-free cash, the allowance taper and DB transfer values.
+          </p>
+        </div>
+      ) : (
+        <Locked compact title="Advanced detail" onUpgrade={onUpgrade}
+          line="Several pensions with different histories, protected tax-free cash, the allowance taper and DB transfer values." />
+      )}
+      <PartnerCard p={plan} name="partnerA" set={setA} adv={plus && !!plan.advanced} />
+      <PartnerCard p={plan} name="partnerB" set={setB} adv={plus && !!plan.advanced} />
       </>}
 
-      {sect === 'arch' && <ArchitectureSection plan={plan} update={update} />}
+      {sect === 'arch' && (plus
+        ? <ArchitectureSection plan={plan} update={update} />
+        : <Locked title="Plan structure" onUpgrade={onUpgrade}
+            line={(plan.architecture?.on
+              ? 'Your plan runs the de-risking structure you chose — a gilt ladder, a growth engine and written spending rules. Plus lets you tune every part of it and measures whether it earns its keep.'
+              : 'Model a gilt ladder, a growth engine and written spending rules instead of one growth rate — then see, measured on your own figures, whether the structure is worth it.')} />)}
 
       {sect === 'later' && <>
       <Group title="Spending as you age">
@@ -1017,7 +1061,7 @@ function McFan({ mc, retireYear }: { mc: MC; retireYear: number }) {
   );
 }
 
-function ExploreBody({ plan, dd, estate, mc }: { plan: any; dd: Drawdown; estate: any; mc: MC | null }) {
+function ExploreBody({ plan, dd, estate, mc, plus, onUpgrade }: { plan: any; dd: Drawdown; estate: any; mc: MC | null; plus: boolean; onUpgrade: () => void }) {
   const today = (v: number, year: number) => deflate(v, year, plan.startYear, plan.inflation);
   const lifeTax = (dd as any).lifetimeTaxReal ?? dd.lifetimeTax;
   const mix = fundingMix(dd);
@@ -1029,17 +1073,17 @@ function ExploreBody({ plan, dd, estate, mc }: { plan: any; dd: Drawdown; estate
   // Does the structure earn its keep? Measured, never asserted. Only run
   // when the overlay is on — it is four full projections plus Monte Carlo.
   const archCmp = useMemo(() => {
-    if (!plan.architecture?.on) return null;
+    if (!plus || !plan.architecture?.on) return null;
     try { return (E as any).compareArchitecture(plan, 250); } catch { return null; }
-  }, [plan]);
+  }, [plan, plus]);
 
   // The verdict, judged on the spending actually delivered rather than on
   // survival — a rule that trims spending must not score as a success for
   // cutting what you live on.
   const worthIt = useMemo(() => {
-    if (!plan.architecture?.on) return null;
+    if (!plus || !plan.architecture?.on) return null;
     try { return (E as any).assessStructure(plan, { paths: 400 }); } catch { return null; }
-  }, [plan]);
+  }, [plan, plus]);
 
   // Withdrawal-order tax comparison (the same three strategies, one engine).
   const strat = useMemo(() => {
@@ -1096,6 +1140,9 @@ function ExploreBody({ plan, dd, estate, mc }: { plan: any; dd: Drawdown; estate
         </div>
       )}
 
+      {/* ── Dates that matter (free: personal from the first screen) ── */}
+      <Dates plan={plan} />
+
       {/* ── Income mix ──────────────────────────────────────────── */}
       <div>
         <h3 className="text-[0.72rem] font-bold uppercase tracking-widest mb-2" style={{ color: 'var(--color-ink-faint)' }}>Where your income comes from</h3>
@@ -1116,11 +1163,18 @@ function ExploreBody({ plan, dd, estate, mc }: { plan: any; dd: Drawdown; estate
         <StatCard label="Lifetime income tax (today's money)" value={fmtK(lifeTax)} tone="ink" />
         <StatCard label={dd.exhaustedAgeA == null ? 'Money lasts' : 'Runs short at'} value={dd.exhaustedAgeA == null ? `${plan.horizonAge}+` : `age ${dd.exhaustedAgeA}`} tone={dd.exhaustedAgeA == null ? 'calm' : 'hope'} />
       </div>
-      {estate && (
+      {estate && (plus ? (
         <div className="flex gap-3">
           <StatCard label="Left to your family" value={fmtK(today(estate.netToHeirs, estate.year))} tone="calm" />
           <StatCard label={estate.iht > 0 ? 'Inheritance tax — often reducible' : 'Inheritance tax'} value={fmtK(today(estate.iht, estate.year))} tone="ink" />
         </div>
+      ) : (
+        <Locked compact title="The estate picture" onUpgrade={onUpgrade}
+          line="What could pass to your family, and the inheritance-tax exposure — including pensions coming into scope from April 2027." />
+      ))}
+      {!plus && plan.architecture?.on && (
+        <Locked compact title="Is the structure worth it?" onUpgrade={onUpgrade}
+          line="Your de-risking structure, judged on the spending it actually delivers against a plain plan, through the same simulated markets — and how it fares if the bad decade starts the day you stop." />
       )}
 
       {worthIt && (() => {
@@ -1230,7 +1284,11 @@ function ExploreBody({ plan, dd, estate, mc }: { plan: any; dd: Drawdown; estate
       })()}
 
       {/* ── Tax: which order to draw from ───────────────────────── */}
-      {strat.length > 0 && (
+      {strat.length > 0 && !plus && (
+        <Locked compact title="Withdrawal order & tax" onUpgrade={onUpgrade}
+          line="Lifetime income tax under each of the three withdrawal orders, side by side, so the cheapest route is a fact rather than a guess." />
+      )}
+      {strat.length > 0 && plus && (
         <div>
           <h3 className="text-[0.72rem] font-bold uppercase tracking-widest mb-2" style={{ color: 'var(--color-ink-faint)' }}>Withdrawal order & tax</h3>
           <div className="space-y-2">
@@ -1259,59 +1317,72 @@ function ExploreBody({ plan, dd, estate, mc }: { plan: any; dd: Drawdown; estate
         <div className="flex items-baseline justify-between mb-2">
           <h3 className="text-[0.72rem] font-bold uppercase tracking-widest" style={{ color: 'var(--color-ink-faint)' }}>Year by year</h3>
         </div>
+        {!plus ? (
+          <Locked title="Every year, in full" onUpgrade={onUpgrade}
+            line={`${table.length} years of retirement, opening to closing, per person or combined, with the tax paid each year.`}
+            preview={<YearTable rows={table.slice(0, 4)} />} />
+        ) : (<>
         <Segmented small value={tv} onChange={setTv} options={[
           { value: 'combined', label: 'Combined' },
           { value: 'A', label: plan.partnerA.name },
           { value: 'B', label: plan.partnerB.name },
         ]} />
-        <div className="mt-2 overflow-x-auto rounded-2xl" style={{ background: 'var(--color-canvas)' }}>
-          <table className="w-full text-[0.72rem]" style={{ borderCollapse: 'collapse', minWidth: 348 }}>
-            <thead>
-              <tr style={{ color: 'var(--color-ink-faint)' }}>
-                <th className="text-left font-semibold pl-2.5 pr-1 py-2">Year</th>
-                <th className="text-right font-semibold px-1 py-2">Start</th>
-                <th className="text-right font-semibold px-1 py-2">Drawn</th>
-                <th className="text-right font-semibold px-1 py-2">Return</th>
-                <th className="text-right font-semibold px-1 py-2">Tax</th>
-                <th className="text-right font-semibold pl-1 pr-2.5 py-2">Closing</th>
-              </tr>
-            </thead>
-            <tbody>
-              {table.map((r, i) => (
-                <tr key={r.year} style={{ borderTop: '1px solid var(--color-hairline)', background: i % 2 ? 'transparent' : 'color-mix(in srgb, var(--color-surface) 50%, transparent)' }}>
-                  <td className="pl-2.5 pr-1 py-2 tnum font-semibold whitespace-nowrap">{r.year}<span className="text-[0.64rem]" style={{ color: 'var(--color-ink-faint)' }}> ·{r.age}</span></td>
-                  <td className="px-1 py-2 tnum text-right whitespace-nowrap" style={{ color: 'var(--color-ink-dim)' }}>{fmtK(r.start)}</td>
-                  <td className="px-1 py-2 tnum text-right whitespace-nowrap" style={{ color: 'var(--color-hope)' }}>−{fmtK(r.drawn)}</td>
-                  <td className="px-1 py-2 tnum text-right whitespace-nowrap" style={{ color: r.ret >= 0 ? 'var(--color-calm-strong)' : 'var(--color-hope)' }}>{r.ret >= 0 ? '+' : '−'}{fmtK(Math.abs(r.ret))}</td>
-                  <td className="px-1 py-2 tnum text-right whitespace-nowrap" style={{ color: 'var(--color-ink-dim)' }}>{fmtK(r.tax)}</td>
-                  <td className="pl-1 pr-2.5 py-2 tnum text-right font-bold whitespace-nowrap" style={{ color: r.closing > 0 ? 'var(--color-ink)' : 'var(--color-hope)' }}>{fmtK(r.closing)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <YearTable rows={table} />
         <p className="text-[0.72rem] mt-1.5" style={{ color: 'var(--color-ink-faint)' }}>
           Today's money. Start − Drawn + Return = Closing. {tv === 'combined' ? 'Both pots and ISAs together.' : `${tv === 'A' ? plan.partnerA.name : plan.partnerB.name}'s pension and ISA only — State Pension and DB income sit outside the pot.`}
         </p>
+        </>)}
       </div>
     </div>
   );
 }
 
-function PeaceBody() {
+type YearRow = { year: number; age: string | number; start: number; drawn: number; ret: number; tax: number; closing: number };
+function YearTable({ rows }: { rows: YearRow[] }) {
+  return (
+    <div className="mt-2 overflow-x-auto rounded-2xl" style={{ background: 'var(--color-canvas)' }}>
+      <table className="w-full text-[0.72rem]" style={{ borderCollapse: 'collapse', minWidth: 348 }}>
+        <thead>
+          <tr style={{ color: 'var(--color-ink-faint)' }}>
+            <th className="text-left font-semibold pl-2.5 pr-1 py-2">Year</th>
+            <th className="text-right font-semibold px-1 py-2">Start</th>
+            <th className="text-right font-semibold px-1 py-2">Drawn</th>
+            <th className="text-right font-semibold px-1 py-2">Return</th>
+            <th className="text-right font-semibold px-1 py-2">Tax</th>
+            <th className="text-right font-semibold pl-1 pr-2.5 py-2">Closing</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((r, i) => (
+            <tr key={r.year} style={{ borderTop: '1px solid var(--color-hairline)', background: i % 2 ? 'transparent' : 'color-mix(in srgb, var(--color-surface) 50%, transparent)' }}>
+              <td className="pl-2.5 pr-1 py-2 tnum font-semibold whitespace-nowrap">{r.year}<span className="text-[0.64rem]" style={{ color: 'var(--color-ink-faint)' }}> ·{r.age}</span></td>
+              <td className="px-1 py-2 tnum text-right whitespace-nowrap" style={{ color: 'var(--color-ink-dim)' }}>{fmtK(r.start)}</td>
+              <td className="px-1 py-2 tnum text-right whitespace-nowrap" style={{ color: 'var(--color-hope)' }}>−{fmtK(r.drawn)}</td>
+              <td className="px-1 py-2 tnum text-right whitespace-nowrap" style={{ color: r.ret >= 0 ? 'var(--color-calm-strong)' : 'var(--color-hope)' }}>{r.ret >= 0 ? '+' : '−'}{fmtK(Math.abs(r.ret))}</td>
+              <td className="px-1 py-2 tnum text-right whitespace-nowrap" style={{ color: 'var(--color-ink-dim)' }}>{fmtK(r.tax)}</td>
+              <td className="pl-1 pr-2.5 py-2 tnum text-right font-bold whitespace-nowrap" style={{ color: r.closing > 0 ? 'var(--color-ink)' : 'var(--color-hope)' }}>{fmtK(r.closing)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function PeaceBody({ plus, onUpgrade }: { plus: boolean; onUpgrade: () => void }) {
   const rows = [
-    ['Private by design', 'Every figure stays on this device. Nothing is uploaded, tracked, or shared.'],
+    ['Private by design', 'Every figure stays on this device. Nothing is uploaded, tracked, or shared. The only thing that ever leaves is a Plus licence key, if you buy one.'],
     ['One possible future', 'This shows a range of outcomes across 500+ market histories — a way to think, not a promise.'],
     ['Not financial advice', 'A calm place to explore your own numbers. For decisions, a good adviser is worth their fee.'],
-    ['UK-aware', 'State Pension, ISAs, pensions, tax-free cash and inheritance tax, modelled for two people with different ages.'],
+    ['UK-aware', 'State Pension, ISAs, pensions, tax-free cash and inheritance tax, modelled for two people with different ages. UK tax year 2026/27.'],
     ['Feels like an app', 'Add it to your Home Screen (Share → Add to Home Screen) for the full-screen experience — it works offline too.'],
   ];
   return (
     <div className="space-y-3 pb-2">
-      <button onClick={() => window.print()}
+      <button onClick={() => plus ? window.print() : onUpgrade()}
         className="flex items-center justify-center gap-2 w-full rounded-2xl py-3.5 font-bold text-white active:scale-[0.98] transition-transform"
         style={{ background: 'var(--color-calm)' }}>
-        <Download size={18} /> Save the full report (PDF)
+        {plus ? <Download size={18} /> : <Sparkles size={18} />} Save the full report (PDF){plus ? '' : ' · Plus'}
       </button>
       <p className="text-[0.82rem] leading-relaxed px-1" style={{ color: 'var(--color-ink-dim)' }}>
         A multi-page report you can read or take to an adviser — your holdings, the plan, year-by-year projections,
@@ -1323,8 +1394,15 @@ function PeaceBody() {
           <div className="text-[0.88rem] leading-relaxed" style={{ color: 'var(--color-ink-dim)' }}>{d}</div>
         </div>
       ))}
+      <button onClick={onUpgrade} className="w-full rounded-2xl p-4 text-left" style={{ background: 'var(--color-canvas)' }}>
+        <div className="font-bold mb-0.5">{plus ? 'Someday Plus is on' : 'Someday Plus'}</div>
+        <div className="text-[0.88rem] leading-relaxed" style={{ color: 'var(--color-ink-dim)' }}>
+          {plus ? 'Manage your licence, or move it to another device.' : 'The adviser-ready report, every year in full, tax compared, advanced detail and the estate picture.'}
+        </div>
+      </button>
       <div className="flex flex-col gap-1 pt-1 text-center">
         <a href="story.html" className="py-1.5 text-[0.9rem] font-semibold" style={{ color: 'var(--color-calm-strong)' }}>Why I built this →</a>
+        <a href={PRODUCT.legalUrl} className="py-1.5 text-[0.85rem]" style={{ color: 'var(--color-ink-faint)' }}>Terms, disclaimer &amp; privacy →</a>
         <a href="app.html" className="py-1.5 text-[0.85rem]" style={{ color: 'var(--color-ink-faint)' }}>Open the classic planner →</a>
       </div>
     </div>

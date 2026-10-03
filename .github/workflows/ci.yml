@@ -38,17 +38,20 @@ jobs:
       - name: Install Horizon dependencies
         run: cd horizon && npm ci
 
+      # System libraries come from the root Playwright (it knows the runner's
+      # Ubuntu release); the pinned playwright-core then fetches its own
+      # matching Chromium build without touching apt.
+      - name: Install Playwright browsers and system dependencies
+        run: npx playwright install --with-deps chromium
+
       - name: Install Chromium for the Horizon sweeps
-        run: cd horizon && npx --no-install playwright-core install --with-deps chromium
+        run: cd horizon && npx --no-install playwright-core install chromium
 
       - name: Horizon UAT sweep (builds, then 120+ checks)
         run: cd horizon && npm run uat
 
       - name: Horizon end-to-end (engine ↔ UI data flow)
         run: cd horizon && node e2e.mjs
-
-      - name: Install Playwright browsers
-        run: npx playwright install --with-deps chromium
 
       - name: Run E2E tests
         # Non-blocking: unit + stress are the correctness gates. The E2E specs are

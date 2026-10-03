@@ -9,7 +9,7 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 25
 
     steps:
       - name: Checkout code
@@ -53,10 +53,12 @@ jobs:
       - name: Horizon end-to-end (engine ↔ UI data flow)
         run: cd horizon && node e2e.mjs
 
-      - name: Run E2E tests
-        # Non-blocking: unit + stress are the correctness gates. The E2E specs are
-        # being realigned after the site reshuffle (friendly app at /, RL4 at /v4/).
+      - name: Run legacy E2E tests (classic planner)
+        # Non-blocking: the Horizon sweeps above are the gates for the live app.
+        # These specs cover the classic planner and are being realigned; capped
+        # so a hang can never take the job down with it.
         continue-on-error: true
+        timeout-minutes: 6
         run: npx playwright test --project="Desktop Chrome"
 
       - name: Upload Playwright report

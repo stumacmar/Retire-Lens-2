@@ -289,9 +289,9 @@ export default function PrintReport({ plan, acc, dd, mc, estate }: {
 
         <div className="r-two">
           {plan.tax?.region === 'scotland' ? (
-            <div className="r-card"><h3>Income tax (Scotland, 2025/26)</h3>
+            <div className="r-card"><h3>Income tax (Scotland, 2026/27)</h3>
               <Row k="Personal allowance (UK-wide)" v={fmt(plan.tax.personalAllowance)} />
-              <Row k="Starter 19% / Basic 20%" v="to £15,397 / to £27,491" />
+              <Row k="Starter 19% / Basic 20%" v="to £16,537 / to £29,526" />
               <Row k="Intermediate 21% / Higher 42%" v="to £43,662 / to £75,000" />
               <Row k="Advanced 45% / Top 48%" v="to £125,140 / above" />
               <Row k="Allowance taper starts at" v={`${fmt(plan.tax.taperStart)} (£1 lost per £2 over)`} />
@@ -299,7 +299,7 @@ export default function PrintReport({ plan, acc, dd, mc, estate }: {
               <Row k="ISA annual allowance" v={fmt(plan.tax.isaAnnualAllowance)} />
             </div>
           ) : (
-            <div className="r-card"><h3>Income tax (UK 2025/26, England/Wales/NI)</h3>
+            <div className="r-card"><h3>Income tax (UK 2026/27, England/Wales/NI)</h3>
               <Row k="Personal allowance" v={fmt(plan.tax.personalAllowance)} />
               <Row k="Basic rate / higher rate / additional" v={`${pct(plan.tax.basicRate)} / ${pct(plan.tax.higherRate)} / ${pct(plan.tax.additionalRate)}`} />
               <Row k="Higher-rate threshold" v={fmt(plan.tax.higherThreshold)} />
@@ -360,7 +360,7 @@ export default function PrintReport({ plan, acc, dd, mc, estate }: {
             tax rules and personal circumstances will differ, and past performance is not a guide to the future.</li>
           <li><b>Assumptions drive everything.</b> Small changes to growth, inflation or spending can materially change the
             outcome. Review the assumptions in Section 5 with your adviser.</li>
-          <li><b>Tax rules.</b> Based on 2025/26 rates and thresholds for {plan.tax?.region === 'scotland'
+          <li><b>Tax rules.</b> Based on 2026/27 rates and thresholds for {plan.tax?.region === 'scotland'
             ? 'Scotland (Scottish income-tax bands)' : 'England, Wales & Northern Ireland'}, which are subject to change.
             The region can be switched in the app and everything recalculates.</li>
           <li><b>Privacy.</b> All figures were entered and computed on your own device. Nothing was uploaded or shared in

@@ -403,7 +403,7 @@ export function runTaxTests() {
   const test9 = computeUKTax({ pensionWithdrawal: 130000 });
   assert(test9.personalAllowance === 0, 'PA fully tapered at £130k', `PA: ${test9.personalAllowance}`);
   
-  // Test 10: DB + SP + DC withdrawal combined (2025/26: SP = £11,973)
+  // Test 10: DB + SP + DC withdrawal combined (SP input held at £11,973 so the expected figures stay fixed)
   const test10 = computeUKTax({
     statePension: 11973,
     dbPension: 5000,
@@ -413,7 +413,7 @@ export function runTaxTests() {
   const taxable10 = 11973 + 5000 + 15000; // 31,973
   const taxableAfterPA10 = taxable10 - PA; // 31,973 - 12,570 = 19,403
   const expectedTax10 = taxableAfterPA10 * BASIC_RATE; // 19,403 * 0.20 = 3,880.60
-  assert(Math.abs(test10.incomeTax - expectedTax10) < 0.01, 'SP+DB+DC mix (2025/26 rates)', `Expected: ${expectedTax10.toFixed(2)}, Got: ${test10.incomeTax.toFixed(2)}`);
+  assert(Math.abs(test10.incomeTax - expectedTax10) < 0.01, 'SP+DB+DC mix (frozen PA and basic rate)', `Expected: ${expectedTax10.toFixed(2)}, Got: ${test10.incomeTax.toFixed(2)}`);
   // Net = 31,973 + 10,000 - 3,880.60 = 38,092.40
   const expectedNet10 = taxable10 + 10000 - expectedTax10;
   assert(Math.abs(test10.netIncome - expectedNet10) < 0.01, 'SP+DB+DC+ISA net income', `Expected: ${expectedNet10.toFixed(2)}, Got: ${test10.netIncome.toFixed(2)}`);

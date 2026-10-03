@@ -132,8 +132,8 @@ mono('E49 Stuart pension to 0 → pots↓', P => setA(P, 'pension', 0), 'pots', 
 mono('E50 Carol ISA to 0 → pots↓', P => setB(P, 'isa', 0), 'pots', -1);
 
 // Scottish income-tax region (2025/26 bands)
-check('E51 Scotland: exact tax at 57,548 gross = 12,183.96',
-  Math.abs(E.taxOn(57548, { ...base().tax, region: 'scotland' }) - 12183.96) < 1);
+check('E51 Scotland: exact tax at 57,548 gross = 12,152.21 (2026/27 bands)',
+  Math.abs(E.taxOn(57548, { ...base().tax, region: 'scotland' }) - 12152.21) < 1);
 check('E52 Scotland: region flag leaves rUK maths untouched',
   Math.abs(E.taxOn(57548, base().tax) - 10451.2) < 1);
 mono('E53 Scotland region changes lifetime tax (bands differ)',
@@ -262,6 +262,8 @@ async function setField(label, value, which = 0) {
 // Clear once (not via addInitScript — that would wipe storage on every reload).
 await p.goto(URL, { waitUntil: 'networkidle' });
 await p.evaluate(() => localStorage.clear());
+// Run as a Plus customer so every input is reachable (pre-validated local record; no network).
+await p.evaluate(() => localStorage.setItem('someday-licence-v1', JSON.stringify({ key: 'e2e-seeded-licence', instanceId: 'e2e', instanceName: 'E2E', status: 'active', expiresAt: null, activatedAt: Date.now(), validatedAt: Date.now() })));
 await p.reload({ waitUntil: 'networkidle' }); await wait(700);
 await tap('Begin'); await wait(400);
 // vision: set retire in 8 years + target
@@ -291,7 +293,10 @@ await setField('Their company / final-salary', 5000);
 await acheck('U60 onboarding: Carol DB captured (the reported bug)', async () => (await plan()).partnerB?.db === 5000);
 await acheck('U61 onboarding: Carol DB start = retire year', async () => { const P = await plan(); return P.partnerB.dbStartYear === P.retireYear; });
 await tap('See my horizon'); await wait(900);
-// The framing choice now sits between setup and the horizon
+// The disclaimer is accepted once, then the framing choice sits between setup and the horizon
+await acheck('U60z disclaimer appears before the first horizon',
+  async () => /calm place to think/i.test(await p.$eval('h1', e => e.textContent).catch(() => '')));
+await tap('I understand'); await wait(800);
 await acheck('U60a approach screen appears before the horizon',
   async () => /How should the money be run/i.test(await p.$eval('h1', e => e.textContent).catch(() => '')));
 await tap('De-risking'); await wait(900);

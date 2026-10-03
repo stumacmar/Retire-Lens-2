@@ -16,7 +16,12 @@
 export function createEngine() {
 
   // ── Tax constants (editable via assumptions) ─────────────────────────
+  // UK tax year 2026/27. Personal allowance and rUK thresholds are frozen
+  // to April 2031 (Autumn Budget 2025). Review every April: TAX_YEAR below
+  // is what the app and the report display.
+  const TAX_YEAR = '2026/27';
   const TAX_DEFAULTS = {
+    taxYear: TAX_YEAR,
     region: 'ruk',              // 'ruk' (England/Wales/NI) | 'scotland'
     personalAllowance: 12570,
     basicRate: 0.20,
@@ -29,15 +34,17 @@ export function createEngine() {
     isaAnnualAllowance: 20000,
   };
 
-  // Scottish income tax 2025/26 (non-savings), bands in TAXABLE income above
+  // Scottish income tax 2026/27 (non-savings), bands in TAXABLE income above
   // the allowance. Published gross ranges assume a full PA of 12,570:
-  // Starter 19% to 15,397 · Basic 20% to 27,491 · Intermediate 21% to 43,662
+  // Starter 19% to 16,537 · Basic 20% to 29,526 · Intermediate 21% to 43,662
   // Higher 42% to 75,000 · Advanced 45% to 125,140 · Top 48% above.
-  // The top-rate edge, like the rUK additional-rate edge, is statutory in
-  // taxable income (125,140), where the taper has already removed the PA.
+  // (Scottish Budget 2026-27: starter and basic thresholds up 7.4%; higher,
+  // advanced and top frozen.) The top-rate edge, like the rUK additional-rate
+  // edge, is statutory in taxable income (125,140), where the taper has
+  // already removed the PA.
   const SCOT_BANDS = [
-    { upTo: 2827,     rate: 0.19 },
-    { upTo: 14921,    rate: 0.20 },
+    { upTo: 3967,     rate: 0.19 },
+    { upTo: 16956,    rate: 0.20 },
     { upTo: 31092,    rate: 0.21 },
     { upTo: 62430,    rate: 0.42 },
     { upTo: 125140,   rate: 0.45 },
@@ -1363,11 +1370,11 @@ export function createEngine() {
     };
     check('Single person 57548 gross taxes 10451 (workbook parity)', taxOn(57548, T), 10451.2, 1);
     check('Single person 37548 gross taxes 4996 (workbook parity)', taxOn(37548, T), 4995.6, 1);
-    // Scottish bands 2025/26: 57,548 gross → taxable 44,978 →
-    // 2,827@19 + 12,094@20 + 16,171@21 + 13,886@42 = 12,183.96
+    // Scottish bands 2026/27: 57,548 gross → taxable 44,978 →
+    // 3,967@19 + 12,989@20 + 14,136@21 + 13,886@42 = 12,152.21
     const S = { ...T, region: 'scotland' };
-    check('Scotland 57548 gross taxes 12184', taxOn(57548, S), 12183.96, 1);
-    check('Scotland 15397 gross taxes 537 (starter only)', taxOn(15397, S), 537.13, 1);
+    check('Scotland 57548 gross taxes 12152', taxOn(57548, S), 12152.21, 1);
+    check('Scotland 16537 gross taxes 754 (starter only)', taxOn(16537, S), 753.73, 1);
     check('Scotland marginal 42% above 43662', marginalRate(50000, S), 0.42, 0.005);
     check('Scotland region flag does not disturb rUK maths', taxOn(57548, { ...T, region: 'ruk' }), taxOn(57548, T), 0.001);
     check('PA intact at 100000', personalAllowanceFor(100000, T), 12570, 0.01);

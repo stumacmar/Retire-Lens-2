@@ -45,3 +45,6 @@ RetireLens-UI-vs-Excel.xlsx
 test-artifacts/beta-*.png
 test-artifacts/summary-*.png
 test-artifacts/beta-results.json
+
+# Agent worktrees are local scratch, never repository content
+.claude/worktrees/

@@ -364,6 +364,26 @@ await tap('People'); await wait(300);
 await setField('final-salary (defined benefit) pension a year', 7000, 1);
 await acheck('U72 Details: Carol DB editable → plan (both partners work)', async () => (await plan()).partnerB?.db === 7000);
 
+// Public-sector scheme tranche: added, captured, and it moves the engine
+await p.getByRole('button', { name: /Add an NHS/ }).first().click(); await wait(350);
+await acheck('U72m scheme tranche added to Stuart', async () => ((await plan()).partnerA?.dbSchemes || []).length === 1);
+await setField('Pension a year on your latest statement', 14000);
+await acheck('U72n scheme pension captured → plan', async () => (await plan()).partnerA?.dbSchemes?.[0]?.pension === 14000);
+await p.locator('select[aria-label="Pension scheme"]').first().selectOption('nhs1995'); await wait(300);
+await acheck('U72o scheme choice captured (NHS 1995)', async () => (await plan()).partnerA?.dbSchemes?.[0]?.scheme === 'nhs1995');
+await setField('Take it from age', 57);
+await acheck('U72p take-age captured', async () => (await plan()).partnerA?.dbSchemes?.[0]?.takeAge === 57);
+await acheck('U72q early reduction shown in the UI', async () => /years? early: about \d+% less/.test(await p.$eval('body', e => e.innerText)));
+await p.getByRole('button', { name: /^Maximum/ }).first().click(); await wait(300);
+await acheck('U72r maximum lump sum captured (commutePct=1)', async () => (await plan()).partnerA?.dbSchemes?.[0]?.commutePct === 1);
+await acheck('U72s tranche raises guaranteed income in the engine', async () => {
+  const P = await plan(); const Q = { ...P, growth: P.growthBase };
+  const with_ = metrics(Q).guarTotal; const without = metrics({ ...Q, partnerA: { ...Q.partnerA, dbSchemes: [] } }).guarTotal;
+  return with_ > without + 1000; });
+await acheck('U72t tranche at NPA pays the statement figure (engine)', async () => {
+  const P = await plan(); const t = { ...P.partnerA.dbSchemes[0], takeAge: 60, commutePct: 0 };
+  return Math.abs(E.trancheBenefits(P, P.partnerA, t).pension - 14000) < 0.01; });
+
 // core plan fields
 await seg('Plan'); await wait(300);
 await setField('Retire in year', 2033);

@@ -70,7 +70,14 @@ export default function PrintReport({ plan, acc, dd, mc, estate }: {
       <Row k="Monthly pension contribution" v={`${fmt(p.monthlyPension)} (${fmt(p.monthlyPension * 12)}/yr)`} />
       <Row k="ISAs" v={fmt(p.isa)} />
       <Row k="Monthly ISA contribution" v={`${fmt(p.monthlyIsa)} (${fmt(p.monthlyIsa * 12)}/yr)`} />
-      <Row k="Defined-benefit pension (a year)" v={p.db > 0 ? `${fmt(p.db)}, from ${p.dbStartYear}, ${p.dbIndexed ? 'rises with inflation' : 'level (no indexation)'}` : 'None'} />
+      <Row k="Company defined-benefit pension (a year)" v={p.db > 0 ? `${fmt(p.db)}, from ${p.dbStartYear}, ${p.dbIndexed ? 'rises with inflation' : 'level (no indexation)'}` : 'None'} />
+      {(p.dbSchemes || []).filter((t: any) => t && ((Number(t.pension) || 0) > 0 || (t.accruing && t.salary > 0))).map((t: any) => {
+        const b = (E as any).trancheBenefits(plan, p, t);
+        return <Row key={t.id} k={b.label} v={`${fmt(Math.round(b.pension))}/yr from age ${b.takeAge} (${b.takeYear})`
+          + (b.early > 0 ? `, ${pct(1 - b.factor, 0)} early-retirement reduction (unreduced at ${b.npa})` : b.late > 0 ? `, ${pct(b.factor - 1, 0)} late uplift` : ', at normal pension age')
+          + (b.lump > 0 ? `, tax-free lump sum ${fmt(Math.round(b.lump))}` : '')
+          + (t.accruing ? `, still accruing on ${fmt(t.salary)} pay` : '')} />;
+      })}
       <Row k="State Pension" v={`${fmt(p.spAmount)}/yr from age ${p.spAge}`} />
       {((p.pclsTaken || 0) > 0 || (p.crystallised || 0) > 0) && <>
         <Row k="Tax-free cash already taken" v={fmt(p.pclsTaken || 0)} />
@@ -360,6 +367,10 @@ export default function PrintReport({ plan, acc, dd, mc, estate }: {
             tax rules and personal circumstances will differ, and past performance is not a guide to the future.</li>
           <li><b>Assumptions drive everything.</b> Small changes to growth, inflation or spending can materially change the
             outcome. Review the assumptions in Section 5 with your adviser.</li>
+          <li><b>Public-sector pensions.</b> Each scheme tranche is taken at the chosen age with an approximate early-retirement reduction or late uplift
+            compounded per year from the scheme's normal pension age, an automatic lump sum where the scheme pays one, and any commutation at the scheme's rate within
+            HMRC's 25% capital-value limit. Benefits are assumed to keep pace with prices in deferment and payment. Factors reflect scheme tables as published to {(E as any).DB_SCHEMES_ASOF};
+            the schemes' own quotes, which go by exact age in years and months, take precedence.</li>
           <li><b>Tax rules.</b> Based on 2026/27 rates and thresholds for {plan.tax?.region === 'scotland'
             ? 'Scotland (Scottish income-tax bands)' : 'England, Wales & Northern Ireland'}, which are subject to change.
             The region can be switched in the app and everything recalculates.</li>

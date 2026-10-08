@@ -1,4 +1,5 @@
 import { CalendarDays } from 'lucide-react';
+import { E } from '../lib/usePlan';
 
 /**
  * Dates that matter — the hidden deadlines in UK retirement, worked out from
@@ -28,6 +29,22 @@ export function datesThatMatter(plan: any): Row[] {
     push({ year: p.birthYear + p.spAge, who: p.name, kind: 'you',
       title: `${p.name}’s State Pension starts, at ${p.spAge}`,
       note: 'Check the exact date and amount at gov.uk/check-state-pension. Deferring adds about 5.8% a year for life.' });
+    // Public-sector scheme tranches: when each is unreduced, and when it is planned.
+    for (const t of (p.dbSchemes || [])) {
+      if (!t || !((Number(t.pension) || 0) > 0 || (t.accruing && t.salary > 0))) continue;
+      let b: any = null;
+      try { b = (E as any).trancheBenefits(plan, p, t); } catch { continue; }
+      if (!b) continue;
+      if (b.takeAge !== b.npa) {
+        push({ year: b.takeYear, who: p.name, kind: 'you',
+          title: `${p.name} takes the ${b.label} at ${b.takeAge}`,
+          note: b.early > 0 ? `${b.early} year${b.early > 1 ? 's' : ''} before its normal age of ${b.npa}: about ${Math.round((1 - b.factor) * 100)}% less, for life${b.lump > 0 ? `, plus a lump sum` : ''}.`
+            : `${b.late} year${b.late > 1 ? 's' : ''} after its normal age of ${b.npa}: about ${Math.round((b.factor - 1) * 100)}% more.` });
+      }
+      push({ year: p.birthYear + b.npa, who: p.name, kind: 'you',
+        title: `${p.name}’s ${b.label} is unreduced from ${b.npa}`,
+        note: b.takeAge === b.npa ? 'Planned to start here, at the scheme’s normal pension age — no reduction.' : 'The scheme’s normal pension age: the point at which no reduction applies.' });
+    }
     push({ year: p.birthYear + 75, who: p.name, kind: 'you',
       title: `${p.name} turns 75`,
       note: 'The last tax year for pension tax relief, and after 75 any pension your beneficiaries inherit is taxed as their income.' });

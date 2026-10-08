@@ -14,6 +14,7 @@ import Approach, { DERISKING_ARCHITECTURE } from './components/Approach';
 import { MoneyField, NumField, PctField, Toggle, Segmented } from './components/Field';
 import Disclaimer, { disclaimerAccepted } from './components/Disclaimer';
 import Dates from './components/Dates';
+import SchemePensions from './components/SchemePensions';
 import { PlusPill, Locked, PlusSheetBody } from './components/Plus';
 import { EntitlementContext, useEntitlement, useEntitlementState } from './lib/entitlement';
 import { PRODUCT } from './config/product';
@@ -51,7 +52,8 @@ function Horizon() {
   // not a broken chart and an alarming zero-confidence sentence.
   const A = plan.partnerA, B = plan.partnerB;
   const hasMoney = (A.pension + A.isa + A.monthlyPension + A.monthlyIsa + A.db
-    + B.pension + B.isa + B.monthlyPension + B.monthlyIsa + B.db + (plan.cash || 0)) > 0;
+    + B.pension + B.isa + B.monthlyPension + B.monthlyIsa + B.db + (plan.cash || 0)) > 0
+    || (E as any).hasAnyDb(A) || (E as any).hasAnyDb(B);
 
   const resetAll = () => {
     if (typeof window !== 'undefined' &&
@@ -748,6 +750,10 @@ function PartnerCard({ p, name, set, adv }: { p: any; name: 'partnerA' | 'partne
         <NumField label="…starts in (year)" value={who.dbStartYear} onChange={v => set({ dbStartYear: v })} />
         <Toggle label="…rises with inflation" checked={!!who.dbIndexed} onChange={v => set({ dbIndexed: v })} />
       </>}
+      <div>
+        <span className="block text-[0.8rem] font-semibold mb-1.5" style={{ color: 'var(--color-ink-dim)' }}>Public-sector pensions (NHS, Teachers’, LGPS, Civil Service, Police, Fire, Forces)</span>
+        <SchemePensions plan={p} who={who} set={set} adv={adv} />
+      </div>
       <MoneyField label="ISAs today" value={who.isa} onChange={v => set({ isa: v })} />
       <MoneyField label="Paying into ISAs monthly" value={who.monthlyIsa} onChange={v => set({ monthlyIsa: v })} />
       {adv && <>
@@ -956,7 +962,7 @@ function YearDetail({ plan, acc, dd, year }: { plan: any; acc: Accum; dd: Drawdo
         <Cap>The year's income</Cap>
         <Line k="Spending target" v={fmt(spend)} strong />
         {sp > 0.5 && <Line k="State Pension" v={fmt(sp)} />}
-        {db > 0.5 && <Line k="Company pension" v={fmt(db)} />}
+        {db > 0.5 && <Line k="Defined-benefit pensions" v={fmt(db)} />}
         {gross > 0.5 && <Line k="Pension withdrawals (gross)" v={fmt(gross)} />}
         {tfc > 0.5 && <Line k="Tax-free cash" v={fmt(tfc)} tone="var(--color-hope)" />}
         {isaDraw > 0.5 && <Line k="ISA & cash withdrawals" v={fmt(isaDraw)} />}
@@ -1025,7 +1031,7 @@ function fundingMix(dd: Drawdown) {
   const total = Math.max(1, sp + db + pen + tfc + isa);
   return [
     ['State Pension', sp, 'var(--color-ocean)'],
-    ['Company pension', db, 'var(--color-sage-strong)'],
+    ['Defined-benefit pension', db, 'var(--color-sage-strong)'],
     ['Pension draws (after tax)', pen, 'var(--color-calm-strong)'],
     ['Tax-free cash', tfc, 'var(--color-calm)'],
     ['ISAs & cash', isa, 'var(--color-sage)'],
@@ -1283,6 +1289,9 @@ function ExploreBody({ plan, dd, estate, mc, plus, onUpgrade }: { plan: any; dd:
         );
       })()}
 
+      {/* ── Public-sector pensions: when to take each tranche (Plus) ── */}
+      <DbTiming plan={plan} plus={plus} onUpgrade={onUpgrade} />
+
       {/* ── Tax: which order to draw from ───────────────────────── */}
       {strat.length > 0 && !plus && (
         <Locked compact title="Withdrawal order & tax" onUpgrade={onUpgrade}
@@ -1333,6 +1342,76 @@ function ExploreBody({ plan, dd, estate, mc, plus, onUpgrade }: { plan: any; dd:
         </p>
         </>)}
       </div>
+    </div>
+  );
+}
+
+// Plus: for each public-sector tranche, what taking it at each possible age
+// does to the whole plan — pension, lump sum, and where the plan ends up.
+function DbTiming({ plan, plus, onUpgrade }: { plan: any; plus: boolean; onUpgrade: () => void }) {
+  const items = useMemo(() => {
+    const out: { who: any; key: 'partnerA' | 'partnerB'; t: any }[] = [];
+    for (const key of ['partnerA', 'partnerB'] as const) {
+      for (const t of (plan[key].dbSchemes || [])) if (t && (Number(t.pension) || 0) > 0 || (t?.accruing && t?.salary > 0)) out.push({ who: plan[key], key, t });
+    }
+    return out;
+  }, [plan]);
+  const cmp = useMemo(() => {
+    if (!plus) return [];
+    return items.map(it => { try { return (E as any).compareDbTiming(plan, it.key, it.t.id); } catch { return null; } });
+  }, [plan, plus, items]);
+  if (!items.length) return null;
+  const horizonYear = plan.partnerA.birthYear + plan.horizonAge;
+  if (!plus) {
+    return <Locked compact title="When to take each public-sector pension" onUpgrade={onUpgrade}
+      line={`${items.length === 1 ? 'One scheme pension' : `${items.length} scheme pensions`} in the plan. Plus runs the whole plan for every possible start age — the pension, the lump sum, and what is left at ${plan.horizonAge} — so the “take it early or wait” question is answered on your numbers.`} />;
+  }
+  return (
+    <div className="space-y-4">
+      <h3 className="text-[0.72rem] font-bold uppercase tracking-widest" style={{ color: 'var(--color-ink-faint)' }}>When to take each public-sector pension</h3>
+      {items.map((it, i) => {
+        const c = cmp[i]; if (!c) return null;
+        const best = [...c.options].sort((a: any, b: any) => b.endWealthReal - a.endWealthReal)[0];
+        return (
+          <div key={it.t.id} className="rounded-3xl overflow-hidden" style={{ background: 'var(--color-surface)', border: '1px solid var(--color-hairline)' }}>
+            <div className="px-4 pt-3 pb-2">
+              <div className="text-[0.9rem] font-bold">{it.who.name} · {c.tranche.label}</div>
+              <p className="text-[0.76rem] leading-relaxed mt-0.5" style={{ color: 'var(--color-ink-dim)' }}>
+                Unreduced at {c.tranche.npa}; planned at {c.tranche.takeAge}. Each row re-runs the whole plan with that start age.
+                {best && best.age !== c.tranche.takeAge && <> On these figures, taking it at <b>{best.age}</b> leaves the most behind at {plan.horizonAge}.</>}
+              </p>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-[0.74rem]" style={{ borderCollapse: 'collapse', minWidth: 360 }}>
+                <thead><tr style={{ color: 'var(--color-ink-faint)' }}>
+                  <th className="text-left font-semibold pl-4 pr-1 py-1.5">Age</th>
+                  <th className="text-right font-semibold px-1 py-1.5">Pension/yr</th>
+                  <th className="text-right font-semibold px-1 py-1.5">Lump sum</th>
+                  <th className="text-right font-semibold px-1 py-1.5">Left at {plan.horizonAge}</th>
+                  <th className="text-right font-semibold pl-1 pr-4 py-1.5">Lasts</th>
+                </tr></thead>
+                <tbody>
+                  {c.options.map((o: any) => {
+                    const cur = o.age === c.tranche.takeAge;
+                    return (
+                      <tr key={o.age} style={{ borderTop: '1px solid var(--color-hairline)', background: cur ? 'color-mix(in srgb, var(--color-calm) 12%, transparent)' : 'transparent' }}>
+                        <td className="pl-4 pr-1 py-1.5 tnum font-semibold whitespace-nowrap">{o.age}<span className="text-[0.66rem]" style={{ color: 'var(--color-ink-faint)' }}> · {o.year}{o.age === c.tranche.npa ? ' · unreduced' : ''}</span></td>
+                        <td className="px-1 py-1.5 tnum text-right whitespace-nowrap">{fmtK(o.pension)}</td>
+                        <td className="px-1 py-1.5 tnum text-right whitespace-nowrap" style={{ color: 'var(--color-ink-dim)' }}>{o.lump > 0 ? fmtK(o.lump) : '—'}</td>
+                        <td className="px-1 py-1.5 tnum text-right whitespace-nowrap font-bold" style={{ color: best && o.age === best.age ? 'var(--color-sage-strong)' : 'var(--color-ink)' }}>{fmtK(o.endWealthReal)}</td>
+                        <td className="pl-1 pr-4 py-1.5 tnum text-right whitespace-nowrap" style={{ color: o.exhaustedAgeA ? 'var(--color-hope)' : 'var(--color-ink-dim)' }}>{o.exhaustedAgeA ? `to ${o.exhaustedAgeA}` : `${plan.horizonAge}+`}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+            <p className="px-4 py-2.5 text-[0.72rem] leading-relaxed" style={{ color: 'var(--color-ink-faint)' }}>
+              Today’s money, central outlook, to {horizonYear}. A reduced pension taken early is paid for longer; whether that wins depends on how long you live and what the pots earn meanwhile — this shows the trade on your plan, not a rule.
+            </p>
+          </div>
+        );
+      })}
     </div>
   );
 }

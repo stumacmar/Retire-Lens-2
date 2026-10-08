@@ -280,6 +280,147 @@ export function createEngine() {
   }
   const eventNominal = (P, ev) => (Number(ev.amount) || 0) * inflFactor(P, ev.year);
 
+  // ── Defined-benefit pensions ──────────────────────────────────────────
+  // Two kinds live side by side. The simple fields (db, dbStartYear,
+  // dbIndexed) describe a company pension as a flat annual amount. The
+  // `dbSchemes` list describes public-sector tranches properly: a legacy
+  // final-salary slice unreduced at 60 or 65 and a 2015 career-average slice
+  // unreduced at State Pension age, each taken at a chosen age with the
+  // scheme's early-retirement reduction (or late uplift), an automatic lump
+  // sum where the scheme pays one, optional commutation of pension for cash
+  // at the scheme's rate within the HMRC 25% limit, and ongoing accrual while
+  // still working. All public-sector pensions are CPI-linked in deferment and
+  // in payment, so in today's money a tranche holds its value.
+  //
+  // Factors are planning approximations of each scheme's published tables
+  // (which vary by exact age in years and months and are revised): the
+  // report states them as assumptions. Minimum pension age is 55, rising to
+  // 57 on 6 April 2028 for most schemes; the uniformed services are exempt.
+  const DB_SCHEMES = Object.freeze({
+    nhs1995:  { label: 'NHS 1995 Section',           family: 'NHS',          npa: 60,    accrual: 1 / 80, revalReal: 0,      autoLump: 3, commuteRate: 12, earlyRate: 0.045, lateRate: 0,     minAge: 55, legacy: true },
+    nhs2008:  { label: 'NHS 2008 Section',           family: 'NHS',          npa: 65,    accrual: 1 / 60, revalReal: 0,      autoLump: 0, commuteRate: 12, earlyRate: 0.045, lateRate: 0.05,  minAge: 55, legacy: true },
+    nhs2015:  { label: 'NHS 2015 Scheme',            family: 'NHS',          npa: 'spa', accrual: 1 / 54, revalReal: 0.015,  autoLump: 0, commuteRate: 12, earlyRate: 0.046, lateRate: 0.05,  minAge: 55 },
+    tps60:    { label: 'Teachers’ final salary (NPA 60)', family: 'Teachers', npa: 60,    accrual: 1 / 80, revalReal: 0,      autoLump: 3, commuteRate: 12, earlyRate: 0.045, lateRate: 0,     minAge: 55, legacy: true },
+    tps65:    { label: 'Teachers’ final salary (NPA 65)', family: 'Teachers', npa: 65,    accrual: 1 / 60, revalReal: 0,      autoLump: 0, commuteRate: 12, earlyRate: 0.045, lateRate: 0.05,  minAge: 55, legacy: true },
+    tpsCare:  { label: 'Teachers’ career average (2015)', family: 'Teachers', npa: 'spa', accrual: 1 / 57, revalReal: 0.016,  autoLump: 0, commuteRate: 12, earlyRate: 0.045, lateRate: 0.05,  minAge: 55 },
+    lgps80:   { label: 'LGPS pre-2008 (80ths + lump sum)', family: 'LGPS',   npa: 65,    accrual: 1 / 80, revalReal: 0,      autoLump: 3, commuteRate: 12, earlyRate: 0.045, lateRate: 0.05,  minAge: 55, legacy: true },
+    lgps60:   { label: 'LGPS 2008–2014 (60ths)',      family: 'LGPS',         npa: 65,    accrual: 1 / 60, revalReal: 0,      autoLump: 0, commuteRate: 12, earlyRate: 0.045, lateRate: 0.05,  minAge: 55, legacy: true },
+    lgpsCare: { label: 'LGPS career average (2014)',  family: 'LGPS',         npa: 'spa', accrual: 1 / 49, revalReal: 0,      autoLump: 0, commuteRate: 12, earlyRate: 0.045, lateRate: 0.05,  minAge: 55 },
+    csClassic:{ label: 'Civil Service classic',       family: 'Civil Service', npa: 60,   accrual: 1 / 80, revalReal: 0,      autoLump: 3, commuteRate: 12, earlyRate: 0.05,  lateRate: 0,     minAge: 55, legacy: true },
+    csPremium:{ label: 'Civil Service premium',       family: 'Civil Service', npa: 60,   accrual: 1 / 60, revalReal: 0,      autoLump: 0, commuteRate: 12, earlyRate: 0.05,  lateRate: 0,     minAge: 55, legacy: true },
+    csNuvos:  { label: 'Civil Service nuvos',         family: 'Civil Service', npa: 65,   accrual: 0.023,  revalReal: 0,      autoLump: 0, commuteRate: 12, earlyRate: 0.05,  lateRate: 0.05,  minAge: 55, legacy: true },
+    csAlpha:  { label: 'Civil Service alpha (2015)',  family: 'Civil Service', npa: 'spa', accrual: 0.0232, revalReal: 0,     autoLump: 0, commuteRate: 12, earlyRate: 0.043, lateRate: 0.05,  minAge: 55 },
+    police15: { label: 'Police 2015 (CARE)',          family: 'Police',       npa: 60,    accrual: 1 / 55.3, revalReal: 0.0125, autoLump: 0, commuteRate: 12, earlyRate: 0.044, lateRate: 0.05, minAge: 55, uniformed: true },
+    fire15:   { label: 'Firefighters 2015 (CARE)',    family: 'Fire',         npa: 60,    accrual: 1 / 59.7, revalReal: 0.01, autoLump: 0, commuteRate: 12, earlyRate: 0.044, lateRate: 0.05,  minAge: 55, uniformed: true },
+    afps15:   { label: 'Armed Forces 2015 (CARE)',    family: 'Armed Forces', npa: 60,    accrual: 1 / 47, revalReal: 0.01,   autoLump: 0, commuteRate: 12, earlyRate: 0.044, lateRate: 0.05,  minAge: 55, uniformed: true },
+    custom:   { label: 'Other defined-benefit scheme', family: 'Other',       npa: 65,    accrual: 1 / 60, revalReal: 0,      autoLump: 0, commuteRate: 12, earlyRate: 0.05,  lateRate: 0,     minAge: 55 },
+  });
+  const DB_SCHEMES_ASOF = '2026-10';
+
+  const schemeOf = (t) => DB_SCHEMES[t && t.scheme] || DB_SCHEMES.custom;
+  const trancheNpa = (who, t) => {
+    if (t.npa) return Number(t.npa);
+    const s = schemeOf(t);
+    return s.npa === 'spa' ? who.spAge : s.npa;
+  };
+  // The minimum age a tranche can be taken from, for the birth year given.
+  // 57 from 6 April 2028 (birth year 1973 on, by year only); uniformed
+  // services stay at 55.
+  const trancheMinAge = (who, t) => {
+    const s = schemeOf(t);
+    if (s.uniformed || t.protectedAge) return s.minAge || 55;
+    return who.birthYear >= 1973 ? 57 : 55;
+  };
+  // HMRC: total tax-free lump sum ≤ 25% of the capital value (20 × the
+  // post-commutation pension + the lump sum). Solving for the most pension
+  // that can be given up at `rate` : 1 with an automatic lump of a × pension:
+  //   c_max = pension × (20 − 3a) / (3·rate + 20)
+  const maxCommute = (pension, autoMult, rate) =>
+    clamp0(pension * (20 - 3 * autoMult) / (3 * rate + 20));
+
+  const tranchesOf = (who) => Array.isArray(who && who.dbSchemes)
+    ? who.dbSchemes.filter(t => t && ((Number(t.pension) || 0) > 0 || (t.accruing && (Number(t.salary) || 0) > 0)))
+    : [];
+
+  // Everything about one tranche, in today's money unless stated.
+  function trancheBenefits(P, who, t) {
+    const s = schemeOf(t);
+    const npa = trancheNpa(who, t);
+    const minAge = trancheMinAge(who, t);
+    const takeAge = Math.max(minAge, Math.round(Number(t.takeAge) || npa));
+    const takeYear = who.birthYear + takeAge;
+    const margin = t.revalReal != null ? Number(t.revalReal) : (s.revalReal || 0);
+    const accrual = t.accrual != null ? Number(t.accrual) : (s.accrual || 0);
+    // Accrual while still working: each year adds accrual × pay, and the
+    // built-up amount revalues at CPI plus the scheme margin until service
+    // ends (the plan's stop-work year, or the take year if earlier). Once
+    // deferred, revaluation is CPI only — flat in today's money.
+    let accrued = Number(t.pension) || 0;
+    const stopYear = Math.min(P.retireYear, takeYear);
+    if (t.accruing && accrual > 0 && (Number(t.salary) || 0) > 0) {
+      for (let y = P.startYear; y < stopYear; y++) accrued = accrued * (1 + margin) + accrual * Number(t.salary);
+    }
+    const early = Math.max(0, npa - takeAge), late = Math.max(0, takeAge - npa);
+    const r = t.earlyRate != null ? Number(t.earlyRate) : s.earlyRate;
+    const u = t.lateRate != null ? Number(t.lateRate) : (s.lateRate || 0);
+    const factor = early > 0 ? Math.pow(1 - r, early) : Math.pow(1 + u, late);
+    const basePension = accrued * factor;
+    const autoMult = t.autoLump != null ? Number(t.autoLump) : (s.autoLump || 0);
+    const rate = t.commuteRate != null ? Number(t.commuteRate) : (s.commuteRate || 12);
+    const cMax = maxCommute(basePension, autoMult, rate);
+    const commute = cMax * Math.min(1, Math.max(0, Number(t.commutePct) || 0));
+    const pension = basePension - commute;
+    const lump = autoMult * basePension + rate * commute;
+    const indexed = t.indexed == null ? true : !!t.indexed;
+    return { id: t.id, scheme: t.scheme || 'custom', label: t.label || s.label, family: s.family,
+      npa, minAge, takeAge, takeYear, accrued, early, late, factor, basePension, pension,
+      lump, lumpMin: autoMult * basePension, lumpMax: autoMult * basePension + rate * cMax,
+      commute, cMax, autoMult, rate, indexed, legacy: !!s.legacy };
+  }
+
+  // Precomputed per partner: nominal DB income and tax-free lump sums by year.
+  function dbSchedule(P, who) {
+    const tranches = tranchesOf(who).map(t => trancheBenefits(P, who, t));
+    const incomeAt = (year) => {
+      const infl = inflFactor(P, year);
+      let v = (who.db && year >= who.dbStartYear) ? who.db * (who.dbIndexed ? infl : 1) : 0;
+      for (const b of tranches) {
+        if (year >= b.takeYear) v += b.pension * (b.indexed ? infl : inflFactor(P, b.takeYear));
+      }
+      return v;
+    };
+    const lumpAt = (year) => {
+      let v = 0;
+      for (const b of tranches) if (b.takeYear === year && b.lump > 0) v += b.lump * inflFactor(P, year);
+      return v;
+    };
+    return { tranches, incomeAt, lumpAt };
+  }
+  const hasAnyDb = (who) => (Number(who && who.db) || 0) > 0 || tranchesOf(who).length > 0;
+
+  // Plus: what taking a tranche at each possible age does to the whole plan.
+  function compareDbTiming(P, whoKey, trancheId) {
+    const who = P[whoKey];
+    const idx = (who.dbSchemes || []).findIndex(t => t && t.id === trancheId);
+    if (idx < 0) return null;
+    const t = who.dbSchemes[idx];
+    const b0 = trancheBenefits(P, who, t);
+    const out = [];
+    const to = Math.max(b0.npa, Math.min(b0.npa + 3, P.horizonAge - 5));
+    // Only ages still ahead of the member: the past is not an option.
+    const from = Math.max(b0.minAge, P.startYear - who.birthYear);
+    for (let age = from; age <= to; age++) {
+      const q = { ...P, [whoKey]: { ...who, dbSchemes: who.dbSchemes.map((x, i) => i === idx ? { ...x, takeAge: age } : x) } };
+      const b = trancheBenefits(q, q[whoKey], q[whoKey].dbSchemes[idx]);
+      const dd = drawdown(q);
+      const horizonYear = P.partnerA.birthYear + P.horizonAge;
+      out.push({ age, year: who.birthYear + age, pension: b.pension, lump: b.lump, factor: b.factor,
+        endWealthReal: dd.endWealth / inflFactor(P, horizonYear), exhaustedAgeA: dd.exhaustedAgeA,
+        lifetimeTaxReal: dd.lifetimeTaxReal != null ? dd.lifetimeTaxReal : dd.lifetimeTax });
+    }
+    return { tranche: b0, options: out };
+  }
+
   // ── Income tax, single person, England rUK bands ─────────────────────
   function personalAllowanceFor(gross, T) {
     T = T || TAX_DEFAULTS;
@@ -423,9 +564,13 @@ export function createEngine() {
               uncrys: clamp0(P.partnerB.pension - (P.partnerB.crystallised || 0)) };
     let cash = P.cash;
     const events = effectiveEvents(P);
+    const DBA = dbSchedule(P, P.partnerA), DBB = dbSchedule(P, P.partnerB);
 
     for (let y = P.startYear; y < P.retireYear; y++) {
       const contribHalf = 1 + g / 2;
+      // A DB lump sum taken before stopping work lands in cash, tax-free.
+      // (From the stop-work year on, the drawdown loop books it instead.)
+      if (y + 1 < P.retireYear) cash += DBA.lumpAt(y + 1) + DBB.lumpAt(y + 1);
       a.pension = a.pension * (1 + g) + P.partnerA.monthlyPension * 12 * contribHalf;
       a.uncrys = a.uncrys * (1 + g) + P.partnerA.monthlyPension * 12 * contribHalf;
       a.isa = a.isa * (1 + g) + P.partnerA.monthlyIsa * 12 * contribHalf;
@@ -518,10 +663,14 @@ export function createEngine() {
     let annuityToday = 0, annuityBought = false;   // today's-money annuity income
     let parachuteUsed = false, parachuteYear = null;
     let lastRatio = null;
+    const DBA = dbSchedule(P, P.partnerA), DBB = dbSchedule(P, P.partnerB);
 
     for (let year = P.retireYear; year <= endYear; year++) {
       const infl = inflFactor(P, year);
       const ageA = ageIn(P.partnerA, year), ageB = ageIn(P.partnerB, year);
+      // Tax-free DB lump sums arriving this year go to cash before any draw.
+      const dbLump = DBA.lumpAt(year) + DBB.lumpAt(year);
+      if (dbLump > 0) cash += dbLump;
       // Household investable wealth before this year's draws (the sleeves
       // track the same money, split by asset rather than by wrapper).
       const investStart = potA + potB + isaA + isaB;
@@ -537,11 +686,9 @@ export function createEngine() {
       const annuityNom = annuityBought
         ? annuityToday * (AR.annuityIndexed ? infl : inflFactor(P, AR.annuityYear)) : 0;
 
-      // Guaranteed income per partner, nominal
-      const dbA = (P.partnerA.db && year >= P.partnerA.dbStartYear)
-        ? P.partnerA.db * (P.partnerA.dbIndexed ? infl : 1) : 0;
-      const dbB = (P.partnerB.db && year >= P.partnerB.dbStartYear)
-        ? P.partnerB.db * (P.partnerB.dbIndexed ? infl : 1) : 0;
+      // Guaranteed income per partner, nominal (company DB + scheme tranches)
+      const dbA = DBA.incomeAt(year);
+      const dbB = DBB.incomeAt(year);
       const spA = ageA >= P.partnerA.spAge ? P.partnerA.spAmount * infl : 0;
       const spB = ageB >= P.partnerB.spAge ? P.partnerB.spAmount * infl : 0;
 
@@ -792,7 +939,7 @@ export function createEngine() {
         guaranteed: baseA + baseB,
         grossA, grossB, tfcA, tfcB,
         taxA, taxB, tax: totalTax,
-        isaDraw, isaDrawA, isaDrawB, cashDraw,
+        isaDraw, isaDrawA, isaDrawB, cashDraw, dbLump,
         eventCost, eventInflow: eventIncome + eventInvested, eventLabels,
         target, netIncome, shortfall,
         potA, potB, isaA, isaB, cash, wealth,
@@ -1124,6 +1271,7 @@ export function createEngine() {
     const eqNomMean = (1 + AR.equityReal) * (1 + P.inflation) - 1;
     const goldNomMean = (1 + AR.goldReal) * (1 + P.inflation) - 1;
     const spendMults = [];
+    const DBA = dbSchedule(P, P.partnerA), DBB = dbSchedule(P, P.partnerB);
 
     // Scoring the outcome that actually matters: the spending delivered.
     // Utility is standard CRRA, so a lean year hurts more than a plump year
@@ -1149,8 +1297,9 @@ export function createEngine() {
         const ageB = year - P.partnerB.birthYear;
         const spA = ageA >= P.partnerA.spAge ? P.partnerA.spAmount * infl : 0;
         const spB = ageB >= P.partnerB.spAge ? P.partnerB.spAmount * infl : 0;
-        const dbA = (P.partnerA.db && year >= P.partnerA.dbStartYear) ? P.partnerA.db * (P.partnerA.dbIndexed ? infl : 1) : 0;
-        const dbB = (P.partnerB.db && year >= P.partnerB.dbStartYear) ? P.partnerB.db * (P.partnerB.dbIndexed ? infl : 1) : 0;
+        const dbA = DBA.incomeAt(year);
+        const dbB = DBB.incomeAt(year);
+        cash += DBA.lumpAt(year) + DBB.lumpAt(year);   // tax-free lump sums, as in drawdown
         const investStart = potA + potB + isa;
         if (archOn && AR.annuityOn && !annuityBought && year >= AR.annuityYear) {
           const cost = Math.min(clamp0(AR.annuityAmount) * infl, potA);
@@ -1473,6 +1622,43 @@ export function createEngine() {
     const y0 = dd.rows[0];
     check('Year one: free allowance used before basic rate (tax below merged single-person)',
       y0.tax < taxOn(y0.guaranteed + y0.grossA + y0.grossB, T) ? 0 : 1, 0, 0.5);
+    // ── Public-sector DB tranches ──
+    {
+      const base = { ...defaults(), partnerA: { ...defaults().partnerA, db: 0, dbSchemes: [] }, partnerB: { ...defaults().partnerB, db: 0 } };
+      const A = base.partnerA;
+      const atNpa = { ...A, dbSchemes: [{ id: 't1', scheme: 'nhs1995', pension: 12000, takeAge: 60 }] };
+      const b = trancheBenefits(base, atNpa, atNpa.dbSchemes[0]);
+      check('DB tranche at NPA pays the statement pension', b.pension, 12000, 0.01);
+      check('NHS 1995 pays an automatic 3× lump sum', b.lump, 36000, 0.01);
+      const early = trancheBenefits(base, atNpa, { ...atNpa.dbSchemes[0], takeAge: 55 });
+      check('Five years early reduces the pension (≈21%)', early.pension / 12000, Math.pow(0.955, 5), 0.001);
+      const care = trancheBenefits(base, { ...A, spAge: 67 }, { id: 't2', scheme: 'nhs2015', pension: 10000, takeAge: 60 });
+      check('2015 scheme NPA follows State Pension age (67 → 7 years early)', care.early, 7, 0.01);
+      const maxC = trancheBenefits(base, atNpa, { ...atNpa.dbSchemes[0], commutePct: 1 });
+      const capital = 20 * maxC.pension + maxC.lump;
+      check('Maximum commutation sits exactly at the 25% HMRC limit', maxC.lump / capital, 0.25, 0.0005);
+      check('Commuting pension for cash at 12:1', (maxC.lump - 36000) / (12000 - maxC.pension), 12, 0.01);
+      // Flows: income appears as dbA from the take year; the lump lands in cash that year.
+      const Pq = { ...base, retireYear: 2030, partnerA: { ...atNpa, birthYear: 1970 } };   // take at 60 → 2030
+      const ddq = drawdown(Pq);
+      const r0 = ddq.rows[0];
+      check('Tranche income flows into guaranteed income from the take year', r0.dbA / inflFactor(Pq, 2030), 12000, 1);
+      check('Lump sum is booked in the take year', r0.dbLump / inflFactor(Pq, 2030), 36000, 1);
+      // Taking it later means nothing before the take year.
+      const Pl = { ...Pq, partnerA: { ...Pq.partnerA, dbSchemes: [{ id: 't1', scheme: 'nhs2015', pension: 12000, takeAge: 67 }] } };
+      check('Nothing paid before the take year', drawdown(Pl).rows[0].dbA, 0, 0.01);
+      // Simple company DB still works alongside, and the two add.
+      const Pboth = { ...Pq, partnerA: { ...Pq.partnerA, db: 5000, dbStartYear: 2030, dbIndexed: true } };
+      check('Company DB and scheme tranche add together', drawdown(Pboth).rows[0].dbA / inflFactor(Pq, 2030), 17000, 1);
+      // A pre-retirement lump sum lands in cash during accumulation, once.
+      const Ppre = { ...Pq, retireYear: 2034 };
+      const accPre = accumulate(Ppre);
+      check('Pre-retirement lump sum lands in cash once', (accPre.years.find(y => y.year === 2030) || {}).cash / inflFactor(Ppre, 2030), 36000, 1);
+      check('…and is not booked again at retirement', drawdown(Ppre).rows[0].dbLump, 0, 0.01);
+      // Still accruing: more service, more pension.
+      const acc1 = trancheBenefits({ ...base, retireYear: 2030 }, { ...A, birthYear: 1970 }, { id: 't3', scheme: 'nhs2015', pension: 10000, takeAge: 67, accruing: true, salary: 54000 });
+      check('Four more years at 1/54 of £54k adds ≈£4k plus revaluation', acc1.accrued > 14000 && acc1.accrued < 14900 ? 0 : 1, 0, 0.1);
+    }
     return out;
   }
 
@@ -1484,6 +1670,7 @@ export function createEngine() {
     stressTests, sensitivityGrid, tornado, lifetimeTotals, estate,
     runMonteCarlo, runAssertions, compareArchitecture, assessStructure, archOf, fundedRatio,
     TAX_DEFAULTS,
+    DB_SCHEMES, DB_SCHEMES_ASOF, trancheBenefits, trancheNpa, trancheMinAge, maxCommute, dbSchedule, hasAnyDb, compareDbTiming,
   };
 }
 

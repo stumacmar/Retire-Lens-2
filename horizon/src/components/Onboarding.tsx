@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { fmtK } from '../lib/format';
 import { MoneyField, NumField, Toggle } from './Field';
+import SchemePensions from './SchemePensions';
 
 /**
  * Vision-first onboarding. (HIG: a calm conversation, not a form — one idea per
@@ -92,6 +93,7 @@ export default function Onboarding({ plan, update, onDone, onExample }: {
         {plan.partnerA.db > 0 && (
           <div className="pt-0.5"><Toggle label="…and it rises with inflation" checked={!!plan.partnerA.dbIndexed} onChange={v => setA({ dbIndexed: v })} /></div>
         )}
+        <SchemePensions plan={plan} who={plan.partnerA} set={setA} compact />
         <MoneyField label="ISAs today" value={plan.partnerA.isa} onChange={v => setA({ isa: v })} />
         <MoneyField label="Paying into ISAs monthly" value={plan.partnerA.monthlyIsa} onChange={v => setA({ monthlyIsa: v })} />
         <div className="pt-1"><Toggle label="Planning with a partner" checked={addPartner} onChange={setAddPartner} /></div>
@@ -112,6 +114,7 @@ export default function Onboarding({ plan, update, onDone, onExample }: {
             {plan.partnerB.db > 0 && (
               <div className="pt-0.5"><Toggle label="…and it rises with inflation" checked={!!plan.partnerB.dbIndexed} onChange={v => setB({ dbIndexed: v })} /></div>
             )}
+            <SchemePensions plan={plan} who={plan.partnerB} set={setB} compact />
             <MoneyField label="Their ISAs today" value={plan.partnerB.isa} onChange={v => setB({ isa: v })} />
             <MoneyField label="Paying into their ISAs monthly" value={plan.partnerB.monthlyIsa} onChange={v => setB({ monthlyIsa: v })} />
           </div>

@@ -30,7 +30,8 @@ export default function Approach({ plan, update, onDone }: {
 }) {
   const A = plan.partnerA, B = plan.partnerB;
   const hasMoney = (A.pension + A.isa + A.monthlyPension + A.monthlyIsa + A.db
-    + B.pension + B.isa + B.monthlyPension + B.monthlyIsa + B.db + (plan.cash || 0)) > 0;
+    + B.pension + B.isa + B.monthlyPension + B.monthlyIsa + B.db + (plan.cash || 0)) > 0
+    || (E as any).hasAnyDb(A) || (E as any).hasAnyDb(B);
 
   // Measured lazily, after the screen has painted — the choice must never
   // wait on a simulation.

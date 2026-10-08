@@ -60,6 +60,7 @@ tests/            12 test suites, 630+ assertions
 - **Monte Carlo simulation** with confidence bands and fan charts
 - **Plan A vs Plan B** comparison with numeric deltas
 - **UK tax engine** — Personal Allowance tapering, Scottish bands, couples
+- **Public-sector pensions** — NHS, Teachers', LGPS, Civil Service, Police, Fire and Armed Forces schemes as tranches: legacy and 2015 slices, early-retirement reductions, automatic lump sums and commutation within the HMRC limit, ongoing accrual
 - **PCLS strategies** — immediate, phased, deferred, or none
 - **DB pension** support with CPI/fixed escalation
 - **State Pension** with triple-lock real growth modelling

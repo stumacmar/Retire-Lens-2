@@ -8,6 +8,7 @@ export interface Partner {
   income?: number;         // annual income, for the allowance-taper warning
   dbTransferValue?: number; // CETV if quoted (display/report only)
   pots?: any[];            // optional scheme list (UI aggregates into the fields above)
+  dbSchemes?: DbTranche[]; // public-sector defined-benefit tranches (see below)
 }
 export interface Plan {
   startYear: number; retireYear: number; horizonAge: number;
@@ -47,6 +48,41 @@ export interface Engine {
   accumulate(P: Plan, growth?: number): Accum;
   drawdown(P: Plan, opts?: { growth?: number; startPots?: any }): Drawdown;
   runMonteCarlo(P: Plan, n: number, seed: number): MC;
+  DB_SCHEMES: Record<string, DbScheme>;
+  DB_SCHEMES_ASOF: string;
+  trancheBenefits(P: Plan, who: Partner, t: DbTranche): TrancheBenefits;
+  trancheNpa(who: Partner, t: DbTranche): number;
+  trancheMinAge(who: Partner, t: DbTranche): number;
+  maxCommute(pension: number, autoMult: number, rate: number): number;
+  hasAnyDb(who: Partner): boolean;
+  compareDbTiming(P: Plan, whoKey: 'partnerA' | 'partnerB', trancheId: string): { tranche: TrancheBenefits; options: { age: number; year: number; pension: number; lump: number; factor: number; endWealthReal: number; exhaustedAgeA: number | null; lifetimeTaxReal: number }[] } | null;
   [k: string]: any;
 }
 export function createEngine(): Engine;
+
+// ── Defined-benefit scheme tranches (public sector) ──────────────────
+export interface DbTranche {
+  id: string;
+  scheme: string;            // key of Engine.DB_SCHEMES ('nhs2015', 'tps60', 'lgpsCare', 'csAlpha', 'custom', …)
+  label?: string;
+  pension: number;           // annual pension at today's value, from the benefit statement
+  takeAge?: number;          // age the member plans to take it (default: the scheme's normal pension age)
+  npa?: number;              // override normal pension age
+  commutePct?: number;       // 0..1 of the maximum pension that may be given up for cash
+  accruing?: boolean;        // still building it up
+  salary?: number;           // pensionable pay if accruing
+  earlyRate?: number; lateRate?: number; revalReal?: number; accrual?: number;
+  autoLump?: number; commuteRate?: number; indexed?: boolean; protectedAge?: boolean;
+}
+export interface DbScheme {
+  label: string; family: string; npa: number | 'spa'; accrual: number; revalReal: number;
+  autoLump: number; commuteRate: number; earlyRate: number; lateRate: number; minAge: number;
+  legacy?: boolean; uniformed?: boolean;
+}
+export interface TrancheBenefits {
+  id: string; scheme: string; label: string; family: string;
+  npa: number; minAge: number; takeAge: number; takeYear: number;
+  accrued: number; early: number; late: number; factor: number;
+  basePension: number; pension: number; lump: number; lumpMin: number; lumpMax: number;
+  commute: number; cMax: number; autoMult: number; rate: number; indexed: boolean; legacy: boolean;
+}

@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write   # the build is committed back to main so GitHub's own branch deploy can never publish a stale copy
   pages: write
   id-token: write
 
@@ -44,6 +44,20 @@ jobs:
           # Whole dist (index, hashed assets, PWA manifest/sw/icons) → site root + subpath
           cp -r horizon/dist/. .
           cp -r horizon/dist/. horizon-app/
+
+      # Keep the committed copy of the build in step with the source. GitHub's
+      # legacy "build from branch" Pages job publishes whatever is committed and
+      # can land after this workflow's deploy; identical files make the race
+      # harmless. Pushes made with GITHUB_TOKEN do not trigger workflows.
+      - name: Commit the staged build back to main
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A index.html sw.js manifest.webmanifest assets horizon-app
+          if git diff --cached --quiet; then echo "Build unchanged"; else
+            git commit -m "Build: stage Horizon into the site root [skip ci]"
+            git pull --rebase origin main && git push origin HEAD:main
+          fi
 
       - name: Setup Pages
         uses: actions/configure-pages@v4

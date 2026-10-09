@@ -146,6 +146,12 @@ Then in GitHub → Settings → Pages set the custom domain and tick *Enforce HT
 
 ## Step 6 — Ship it
 
+**Do this once, first:** in GitHub → Settings → Pages → *Build and deployment*,
+set **Source** to **GitHub Actions**. Until that is set, GitHub also runs its own
+"build from branch" job on every push, which publishes the files committed in
+the repo and can overwrite the real build. (CI keeps the committed copy of the
+build in step with the source as a safety net, but the setting is the fix.)
+
 Push to `main`. Two workflows run:
 
 - **CI** — unit tests, stress test, then the Horizon UAT (120+ checks) and

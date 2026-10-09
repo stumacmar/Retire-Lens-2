@@ -225,7 +225,7 @@ await check('68 not-advice card', () => has('Not financial advice'));
 await check('69 UK-aware card', () => has('UK-aware'));
 await check('70 Save-report PDF button', () => has('Save the full report'));
 await check('71 story link → story.html', async () => (await p.$eval('a[href="story.html"]', e => e.getAttribute('href'))) === 'story.html');
-await check('72 classic link → app.html', async () => (await p.$eval('a[href="app.html"]', e => e.getAttribute('href'))) === 'app.html');
+await check('72 no classic-planner link (one product, one app)', async () => (await p.$('a[href="app.html"]')) == null);
 await closeSheet();
 
 await setRange(1, 120000); await wait(700);

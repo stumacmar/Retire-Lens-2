@@ -161,8 +161,11 @@ export async function revalidate(l: Licence): Promise<Licence> {
       variantName: j.meta?.variant_name ?? l.variantName,
     };
   }
-  // A definite "no" from the service (any HTTP status with a body).
-  const status = String(j.license_key?.status || (j.error ? 'invalid' : l.status));
+  // Only a definite "no" about THIS key revokes: a licence status, or
+  // valid:false from a normal response. Rate limits, outages and gateway
+  // pages are "unknown", so the grace period keeps Plus working.
+  if (r.status === 429 || r.status >= 500 || (j.valid !== false && !j.license_key)) return l;
+  const status = String(j.license_key?.status || 'invalid');
   return { ...l, status: status === 'active' ? 'invalid' : status, validatedAt: Date.now() };
 }
 
@@ -192,13 +195,19 @@ export function useEntitlementState(): Entitlement {
     const cur = loadLicence();
     if (!cur) return;
     const next = await revalidate(cur);
+    // A newer activation may have landed meanwhile (e.g. a receipt link):
+    // never let a stale re-check overwrite a different key.
+    const now = loadLicence();
+    if (!now || now.key !== cur.key) return;
     saveLicence(next);
     setLicence(next);
   }, []);
 
   // Quiet background re-check when due; also whenever the device comes online.
+  // Skipped on a visit that carries a new key to activate.
   useEffect(() => {
-    const check = () => { if (needsRevalidation(loadLicence())) void refresh(); };
+    const pendingLink = (() => { try { const u = new URL(window.location.href); return !!(u.searchParams.get('licence') || u.searchParams.get('license')); } catch { return false; } })();
+    const check = () => { if (!pendingLink && needsRevalidation(loadLicence())) void refresh(); };
     check();
     window.addEventListener('online', check);
     return () => window.removeEventListener('online', check);

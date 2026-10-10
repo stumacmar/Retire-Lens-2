@@ -68,7 +68,7 @@ function Horizon() {
     setOnboarded(false);
   };
 
-  const horizonYear = plan.partnerA.birthYear + plan.horizonAge;
+  const horizonYear = (E as any).planEndYear(plan);
   const lasts = dd.exhaustedAgeA == null;
   const spendToday = Math.round(plan.targetNet);
   const conf = mc ? mc.successProb : (lasts ? 0.9 : 0.5);
@@ -265,7 +265,7 @@ function Horizon() {
         </h1>
         <p className="mt-2.5 text-[0.95rem]" style={{ color: 'var(--color-ink-dim)' }}>
           Retiring {new Date(plan.retireYear, 3).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })}, at {ageAtRetire}.
-          {mc && <> In about <b className="tnum" style={{ color: 'var(--color-ink)' }}>{Math.round(confAnim)}%</b> of possible futures, it holds.</>}
+          {mc && <> In about <b className="tnum" style={{ color: 'var(--color-ink)' }}>{Math.round(confAnim / 5) * 5}%</b> of possible futures, it holds.</>}
         </p>
         </>) : (<>
         <h1 className="mt-1 text-[1.85rem] leading-[1.18] font-extrabold tracking-tight">
@@ -358,10 +358,10 @@ function Horizon() {
         {mc && hasMoney && (
           <div className="mt-4 rounded-2xl px-4 py-3.5 flex items-center gap-4"
                style={{ background: 'color-mix(in srgb, var(--color-sage) 16%, var(--color-surface))' }}>
-            <span className="tnum text-[1.7rem] font-extrabold tracking-tight" style={{ color: 'var(--color-sage-strong)' }}>{pct(mc.successProb)}</span>
+            <span className="tnum text-[1.7rem] font-extrabold tracking-tight" style={{ color: 'var(--color-sage-strong)' }}>about {Math.round(mc.successProb * 20) * 5}%</span>
             <span>
               <span className="block text-[0.82rem] font-semibold leading-snug">Confidence in sustaining your lifestyle</span>
-              <span className="block text-[0.7rem] mt-0.5" style={{ color: 'var(--color-ink-faint)' }}>Across {mc.nPaths} simulated market futures</span>
+              <span className="block text-[0.7rem] mt-0.5" style={{ color: 'var(--color-ink-faint)' }}>Across {mc.nPaths} simulated market futures · give or take a few points</span>
             </span>
           </div>
         )}
@@ -397,10 +397,10 @@ function Horizon() {
         {mc && hasMoney && (
           <div className="mt-5 rounded-2xl px-5 py-4 flex items-center gap-4"
                style={{ background: 'color-mix(in srgb, var(--color-sage) 16%, var(--color-surface))' }}>
-            <span className="tnum text-[2rem] font-extrabold tracking-tight" style={{ color: 'var(--color-sage-strong)' }}>{pct(mc.successProb)}</span>
+            <span className="tnum text-[2rem] font-extrabold tracking-tight" style={{ color: 'var(--color-sage-strong)' }}>about {Math.round(mc.successProb * 20) * 5}%</span>
             <span>
               <span className="block text-[0.85rem] font-semibold leading-snug">Confidence in sustaining your lifestyle</span>
-              <span className="block text-[0.72rem] mt-0.5" style={{ color: 'var(--color-ink-faint)' }}>Across {mc.nPaths} simulated market futures</span>
+              <span className="block text-[0.72rem] mt-0.5" style={{ color: 'var(--color-ink-faint)' }}>Across {mc.nPaths} simulated market futures · give or take a few points</span>
             </span>
           </div>
         )}
@@ -447,9 +447,9 @@ function Horizon() {
       {/* Desktop: three calm metrics along the bottom (per the design brief). */}
       {hasMoney && <div className="flex flex-col lg:flex-row gap-3 lg:gap-8 mt-6 lg:mt-8">
         <DeskStat value={lasts ? `age ${plan.horizonAge}+` : `age ${dd.exhaustedAgeA}`} label="Sustainable to"
-          desc={lasts ? 'Your income holds through your plan horizon in the central outlook.' : 'Where the pots run short on today’s settings — a lever away from safe.'}
+          desc={lasts ? 'Your income holds through your plan horizon in the central outlook.' : 'Where the pots run short on today’s settings — see what moves the needle in Explore.'}
           color={lasts ? 'var(--color-ocean)' : 'var(--color-hope)'} />
-        {estate && <DeskStat value={fmtK(deflate(estate.netToHeirs, estate.year, plan.startYear, plan.inflation))} label="Legacy Potential"
+        {estate && <DeskStat value={fmtK(deflate(estate.netToHeirs, estate.year, plan.startYear, plan.inflation))} label="Potential legacy"
           desc="What could pass to the people you love, in today’s money." color="var(--color-sage-strong)" />}
         {bufferYears != null && <DeskStat value={`${bufferYears} years`} label="Years of Buffer"
           desc={`Spare room beyond age ${plan.horizonAge} if you live longer than planned.`} color="var(--color-calm-strong)" />}
@@ -921,8 +921,10 @@ function DetailsBody({ plan, update, reset, initial, plus, onUpgrade }: { plan: 
               <NumField label="Year" value={e.year} onChange={v => setEvent(i, { year: v })} />
               <MoneyField label="Amount" value={e.amount} onChange={v => setEvent(i, { amount: v })} />
             </div>
-            <div className="mt-2"><Segmented small value={e.kind} onChange={(v: string) => setEvent(i, { kind: v })}
-              options={[{ value: 'cost', label: 'Cost' }, { value: 'income', label: 'Windfall' }]} /></div>
+            <div className="mt-2"><Segmented small value={e.kind} onChange={(v: string) => setEvent(i, { kind: v, invest: v === 'income' ? e.invest : false })}
+              options={[{ value: 'cost', label: 'Cost' }, { value: 'income', label: 'Windfall' }, { value: 'earned', label: 'Earnings (taxed)' }]} /></div>
+            {e.kind === 'earned' && <div className="mt-2"><Segmented small value={e.who || 'A'} onChange={(v: string) => setEvent(i, { who: v })}
+              options={[{ value: 'A', label: `${plan.partnerA.name} earns it` }, { value: 'B', label: `${plan.partnerB.name} earns it` }]} /></div>}
           </div>
         ))}
         <div className="flex gap-2">
@@ -1075,7 +1077,7 @@ function ExploreBody({ plan, dd, estate, mc, plus, onUpgrade }: { plan: any; dd:
   const today = (v: number, year: number) => deflate(v, year, plan.startYear, plan.inflation);
   const lifeTax = (dd as any).lifetimeTaxReal ?? dd.lifetimeTax;
   const mix = fundingMix(dd);
-  const horizonYear = plan.partnerA.birthYear + plan.horizonAge;
+  const horizonYear = (E as any).planEndYear(plan);
   const nowP10 = mc ? deflate(mc.finalP10, horizonYear, plan.startYear, plan.inflation) : 0;
   const nowP50 = mc ? deflate(mc.finalP50, horizonYear, plan.startYear, plan.inflation) : 0;
   const nowP90 = mc ? deflate(mc.finalP90, horizonYear, plan.startYear, plan.inflation) : 0;
@@ -1130,7 +1132,7 @@ function ExploreBody({ plan, dd, estate, mc, plus, onUpgrade }: { plan: any; dd:
         <div className="rounded-2xl p-4" style={{ background: 'var(--color-canvas)' }}>
           <div className="flex items-baseline justify-between mb-1">
             <span className="text-[0.9rem] font-semibold">Monte Carlo · range of futures</span>
-            <span className="tnum text-[0.9rem] font-bold" style={{ color: 'var(--color-calm-strong)' }}>{pct(mc.successProb)} hold</span>
+            <span className="tnum text-[0.9rem] font-bold" style={{ color: 'var(--color-calm-strong)' }}>about {Math.round(mc.successProb * 20) * 5}% hold</span>
           </div>
           <McFan mc={mc} retireYear={plan.retireYear} />
           <p className="text-[0.72rem] mt-1 mb-3" style={{ color: 'var(--color-ink-faint)' }}>
@@ -1361,9 +1363,25 @@ function ExploreBody({ plan, dd, estate, mc, plus, onUpgrade }: { plan: any; dd:
 // lever, in full. Plus: the whole list.
 function Levers({ plan, plus, onUpgrade }: { plan: any; plus: boolean; onUpgrade: () => void }) {
   // Same 500 futures and seed as the confidence figure, so the base here is
-  // the number the person has already seen.
-  const res = useMemo(() => { try { return (E as any).levers(plan, { paths: 500 }); } catch { return null; } }, [plan]);
-  if (!res || !res.levers.length) return null;
+  // the number the person has already seen. Computed after the sheet has
+  // opened, so the eight simulations never block the animation.
+  const [res, setRes] = useState<any>(null);
+  useEffect(() => {
+    let live = true;
+    const id = setTimeout(() => { try { const r = (E as any).levers(plan, { paths: 500 }); if (live) setRes(r); } catch { if (live) setRes(null); } }, 60);
+    return () => { live = false; clearTimeout(id); };
+  }, [plan]);
+  if (!res) {
+    return (
+      <div>
+        <h3 className="text-[0.72rem] font-bold uppercase tracking-widest mb-2" style={{ color: 'var(--color-ink-faint)' }}>What moves the needle</h3>
+        <div className="rounded-3xl px-4 py-5 text-[0.84rem]" style={{ background: 'var(--color-surface)', border: '1px solid var(--color-hairline)', color: 'var(--color-ink-dim)' }}>
+          Measuring each lever across the same simulated futures…
+        </div>
+      </div>
+    );
+  }
+  if (!res.levers.length) return null;
   const top = res.levers[0];
   const pp = (d: number) => `${d >= 0 ? '+' : '−'}${Math.abs(Math.round(d * 100))} pts`;
   const Row = ({ l, i }: { l: any; i: number }) => (
@@ -1372,7 +1390,7 @@ function Levers({ plan, plus, onUpgrade }: { plan: any; plus: boolean; onUpgrade
         <div className="text-[0.9rem] font-semibold">{l.label}</div>
         <div className="tnum text-right shrink-0">
           <span className="block text-[0.95rem] font-extrabold" style={{ color: l.dConf > 0.004 ? 'var(--color-sage-strong)' : l.dConf < -0.004 ? 'var(--color-hope)' : 'var(--color-ink-dim)' }}>{pp(l.dConf)}</span>
-          <span className="block text-[0.7rem]" style={{ color: 'var(--color-ink-faint)' }}>{l.dEnd >= 0 ? '+' : '−'}{fmtK(Math.abs(l.dEnd))} left at {plan.horizonAge}</span>
+          <span className="block text-[0.7rem]" style={{ color: 'var(--color-ink-faint)' }}>{l.dEnd >= 0 ? '+' : '−'}{fmtK(Math.abs(l.dEnd))} left at {plan.horizonAge}{Math.abs(l.dTax || 0) >= 1000 ? ` · ${l.dTax < 0 ? '−' : '+'}${fmtK(Math.abs(l.dTax))} tax` : ''}</span>
         </div>
       </div>
       <div className="mt-0.5 text-[0.78rem] leading-relaxed" style={{ color: 'var(--color-ink-dim)' }}>{l.detail}</div>
@@ -1387,8 +1405,8 @@ function Levers({ plan, plus, onUpgrade }: { plan: any; plus: boolean; onUpgrade
       <h3 className="text-[0.72rem] font-bold uppercase tracking-widest mb-2" style={{ color: 'var(--color-ink-faint)' }}>What moves the needle</h3>
       <div className="rounded-3xl overflow-hidden" style={{ background: 'var(--color-surface)', border: '1px solid var(--color-hairline)' }}>
         <div className="px-4 pt-3 pb-1 text-[0.8rem] leading-relaxed" style={{ color: 'var(--color-ink-dim)' }}>
-          Today the plan holds in <b className="tnum" style={{ color: 'var(--color-ink)' }}>{Math.round((res.base.conf || 0) * 100)}%</b> of simulated futures.
-          Each action below is run through the whole plan and the same {res.paths} futures; the first figure is how many more points of confidence it buys.
+          Today the plan holds in about <b className="tnum" style={{ color: 'var(--color-ink)' }}>{Math.round((res.base.conf || 0) * 20) * 5}%</b> of simulated futures.
+          Each action below is run through the whole plan and the same {res.paths} futures; the first figure is how many more points of confidence it buys, give or take two.
         </div>
         <Row l={top} i={0} />
         {plus
@@ -1397,7 +1415,7 @@ function Levers({ plan, plus, onUpgrade }: { plan: any; plus: boolean; onUpgrade
             <div className="px-4 py-3" style={{ borderTop: '1px solid var(--color-hairline)' }}>
               <button onClick={onUpgrade} className="w-full text-left flex items-start gap-2">
                 <span className="text-[0.84rem] leading-relaxed" style={{ color: 'var(--color-ink-dim)' }}>
-                  {res.levers.length - 1} more {res.levers.length === 2 ? 'lever' : 'levers'} measured — {res.levers.slice(1, 4).map((l: any) => l.label.toLowerCase()).join(', ')}{res.levers.length > 4 ? '…' : ''}.
+                  {res.levers.length - 1} more {res.levers.length === 2 ? 'lever' : 'levers'} measured — {res.levers.slice(1).filter((l: any) => !/^(npa:|order)/.test(l.id)).slice(0, 3).map((l: any) => l.label.toLowerCase()).join(', ')}{res.levers.length > 4 ? '…' : ''}.
                 </span>
                 <span className="ml-auto shrink-0 rounded-full px-2 py-0.5 text-[0.64rem] font-bold uppercase tracking-wider"
                   style={{ background: 'color-mix(in srgb, var(--color-calm) 18%, transparent)', color: 'var(--color-calm-strong)' }}>Plus</span>
@@ -1406,7 +1424,7 @@ function Levers({ plan, plus, onUpgrade }: { plan: any; plus: boolean; onUpgrade
           ))}
       </div>
       <p className="text-[0.72rem] mt-1.5 leading-relaxed" style={{ color: 'var(--color-ink-faint)' }}>
-        Measured, not asserted: a lever that shows 0 points genuinely does not change how often this plan holds. Prompts to explore with an adviser — not advice.
+        Each lever is measured on the same simulated futures, with about two points of sampling noise either way; the tax figure is from the central plan. Prompts to explore with an adviser — not advice.
       </p>
     </div>
   );
@@ -1422,7 +1440,7 @@ function StressTests({ plan, plus, onUpgrade }: { plan: any; plus: boolean; onUp
   const gfc = st.tests.find((t: any) => /2008/.test(t.label));
   const headline = s.fails === 0
     ? `Holds in all ${s.total} stress tests — including 2008 striking the day you stop.`
-    : `Holds in ${s.holds} of ${s.total} stress tests. ${gfc ? (gfc.holds ? 'Survives 2008 striking the day you stop' : `If 2008 strikes the day you stop, it runs short at ${gfc.exhaustedAgeA}`) : ''}${s.worst && (!gfc || s.worst.label !== gfc.label) ? `; the hardest is “${s.worst.label}”, short at ${s.worst.exhaustedAgeA}.` : '.'}`;
+    : `Holds in ${s.holds} of ${s.total} stress tests. ${gfc ? (gfc.holds ? 'Holds if 2008 strikes the day you stop' : `If 2008 strikes the day you stop, it runs short at ${gfc.exhaustedAgeA}`) : ''}${s.worst && (!gfc || s.worst.label !== gfc.label) ? `; the hardest is “${s.worst.label}”, short at ${s.worst.exhaustedAgeA}.` : '.'}`;
   return (
     <div>
       <h3 className="text-[0.72rem] font-bold uppercase tracking-widest mb-2" style={{ color: 'var(--color-ink-faint)' }}>Stress tests</h3>
@@ -1457,7 +1475,7 @@ function StressTests({ plan, plus, onUpgrade }: { plan: any; plus: boolean; onUp
         )}
       </div>
       <p className="text-[0.72rem] mt-1.5 leading-relaxed" style={{ color: 'var(--color-ink-faint)' }}>
-        Central outlook with one thing changed at a time. The historic shapes are approximate real-return sequences, replayed from the year you stop — the order of returns, not just the average, is what breaks retirements.
+        Central outlook with one thing changed at a time. The historic shapes are approximate equity-market real-return sequences, replayed on everything you hold as if it were all in shares — a harsher test than a balanced portfolio would face. The order of returns, not just the average, is what breaks retirements.
       </p>
     </div>
   );
@@ -1478,7 +1496,7 @@ function DbTiming({ plan, plus, onUpgrade }: { plan: any; plus: boolean; onUpgra
     return items.map(it => { try { return (E as any).compareDbTiming(plan, it.key, it.t.id); } catch { return null; } });
   }, [plan, plus, items]);
   if (!items.length) return null;
-  const horizonYear = plan.partnerA.birthYear + plan.horizonAge;
+  const horizonYear = (E as any).planEndYear(plan);
   if (!plus) {
     return <Locked compact title="When to take each public-sector pension" onUpgrade={onUpgrade}
       line={`${items.length === 1 ? 'One scheme pension' : `${items.length} scheme pensions`} in the plan. Plus runs the whole plan for every possible start age — the pension, the lump sum, and what is left at ${plan.horizonAge} — so the “take it early or wait” question is answered on your numbers.`} />;

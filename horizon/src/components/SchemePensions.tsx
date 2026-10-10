@@ -67,7 +67,8 @@ export default function SchemePensions({ plan, who, set, compact, adv }: {
               <Segmented small value={commuteKey as '0' | '0.5' | '1'} onChange={v => patch(i, { commutePct: Number(v) })} options={lumpOpts as any} />
               <p className="mt-1.5 text-[0.78rem] leading-relaxed" style={{ color: 'var(--color-ink-faint)' }}>
                 You’d receive <b className="tnum" style={{ color: 'var(--color-ink)' }}>{fmt(Math.round(b.pension))}</b> a year, rising with prices,
-                {b.lump > 0 ? <> plus <b className="tnum" style={{ color: 'var(--color-ink)' }}>{fmt(Math.round(b.lump))}</b> tax-free at {b.takeAge}.</> : ' and no lump sum.'}
+                {b.lump > 0 ? <> plus <b className="tnum" style={{ color: 'var(--color-ink)' }}>{fmt(Math.round(b.lump))}</b> at {b.takeAge}, tax-free within your lump sum allowance.</> : ' and no lump sum.'}
+                {b.lump > Math.max(0, 268275 - (Number(who.pclsTaken) || 0)) && <> <b style={{ color: 'var(--color-hope)' }}>This is more than the £268,275 allowance left</b> across all your pensions; the excess is taxed as income, and it leaves no tax-free cash for personal pensions.</>}
                 {b.autoMult > 0 ? ` The scheme pays ${b.autoMult}× pension automatically;` : ' The scheme pays no automatic lump sum;'} extra cash costs £{b.rate} of lump sum per £1 of pension given up, within the 25% limit.
               </p>
             </div>
@@ -85,7 +86,9 @@ export default function SchemePensions({ plan, who, set, compact, adv }: {
               <p className="text-[0.74rem] leading-relaxed" style={{ color: 'var(--color-ink-faint)' }}>
                 {s.legacy
                   ? 'Deferred final-salary benefits keep pace with prices, so the statement figure holds its value in today’s money. '
-                  : 'If you were in service between 2015 and 2022, use the remedy (McCloud) figures on your statement; the choice itself is made when you retire. '}
+                  : (s.family === 'LGPS'
+                    ? 'For 2014–2022 service the LGPS applies the McCloud underpin automatically; use the figures on your statement. '
+                    : 'If you were in service between 2015 and 2022, use the remedy (McCloud) figures on your statement; the choice itself is made when you retire. ')}
                 Reduction factors are planning approximations of the scheme’s tables, which go by exact age and are revised from time to time.
               </p>
             </>}

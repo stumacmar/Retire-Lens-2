@@ -46,7 +46,13 @@ export interface Engine {
   defaults(): Plan;
   freshStart(): Plan;
   accumulate(P: Plan, growth?: number): Accum;
-  drawdown(P: Plan, opts?: { growth?: number; startPots?: any }): Drawdown;
+  drawdown(P: Plan, opts?: { growth?: number; startPots?: any; returnPath?: number[] }): Drawdown;
+  planEndYear(P: Plan): number;
+  levers(P: Plan, opts?: { paths?: number }): { base: any; paths: number; levers: { id: string; label: string; detail: string; conf: number | null; dConf: number; end: number; dEnd: number; dTax: number; exhaustedAgeA: number | null }[] };
+  stressTests(P: Plan): { base: Drawdown; baseReal: number; baseHolds: boolean; tests: { label: string; note: string; endWealthReal: number; delta: number; exhaustedAgeA: number | null; holds: boolean }[]; summary: { total: number; holds: number; fails: number; worst: any } };
+  compareStrategies(P: Plan): { id: string; label: string; lifetimeTax: number; endWealth: number; exhaustedAgeA: number | null }[];
+  STRESS_PATHS: Record<string, number[]>;
+  SCOT_BANDS: { upTo: number; rate: number }[];
   runMonteCarlo(P: Plan, n: number, seed: number): MC;
   DB_SCHEMES: Record<string, DbScheme>;
   DB_SCHEMES_ASOF: string;

@@ -53,10 +53,14 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -A index.html sw.js manifest.webmanifest assets horizon-app
+          # Everything the build writes to the site root (the dist listing), so no
+          # file is ever left modified-but-unstaged to block the rebase.
+          (cd horizon/dist && find . -type f | sed 's#^\./##') | sed 's#^#./#' | xargs git add -A --
+          (cd horizon/dist && find . -type f | sed 's#^\./##') | sed 's#^#horizon-app/#' | xargs git add -A --
+          git add -A assets horizon-app/assets
           if git diff --cached --quiet; then echo "Build unchanged"; else
             git commit -m "Build: stage Horizon into the site root [skip ci]"
-            git pull --rebase origin main && git push origin HEAD:main
+            git -c rebase.autoStash=true pull --rebase origin main && git push origin HEAD:main
           fi
 
       - name: Setup Pages

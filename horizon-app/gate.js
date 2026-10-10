@@ -18,6 +18,7 @@
   try { if (localStorage.getItem(KEY) === HASH) return; } catch (e) { /* fall through */ }
 
   function sha256(text) {
+    if (!(window.crypto && crypto.subtle)) return Promise.reject(new Error('This page needs a secure (https) address to check the phrase.'));
     return crypto.subtle.digest('SHA-256', new TextEncoder().encode(text)).then(function (buf) {
       return Array.prototype.map.call(new Uint8Array(buf), function (b) { return ('0' + b.toString(16)).slice(-2); }).join('');
     });
@@ -30,11 +31,15 @@
 
   // A link with ?gate=phrase unlocks without typing (for testers).
   try {
-    var q = new URL(location.href).searchParams.get('gate');
+    var u = new URL(location.href), q = u.searchParams.get('gate');
     if (q) {
       sha256(SALT + q).then(function (h) {
-        if (h === HASH) { unlock(h); history.replaceState({}, '', location.pathname + location.hash); }
-      });
+        if (h === HASH) {
+          unlock(h);
+          u.searchParams.delete('gate');   // keep any other parameters (e.g. ?licence=)
+          history.replaceState({}, '', u.pathname + (u.search || '') + u.hash);
+        }
+      }).catch(function () { /* shown on submit */ });
     }
   } catch (e) { /* ignore */ }
 
@@ -69,7 +74,7 @@
       sha256(SALT + v).then(function (h) {
         if (h === HASH) unlock(h);
         else { err.textContent = 'That’s not the phrase. Check for typos, or ask for it again.'; input.select(); }
-      });
+      }).catch(function (e) { err.textContent = e && e.message ? e.message : 'Could not check the phrase.'; });
     });
   }
   if (document.body) render(); else document.addEventListener('DOMContentLoaded', render);

@@ -242,6 +242,21 @@ export function createEngine() {
   // ── Small helpers ─────────────────────────────────────────────────────
   const clamp0 = (x) => Math.max(0, x);
   const ageIn = (p, year) => year - p.birthYear;
+  // The plan runs to the YOUNGER partner's horizon age, so a couple is never
+  // modelled as ending when the older partner reaches it.
+  const planEndYear = (P) => {
+    const a = P.partnerA.birthYear + P.horizonAge;
+    const b = P.partnerB && P.partnerB.birthYear > 1900 ? P.partnerB.birthYear + P.horizonAge : a;
+    return Math.max(a, b);
+  };
+  // One lump sum allowance per person (£268,275) across scheme automatic
+  // lump sums, commutation and personal-pension tax-free cash. The excess
+  // is taxed as income.
+  const lumpAfterLsa = (lump, used, cap) => {
+    const allowed = clamp0(cap - used);
+    const free = Math.min(lump, allowed);
+    return { free, excess: lump - free, used: used + free };
+  };
   const inflFactor = (P, year) => Math.pow(1 + P.inflation, year - P.startYear);
 
   function spendingAnnual(P) {
@@ -406,18 +421,21 @@ export function createEngine() {
     const t = who.dbSchemes[idx];
     const b0 = trancheBenefits(P, who, t);
     const out = [];
-    const to = Math.max(b0.npa, Math.min(b0.npa + 3, P.horizonAge - 5));
-    // Only ages still ahead of the member: the past is not an option.
+    // Only ages still ahead of the member: the past is not an option. The
+    // range always covers the planned age and the scheme's normal age.
     const from = Math.max(b0.minAge, P.startYear - who.birthYear);
+    const to = Math.max(from, b0.npa, b0.takeAge, Math.min(b0.npa + 3, P.horizonAge - 5));
+    if (to - from > 25) return null;
     for (let age = from; age <= to; age++) {
       const q = { ...P, [whoKey]: { ...who, dbSchemes: who.dbSchemes.map((x, i) => i === idx ? { ...x, takeAge: age } : x) } };
       const b = trancheBenefits(q, q[whoKey], q[whoKey].dbSchemes[idx]);
       const dd = drawdown(q);
-      const horizonYear = P.partnerA.birthYear + P.horizonAge;
+      const horizonYear = planEndYear(P);
       out.push({ age, year: who.birthYear + age, pension: b.pension, lump: b.lump, factor: b.factor,
         endWealthReal: dd.endWealth / inflFactor(P, horizonYear), exhaustedAgeA: dd.exhaustedAgeA,
         lifetimeTaxReal: dd.lifetimeTaxReal != null ? dd.lifetimeTaxReal : dd.lifetimeTax });
     }
+    if (!out.length) return null;
     return { tranche: b0, options: out };
   }
 
@@ -456,7 +474,11 @@ export function createEngine() {
   /** Gross band edges for the marginal-rate allocator, per region. */
   function bandEdgesFor(T) {
     if (T.region === 'scotland') {
-      return [T.personalAllowance, 15397, 27491, 43662, 75000, T.taperStart, T.additionalThreshold];
+      // Gross edges derived from the taxable-income bands, so they roll with them.
+      const edges = SCOT_BANDS
+        .filter(b => Number.isFinite(b.upTo) && T.personalAllowance + b.upTo < T.taperStart)
+        .map(b => T.personalAllowance + b.upTo);
+      return [T.personalAllowance, ...edges, T.taperStart, T.additionalThreshold];
     }
     return [T.personalAllowance, T.higherThreshold, T.taperStart, T.additionalThreshold];
   }
@@ -565,17 +587,29 @@ export function createEngine() {
     let cash = P.cash;
     const events = effectiveEvents(P);
     const DBA = dbSchedule(P, P.partnerA), DBB = dbSchedule(P, P.partnerB);
+    // Lump sum allowance used so far per person (prior tax-free cash counts).
+    let lsaUsedA = P.partnerA.pclsTaken || 0, lsaUsedB = P.partnerB.pclsTaken || 0;
+    // A scheme lump sum taken before stopping work lands in cash; the part
+    // over the lump sum allowance is taxed, at 40% while still earning.
+    const bookLump = (yr) => {
+      const lA = DBA.lumpAt(yr), lB = DBB.lumpAt(yr);
+      if (lA > 0) { const r = lumpAfterLsa(lA, lsaUsedA, P.tax.pclsCap); lsaUsedA = r.used; cash += r.free + r.excess * 0.6; }
+      if (lB > 0) { const r = lumpAfterLsa(lB, lsaUsedB, P.tax.pclsCap); lsaUsedB = r.used; cash += r.free + r.excess * 0.6; }
+    };
+    if (P.startYear < P.retireYear) bookLump(P.startYear);
 
     for (let y = P.startYear; y < P.retireYear; y++) {
       const contribHalf = 1 + g / 2;
-      // A DB lump sum taken before stopping work lands in cash, tax-free.
-      // (From the stop-work year on, the drawdown loop books it instead.)
-      if (y + 1 < P.retireYear) cash += DBA.lumpAt(y + 1) + DBB.lumpAt(y + 1);
-      a.pension = a.pension * (1 + g) + P.partnerA.monthlyPension * 12 * contribHalf;
-      a.uncrys = a.uncrys * (1 + g) + P.partnerA.monthlyPension * 12 * contribHalf;
+      // (From the stop-work year on, the drawdown loop books lump sums instead.)
+      if (y + 1 < P.retireYear) bookLump(y + 1);
+      // Pension contributions stop at 75 (no tax relief after that birthday).
+      const cA = ageIn(P.partnerA, y) < 75 ? P.partnerA.monthlyPension * 12 * contribHalf : 0;
+      const cB = ageIn(P.partnerB, y) < 75 ? P.partnerB.monthlyPension * 12 * contribHalf : 0;
+      a.pension = a.pension * (1 + g) + cA;
+      a.uncrys = a.uncrys * (1 + g) + cA;
       a.isa = a.isa * (1 + g) + P.partnerA.monthlyIsa * 12 * contribHalf;
-      b.pension = b.pension * (1 + g) + P.partnerB.monthlyPension * 12 * contribHalf;
-      b.uncrys = b.uncrys * (1 + g) + P.partnerB.monthlyPension * 12 * contribHalf;
+      b.pension = b.pension * (1 + g) + cB;
+      b.uncrys = b.uncrys * (1 + g) + cB;
       b.isa = b.isa * (1 + g) + P.partnerB.monthlyIsa * 12 * contribHalf;
       cash = cash * (1 + (P.cashGrowth || 0));   // cash earns its own fixed rate
       // Pre-retirement life events, today's money indexed to the year
@@ -605,12 +639,149 @@ export function createEngine() {
         house: P.house * Math.pow(1 + P.houseGrowth, y + 1 - P.startYear),
       });
     }
-    const last = years[years.length - 1] || {
+    const last = { ...(years[years.length - 1] || {
       year: P.startYear, pensionA: a.pension, isaA: a.isa, uncrysA: a.uncrys,
       pensionB: b.pension, isaB: b.isa, uncrysB: b.uncrys, cash,
       house: P.house,
-    };
+    }), lsaUsedA, lsaUsedB };
     return { years, atRetirement: last, warnings };
+  }
+
+  // ── One withdrawal routine for both engines ──────────────────────────
+  // The deterministic plan and every Monte Carlo path fund a year through
+  // this same code: cash and ISAs, phased or upfront tax-free cash, the
+  // chosen withdrawal order, and marginal-rate allocation across the couple.
+  // S holds the pots and is mutated; the draws are returned.
+  function fundYear(S, P, T, need, baseA, baseB) {
+    let grossA = 0, grossB = 0, tfcA = 0, tfcB = 0, isaDraw = 0, cashDraw = 0;
+    let isaDrawA = 0, isaDrawB = 0;
+    const drawIsa = (amt) => {
+      let rem = amt;
+      const c = Math.min(S.cash, rem); S.cash -= c; cashDraw += c; rem -= c;
+      const fa = Math.min(S.isaA, rem); S.isaA -= fa; rem -= fa; isaDrawA += fa;
+      const fb = Math.min(S.isaB, rem); S.isaB -= fb; rem -= fb; isaDrawB += fb;
+      isaDraw += (amt - rem) - c;
+      return amt - rem;
+    };
+
+    // Serve `wantNet` of net income from one partner's pension, honouring
+    // an optional gross ceiling. Returns net served.
+    const serveFrom = (who, wantNet, grossCeil) => {
+      const isA = who === 'A';
+      const pot = isA ? S.potA : S.potB;
+      if (pot <= 0.01 || wantNet <= 0.01) return 0;
+      const base = (isA ? baseA : baseB) + (isA ? grossA : grossB);
+      const uncrys = isA ? S.uncrysA : S.uncrysB;
+      const rate = isA ? S.rateA : S.rateB;
+      const pclsLeft = clamp0(T.pclsCap - (isA ? S.pclsUsedA : S.pclsUsedB));
+      const phased = P.pclsMode === 'phased' && pclsLeft > 0 && uncrys > 0.01 && rate > 0;
+      const ceil = grossCeil == null ? Infinity : clamp0(grossCeil - base);
+      if (ceil <= 0.01) return 0;
+      if (phased) {
+        const tfFor = (gr) => Math.min(Math.min(gr, uncrys) * rate, pclsLeft);
+        let lo = 0, hi = Math.min(pot, wantNet * 2 + 100000);
+        for (let i = 0; i < 50; i++) {
+          const mid = (lo + hi) / 2;
+          const tf = tfFor(mid);
+          const taxable = mid - tf;
+          const net = tf + taxable - (taxOn(base + taxable, T) - taxOn(base, T));
+          if (net < wantNet) lo = mid; else hi = mid;
+        }
+        let gross = Math.min((lo + hi) / 2, pot);
+        // Respect the ceiling on the taxable part
+        if (gross - tfFor(gross) > ceil) {
+          gross = Math.min(gross, ceil / 0.75);
+        }
+        const tf = tfFor(gross);
+        const taxable = gross - tf;
+        const net = tf + taxable - (taxOn(base + taxable, T) - taxOn(base, T));
+        if (isA) { S.pclsUsedA += tf; tfcA += tf; grossA += taxable; S.potA -= gross; S.uncrysA = clamp0(S.uncrysA - gross); }
+        else { S.pclsUsedB += tf; tfcB += tf; grossB += taxable; S.potB -= gross; S.uncrysB = clamp0(S.uncrysB - gross); }
+        return net;
+      }
+      let gross = Math.min(grossForNet(wantNet, base, T), pot, ceil);
+      const net = gross - (taxOn(base + gross, T) - taxOn(base, T));
+      if (isA) { grossA += gross; S.potA -= gross; S.uncrysA = clamp0(S.uncrysA - gross); }
+      else { grossB += gross; S.potB -= gross; S.uncrysB = clamp0(S.uncrysB - gross); }
+      return net;
+    };
+
+    // Marginal-rate-ordered allocation: repeatedly serve from whichever
+    // partner has the cheaper next pound, up to the next band edge, so
+    // free allowances are always consumed before anyone pays basic rate
+    // and both basic bands before anyone pays higher rate.
+    const bandEdges = bandEdgesFor(T);
+    const nextEdge = (gross) => {
+      for (const e of bandEdges) if (gross < e - 0.01) return e;
+      return Infinity;
+    };
+    const drawPensionNet = (netWanted, grossCeilCap) => {
+      let served = 0;
+      for (let guard = 0; guard < 24 && netWanted - served > 0.5; guard++) {
+        const gA = baseA + grossA, gB = baseB + grossB;
+        const candidates = [];
+        if (S.potA > 0.01) candidates.push({ who: 'A', m: marginalRate(gA, T), g: gA });
+        if (S.potB > 0.01) candidates.push({ who: 'B', m: marginalRate(gB, T), g: gB });
+        if (!candidates.length) break;
+        candidates.sort((x, y) => x.m - y.m || y.g - x.g);
+        const pick = candidates[0];
+        const edge = Math.min(nextEdge(pick.g), grossCeilCap == null ? Infinity : grossCeilCap);
+        if (edge - pick.g <= 0.01) {
+          // This partner is at the ceiling; try the other, else stop
+          if (candidates.length > 1) {
+            const other = candidates[1];
+            const oEdge = Math.min(nextEdge(other.g), grossCeilCap == null ? Infinity : grossCeilCap);
+            if (oEdge - other.g <= 0.01) break;
+            const got = serveFrom(other.who, netWanted - served, oEdge);
+            if (got <= 0.01) break;
+            served += got;
+            continue;
+          }
+          break;
+        }
+        const got = serveFrom(pick.who, netWanted - served, edge);
+        if (got <= 0.01) {
+          // Could not serve at this edge (empty pot slice); lift the edge
+          const got2 = serveFrom(pick.who, netWanted - served, grossCeilCap);
+          if (got2 <= 0.01) break;
+          served += got2;
+          continue;
+        }
+        served += got;
+      }
+      return served;
+    };
+
+    if (P.strategy === 'isafirst') {
+      const fromIsa = drawIsa(need);
+      const rem = need - fromIsa;
+      if (rem > 0.01) drawPensionNet(rem, null);
+    } else if (P.strategy === 'pafirst') {
+      // Fill only the tax-free personal allowances from pensions, then
+      // ISA, then pensions again at whatever rate is left.
+      const paNet = drawPensionNet(need, T.personalAllowance);
+      let rem = need - paNet;
+      if (rem > 0.01) {
+        const fromIsa = drawIsa(rem);
+        rem -= fromIsa;
+        if (rem > 0.01) drawPensionNet(rem, null);
+      }
+    } else {
+      // sippfirst: pensions up to the cheap-band ceiling (rUK 40% edge,
+      // Scottish 42% edge), ISA for the excess, then pensions again only
+      // if the ISA runs dry.
+      const basicNet = drawPensionNet(need, basicCeilFor(T));
+      let rem = need - basicNet;
+      if (rem > 0.01) {
+        const fromIsa = drawIsa(rem);
+        rem -= fromIsa;
+        if (rem > 0.01) rem -= drawPensionNet(rem, null);
+      }
+    }
+    const served = tfcA + tfcB + isaDraw + cashDraw
+      + grossA - (taxOn(baseA + grossA, T) - taxOn(baseA, T))
+      + grossB - (taxOn(baseB + grossB, T) - taxOn(baseB, T));
+    return { grossA, grossB, tfcA, tfcB, isaDraw, isaDrawA, isaDrawB, cashDraw, served };
   }
 
   // ── Drawdown: retirement to horizon, year by year ─────────────────────
@@ -633,23 +804,27 @@ export function createEngine() {
     // tax-free cash, and the lifetime cap is reduced by anything already taken.
     let uncrysA = acc.uncrysA != null ? acc.uncrysA : potA;
     let uncrysB = acc.uncrysB != null ? acc.uncrysB : potB;
-    let pclsUsedA = P.partnerA.pclsTaken || 0;
-    let pclsUsedB = P.partnerB.pclsTaken || 0;
+    // Lump sum allowance already used: prior tax-free cash plus any scheme
+    // lump sums booked before stopping work.
+    let pclsUsedA = acc.lsaUsedA != null ? acc.lsaUsedA : (P.partnerA.pclsTaken || 0);
+    let pclsUsedB = acc.lsaUsedB != null ? acc.lsaUsedB : (P.partnerB.pclsTaken || 0);
     const rateA = Math.min(1, Math.max(0, P.partnerA.tfcRate == null ? 0.25 : P.partnerA.tfcRate));
     const rateB = Math.min(1, Math.max(0, P.partnerB.tfcRate == null ? 0.25 : P.partnerB.tfcRate));
 
     // PCLS upfront: crystallise everything at retirement, take 25% capped.
-    // Proceeds are treated as invested alongside the ISAs so they keep
-    // compounding; any further tax on that wrapper is out of scope and
-    // noted in the UI.
+    // Up to the ISA allowance goes into the ISA at once; the rest waits in
+    // cash and is fed into the ISA at the allowance each year ("bed and ISA").
+    let feedA = 0, feedB = 0;
     if (P.pclsMode === 'upfront') {
       const tfcA0 = Math.min(uncrysA * rateA, clamp0(T.pclsCap - pclsUsedA));
-      potA -= tfcA0; isaA += tfcA0; pclsUsedA += tfcA0; uncrysA = 0;
+      const inA = Math.min(tfcA0, T.isaAnnualAllowance);
+      potA -= tfcA0; isaA += inA; feedA = tfcA0 - inA; cash += feedA; pclsUsedA += tfcA0; uncrysA = 0;
       const tfcB0 = Math.min(uncrysB * rateB, clamp0(T.pclsCap - pclsUsedB));
-      potB -= tfcB0; isaB += tfcB0; pclsUsedB += tfcB0; uncrysB = 0;
+      const inB = Math.min(tfcB0, T.isaAnnualAllowance);
+      potB -= tfcB0; isaB += inB; feedB = tfcB0 - inB; cash += feedB; pclsUsedB += tfcB0; uncrysB = 0;
     }
 
-    const endYear = P.partnerA.birthYear + P.horizonAge;
+    const endYear = planEndYear(P);
     const rows = [];
     let lifetimeTax = 0, lifetimeTaxReal = 0, exhaustedYear = null;
 
@@ -668,9 +843,11 @@ export function createEngine() {
     for (let year = P.retireYear; year <= endYear; year++) {
       const infl = inflFactor(P, year);
       const ageA = ageIn(P.partnerA, year), ageB = ageIn(P.partnerB, year);
-      // Tax-free DB lump sums arriving this year go to cash before any draw.
-      const dbLump = DBA.lumpAt(year) + DBB.lumpAt(year);
-      if (dbLump > 0) cash += dbLump;
+      // Cash waiting from an upfront lump sum moves into the ISA each year.
+      if (year > P.retireYear) {
+        const mA = Math.min(feedA, T.isaAnnualAllowance, cash); cash -= mA; isaA += mA; feedA -= mA;
+        const mB = Math.min(feedB, T.isaAnnualAllowance, cash); cash -= mB; isaB += mB; feedB -= mB;
+      }
       // Household investable wealth before this year's draws (the sleeves
       // track the same money, split by asset rather than by wrapper).
       const investStart = potA + potB + isaA + isaB;
@@ -692,9 +869,23 @@ export function createEngine() {
       const spA = ageA >= P.partnerA.spAge ? P.partnerA.spAmount * infl : 0;
       const spB = ageB >= P.partnerB.spAge ? P.partnerB.spAmount * infl : 0;
 
-      const baseA = dbA + spA + annuityNom;   // taxable base income per partner
-      const baseB = dbB + spB;
+      // Earned income after stopping work (part-time), taxable to the earner.
+      let earnedA = 0, earnedB = 0;
+      for (const ev of events) {
+        if (ev.year !== year || ev.kind !== 'earned') continue;
+        if (ev.who === 'B') earnedB += eventNominal(P, ev); else earnedA += eventNominal(P, ev);
+      }
+      const baseA = dbA + spA + annuityNom + earnedA;   // taxable base income per partner
+      const baseB = dbB + spB + earnedB;
       const guaranteedNet = baseA + baseB - taxOn(baseA, T) - taxOn(baseB, T);
+
+      // Scheme lump sums arriving this year: tax-free within the lump sum
+      // allowance, the excess taxed as income on top of the year's base.
+      const lumpA = DBA.lumpAt(year), lumpB = DBB.lumpAt(year);
+      const dbLump = lumpA + lumpB;
+      let lumpTax = 0;
+      if (lumpA > 0) { const r = lumpAfterLsa(lumpA, pclsUsedA, T.pclsCap); pclsUsedA = r.used; const tx = taxOn(baseA + r.excess, T) - taxOn(baseA, T); cash += lumpA - tx; lumpTax += tx; }
+      if (lumpB > 0) { const r = lumpAfterLsa(lumpB, pclsUsedB, T.pclsCap); pclsUsedB = r.used; const tx = taxOn(baseB + r.excess, T) - taxOn(baseB, T); cash += lumpB - tx; lumpTax += tx; }
 
       // This year's net need. The mechanical rules scale it by a multiplier
       // that only ever moves on a funded-ratio trigger (see end of loop).
@@ -712,6 +903,7 @@ export function createEngine() {
         if (ev.year !== year || year < P.retireYear) continue;
         const amt = eventNominal(P, ev);
         eventLabels.push(ev.label || ev.kind);
+        if (ev.kind === 'earned') continue;   // already in the taxable base
         if (ev.kind === 'cost') eventCost += amt;
         else if (ev.invest) eventInvested += amt;
         else eventIncome += amt;
@@ -721,137 +913,15 @@ export function createEngine() {
       // step below via a carry.
       let need = clamp0(target + eventCost - eventIncome - guaranteedNet);
 
-      // Funding
-      let grossA = 0, grossB = 0, tfcA = 0, tfcB = 0, isaDraw = 0, cashDraw = 0;
-      let isaDrawA = 0, isaDrawB = 0;
-
-      const drawIsa = (amt) => {
-        let rem = amt;
-        const c = Math.min(cash, rem); cash -= c; cashDraw += c; rem -= c;
-        const fa = Math.min(isaA, rem); isaA -= fa; rem -= fa; isaDrawA += fa;
-        const fb = Math.min(isaB, rem); isaB -= fb; rem -= fb; isaDrawB += fb;
-        isaDraw += (amt - rem) - c;
-        return amt - rem;
-      };
-
-      // Serve `wantNet` of net income from one partner's pension, honouring
-      // an optional gross ceiling. Returns net served.
-      const serveFrom = (who, wantNet, grossCeil) => {
-        const isA = who === 'A';
-        const pot = isA ? potA : potB;
-        if (pot <= 0.01 || wantNet <= 0.01) return 0;
-        const base = (isA ? baseA : baseB) + (isA ? grossA : grossB);
-        const uncrys = isA ? uncrysA : uncrysB;
-        const rate = isA ? rateA : rateB;
-        const pclsLeft = clamp0(T.pclsCap - (isA ? pclsUsedA : pclsUsedB));
-        const phased = P.pclsMode === 'phased' && pclsLeft > 0 && uncrys > 0.01 && rate > 0;
-        const ceil = grossCeil == null ? Infinity : clamp0(grossCeil - base);
-        if (ceil <= 0.01) return 0;
-        if (phased) {
-          const tfFor = (gr) => Math.min(Math.min(gr, uncrys) * rate, pclsLeft);
-          let lo = 0, hi = Math.min(pot, wantNet * 2 + 100000);
-          for (let i = 0; i < 50; i++) {
-            const mid = (lo + hi) / 2;
-            const tf = tfFor(mid);
-            const taxable = mid - tf;
-            const net = tf + taxable - (taxOn(base + taxable, T) - taxOn(base, T));
-            if (net < wantNet) lo = mid; else hi = mid;
-          }
-          let gross = Math.min((lo + hi) / 2, pot);
-          // Respect the ceiling on the taxable part
-          if (gross - tfFor(gross) > ceil) {
-            gross = Math.min(gross, ceil / 0.75);
-          }
-          const tf = tfFor(gross);
-          const taxable = gross - tf;
-          const net = tf + taxable - (taxOn(base + taxable, T) - taxOn(base, T));
-          if (isA) { pclsUsedA += tf; tfcA += tf; grossA += taxable; potA -= gross; uncrysA = clamp0(uncrysA - gross); }
-          else { pclsUsedB += tf; tfcB += tf; grossB += taxable; potB -= gross; uncrysB = clamp0(uncrysB - gross); }
-          return net;
-        }
-        let gross = Math.min(grossForNet(wantNet, base, T), pot, ceil);
-        const net = gross - (taxOn(base + gross, T) - taxOn(base, T));
-        if (isA) { grossA += gross; potA -= gross; uncrysA = clamp0(uncrysA - gross); }
-        else { grossB += gross; potB -= gross; uncrysB = clamp0(uncrysB - gross); }
-        return net;
-      };
-
-      // Marginal-rate-ordered allocation: repeatedly serve from whichever
-      // partner has the cheaper next pound, up to the next band edge, so
-      // free allowances are always consumed before anyone pays basic rate
-      // and both basic bands before anyone pays higher rate.
-      const bandEdges = bandEdgesFor(T);
-      const nextEdge = (gross) => {
-        for (const e of bandEdges) if (gross < e - 0.01) return e;
-        return Infinity;
-      };
-      const drawPensionNet = (netWanted, grossCeilCap) => {
-        let served = 0;
-        for (let guard = 0; guard < 24 && netWanted - served > 0.5; guard++) {
-          const gA = baseA + grossA, gB = baseB + grossB;
-          const candidates = [];
-          if (potA > 0.01) candidates.push({ who: 'A', m: marginalRate(gA, T), g: gA });
-          if (potB > 0.01) candidates.push({ who: 'B', m: marginalRate(gB, T), g: gB });
-          if (!candidates.length) break;
-          candidates.sort((x, y) => x.m - y.m || y.g - x.g);
-          const pick = candidates[0];
-          const edge = Math.min(nextEdge(pick.g), grossCeilCap == null ? Infinity : grossCeilCap);
-          if (edge - pick.g <= 0.01) {
-            // This partner is at the ceiling; try the other, else stop
-            if (candidates.length > 1) {
-              const other = candidates[1];
-              const oEdge = Math.min(nextEdge(other.g), grossCeilCap == null ? Infinity : grossCeilCap);
-              if (oEdge - other.g <= 0.01) break;
-              const got = serveFrom(other.who, netWanted - served, oEdge);
-              if (got <= 0.01) break;
-              served += got;
-              continue;
-            }
-            break;
-          }
-          const got = serveFrom(pick.who, netWanted - served, edge);
-          if (got <= 0.01) {
-            // Could not serve at this edge (empty pot slice); lift the edge
-            const got2 = serveFrom(pick.who, netWanted - served, grossCeilCap);
-            if (got2 <= 0.01) break;
-            served += got2;
-            continue;
-          }
-          served += got;
-        }
-        return served;
-      };
-
-      if (P.strategy === 'isafirst') {
-        const fromIsa = drawIsa(need);
-        const rem = need - fromIsa;
-        if (rem > 0.01) drawPensionNet(rem, null);
-      } else if (P.strategy === 'pafirst') {
-        // Fill only the tax-free personal allowances from pensions, then
-        // ISA, then pensions again at whatever rate is left.
-        const paNet = drawPensionNet(need, T.personalAllowance);
-        let rem = need - paNet;
-        if (rem > 0.01) {
-          const fromIsa = drawIsa(rem);
-          rem -= fromIsa;
-          if (rem > 0.01) drawPensionNet(rem, null);
-        }
-      } else {
-        // sippfirst: pensions up to the cheap-band ceiling (rUK 40% edge,
-        // Scottish 42% edge), ISA for the excess, then pensions again only
-        // if the ISA runs dry.
-        const basicNet = drawPensionNet(need, basicCeilFor(T));
-        let rem = need - basicNet;
-        if (rem > 0.01) {
-          const fromIsa = drawIsa(rem);
-          rem -= fromIsa;
-          if (rem > 0.01) rem -= drawPensionNet(rem, null);
-        }
-      }
+      // Funding — the shared routine (see fundYear)
+      const S = { potA, potB, isaA, isaB, cash, uncrysA, uncrysB, pclsUsedA, pclsUsedB, rateA, rateB };
+      const F = fundYear(S, P, T, need, baseA, baseB);
+      ({ potA, potB, isaA, isaB, cash, uncrysA, uncrysB, pclsUsedA, pclsUsedB } = S);
+      const { grossA, grossB, tfcA, tfcB, isaDraw, isaDrawA, isaDrawB, cashDraw } = F;
 
       const taxA = taxOn(baseA + grossA, T);
       const taxB = taxOn(baseB + grossB, T);
-      const totalTax = taxA + taxB;
+      const totalTax = taxA + taxB + lumpTax;
       lifetimeTax += totalTax;
       lifetimeTaxReal += totalTax / infl;
 
@@ -945,7 +1015,7 @@ export function createEngine() {
         guaranteed: baseA + baseB,
         grossA, grossB, tfcA, tfcB,
         taxA, taxB, tax: totalTax,
-        isaDraw, isaDrawA, isaDrawB, cashDraw, dbLump,
+        isaDraw, isaDrawA, isaDrawB, cashDraw, dbLump, lumpTax, earnedA, earnedB,
         eventCost, eventInflow: eventIncome + eventInvested, eventLabels,
         target, netIncome, shortfall,
         potA, potB, isaA, isaB, cash, wealth,
@@ -997,7 +1067,7 @@ export function createEngine() {
   // ── Stress tests. Comparisons are in today's money so scenarios with
   //    different inflation assumptions stay comparable. ─────────────────
   function stressTests(P) {
-    const horizonYear = P.partnerA.birthYear + P.horizonAge;
+    const horizonYear = planEndYear(P);
     const realEnd = (Q, r) => r.endWealth / Math.pow(1 + Q.inflation, horizonYear - Q.startYear);
     const base = drawdown(P);
     const baseReal = realEnd(P, base);
@@ -1069,13 +1139,13 @@ export function createEngine() {
     opts = opts || {};
     const paths = opts.paths || 200;
     const seed = P.mcSeed || 42;
-    const horizonYear = P.partnerA.birthYear + P.horizonAge;
+    const horizonYear = planEndYear(P);
     const real = (Q, r) => r.endWealth / Math.pow(1 + Q.inflation, horizonYear - Q.startYear);
     const measure = (Q) => {
       const dd = drawdown(Q);
       let conf = null;
       try { conf = runMonteCarlo(Q, paths, seed).successProb; } catch (e) { conf = null; }
-      return { conf, end: real(Q, dd), exhaustedAgeA: dd.exhaustedAgeA };
+      return { conf, end: real(Q, dd), exhaustedAgeA: dd.exhaustedAgeA, tax: dd.lifetimeTaxReal != null ? dd.lifetimeTaxReal : dd.lifetimeTax };
     };
     const base = measure(P);
     const out = [];
@@ -1086,19 +1156,19 @@ export function createEngine() {
       const m = measure(Q);
       out.push({ id, label, detail, patch: Q,
         conf: m.conf, dConf: m.conf != null && base.conf != null ? m.conf - base.conf : 0,
-        end: m.end, dEnd: m.end - base.end, exhaustedAgeA: m.exhaustedAgeA });
+        end: m.end, dEnd: m.end - base.end, dTax: m.tax - base.tax, exhaustedAgeA: m.exhaustedAgeA });
     };
     const yearsToGo = P.retireYear - P.startYear;
     cand('later1', 'Stop work one year later', 'One more year of growth and saving, one fewer to fund.',
       (Q) => { Q.retireYear += 1; });
     cand('spend3k', 'Spend £3,000 a year less', 'A little under £60 a week, for the whole retirement.',
-      (Q) => { Q.targetNet = Math.max(10000, Q.targetNet - 3000); Q.spendingPlanOn = false; });
+      (Q) => { Q.targetNet = Math.max(10000, spendingAnnual(Q) - 3000); Q.spendingPlanOn = false; });
     cand('save250', 'Save £250 a month more until you stop', 'Into the pension, with growth on top.',
       (Q) => { Q.partnerA.monthlyPension += 250; }, yearsToGo >= 1);
-    cand('parttime', 'Two years of part-time work after stopping, £10,000 a year', 'Bridges the early years so the pots can keep growing.',
+    cand('parttime', 'Two years of part-time work after stopping, £10,000 a year', 'Taxed as earnings; bridges the early years so the pots keep growing.',
       (Q) => { Q.lifeEvents = [...(Q.lifeEvents || []),
-        { year: Q.retireYear, label: 'Part-time work', amount: 10000, kind: 'income', invest: false },
-        { year: Q.retireYear + 1, label: 'Part-time work', amount: 10000, kind: 'income', invest: false }]; });
+        { year: Q.retireYear, label: 'Part-time work', amount: 10000, kind: 'earned', who: 'A' },
+        { year: Q.retireYear + 1, label: 'Part-time work', amount: 10000, kind: 'earned', who: 'A' }]; });
     cand('ease75', 'Ease spending by 10% from 75', 'The go-go / slow-go pattern most retirements actually follow.',
       (Q) => { Q.phase1On = true; Q.phase1Age = 75; Q.phase1Cut = 0.10; }, !P.phase1On);
     cand('phased', 'Take tax-free cash a little each year', 'A quarter of each draw tax-free lowers every year’s tax.',
@@ -1180,7 +1250,7 @@ export function createEngine() {
       return {
         label,
         endWealth: dd.endWealth,
-        endWealthReal: dd.endWealth / inflFactor(Q, Q.partnerA.birthYear + Q.horizonAge),
+        endWealthReal: dd.endWealth / inflFactor(Q, planEndYear(Q)),
         exhaustedAgeA: dd.exhaustedAgeA,
         lifetimeTaxReal: dd.lifetimeTaxReal,
         successProb: mc ? mc.successProb : null,
@@ -1200,7 +1270,7 @@ export function createEngine() {
     const stress = ['japan', 'gfc', 'stagflation'].map(key => {
       const a = drawdown({ ...withArch({ stressPath: key }), growth: P.growthBase });
       const b = drawdown({ ...simple, growth: P.growthBase, architecture: { ...AR, on: true, ladderYears: 0, rulesOn: false, stressPath: key } });
-      const f = inflFactor(P, P.partnerA.birthYear + P.horizonAge);
+      const f = inflFactor(P, planEndYear(P));
       return {
         key,
         label: key === 'japan' ? 'Japan 1990 (lost decades)'
@@ -1236,7 +1306,7 @@ export function createEngine() {
 
   // ── Tornado sensitivity: which assumption moves wealth at horizon most ─
   function tornado(P) {
-    const horizonYear = P.partnerA.birthYear + P.horizonAge;
+    const horizonYear = planEndYear(P);
     const real = (Q, r) => r.endWealth / Math.pow(1 + Q.inflation, horizonYear - Q.startYear);
     const base = real(P, drawdown(P));
     const bars = [];
@@ -1301,7 +1371,7 @@ export function createEngine() {
   // ── Estate and IHT ────────────────────────────────────────────────────
   function estate(P, atYear) {
     const dd = drawdown(P);
-    const year = atYear || (P.partnerA.birthYear + P.horizonAge);
+    const year = atYear || (planEndYear(P));
     const row = dd.rows.find(r => r.year === year) || dd.rows[dd.rows.length - 1];
     const yearsOn = year - P.startYear;
     const house = P.house * Math.pow(1 + P.houseGrowth, yearsOn);
@@ -1312,7 +1382,8 @@ export function createEngine() {
     // Residence nil-rate band tapers £1 per £2 of estate above £2m
     const persons = P.iht.couple ? 2 : 1;
     const rnrbTaperStart = 2000000;
-    const rnrbFull = P.iht.residenceNRB * persons;
+    // The residence band only exists with a home, and never exceeds its value.
+    const rnrbFull = Math.min(P.iht.residenceNRB * persons, clamp0(house));
     const rnrb = clamp0(rnrbFull - clamp0(inScope - rnrbTaperStart) / 2);
     const nrb = P.iht.nilRateBand * persons + rnrb;
     const taxable = clamp0(inScope - nrb);
@@ -1343,7 +1414,7 @@ export function createEngine() {
     const rand = mulberry32(seed == null ? (P.mcSeed || 42) : seed);
     const T = P.tax;
     const acc = accumulate(P).atRetirement;
-    const endYear = P.partnerA.birthYear + P.horizonAge;
+    const endYear = planEndYear(P);
     const nYears = endYear - P.retireYear + 1;
     const events = effectiveEvents(P);
 
@@ -1363,6 +1434,11 @@ export function createEngine() {
     const goldNomMean = (1 + AR.goldReal) * (1 + P.inflation) - 1;
     const spendMults = [];
     const DBA = dbSchedule(P, P.partnerA), DBB = dbSchedule(P, P.partnerB);
+    const rateA = Math.min(1, Math.max(0, P.partnerA.tfcRate == null ? 0.25 : P.partnerA.tfcRate));
+    const rateB = Math.min(1, Math.max(0, P.partnerB.tfcRate == null ? 0.25 : P.partnerB.tfcRate));
+    // The growth lens shifts the simulated mean with it, so "Poor" markets
+    // mean poorer simulated futures, not just a smaller pot at retirement.
+    const mcMean = P.mcMean + ((P.growth != null && P.growthBase != null) ? (P.growth - P.growthBase) : 0);
 
     // Scoring the outcome that actually matters: the spending delivered.
     // Utility is standard CRRA, so a lean year hurts more than a plump year
@@ -1375,8 +1451,21 @@ export function createEngine() {
     for (let p = 0; p < nPaths; p++) {
       let pathSpend = 0, pathYears = 0, pathWorstRatio = 1, pathLeanYears = 0;
       let potA = acc.pensionA, potB = acc.pensionB;
-      let isa = acc.isaA + acc.isaB;
+      let isaA = acc.isaA, isaB = acc.isaB;
       let cash = acc.cash || 0;
+      let uncrysA = acc.uncrysA != null ? acc.uncrysA : potA;
+      let uncrysB = acc.uncrysB != null ? acc.uncrysB : potB;
+      let pclsUsedA = acc.lsaUsedA != null ? acc.lsaUsedA : (P.partnerA.pclsTaken || 0);
+      let pclsUsedB = acc.lsaUsedB != null ? acc.lsaUsedB : (P.partnerB.pclsTaken || 0);
+      let feedA = 0, feedB = 0;
+      if (P.pclsMode === 'upfront') {   // exactly as the deterministic plan
+        const tfcA0 = Math.min(uncrysA * rateA, clamp0(T.pclsCap - pclsUsedA));
+        const inA = Math.min(tfcA0, T.isaAnnualAllowance);
+        potA -= tfcA0; isaA += inA; feedA = tfcA0 - inA; cash += feedA; pclsUsedA += tfcA0; uncrysA = 0;
+        const tfcB0 = Math.min(uncrysB * rateB, clamp0(T.pclsCap - pclsUsedB));
+        const inB = Math.min(tfcB0, T.isaAnnualAllowance);
+        potB -= tfcB0; isaB += inB; feedB = tfcB0 - inB; cash += feedB; pclsUsedB += tfcB0; uncrysB = 0;
+      }
       let ok = true, minCoverage = 1;
       const track = [];
       let sleeve = null, spendMult = 1, raiseStreak = 0;
@@ -1390,8 +1479,11 @@ export function createEngine() {
         const spB = ageB >= P.partnerB.spAge ? P.partnerB.spAmount * infl : 0;
         const dbA = DBA.incomeAt(year);
         const dbB = DBB.incomeAt(year);
-        cash += DBA.lumpAt(year) + DBB.lumpAt(year);   // tax-free lump sums, as in drawdown
-        const investStart = potA + potB + isa;
+        if (year > P.retireYear) {
+          const mA = Math.min(feedA, T.isaAnnualAllowance, cash); cash -= mA; isaA += mA; feedA -= mA;
+          const mB = Math.min(feedB, T.isaAnnualAllowance, cash); cash -= mB; isaB += mB; feedB -= mB;
+        }
+        const investStart = potA + potB + isaA + isaB;
         if (archOn && AR.annuityOn && !annuityBought && year >= AR.annuityYear) {
           const cost = Math.min(clamp0(AR.annuityAmount) * infl, potA);
           potA -= cost;
@@ -1400,15 +1492,23 @@ export function createEngine() {
         }
         const annuityNom = annuityBought
           ? annuityToday * (AR.annuityIndexed ? infl : inflFactor(P, AR.annuityYear)) : 0;
-        const baseA = spA + dbA + annuityNom, baseB = spB + dbB;
-        const guaranteedNet = baseA + baseB - taxOn(baseA, T) - taxOn(baseB, T);
-
-        let eventNet = 0;
+        let earnedA = 0, earnedB = 0;
         for (const ev of events) {
-          if (ev.year !== year) continue;
+          if (ev.year !== year || ev.kind !== 'earned') continue;
+          if (ev.who === 'B') earnedB += eventNominal(P, ev); else earnedA += eventNominal(P, ev);
+        }
+        const baseA = spA + dbA + annuityNom + earnedA, baseB = spB + dbB + earnedB;
+        const guaranteedNet = baseA + baseB - taxOn(baseA, T) - taxOn(baseB, T);
+        const lumpA = DBA.lumpAt(year), lumpB = DBB.lumpAt(year);
+        if (lumpA > 0) { const q = lumpAfterLsa(lumpA, pclsUsedA, T.pclsCap); pclsUsedA = q.used; cash += lumpA - (taxOn(baseA + q.excess, T) - taxOn(baseA, T)); }
+        if (lumpB > 0) { const q = lumpAfterLsa(lumpB, pclsUsedB, T.pclsCap); pclsUsedB = q.used; cash += lumpB - (taxOn(baseB + q.excess, T) - taxOn(baseB, T)); }
+
+        let eventNet = 0, eventInvested = 0;
+        for (const ev of events) {
+          if (ev.year !== year || ev.kind === 'earned') continue;
           const amt = eventNominal(P, ev);
           if (ev.kind === 'cost') eventNet -= amt;
-          else if (ev.invest) isa += amt;
+          else if (ev.invest) eventInvested += amt;
           else eventNet += amt;
         }
         const planTarget = targetForYear(P, year);      // what the plan intends
@@ -1418,48 +1518,11 @@ export function createEngine() {
         }
         let need = clamp0(target - guaranteedNet - eventNet);
 
-        // Pension draws to each partner's cheap bands, lower base first
-        const draw = (base, pot, wantNet) => {
-          if (pot <= 0.01 || wantNet <= 0.01) return { gross: 0, net: 0 };
-          const ceil = clamp0(basicCeilFor(T) - base);
-          const gross = Math.min(grossForNet(wantNet, base, T), pot, ceil);
-          const net = gross - (taxOn(base + gross, T) - taxOn(base, T));
-          return { gross, net };
-        };
-        // Allowance-first ordering: partner with lower base first
-        const order = baseA <= baseB
-          ? [['A', baseA], ['B', baseB]] : [['B', baseB], ['A', baseA]];
-        // Cash (tax-free) first, mirroring the deterministic drawdown
-        if (need > 0.5 && cash > 0) {
-          const fromCash = Math.min(cash, need);
-          cash -= fromCash; need -= fromCash;
-        }
-        for (const [who, base] of order) {
-          if (need <= 0.5) break;
-          const pot = who === 'A' ? potA : potB;
-          const d = draw(base, pot, need);
-          if (who === 'A') potA -= d.gross; else potB -= d.gross;
-          need -= d.net;
-        }
-        if (need > 0.5) {
-          const fromIsa = Math.min(isa, need);
-          isa -= fromIsa; need -= fromIsa;
-        }
-        if (need > 0.5) {
-          // Above basic rate as a last resort. Bases here are the original
-          // guaranteed income; the basic band was already consumed above, so
-          // gross up from the higher threshold.
-          for (const [who, base] of order) {
-            if (need <= 0.5) break;
-            const pot = who === 'A' ? potA : potB;
-            if (pot <= 0.01) continue;
-            const from = Math.max(base, basicCeilFor(T));
-            const gross = Math.min(grossForNet(need, from, T), pot);
-            const net = gross - (taxOn(from + gross, T) - taxOn(from, T));
-            if (who === 'A') potA -= gross; else potB -= gross;
-            need -= net;
-          }
-        }
+        // Fund the year through the shared routine (identical to the plan).
+        const S = { potA, potB, isaA, isaB, cash, uncrysA, uncrysB, pclsUsedA, pclsUsedB, rateA, rateB };
+        const F = fundYear(S, P, T, need, baseA, baseB);
+        ({ potA, potB, isaA, isaB, cash, uncrysA, uncrysB, pclsUsedA, pclsUsedB } = S);
+        need = clamp0(need - F.served);
         // What this year actually paid for, in today's money. A year trimmed
         // by the rules counts as reduced spending, exactly like a year the
         // pots could not fund — otherwise a strategy that cuts spending
@@ -1486,7 +1549,7 @@ export function createEngine() {
         // the deterministic engine
         const u1 = Math.max(rand(), 1e-12), u2 = rand();
         const z = Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2);
-        let r = P.mcMean + P.mcSd * z;
+        let r = mcMean + P.mcSd * z;
 
         if (archOn) {
           // Equity and gold drawn independently, so diversification earns its
@@ -1497,7 +1560,7 @@ export function createEngine() {
           const rEq = eqNomMean + AR.equitySd * z;
           const rGold = goldNomMean + AR.goldSd * z2;
           const rGrowth = rEq * (1 - AR.goldPct) + rGold * AR.goldPct;
-          const investAfter = potA + potB + isa;
+          const investAfter = potA + potB + isaA + isaB;
           const drawn = clamp0(investStart - investAfter);
           const tgt = ladderTarget(AR, need > 0 ? target - guaranteedNet : clamp0(target - guaranteedNet), P.inflation);
           if (!sleeve) {
@@ -1515,11 +1578,13 @@ export function createEngine() {
 
         potA = clamp0(potA * (1 + r));
         potB = clamp0(potB * (1 + r));
-        isa = clamp0(isa * (1 + r));
+        uncrysA = clamp0(uncrysA * (1 + r)); uncrysB = clamp0(uncrysB * (1 + r));
+        isaA = clamp0(isaA * (1 + r)); isaB = clamp0(isaB * (1 + r));
         cash = clamp0(cash * (1 + (P.cashGrowth || 0)));   // fixed rate, not random
+        if (eventInvested > 0) isaA += eventInvested * (1 + r / 2);   // as the plan: mid-year
 
         if (archOn && AR.rulesOn) {
-          const wealthNow = potA + potB + isa + cash;
+          const wealthNow = potA + potB + isaA + isaB + cash;
           const ratio = fundedRatio(AR, {
             wealthReal: wealthNow / infl, spendReal: target / infl,
             guaranteedNetReal: guaranteedNet / infl, ageA,
@@ -1535,7 +1600,7 @@ export function createEngine() {
             parachuteUsed = true;
           }
         }
-        if (p < 60) track.push(potA + potB + isa + cash);
+        if (p < 60) track.push(potA + potB + isaA + isaB + cash);
       }
       spendMults.push(spendMult);
       avgSpends.push(pathYears ? pathSpend / pathYears : 0);
@@ -1543,7 +1608,7 @@ export function createEngine() {
       leanShares.push(pathYears ? pathLeanYears / pathYears : 0);
       if (ok) successes++;
       else trims.push(1 - minCoverage);
-      finals.push(potA + potB + isa + cash);
+      finals.push(potA + potB + isaA + isaB + cash);
       if (p < 60) tracks.push(track);
     }
 
@@ -1779,6 +1844,72 @@ export function createEngine() {
       check('Spending less never lowers confidence', spend && spend.dConf >= -1e-9 ? 0 : 1, 0, 0.1);
       check('Levers are ranked by confidence gain', lv.levers.every((l, i, a) => i === 0 || a[i - 1].dConf >= l.dConf - 1e-12) ? 0 : 1, 0, 0.1);
     }
+    // ── The Monte Carlo IS the plan: at zero volatility every path equals the deterministic run ──
+    {
+      const parity = (name, P) => {
+        const Q = { ...P, mcSd: 0, mcMean: P.growth, growthBase: P.growth, architecture: { ...(P.architecture || {}), on: false } };
+        const dd = drawdown(Q);
+        const mc = runMonteCarlo(Q, 2, 7);
+        const rel = Math.abs(mc.finalP50 - dd.endWealth) / Math.max(1, Math.abs(dd.endWealth));
+        check('MC parity (' + name + ') within 0.1%', rel < 0.001 ? 0 : rel, 0, 0.0005);
+      };
+      const D = defaults();
+      parity('worked example', D);
+      parity('phased tax-free cash', { ...D, pclsMode: 'phased' });
+      parity('upfront tax-free cash', { ...D, pclsMode: 'upfront' });
+      parity('ISA first', { ...D, strategy: 'isafirst' });
+      parity('allowances first', { ...D, strategy: 'pafirst' });
+      parity('scheme pension with lump sum', { ...D, partnerA: { ...D.partnerA, dbSchemes: [{ id: 'p', scheme: 'nhs1995', pension: 14000, takeAge: 60, commutePct: 1 }] } });
+      parity('life events', { ...D, lifeEvents: [
+        { year: D.retireYear + 2, label: 'Roof', amount: 20000, kind: 'cost' },
+        { year: D.retireYear + 4, label: 'Windfall', amount: 40000, kind: 'income', invest: true },
+        { year: D.retireYear, label: 'Part-time', amount: 10000, kind: 'earned', who: 'B' }] });
+      parity('cash and spending plan', { ...D, cash: 50000, cashGrowth: 0.02, spendingPlanOn: true });
+      // The lens moves the simulated mean with it.
+      const bear = runMonteCarlo({ ...D, growth: D.growthBear }, 120, 3).successProb;
+      const bull = runMonteCarlo({ ...D, growth: D.growthBull }, 120, 3).successProb;
+      check('Poor lens gives lower confidence than Positive', bear < bull ? 0 : 1, 0, 0.1);
+      // Tax levers now register in the simulation, not only the deterministic run.
+      const lv = levers(D, { paths: 60 });
+      const ph = lv.levers.find(l => l.id === 'phased');
+      check('Phased tax-free cash lever reports its tax saving', ph && ph.dTax < -1000 ? 0 : 1, 0, 0.1);
+    }
+    // ── Lump sum allowance shared across scheme and personal pensions ──
+    {
+      const D = defaults();
+      const big = { ...D, pclsMode: 'upfront', partnerA: { ...D.partnerA, birthYear: 1970, dbSchemes: [{ id: 'x', scheme: 'nhs1995', pension: 60000, takeAge: 60, commutePct: 1 }] } };
+      const b = trancheBenefits(big, big.partnerA, big.partnerA.dbSchemes[0]);
+      check('Large scheme lump exceeds the allowance on its own', b.lump > T.pclsCap ? 0 : 1, 0, 0.1);
+      const dd = drawdown(big);
+      const r0 = dd.rows[0];
+      check('Excess scheme lump is taxed in the take year', r0.lumpTax > 1000 ? 0 : 1, 0, 0.1);
+      check('No personal tax-free cash left once the scheme lump used the allowance', r0.tfcA, 0, 0.01);
+      // RNRB needs a home and never exceeds its value
+      const noHouse = estate({ ...D, house: 0 });
+      check('No residence band without a home', noHouse.rnrb, 0, 0.01);
+      const smallHouse = estate({ ...D, house: 100000, houseGrowth: 0 });
+      check('Residence band capped at the home’s value', smallHouse.rnrbFull, 100000, 0.01);
+    }
+    // ── The plan runs to the younger partner's horizon; income is taxed; contributions stop at 75 ──
+    {
+      const D = defaults();
+      const young = { ...D, partnerB: { ...D.partnerB, birthYear: 1980 } };
+      check('Plan ends at the younger partner’s horizon', planEndYear(young), 1980 + D.horizonAge, 0.01);
+      check('Drawdown rows reach that year', drawdown(young).rows[drawdown(young).rows.length - 1].year, 1980 + D.horizonAge, 0.01);
+      const earned = { ...D, lifeEvents: [{ year: D.retireYear, label: 'pt', amount: 10000, kind: 'earned', who: 'A' }] };
+      const r = drawdown(earned).rows[0];
+      check('Part-time earnings are taxed to the earner', r.earnedA, 10000 * inflFactor(D, D.retireYear), 1);
+      check('…and raise that year’s tax', r.tax > drawdown(D).rows[0].tax ? 0 : 1, 0, 0.1);
+      const old = { ...D, retireYear: 2050, partnerA: { ...D.partnerA, birthYear: 1970, monthlyPension: 1000 } };
+      const acc = accumulate(old);
+      const at74 = acc.years.find(y => y.year === 2044).pensionA, at76 = acc.years.find(y => y.year === 2046).pensionA, at75 = acc.years.find(y => y.year === 2045).pensionA;
+      check('Contributions stop at 75 (growth only after)', Math.abs((at76 / at75) - (1 + old.growth)) < 1e-9 && at75 / at74 > 1 + old.growth ? 0 : 1, 0, 0.1);
+      const sp = { ...D, spendingPlanOn: true };
+      const lv = levers(sp, { paths: 40 });
+      check('Spend-less lever cuts the spending plan, not the stale target', lv.levers.find(l => l.id === 'spend3k').dConf >= -1e-9 ? 0 : 1, 0, 0.1);
+      const edges = bandEdgesFor({ ...T, region: 'scotland' });
+      check('Scottish allocation edges follow the 2026/27 bands', edges[1], 16537, 0.01);
+    }
     return out;
   }
 
@@ -1791,7 +1922,7 @@ export function createEngine() {
     runMonteCarlo, runAssertions, compareArchitecture, assessStructure, archOf, fundedRatio,
     TAX_DEFAULTS,
     DB_SCHEMES, DB_SCHEMES_ASOF, trancheBenefits, trancheNpa, trancheMinAge, maxCommute, dbSchedule, hasAnyDb, compareDbTiming,
-    levers, STRESS_PATHS,
+    levers, STRESS_PATHS, SCOT_BANDS, planEndYear, lumpAfterLsa, fundYear,
   };
 }
 

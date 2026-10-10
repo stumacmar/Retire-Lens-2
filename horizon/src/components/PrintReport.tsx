@@ -19,7 +19,7 @@ export default function PrintReport({ plan, acc, dd, mc, estate }: {
   const real = (v: number, year: number) => deflate(v, year, plan.startYear, plan.inflation);
   const ageNow = (p: any) => plan.startYear - p.birthYear;
   const ageAtRetire = plan.retireYear - A.birthYear;
-  const horizonYear = A.birthYear + plan.horizonAge;
+  const horizonYear = (E as any).planEndYear(plan);
   const lasts = dd.exhaustedAgeA == null;
   const at = acc.atRetirement as any;
   const potsReal = real(at.pensionA + at.pensionB + at.isaA + at.isaB, plan.retireYear);
@@ -136,7 +136,7 @@ export default function PrintReport({ plan, acc, dd, mc, estate }: {
         <div className="r-card">
           <Row k="Target net income (today's money)" v={`${fmt(Math.round(plan.targetNet))} a year`} />
           <Row k="Retirement year / age" v={`${plan.retireYear} · age ${ageAtRetire} (${A.name})`} />
-          <Row k="Plan horizon" v={`age ${plan.horizonAge} (${A.name}) — year ${horizonYear}`} />
+          <Row k="Plan horizon" v={`age ${plan.horizonAge} of the younger partner — year ${horizonYear}`} />
           <Row k="Withdrawal order" v={stratName[plan.strategy] || plan.strategy} />
           <Row k="Tax-free cash (PCLS)" v={pclsName[plan.pclsMode] || plan.pclsMode} />
           <Row k="Income-tax region" v={plan.tax?.region === 'scotland' ? 'Scotland (Scottish bands)' : 'England, Wales & NI'} />

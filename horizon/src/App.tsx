@@ -42,6 +42,9 @@ function Horizon() {
   const { plus } = useEntitlement();
   const S = usePlan();
   const { plan, dd, acc, ddBear, ddBull, mc, estate, lens, setLens, update } = S;
+  // Explore reads the plan through the chosen lens, exactly as the Horizon
+  // and the confidence figure do — one set of numbers, never two.
+  const planL = useMemo(() => ({ ...plan, growth: S.growth }), [plan, S.growth]);
   const [sheet, setSheet] = useState<Tab | null>(null);
   const [detailsSect, setDetailsSect] = useState<'plan' | 'people' | 'later' | 'arch'>('plan');
   const [yearSel, setYearSel] = useState<number | null>(null);
@@ -473,7 +476,7 @@ function Horizon() {
         <DetailsBody plan={plan} update={update} reset={resetAll} initial={detailsSect} plus={plus} onUpgrade={openPlus} />
       </Sheet>
       <Sheet open={sheet === 'explore'} onClose={() => setSheet(null)} title="Explore">
-        <ExploreBody plan={plan} dd={dd} estate={estate} mc={mc} plus={plus} onUpgrade={openPlus} />
+        <ExploreBody plan={planL} dd={dd} estate={estate} mc={mc} plus={plus} onUpgrade={openPlus} />
       </Sheet>
       <Sheet open={sheet === 'peace'} onClose={() => setSheet(null)} title="Peace of mind">
         <PeaceBody plus={plus} onUpgrade={openPlus} plan={plan} mc={mc} />
@@ -1357,7 +1360,9 @@ function ExploreBody({ plan, dd, estate, mc, plus, onUpgrade }: { plan: any; dd:
 // seeded Monte Carlo, ranked by the confidence it buys. Free: the single best
 // lever, in full. Plus: the whole list.
 function Levers({ plan, plus, onUpgrade }: { plan: any; plus: boolean; onUpgrade: () => void }) {
-  const res = useMemo(() => { try { return (E as any).levers(plan, { paths: 200 }); } catch { return null; } }, [plan]);
+  // Same 500 futures and seed as the confidence figure, so the base here is
+  // the number the person has already seen.
+  const res = useMemo(() => { try { return (E as any).levers(plan, { paths: 500 }); } catch { return null; } }, [plan]);
   if (!res || !res.levers.length) return null;
   const top = res.levers[0];
   const pp = (d: number) => `${d >= 0 ? '+' : '−'}${Math.abs(Math.round(d * 100))} pts`;

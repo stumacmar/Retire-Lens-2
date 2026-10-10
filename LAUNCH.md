@@ -45,6 +45,7 @@ Everything a non-developer needs to change lives in one file:
 | Dates that matter, income mix, lifetime tax | Plan-structure (de-risking) controls and "is it worth it" |
 | Scottish tax, public-sector scheme pensions (NHS, Teachers', LGPS, Civil Service…) and every correctness feature | Estate and inheritance-tax view |
 | | "When to take it" comparison for each public-sector pension tranche |
+| Top decision lever, stress-test headline, every assumption listed | All decision levers ranked, the full stress-test table |
 | One plan saved on this device | Each April's tax-year refresh, for as long as Plus is active |
 
 The gate lives in `horizon/src/lib/entitlement.ts` and `horizon/src/components/Plus.tsx`.

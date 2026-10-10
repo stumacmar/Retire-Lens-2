@@ -60,6 +60,9 @@ tests/            12 test suites, 630+ assertions
 - **Monte Carlo simulation** with confidence bands and fan charts
 - **Plan A vs Plan B** comparison with numeric deltas
 - **UK tax engine** — Personal Allowance tapering, Scottish bands, couples
+- **Decision levers** — every candidate action (stop a year later, spend £3k less, phased tax-free cash, cheapest withdrawal order, part-time bridge, take a scheme pension at its normal age…) run through the plan and the seeded Monte Carlo, ranked by the confidence it buys
+- **Stress tests** — 2008 at retirement, a Japan-style lost two decades, 1970s stagflation, a 30% crash, low growth, 4% inflation: which the plan survives and what is left
+- **Assumptions, generated** — every assumption behind the numbers listed from the engine's own constants
 - **Public-sector pensions** — NHS, Teachers', LGPS, Civil Service, Police, Fire and Armed Forces schemes as tranches: legacy and 2015 slices, early-retirement reductions, automatic lump sums and commutation within the HMRC limit, ongoing accrual
 - **PCLS strategies** — immediate, phased, deferred, or none
 - **DB pension** support with CPI/fixed escalation

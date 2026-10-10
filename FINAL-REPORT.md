@@ -1,3 +1,10 @@
+> **Historical document (April 2026).** This describes the legacy "classic" planner and its
+> design competition. It is kept for the record. The live product is Horizon (`horizon/`),
+> whose engine taxes each partner separately on their own allowance and bands and allocates
+> pension draws by marginal rate (see `runAssertions()` in `horizon/src/engine/engine.js`,
+> "Couples are taxed as two individuals"). The "doubled-threshold shortcut" noted under
+> *Residual Disagreements* below no longer applies to the live app.
+
 # RetireLens 2 Design Competition: Final Report
 
 ## The 15 Surviving Changes

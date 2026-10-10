@@ -15,6 +15,7 @@ import { MoneyField, NumField, PctField, Toggle, Segmented } from './components/
 import Disclaimer, { disclaimerAccepted } from './components/Disclaimer';
 import Dates from './components/Dates';
 import SchemePensions from './components/SchemePensions';
+import Assumptions from './components/Assumptions';
 import { PlusPill, Locked, PlusSheetBody } from './components/Plus';
 import { EntitlementContext, useEntitlement, useEntitlementState } from './lib/entitlement';
 import { PRODUCT } from './config/product';
@@ -475,7 +476,7 @@ function Horizon() {
         <ExploreBody plan={plan} dd={dd} estate={estate} mc={mc} plus={plus} onUpgrade={openPlus} />
       </Sheet>
       <Sheet open={sheet === 'peace'} onClose={() => setSheet(null)} title="Peace of mind">
-        <PeaceBody plus={plus} onUpgrade={openPlus} />
+        <PeaceBody plus={plus} onUpgrade={openPlus} plan={plan} mc={mc} />
       </Sheet>
       <Sheet open={sheet === 'plus'} onClose={() => setSheet(null)} title={PRODUCT.plusName}>
         <PlusSheetBody />
@@ -1146,6 +1147,9 @@ function ExploreBody({ plan, dd, estate, mc, plus, onUpgrade }: { plan: any; dd:
         </div>
       )}
 
+      {/* ── What moves the needle: the levers, ranked (decision support) ── */}
+      <Levers plan={plan} plus={plus} onUpgrade={onUpgrade} />
+
       {/* ── Dates that matter (free: personal from the first screen) ── */}
       <Dates plan={plan} />
 
@@ -1289,6 +1293,9 @@ function ExploreBody({ plan, dd, estate, mc, plus, onUpgrade }: { plan: any; dd:
         );
       })()}
 
+      {/* ── Stress tests: sequence risk made concrete, for every plan ── */}
+      <StressTests plan={plan} plus={plus} onUpgrade={onUpgrade} />
+
       {/* ── Public-sector pensions: when to take each tranche (Plus) ── */}
       <DbTiming plan={plan} plus={plus} onUpgrade={onUpgrade} />
 
@@ -1342,6 +1349,111 @@ function ExploreBody({ plan, dd, estate, mc, plus, onUpgrade }: { plan: any; dd:
         </p>
         </>)}
       </div>
+    </div>
+  );
+}
+
+// Decision support: every candidate action run through the plan and the
+// seeded Monte Carlo, ranked by the confidence it buys. Free: the single best
+// lever, in full. Plus: the whole list.
+function Levers({ plan, plus, onUpgrade }: { plan: any; plus: boolean; onUpgrade: () => void }) {
+  const res = useMemo(() => { try { return (E as any).levers(plan, { paths: 200 }); } catch { return null; } }, [plan]);
+  if (!res || !res.levers.length) return null;
+  const top = res.levers[0];
+  const pp = (d: number) => `${d >= 0 ? '+' : '−'}${Math.abs(Math.round(d * 100))} pts`;
+  const Row = ({ l, i }: { l: any; i: number }) => (
+    <div className="px-4 py-3" style={{ borderTop: i ? '1px solid var(--color-hairline)' : 'none' }}>
+      <div className="flex items-baseline justify-between gap-3">
+        <div className="text-[0.9rem] font-semibold">{l.label}</div>
+        <div className="tnum text-right shrink-0">
+          <span className="block text-[0.95rem] font-extrabold" style={{ color: l.dConf > 0.004 ? 'var(--color-sage-strong)' : l.dConf < -0.004 ? 'var(--color-hope)' : 'var(--color-ink-dim)' }}>{pp(l.dConf)}</span>
+          <span className="block text-[0.7rem]" style={{ color: 'var(--color-ink-faint)' }}>{l.dEnd >= 0 ? '+' : '−'}{fmtK(Math.abs(l.dEnd))} left at {plan.horizonAge}</span>
+        </div>
+      </div>
+      <div className="mt-0.5 text-[0.78rem] leading-relaxed" style={{ color: 'var(--color-ink-dim)' }}>{l.detail}</div>
+      {/* The bar: confidence gain, so the eye ranks before the mind reads. */}
+      <div className="mt-2 h-1.5 rounded-full overflow-hidden" style={{ background: 'var(--color-hairline)' }}>
+        <div style={{ width: `${Math.min(100, Math.max(2, (Math.max(0, l.dConf) / Math.max(0.01, res.levers[0].dConf)) * 100))}%`, height: '100%', background: l.dConf > 0 ? 'var(--color-sage)' : 'transparent' }} />
+      </div>
+    </div>
+  );
+  return (
+    <div>
+      <h3 className="text-[0.72rem] font-bold uppercase tracking-widest mb-2" style={{ color: 'var(--color-ink-faint)' }}>What moves the needle</h3>
+      <div className="rounded-3xl overflow-hidden" style={{ background: 'var(--color-surface)', border: '1px solid var(--color-hairline)' }}>
+        <div className="px-4 pt-3 pb-1 text-[0.8rem] leading-relaxed" style={{ color: 'var(--color-ink-dim)' }}>
+          Today the plan holds in <b className="tnum" style={{ color: 'var(--color-ink)' }}>{Math.round((res.base.conf || 0) * 100)}%</b> of simulated futures.
+          Each action below is run through the whole plan and the same {res.paths} futures; the first figure is how many more points of confidence it buys.
+        </div>
+        <Row l={top} i={0} />
+        {plus
+          ? res.levers.slice(1).map((l: any, i: number) => <Row key={l.id} l={l} i={i + 1} />)
+          : (res.levers.length > 1 && (
+            <div className="px-4 py-3" style={{ borderTop: '1px solid var(--color-hairline)' }}>
+              <button onClick={onUpgrade} className="w-full text-left flex items-start gap-2">
+                <span className="text-[0.84rem] leading-relaxed" style={{ color: 'var(--color-ink-dim)' }}>
+                  {res.levers.length - 1} more {res.levers.length === 2 ? 'lever' : 'levers'} measured — {res.levers.slice(1, 4).map((l: any) => l.label.toLowerCase()).join(', ')}{res.levers.length > 4 ? '…' : ''}.
+                </span>
+                <span className="ml-auto shrink-0 rounded-full px-2 py-0.5 text-[0.64rem] font-bold uppercase tracking-wider"
+                  style={{ background: 'color-mix(in srgb, var(--color-calm) 18%, transparent)', color: 'var(--color-calm-strong)' }}>Plus</span>
+              </button>
+            </div>
+          ))}
+      </div>
+      <p className="text-[0.72rem] mt-1.5 leading-relaxed" style={{ color: 'var(--color-ink-faint)' }}>
+        Measured, not asserted: a lever that shows 0 points genuinely does not change how often this plan holds. Prompts to explore with an adviser — not advice.
+      </p>
+    </div>
+  );
+}
+
+// Sequence-of-returns risk made concrete for every plan: named bad decades
+// replayed from the day work stops, plus the plain shocks. Free: the headline.
+// Plus: the full table.
+function StressTests({ plan, plus, onUpgrade }: { plan: any; plus: boolean; onUpgrade: () => void }) {
+  const st = useMemo(() => { try { return (E as any).stressTests(plan); } catch { return null; } }, [plan]);
+  if (!st) return null;
+  const s = st.summary;
+  const gfc = st.tests.find((t: any) => /2008/.test(t.label));
+  const headline = s.fails === 0
+    ? `Holds in all ${s.total} stress tests — including 2008 striking the day you stop.`
+    : `Holds in ${s.holds} of ${s.total} stress tests. ${gfc ? (gfc.holds ? 'Survives 2008 striking the day you stop' : `If 2008 strikes the day you stop, it runs short at ${gfc.exhaustedAgeA}`) : ''}${s.worst && (!gfc || s.worst.label !== gfc.label) ? `; the hardest is “${s.worst.label}”, short at ${s.worst.exhaustedAgeA}.` : '.'}`;
+  return (
+    <div>
+      <h3 className="text-[0.72rem] font-bold uppercase tracking-widest mb-2" style={{ color: 'var(--color-ink-faint)' }}>Stress tests</h3>
+      <div className="rounded-3xl overflow-hidden" style={{ background: 'var(--color-surface)', border: '1px solid var(--color-hairline)' }}>
+        <div className="px-4 pt-4 pb-3">
+          <div className="flex items-baseline gap-3">
+            <span className="tnum text-[1.7rem] font-extrabold tracking-tight" style={{ color: s.fails === 0 ? 'var(--color-sage-strong)' : s.holds >= s.total / 2 ? 'var(--color-calm-strong)' : 'var(--color-hope)' }}>{s.holds}/{s.total}</span>
+            <span className="text-[0.86rem] leading-relaxed" style={{ color: 'var(--color-ink-dim)' }}>{headline}</span>
+          </div>
+        </div>
+        {plus ? st.tests.map((t: any, i: number) => (
+          <div key={t.label} className="px-4 py-2.5 flex items-baseline justify-between gap-3" style={{ borderTop: '1px solid var(--color-hairline)' }}>
+            <div className="min-w-0">
+              <div className="text-[0.86rem] font-semibold">{t.label}</div>
+              <div className="text-[0.74rem] leading-snug" style={{ color: 'var(--color-ink-faint)' }}>{t.note}</div>
+            </div>
+            <div className="tnum text-right shrink-0">
+              <span className="block text-[0.86rem] font-bold" style={{ color: t.holds ? 'var(--color-sage-strong)' : 'var(--color-hope)' }}>{t.holds ? 'holds' : `short at ${t.exhaustedAgeA}`}</span>
+              <span className="block text-[0.7rem]" style={{ color: 'var(--color-ink-faint)' }}>{t.delta >= 0 ? '+' : '−'}{fmtK(Math.abs(t.delta))} vs plan</span>
+            </div>
+          </div>
+        )) : (
+          <div className="px-4 py-3" style={{ borderTop: '1px solid var(--color-hairline)' }}>
+            <button onClick={onUpgrade} className="w-full text-left flex items-start gap-2">
+              <span className="text-[0.84rem] leading-relaxed" style={{ color: 'var(--color-ink-dim)' }}>
+                The full table — 2008 at retirement, a Japan-style lost two decades, 1970s stagflation, a 30% crash, low growth, 4% inflation, stopping early or late — with what each leaves at {plan.horizonAge}.
+              </span>
+              <span className="ml-auto shrink-0 rounded-full px-2 py-0.5 text-[0.64rem] font-bold uppercase tracking-wider"
+                style={{ background: 'color-mix(in srgb, var(--color-calm) 18%, transparent)', color: 'var(--color-calm-strong)' }}>Plus</span>
+            </button>
+          </div>
+        )}
+      </div>
+      <p className="text-[0.72rem] mt-1.5 leading-relaxed" style={{ color: 'var(--color-ink-faint)' }}>
+        Central outlook with one thing changed at a time. The historic shapes are approximate real-return sequences, replayed from the year you stop — the order of returns, not just the average, is what breaks retirements.
+      </p>
     </div>
   );
 }
@@ -1448,7 +1560,7 @@ function YearTable({ rows }: { rows: YearRow[] }) {
   );
 }
 
-function PeaceBody({ plus, onUpgrade }: { plus: boolean; onUpgrade: () => void }) {
+function PeaceBody({ plus, onUpgrade, plan, mc }: { plus: boolean; onUpgrade: () => void; plan: any; mc: MC | null }) {
   const rows = [
     ['Private by design', 'Every figure stays on this device. Nothing is uploaded, tracked, or shared. The only thing that ever leaves is a Plus licence key, if you buy one.'],
     ['One possible future', 'This shows a range of outcomes across 500+ market histories — a way to think, not a promise.'],
@@ -1473,6 +1585,7 @@ function PeaceBody({ plus, onUpgrade }: { plus: boolean; onUpgrade: () => void }
           <div className="text-[0.88rem] leading-relaxed" style={{ color: 'var(--color-ink-dim)' }}>{d}</div>
         </div>
       ))}
+      <Assumptions plan={plan} mc={mc} />
       <button onClick={onUpgrade} className="w-full rounded-2xl p-4 text-left" style={{ background: 'var(--color-canvas)' }}>
         <div className="font-bold mb-0.5">{plus ? 'Someday Plus is on' : 'Someday Plus'}</div>
         <div className="text-[0.88rem] leading-relaxed" style={{ color: 'var(--color-ink-dim)' }}>

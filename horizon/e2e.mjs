@@ -132,6 +132,12 @@ mono('E49 Stuart pension to 0 → pots↓', P => setA(P, 'pension', 0), 'pots', 
 mono('E50 Carol ISA to 0 → pots↓', P => setB(P, 'isa', 0), 'pots', -1);
 
 // Scottish income-tax region (2025/26 bands)
+{ const P = base(); const lv = E.levers(P, { paths: 60 });
+  check('E60 levers: stopping a year later does not reduce wealth at the horizon', lv.levers.find(l => l.id === 'later1').dEnd >= -1);
+  check('E61 levers: ranked by confidence gain', lv.levers.every((l, i, a) => i === 0 || a[i - 1].dConf >= l.dConf - 1e-12));
+  const st = E.stressTests(P);
+  check('E62 stress: 2008-at-retirement path leaves less than base', st.tests.find(t => /2008/.test(t.label)).delta < 0);
+  check('E63 stress: summary counts add up', st.summary.holds + st.summary.fails === st.summary.total); }
 check('E51 Scotland: exact tax at 57,548 gross = 12,152.21 (2026/27 bands)',
   Math.abs(E.taxOn(57548, { ...base().tax, region: 'scotland' }) - 12152.21) < 1);
 check('E52 Scotland: region flag leaves rUK maths untouched',

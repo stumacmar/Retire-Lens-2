@@ -222,6 +222,8 @@ await check('55 no £NaN after edits', async () => !/£NaN/.test(await bodyT()))
 await tap('Explore'); await wait(800);
 await check('56 Monte-Carlo fan renders', () => has('Range of futures'));
 await check('57 income breakdown', () => has('Where your income comes from'));
+await check('56b decision levers ranked (What moves the needle)', async () => (await has('What moves the needle')) && /pts/.test(await bodyT()));
+await check('56c stress tests headline', async () => (await has('Stress tests')) && /stress tests/.test(await bodyT()));
 await check('57b dates that matter (personal timeline)', async () => (await has('Dates that matter')) && /State Pension starts, at 67/.test(await bodyT()));
 await check('58 svg present', () => $('svg'));
 await check('59 lifetime-tax card', () => has('Lifetime income tax'));
@@ -238,6 +240,7 @@ await check('66 privacy card', () => has('Private by design'));
 await check('67 one-possible-future card', () => has('One possible future'));
 await check('68 not-advice card', () => has('Not financial advice'));
 await check('69 UK-aware card', () => has('UK-aware'));
+await check('69b assumptions list generated', async () => { await tap('Every assumption behind your numbers'); await wait(400); return (await has('Range of futures')) && (await has('Couples')); });
 await check('70 Save-report PDF button', () => has('Save the full report'));
 await check('71 story link → story.html', async () => (await p.$eval('a[href="story.html"]', e => e.getAttribute('href'))) === 'story.html');
 await check('72 no classic-planner link (one product, one app)', async () => (await p.$('a[href="app.html"]')) == null);
@@ -301,6 +304,8 @@ await check('106 free: lifetime-tax card stays free', () => has('Lifetime income
 await check('107 free: estate picture is locked', () => has('The estate picture'));
 await check('108 free: withdrawal order locked', async () => /Withdrawal order & tax/.test(await bodyT()) && !(await has('lowest lifetime tax')));
 await check('109 free: year-by-year locked with a preview', () => has('Every year, in full'));
+await check('109b free: top lever shown, rest behind Plus', async () => (await has('What moves the needle')) && /more levers? measured/.test(await bodyT()));
+await check('109c free: stress headline shown, table behind Plus', async () => (await has('Stress tests')) && /The full table/.test(await bodyT()));
 await check('110 free: lock opens the Plus sheet', async () => { await p.getByRole('button', { name: 'See what Plus adds' }).first().click(); await wait(700); return has('Already have a licence key?'); });
 await check('111 free: both prices shown', async () => (await has('£49')) && (await has('£129')));
 await check('112 free: checkout buttons disabled until configured', async () => (await p.$$eval('button:disabled', e => e.filter(x => /Coming soon/.test(x.textContent)).length)) === 2);

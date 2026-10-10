@@ -865,6 +865,12 @@ export function createEngine() {
       // wrapper, so tax accounting is untouched and totals reconcile.
       let gYear = g;
       let ladderNow = 0, engineNow = 0;
+      // A named sequence of real returns replayed from the year work stops
+      // (stress tests on a plain plan; the architecture has its own path).
+      if (!archOn && opts.returnPath) {
+        const yi = year - P.retireYear;
+        if (yi < opts.returnPath.length) gYear = (1 + opts.returnPath[yi]) * (1 + P.inflation) - 1;
+      }
       if (archOn) {
         const investAfter = potA + potB + isaA + isaB;
         const drawn = clamp0(investStart - investAfter);
@@ -996,18 +1002,34 @@ export function createEngine() {
     const base = drawdown(P);
     const baseReal = realEnd(P, base);
     const tests = [];
-    const run = (label, note, mutate, startPotsFn) => {
+    const run = (label, note, mutate, startPotsFn, extraOpts) => {
       const Q = JSON.parse(JSON.stringify(P));
       if (mutate) mutate(Q);
-      const r = drawdown(Q, startPotsFn ? { startPots: startPotsFn(Q) } : undefined);
+      const o = { ...(extraOpts || {}) };
+      if (startPotsFn) o.startPots = startPotsFn(Q);
+      const r = drawdown(Q, Object.keys(o).length ? o : undefined);
       const real = realEnd(Q, r);
       tests.push({
         label, note,
         endWealthReal: real,
         delta: real - baseReal,
         exhaustedAgeA: r.exhaustedAgeA,
+        holds: r.exhaustedAgeA == null,
       });
     };
+    // Sequence-of-returns risk made concrete: approximate historic real-return
+    // paths replayed from the year work stops. A plan with the architecture
+    // overlay replays them through its own sleeves; a plain plan through its
+    // single blended pot.
+    const seq = (label, note, key) => {
+      const arch = !!archOf(P).on;
+      run(label, note,
+        arch ? (Q) => { Q.architecture = { ...Q.architecture, stressPath: key }; } : null,
+        null, arch ? null : { returnPath: STRESS_PATHS[key] });
+    };
+    seq('2008 strikes the day you stop', 'A 37% fall in year one, then the recovery that followed (2008–2017 shape)', 'gfc');
+    seq('A Japan-style lost two decades', 'Twenty years of mostly falling markets from the day you stop (1990–2009 shape)', 'japan');
+    seq('1970s stagflation', 'Three savage real-terms years, a rebound, then grinding inflation (1972–1979 shape)', 'stagflation');
     run('Growth 2% below base', 'Sustained lower returns through both phases',
       (Q) => { Q.growth = P.growth - 0.02; });
     run('Growth at bear rate', 'The workbook bear scenario',
@@ -1032,7 +1054,76 @@ export function createEngine() {
           isaA: acc.isaA * 0.7, isaB: acc.isaB * 0.7,
         };
       });
-    return { base, baseReal, tests };
+    const holds = tests.filter(t => t.holds).length;
+    const worst = tests.filter(t => !t.holds).sort((a, b) => (a.exhaustedAgeA || 999) - (b.exhaustedAgeA || 999))[0] || null;
+    return { base, baseReal, baseHolds: base.exhaustedAgeA == null, tests,
+      summary: { total: tests.length, holds, fails: tests.length - holds, worst } };
+  }
+
+  // ── What moves the needle: the levers, ranked ──────────────────────────
+  // Decision support rather than forecasting: each candidate action is run
+  // through the deterministic plan AND the same seeded Monte Carlo, so the
+  // gain is measured in the two currencies that matter — how often the plan
+  // holds, and what is left — never asserted.
+  function levers(P, opts) {
+    opts = opts || {};
+    const paths = opts.paths || 200;
+    const seed = P.mcSeed || 42;
+    const horizonYear = P.partnerA.birthYear + P.horizonAge;
+    const real = (Q, r) => r.endWealth / Math.pow(1 + Q.inflation, horizonYear - Q.startYear);
+    const measure = (Q) => {
+      const dd = drawdown(Q);
+      let conf = null;
+      try { conf = runMonteCarlo(Q, paths, seed).successProb; } catch (e) { conf = null; }
+      return { conf, end: real(Q, dd), exhaustedAgeA: dd.exhaustedAgeA };
+    };
+    const base = measure(P);
+    const out = [];
+    const cand = (id, label, detail, mutate, applicable) => {
+      if (applicable === false) return;
+      const Q = JSON.parse(JSON.stringify(P));
+      mutate(Q);
+      const m = measure(Q);
+      out.push({ id, label, detail, patch: Q,
+        conf: m.conf, dConf: m.conf != null && base.conf != null ? m.conf - base.conf : 0,
+        end: m.end, dEnd: m.end - base.end, exhaustedAgeA: m.exhaustedAgeA });
+    };
+    const yearsToGo = P.retireYear - P.startYear;
+    cand('later1', 'Stop work one year later', 'One more year of growth and saving, one fewer to fund.',
+      (Q) => { Q.retireYear += 1; });
+    cand('spend3k', 'Spend £3,000 a year less', 'A little under £60 a week, for the whole retirement.',
+      (Q) => { Q.targetNet = Math.max(10000, Q.targetNet - 3000); Q.spendingPlanOn = false; });
+    cand('save250', 'Save £250 a month more until you stop', 'Into the pension, with growth on top.',
+      (Q) => { Q.partnerA.monthlyPension += 250; }, yearsToGo >= 1);
+    cand('parttime', 'Two years of part-time work after stopping, £10,000 a year', 'Bridges the early years so the pots can keep growing.',
+      (Q) => { Q.lifeEvents = [...(Q.lifeEvents || []),
+        { year: Q.retireYear, label: 'Part-time work', amount: 10000, kind: 'income', invest: false },
+        { year: Q.retireYear + 1, label: 'Part-time work', amount: 10000, kind: 'income', invest: false }]; });
+    cand('ease75', 'Ease spending by 10% from 75', 'The go-go / slow-go pattern most retirements actually follow.',
+      (Q) => { Q.phase1On = true; Q.phase1Age = 75; Q.phase1Cut = 0.10; }, !P.phase1On);
+    cand('phased', 'Take tax-free cash a little each year', 'A quarter of each draw tax-free lowers every year’s tax.',
+      (Q) => { Q.pclsMode = 'phased'; }, P.pclsMode === 'none');
+    let best = null;
+    try {
+      const strat = compareStrategies(P);
+      best = [...strat].sort((a, b) => a.lifetimeTax - b.lifetimeTax)[0];
+    } catch (e) { best = null; }
+    cand('order', best ? `Draw in the cheapest order: ${best.label}` : 'Cheapest withdrawal order', 'Same spending, less lifetime tax.',
+      (Q) => { Q.strategy = best.id; }, !!best && best.id !== P.strategy);
+    for (const key of ['partnerA', 'partnerB']) {
+      const who = P[key];
+      for (const t of (who.dbSchemes || [])) {
+        if (!t || !(Number(t.pension) > 0)) continue;
+        const b = trancheBenefits(P, who, t);
+        if (b.early > 0 && b.npa <= P.horizonAge - 5) {
+          cand('npa:' + t.id, `${who.name}: take the ${b.label} at ${b.npa}, not ${b.takeAge}`,
+            `Avoids the ${Math.round((1 - b.factor) * 100)}% early-retirement reduction, for life.`,
+            (Q) => { Q[key].dbSchemes = Q[key].dbSchemes.map(x => x.id === t.id ? { ...x, takeAge: b.npa } : x); });
+        }
+      }
+    }
+    out.sort((a, b) => (b.dConf - a.dConf) || (b.dEnd - a.dEnd));
+    return { base, levers: out, paths };
   }
 
   // ── Is the structure worth it? ───────────────────────────────────────
@@ -1659,6 +1750,35 @@ export function createEngine() {
       const acc1 = trancheBenefits({ ...base, retireYear: 2030 }, { ...A, birthYear: 1970 }, { id: 't3', scheme: 'nhs2015', pension: 10000, takeAge: 67, accruing: true, salary: 54000 });
       check('Four more years at 1/54 of £54k adds ≈£4k plus revaluation', acc1.accrued > 14000 && acc1.accrued < 14900 ? 0 : 1, 0, 0.1);
     }
+    // ── Couples are taxed as two individuals, never as one merged income ──
+    {
+      const P = defaults();
+      const dd = drawdown(P);
+      const r = dd.rows[2];
+      const incA = r.spA + r.dbA + (r.annuity || 0) + r.grossA, incB = r.spB + r.dbB + r.grossB;
+      check('Row tax = tax(A income) + tax(B income)', r.tax, taxOn(incA, T) + taxOn(incB, T), 0.5);
+      check('…and is below the tax on the merged income (two allowances, two basic bands)',
+        r.tax < taxOn(incA + incB, T) - 1 ? 0 : 1, 0, 0.1);
+      // Hand-checked: A £30,000 taxable, B £17,548 taxable (SP £12,548 + DB £5,000), rUK 2026/27.
+      check('Hand check A: (30,000 − 12,570) × 20% = 3,486', taxOn(30000, T), 3486, 0.01);
+      check('Hand check B: (17,548 − 12,570) × 20% = 995.60', taxOn(17548, T), 995.6, 0.01);
+    }
+    // ── Stress tests and levers behave ──
+    {
+      const P = defaults();
+      const st = stressTests(P);
+      const gfc = st.tests.find(t => /2008/.test(t.label));
+      check('2008-at-retirement leaves less than the base plan', gfc && gfc.delta < 0 ? 0 : 1, 0, 0.1);
+      const flat = drawdown(P, { returnPath: new Array(40).fill(0) });
+      const base = drawdown(P);
+      check('A flat real-return path ends below the base plan', flat.endWealth < base.endWealth ? 0 : 1, 0, 0.1);
+      const lv = levers(P, { paths: 60 });
+      const later = lv.levers.find(l => l.id === 'later1');
+      check('Stopping a year later never lowers wealth at the horizon', later && later.dEnd >= -1 ? 0 : 1, 0, 0.1);
+      const spend = lv.levers.find(l => l.id === 'spend3k');
+      check('Spending less never lowers confidence', spend && spend.dConf >= -1e-9 ? 0 : 1, 0, 0.1);
+      check('Levers are ranked by confidence gain', lv.levers.every((l, i, a) => i === 0 || a[i - 1].dConf >= l.dConf - 1e-12) ? 0 : 1, 0, 0.1);
+    }
     return out;
   }
 
@@ -1671,6 +1791,7 @@ export function createEngine() {
     runMonteCarlo, runAssertions, compareArchitecture, assessStructure, archOf, fundedRatio,
     TAX_DEFAULTS,
     DB_SCHEMES, DB_SCHEMES_ASOF, trancheBenefits, trancheNpa, trancheMinAge, maxCommute, dbSchedule, hasAnyDb, compareDbTiming,
+    levers, STRESS_PATHS,
   };
 }
 

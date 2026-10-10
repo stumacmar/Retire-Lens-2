@@ -144,6 +144,24 @@ CNAME  www  stumacmar.github.io
 
 Then in GitHub → Settings → Pages set the custom domain and tick *Enforce HTTPS*.
 
+## Before launch — the preview gate
+
+While you test, every page sits behind a passphrase screen (`horizon/public/gate.js`,
+copied to the site root by the build) and carries a `noindex` tag plus a
+`robots.txt` that keeps search engines out. The phrase is entered once per
+device; a tester can be sent a link with `?gate=the-phrase` instead.
+
+This is a courtesy gate on a static site, not security: anyone who reads the
+page source can see the code. It keeps the public and the search engines out
+until you are ready, which is what it is for.
+
+- **Change the phrase:** `printf 'someday-gate:NEW PHRASE' | sha256sum`, paste
+  the hash into `HASH` in `horizon/public/gate.js`, and update the phrase in
+  `horizon/uat.mjs` (check 00c) so the sweep still passes.
+- **Launch:** set `ENABLED = false` in `gate.js`, delete `horizon/public/robots.txt`,
+  and remove the `noindex` meta tag from `horizon/index.html`, `app.html`,
+  `story.html`, `guide.html` and `legal.html`.
+
 ## Step 6 — Ship it
 
 **Do this once, first:** in GitHub → Settings → Pages → *Build and deployment*,

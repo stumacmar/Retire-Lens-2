@@ -89,11 +89,16 @@ async function setRange(i, v) { try { await p.$$eval('input[type=range]', (els, 
 // pre-validated licence record is seeded locally, so no network is touched.
 // The free tier is exercised explicitly at the end.
 const PLUS = JSON.stringify({ key: 'uat-seeded-licence', instanceId: 'uat', instanceName: 'UAT', status: 'active', expiresAt: null, activatedAt: Date.now(), validatedAt: Date.now(), variantName: 'Lifetime' });
+// The preview gate (public/gate.js) sits in front of every page until launch;
+// the sweep unlocks it the way a tester would, by storing the phrase hash.
+const GATE_HASH = fs.readFileSync(path.join(__dir, 'public', 'gate.js'), 'utf8').match(/var HASH = '([0-9a-f]{64})'/)[1];
+const passGate = () => p.evaluate(h => localStorage.setItem('someday-gate-v1', h), GATE_HASH).catch(() => {});
 const seedPlus = () => p.evaluate(v => localStorage.setItem('someday-licence-v1', v), PLUS).catch(() => {});
 const acceptDisclaimer = async () => { if (await has('I understand')) { await tap('I understand'); await wait(700); } };
 const fresh = async () => {
   await p.goto(URL, { waitUntil: 'networkidle' });
   await p.evaluate(() => localStorage.clear()).catch(() => {});
+  await passGate();
   await seedPlus();
   await p.reload({ waitUntil: 'networkidle' }); await wait(700);
 };
@@ -103,6 +108,16 @@ async function loadEx() { // robust: retry the example tap; wait for the plan to
   await p.waitForFunction(() => !!localStorage.getItem('horizon-plan-v1'), { timeout: 3000 }).catch(() => {});
   await acceptDisclaimer();
 }
+
+// Preview gate first: a stranger sees only the phrase screen; the right phrase opens it.
+await p.goto(URL, { waitUntil: 'networkidle' }); await p.evaluate(() => localStorage.clear()).catch(() => {}); await p.reload({ waitUntil: 'networkidle' }); await wait(500);
+await check('00a preview gate shown to a fresh visitor', () => $('#someday-gate'));
+await p.fill('#someday-gate-input', 'wrong-phrase'); await p.keyboard.press('Enter'); await wait(400);
+await check('00b wrong phrase is refused', async () => (await $('#someday-gate')) && /not the phrase/.test(await bodyT()));
+await p.fill('#someday-gate-input', 'someday-preview-2026'); await p.keyboard.press('Enter'); await wait(500);
+await check('00c right phrase opens the app', async () => !(await $('#someday-gate')));
+await check('00d gate remembered on reload', async () => { await p.reload({ waitUntil: 'networkidle' }); await wait(500); return !(await $('#someday-gate')); });
+await check('00e noindex meta present while gated', async () => (await p.$('meta[name="robots"][content*="noindex"]')) != null);
 
 await fresh();
 await check('01 onboarding on first visit', async () => /stop/i.test(await h1()));

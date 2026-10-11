@@ -14,20 +14,20 @@ function ageIn(year: number, birthYear: number) { return year - birthYear; }
 export function datesThatMatter(plan: any): Row[] {
   const rows: Row[] = [];
   const A = plan.partnerA, B = plan.partnerB;
-  const people = [A, B].filter(p => p && p.birthYear > 1900);
+  const people = [A, plan.household === 'single' ? null : B].filter(p => p && p.birthYear > 1900);
   const now = plan.startYear;
   const push = (r: Row) => { if (r.year >= now) rows.push(r); };
 
   for (const p of people) {
     // Minimum pension age: 55 now, 57 from 6 April 2028. Birth year only, so
     // anyone turning 55 before 2028 keeps 55; from 1973 on it is 57.
-    const nmpa = p.birthYear <= 1972 ? 55 : 57;
+    const nmpa = (E as any).nmpaFor(p);
     push({ year: p.birthYear + nmpa, who: p.name, kind: 'you',
       title: `${p.name} can first access pensions, at ${nmpa}`,
       note: nmpa === 55 ? 'Private pensions open from 55 — before the minimum age rises to 57 in April 2028.'
         : 'The minimum pension age rises from 55 to 57 on 6 April 2028, which catches anyone born from 1973.' });
-    push({ year: p.birthYear + p.spAge, who: p.name, kind: 'you',
-      title: `${p.name}’s State Pension starts, at ${p.spAge}`,
+    push({ year: p.birthYear + (E as any).spAgeOf(p), who: p.name, kind: 'you',
+      title: `${p.name}’s State Pension starts, at ${(E as any).spAgeOf(p)}`,
       note: 'Check the exact date and amount at gov.uk/check-state-pension. Deferring adds about 5.8% a year for life.' });
     // Public-sector scheme tranches: when each is unreduced, and when it is planned.
     for (const t of (p.dbSchemes || [])) {

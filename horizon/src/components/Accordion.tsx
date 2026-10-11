@@ -9,8 +9,8 @@ export default function Accordion({ title, children, defaultOpen = false }: {
   const [open, setOpen] = useState(defaultOpen);
   return (
     <div className="rounded-2xl overflow-hidden" style={{ background: 'var(--color-canvas)' }}>
-      <button type="button" onClick={() => setOpen(o => !o)}
-        className="flex items-center justify-between w-full px-4 py-3.5 text-left">
+      <button type="button" onClick={() => setOpen(o => !o)} aria-expanded={open}
+        className="flex items-center justify-between w-full px-4 py-3.5 min-h-[44px] text-left">
         <span className="text-[0.95rem] font-semibold">{title}</span>
         <motion.span animate={{ rotate: open ? 180 : 0 }} transition={{ duration: 0.2 }}
           style={{ color: 'var(--color-ink-faint)' }}><ChevronDown size={18} /></motion.span>

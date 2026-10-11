@@ -1,8 +1,12 @@
 # Deploy to GitHub Pages
 name: Deploy to GitHub Pages
 
+# Runs only after the CI workflow has passed on main (never on a red commit),
+# or by hand.
 on:
-  push:
+  workflow_run:
+    workflows: ["CI Tests"]
+    types: [completed]
     branches: [main]
   workflow_dispatch:
 
@@ -17,6 +21,7 @@ concurrency:
 
 jobs:
   deploy:
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
@@ -63,13 +68,23 @@ jobs:
             git -c rebase.autoStash=true pull --rebase origin main && git push origin HEAD:main
           fi
 
+      # Only the site goes to Pages: no node_modules, sources, tests or docs.
+      - name: Stage the site
+        run: |
+          rsync -a --delete \
+            --exclude node_modules --exclude .git --exclude .github --exclude horizon/node_modules \
+            --exclude horizon/src --exclude horizon/dist --exclude horizon/public --exclude 'horizon/*.mjs' \
+            --exclude tests --exclude e2e --exclude test-artifacts --exclude design-rounds --exclude docs \
+            --exclude '*.md' --exclude 'package*.json' --exclude playwright.config.js --exclude eslint.config.js \
+            ./ _site/
+
       - name: Setup Pages
         uses: actions/configure-pages@v4
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: '.'
+          path: '_site'
       
       - name: Deploy to GitHub Pages
         id: deployment

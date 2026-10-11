@@ -13,14 +13,14 @@
   --color-surface: #F4F0E9;     /* card, a shade deeper than the page */
   --color-ink: #2C2C2C;
   --color-ink-dim: #6b655a;
-  --color-ink-faint: #a29a8c;
+  --color-ink-faint: #726d5c;   /* 4.6:1 on the card surface (WCAG AA small text) */
   --color-hairline: rgba(44, 44, 44, 0.09);
 
   --color-calm: #D4A373;        /* dawn terracotta — primary/interactive */
-  --color-calm-strong: #b9854f;
-  --color-hope: #b0837e;        /* deep dusty rose — gentle concern, never alarm */
+  --color-calm-strong: #8f6334;   /* 4.6:1 on the card surface; white on it 5.2:1 */
+  --color-hope: #92605a;        /* deep dusty rose, gentle concern, never alarm (4.6:1) */
   --color-sage: #8FAE8B;        /* calm sage — confidence, positive states */
-  --color-sage-strong: #64805f;
+  --color-sage-strong: #536d4e;   /* 5.0:1 on the card surface; white on it 5.3:1 */
   --color-ocean: #3A5F7B;       /* tranquil ocean — the median path */
   --color-dawn-1: #fbeedb;      /* dawn gradient for the horizon sky */
   --color-dawn-2: #f5dfc0;
@@ -41,7 +41,7 @@
     --color-surface: #211c17;
     --color-ink: #ede8e0;
     --color-ink-dim: #b0a898;
-    --color-ink-faint: #7d766a;
+    --color-ink-faint: #958d7f;   /* 5.0:1 on the dark canvas */
     --color-hairline: rgba(237, 232, 224, 0.10);
 
     --color-calm: #d3a06e;
@@ -178,3 +178,7 @@ input[type="range"].dawn-range::-moz-range-thumb {
   #print-summary .r-foot { margin-top: 22px; padding-top: 10px; border-top: 1px solid #e5dfd3;
     font-size: 9.5px; color: #a29a8c; }
 }
+
+/* Horizontal chip rows scroll without a visible bar. */
+.no-scrollbar { scrollbar-width: none; }
+.no-scrollbar::-webkit-scrollbar { display: none; }

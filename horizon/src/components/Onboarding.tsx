@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { fmtK } from '../lib/format';
 import { MoneyField, NumField, Toggle } from './Field';
@@ -13,7 +13,12 @@ export default function Onboarding({ plan, update, onDone, onExample }: {
   plan: any; update: (p: any) => void; onDone: () => void; onExample: () => void;
 }) {
   const [step, setStep] = useState(0);
-  const [addPartner, setAddPartner] = useState(false);
+  // The switch IS the household choice: off means a single-person plan. A
+  // fresh plan starts single until a partner is added.
+  const B = plan.partnerB || {};
+  const [addPartner, setAddPartnerState] = useState(plan.household === 'couple' && ((B.pension || 0) + (B.isa || 0) + (B.db || 0) + (B.monthlyPension || 0) > 0 || (B.dbSchemes || []).length > 0));
+  const setAddPartner = (v: boolean) => { setAddPartnerState(v); update((p: any) => ({ ...p, household: v ? 'couple' : 'single' })); };
+  useEffect(() => { update((p: any) => ({ ...p, household: addPartner ? 'couple' : 'single' })); }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const startYear = plan.startYear;
   const yearsToRetire = Math.max(1, plan.retireYear - startYear);
   const set = (patch: any) => update(patch);
@@ -33,7 +38,7 @@ export default function Onboarding({ plan, update, onDone, onExample }: {
         Everything stays on this device.
       </p>
       <button onClick={next} className="mt-8 w-full rounded-2xl py-4 font-bold text-[1.05rem] text-white active:scale-[0.98] transition-transform"
-        style={{ background: 'var(--color-calm)' }}>Begin</button>
+        style={{ background: 'var(--color-calm-strong)' }}>Begin</button>
       <button onClick={onExample} className="mt-3 w-full py-2 font-semibold text-[0.95rem]" style={{ color: 'var(--color-calm-strong)' }}>
         Or see a worked example
       </button>
@@ -70,7 +75,7 @@ export default function Onboarding({ plan, update, onDone, onExample }: {
       </div>
       <MoneyField label="Or your own figure, a year (today's money)" value={plan.targetNet} onChange={v => set({ targetNet: v })} />
       <button onClick={next} className="mt-7 w-full rounded-2xl py-4 font-bold text-[1.05rem] text-white active:scale-[0.98] transition-transform"
-        style={{ background: 'var(--color-calm)' }}>Continue</button>
+        style={{ background: 'var(--color-calm-strong)' }}>Continue</button>
     </div>,
 
     // 2 — You (and optional partner)
@@ -121,7 +126,7 @@ export default function Onboarding({ plan, update, onDone, onExample }: {
         )}
       </div>
       <button onClick={onDone} className="mt-7 w-full rounded-2xl py-4 font-bold text-[1.05rem] text-white active:scale-[0.98] transition-transform"
-        style={{ background: 'var(--color-calm)' }}>See my horizon →</button>
+        style={{ background: 'var(--color-calm-strong)' }}>See my horizon →</button>
     </div>,
   ];
 

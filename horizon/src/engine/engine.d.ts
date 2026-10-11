@@ -9,6 +9,12 @@ export interface Partner {
   dbTransferValue?: number; // CETV if quoted (display/report only)
   pots?: any[];            // optional scheme list (UI aggregates into the fields above)
   dbSchemes?: DbTranche[]; // public-sector defined-benefit tranches (see below)
+  stopYear?: number | null;        // own stop-work year, if later than the household's
+  deathAge?: number | null;        // plan for this partner to this age; the survivor runs on alone
+  pensionAccessAge?: number | null; // protected pension age (default 55 / 57 by birth year)
+  contribGrossUp?: boolean;        // monthlyPension entered net of basic-rate relief
+  dbSurvivorPct?: number;          // share of the company DB paid to a survivor (default 0.5)
+  absent?: boolean;                // set by normalisePlan for single-person plans
 }
 export interface Plan {
   startYear: number; retireYear: number; horizonAge: number;
@@ -21,8 +27,13 @@ export interface Plan {
   phase1Age: number; phase1Cut: number; phase1On: boolean;
   phase2Age: number; phase2Cut: number; phase2On: boolean;
   strategy: string; pclsMode: string;
+  household?: 'couple' | 'single';
+  fee?: number; equityShare?: number; riskPreset?: string | null; survivorSpend?: number;
+  mcSd?: number; mcPreRetirement?: boolean; schemaVersion?: number;
+  tax?: { region?: 'ruk' | 'scotland'; indexation?: 'cpi' | 'frozen'; indexFrom?: number; [k: string]: any };
   [k: string]: any;
 }
+export interface PlanIssue { path: string; message: string; level: 'error' | 'warn' }
 export interface DrawRow {
   year: number; ageA: number; ageB: number; wealth: number;
   netIncome: number; target: number; guaranteed: number;
@@ -31,11 +42,20 @@ export interface DrawRow {
 }
 export interface Drawdown {
   rows: DrawRow[]; endWealth: number; exhaustedAgeA: number | null;
-  exhaustedYear: number | null; lifetimeTax: number; [k: string]: any;
+  exhaustedYear: number | null; lifetimeTax: number; lifetimeTaxReal: number;
+  shortfallYear: number | null; shortfallAgeA: number | null; shortfallTotal: number; shortfallTotalReal: number;
+  inheritedTotal: number; [k: string]: any;
 }
 export interface Accum { atRetirement: any; years: any[]; [k: string]: any }
 export interface MC {
-  successProb: number; confidenceAge: number;
+  successProb: number;            // share of paths that paid the full planned spending every year
+  successProbWithCuts: number;    // share solvent once the written rules had trimmed spending
+  successSe: number;              // one standard error on successProb
+  successLifetime: number;        // weighted by the chance the household is still here
+  pAliveAtHorizon: number; expectedLastAge: number;
+  mcMean: number; mcSd: number;
+  potsAtRetirementP10: number; potsAtRetirementP50: number; potsAtRetirementP90: number;
+  confidenceAge: number;
   finalP10: number; finalP50: number; finalP90: number;
   nPaths: number; medianTrim: number;
   tracks: number[][];
@@ -45,7 +65,20 @@ export interface MC {
 export interface Engine {
   defaults(): Plan;
   freshStart(): Plan;
-  accumulate(P: Plan, growth?: number): Accum;
+  accumulate(P: Plan, growth?: number, opts?: { returnAt?: (year: number) => number }): Accum;
+  validatePlan(P: Plan): PlanIssue[];
+  sanitisePlan(P: any): Plan;
+  migratePlan(raw: any): Plan;
+  normalisePlan(P: Plan): Plan;
+  taxFor(P: Plan, year?: number): any;
+  spaFor(birthYear: number): number;
+  spAgeOf(who: Partner): number;
+  nmpaFor(who: Partner): number;
+  isSingle(P: Plan): boolean;
+  applyRiskPreset(P: Plan, key: string): Plan;
+  shiftRetirement(Q: Plan, dy: number): void;
+  RISK_PRESETS: Record<string, { label: string; detail: string; growthBear: number; growthBase: number; growthBull: number; mcSd: number; equityShare: number }>;
+  SCHEMA_VERSION: number;
   drawdown(P: Plan, opts?: { growth?: number; startPots?: any; returnPath?: number[] }): Drawdown;
   planEndYear(P: Plan): number;
   levers(P: Plan, opts?: { paths?: number }): { base: any; paths: number; levers: { id: string; label: string; detail: string; conf: number | null; dConf: number; end: number; dEnd: number; dTax: number; exhaustedAgeA: number | null }[] };

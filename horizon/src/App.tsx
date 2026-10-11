@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
-import { motion } from 'framer-motion';
-import { Sunrise, SlidersHorizontal, Compass, ShieldCheck, Plus, X, Download, RotateCcw, Lightbulb, Sparkles } from 'lucide-react';
-import { usePlan, hasSavedPlan, E } from './lib/usePlan';
+import { motion, MotionConfig } from 'framer-motion';
+import { Sunrise, SlidersHorizontal, Compass, ShieldCheck, Plus, X, Download, Upload, RotateCcw, Lightbulb, Sparkles, AlertTriangle } from 'lucide-react';
+import { usePlan, hasSavedPlan, E, exportPlanJson, importPlanJson } from './lib/usePlan';
 import type { Accum, Drawdown, MC } from './engine/engine';
 import { fmt, fmtK, pct, deflate } from './lib/format';
 import { useCountUp } from './lib/useCountUp';
@@ -20,22 +20,37 @@ import { PlusPill, Locked, PlusSheetBody } from './components/Plus';
 import { EntitlementContext, useEntitlement, useEntitlementState } from './lib/entitlement';
 import { PRODUCT } from './config/product';
 
-// Continuous wealth series (today → horizon) from the engine output.
+// Continuous wealth series (today → horizon) from the engine output, in
+// today's money: every point is deflated to the start year, so the chart and
+// its axis say what the caption says.
 function series(plan: any, acc: Accum, dd: Drawdown): [number, number][] {
+  const D = (v: number, year: number) => deflate(v, year, plan.startYear, plan.inflation);
   const start: [number, number] =
-    [plan.startYear, plan.partnerA.pension + plan.partnerA.isa + plan.partnerB.pension + plan.partnerB.isa];
+    [plan.startYear, plan.partnerA.pension + plan.partnerA.isa + plan.partnerB.pension + plan.partnerB.isa + (plan.cash || 0)];
   const pre = acc.years.filter((y: any) => y.year < dd.rows[0].year)
-    .map((y: any): [number, number] => [y.year, y.pensionA + y.isaA + y.pensionB + y.isaB + (y.cash || 0)]);
-  const post = dd.rows.map((r: any): [number, number] => [r.year, r.wealth]);
+    .map((y: any): [number, number] => [y.year, D(y.pensionA + y.isaA + y.pensionB + y.isaB + (y.cash || 0), y.year)]);
+  const post = dd.rows.map((r: any): [number, number] => [r.year, D(r.wealth, r.year)]);
   return [start, ...pre, ...post];
 }
+
+// Confidence, said honestly: rounded to five, never "100%", with the
+// sampling range alongside. A simulation cannot promise certainty.
+export function confText(mc: any): { main: string; range: string; pctRounded: number } {
+  const p = mc.successProb as number;
+  const se = (mc.successSe as number) || 0;
+  const lo = Math.max(0, Math.round((p - 2 * se) * 100)), hi = Math.min(100, Math.round((p + 2 * se) * 100));
+  const r5 = Math.round(p * 20) * 5;
+  const main = p >= 0.975 ? 'over 95%' : p <= 0.025 ? 'under 5%' : 'about ' + r5 + '%';
+  return { main, range: lo + '–' + hi + '%', pctRounded: Math.min(95, r5) };
+}
+const isSingle = (plan: any) => plan.household === 'single';
 
 type Tab = 'horizon' | 'details' | 'explore' | 'peace' | 'plus';
 
 // Free + Plus: one entitlement state for the whole app, read anywhere via context.
 export default function App() {
   const ent = useEntitlementState();
-  return <EntitlementContext.Provider value={ent}><Horizon /></EntitlementContext.Provider>;
+  return <MotionConfig reducedMotion="user"><EntitlementContext.Provider value={ent}><Horizon /></EntitlementContext.Provider></MotionConfig>;
 }
 
 function Horizon() {
@@ -134,7 +149,7 @@ function Horizon() {
           b: `Over the whole journey (today's money), “${labels[best.id]}” pays the least income tax. You can switch it in your settings and watch the effect live.`,
         });
       }
-      if (plan.pclsMode === 'none') {
+      if (plan.pclsMode !== 'phased') {
         const now = E.drawdown(P);
         const phased = E.drawdown({ ...P, pclsMode: 'phased' });
         const save = realTax(now) - realTax(phased);
@@ -186,7 +201,8 @@ function Horizon() {
       }
       if (mc && mc.successProb < 0.75) {
         const now = E.drawdown(P);
-        const oneMore = E.drawdown({ ...P, retireYear: plan.retireYear + 1 });
+        const Q1 = JSON.parse(JSON.stringify(P)); (E as any).shiftRetirement(Q1, 1);
+        const oneMore = E.drawdown(Q1);
         const gain = deflate(oneMore.endWealth - now.endWealth, horizonYear, plan.startYear, plan.inflation);
         items.push({
           t: 'The plan is sensitive to rough markets',
@@ -241,7 +257,7 @@ function Horizon() {
         <div className="hidden lg:flex items-center justify-center rounded-full text-[0.7rem] font-bold"
              style={{ width: 34, height: 34, color: 'var(--color-canvas)',
                       background: 'linear-gradient(145deg, var(--color-sage), var(--color-sage-strong))' }}>
-          {(plan.partnerA.name[0] || 'Y')}{(plan.partnerB.name[0] || 'P')}
+          {(plan.partnerA.name[0] || 'Y')}{isSingle(plan) ? '' : (plan.partnerB.name[0] || 'P')}
         </div>
       </header>
 
@@ -250,14 +266,14 @@ function Horizon() {
           is a blank canvas, not a crisis. */}
       <section className="pt-3">
         <p className="text-[0.85rem] font-semibold tracking-wide" style={{ color: 'var(--color-ink-dim)' }}>
-          {plan.partnerA.name} &amp; {plan.partnerB.name}
+          {plan.partnerA.name}{!isSingle(plan) && <> &amp; {plan.partnerB.name}</>}
         </p>
         {hasMoney ? (<>
         <h1 className="mt-1 text-[1.85rem] leading-[1.18] font-extrabold tracking-tight">
           {lasts ? (
-            <>You can spend about{' '}
+            <>On these assumptions, about{' '}
               <span className="tnum" style={{ color: 'var(--color-calm-strong)' }}>{fmtK(shownSpend)}</span>{' '}
-              a year and stay comfortable into your {Math.floor(plan.horizonAge / 10) * 10}s.</>
+              a year holds to {plan.horizonAge}{dd.shortfallAgeA != null && dd.exhaustedAgeA == null ? <>, after a gap around age {dd.shortfallAgeA}</> : null}.</>
           ) : (
             <>At <span className="tnum">{fmtK(shownSpend)}</span> a year, it gets tight around{' '}
               <span style={{ color: 'var(--color-hope)' }}>age {dd.exhaustedAgeA}</span>. A little less, or a little longer, holds it.</>
@@ -265,7 +281,7 @@ function Horizon() {
         </h1>
         <p className="mt-2.5 text-[0.95rem]" style={{ color: 'var(--color-ink-dim)' }}>
           Retiring {new Date(plan.retireYear, 3).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })}, at {ageAtRetire}.
-          {mc && <> In about <b className="tnum" style={{ color: 'var(--color-ink)' }}>{Math.round(confAnim / 5) * 5}%</b> of possible futures, it holds.</>}
+          {mc && <> It holds in <b className="tnum" style={{ color: 'var(--color-ink)' }}>{mc.successProb >= 0.975 ? 'over 95%' : 'about ' + Math.round(confAnim / 5) * 5 + '%'}</b> of simulated futures ({confText(mc).range}).</>}
         </p>
         </>) : (<>
         <h1 className="mt-1 text-[1.85rem] leading-[1.18] font-extrabold tracking-tight">
@@ -276,7 +292,7 @@ function Horizon() {
         </p>
         <button onClick={() => { setDetailsSect('people'); setSheet('details'); }}
           className="mt-4 rounded-2xl px-6 py-3.5 font-bold text-[1rem] text-white active:scale-[0.98] transition-transform"
-          style={{ background: 'var(--color-calm)' }}>
+          style={{ background: 'var(--color-calm-strong)' }}>
           Add your numbers
         </button>
         </>)}
@@ -297,7 +313,7 @@ function Horizon() {
           startYear={plan.startYear} retireYear={plan.retireYear} horizonYear={horizonYear}
           retireWealth={viz.atRetire} lasts={lasts} dryYear={dd.exhaustedYear}
           inflation={plan.inflation} birthYear={plan.partnerA.birthYear}
-          spYear={Math.min(plan.partnerA.birthYear + plan.partnerA.spAge, plan.partnerB.birthYear + plan.partnerB.spAge)}
+          spYear={isSingle(plan) ? plan.partnerA.birthYear + (E as any).spAgeOf(plan.partnerA) : Math.min(plan.partnerA.birthYear + (E as any).spAgeOf(plan.partnerA), plan.partnerB.birthYear + (E as any).spAgeOf(plan.partnerB))}
           pclsTaken={plan.pclsMode !== 'none'}
           onYearTap={setYearSel} />
       </div>
@@ -358,10 +374,10 @@ function Horizon() {
         {mc && hasMoney && (
           <div className="mt-4 rounded-2xl px-4 py-3.5 flex items-center gap-4"
                style={{ background: 'color-mix(in srgb, var(--color-sage) 16%, var(--color-surface))' }}>
-            <span className="tnum text-[1.7rem] font-extrabold tracking-tight" style={{ color: 'var(--color-sage-strong)' }}>about {Math.round(mc.successProb * 20) * 5}%</span>
+            <span className="tnum text-[1.7rem] font-extrabold tracking-tight" style={{ color: 'var(--color-sage-strong)' }}>{confText(mc).main}</span>
             <span>
-              <span className="block text-[0.82rem] font-semibold leading-snug">Confidence in sustaining your lifestyle</span>
-              <span className="block text-[0.7rem] mt-0.5" style={{ color: 'var(--color-ink-faint)' }}>Across {mc.nPaths} simulated market futures · give or take a few points</span>
+              <span className="block text-[0.82rem] font-semibold leading-snug">of simulated futures pay the full plan</span>
+              <span className="block text-[0.7rem] mt-0.5" style={{ color: 'var(--color-ink-faint)' }}>{mc.nPaths.toLocaleString()} market histories · range {confText(mc).range} · {Math.round(mc.successLifetime * 100)}% weighted by how long you are likely to be here</span>
             </span>
           </div>
         )}
@@ -397,15 +413,15 @@ function Horizon() {
         {mc && hasMoney && (
           <div className="mt-5 rounded-2xl px-5 py-4 flex items-center gap-4"
                style={{ background: 'color-mix(in srgb, var(--color-sage) 16%, var(--color-surface))' }}>
-            <span className="tnum text-[2rem] font-extrabold tracking-tight" style={{ color: 'var(--color-sage-strong)' }}>about {Math.round(mc.successProb * 20) * 5}%</span>
+            <span className="tnum text-[2rem] font-extrabold tracking-tight" style={{ color: 'var(--color-sage-strong)' }}>{confText(mc).main}</span>
             <span>
-              <span className="block text-[0.85rem] font-semibold leading-snug">Confidence in sustaining your lifestyle</span>
-              <span className="block text-[0.72rem] mt-0.5" style={{ color: 'var(--color-ink-faint)' }}>Across {mc.nPaths} simulated market futures · give or take a few points</span>
+              <span className="block text-[0.85rem] font-semibold leading-snug">of simulated futures pay the full plan</span>
+              <span className="block text-[0.72rem] mt-0.5" style={{ color: 'var(--color-ink-faint)' }}>{mc.nPaths.toLocaleString()} market histories · range {confText(mc).range} · {Math.round(mc.successLifetime * 100)}% weighted by how long you are likely to be here</span>
             </span>
           </div>
         )}
         <p className="mt-3 text-[0.7rem] text-right" style={{ color: 'var(--color-ink-faint)' }}>
-          {plan.partnerA.name}'s figures · {plan.partnerB.name}'s and more in Details · saves as you go
+          {plan.partnerA.name}'s figures · {isSingle(plan) ? 'more' : plan.partnerB.name + "'s and more"} in Details · saves as you go
         </p>
       </section>
 
@@ -447,7 +463,7 @@ function Horizon() {
       {/* Desktop: three calm metrics along the bottom (per the design brief). */}
       {hasMoney && <div className="flex flex-col lg:flex-row gap-3 lg:gap-8 mt-6 lg:mt-8">
         <DeskStat value={lasts ? `age ${plan.horizonAge}+` : `age ${dd.exhaustedAgeA}`} label="Sustainable to"
-          desc={lasts ? 'Your income holds through your plan horizon in the central outlook.' : 'Where the pots run short on today’s settings — see what moves the needle in Explore.'}
+          desc={lasts ? (dd.shortfallAgeA != null ? `Holds to the horizon on the central path, with a funding gap around age ${dd.shortfallAgeA} (see Explore).` : 'Your income holds through your plan horizon on the central path. A projection, not a promise.') : 'Where the pots run short on today’s settings — see what moves the needle in Explore.'}
           color={lasts ? 'var(--color-ocean)' : 'var(--color-hope)'} />
         {estate && <DeskStat value={fmtK(deflate(estate.netToHeirs, estate.year, plan.startYear, plan.inflation))} label="Potential legacy"
           desc="What could pass to the people you love, in today’s money." color="var(--color-sage-strong)" />}
@@ -473,7 +489,7 @@ function Horizon() {
       </nav>
 
       <Sheet open={sheet === 'details'} onClose={() => setSheet(null)} title="Your details">
-        <DetailsBody plan={plan} update={update} reset={resetAll} initial={detailsSect} plus={plus} onUpgrade={openPlus} />
+        <DetailsBody plan={plan} update={update} reset={resetAll} initial={detailsSect} plus={plus} onUpgrade={openPlus} issues={S.issues} />
       </Sheet>
       <Sheet open={sheet === 'explore'} onClose={() => setSheet(null)} title="Explore">
         <ExploreBody plan={planL} dd={dd} estate={estate} mc={mc} plus={plus} onUpgrade={openPlus} />
@@ -513,7 +529,8 @@ function TabButton({ icon, label, active, onClick }: { icon: React.ReactNode; la
   // iOS Safari has no vibration API — the spring animation carries the feel there).
   const tap = () => { try { (navigator as any).vibrate?.(8); } catch { /* no-op */ } onClick(); };
   return (
-    <button onClick={tap} className="flex flex-col items-center gap-1 px-3 py-1"
+    <button onClick={tap} className="flex flex-col items-center justify-center gap-1 px-3 py-1 min-h-[44px] min-w-[44px]"
+            aria-current={active ? 'page' : undefined}
             style={{ color: active ? 'var(--color-calm-strong)' : 'var(--color-ink-faint)' }}>
       <motion.span animate={{ scale: active ? 1.08 : 1 }} transition={{ type: 'spring', stiffness: 400, damping: 20 }}>{icon}</motion.span>
       <span className="text-[0.62rem] font-semibold">{label}</span>
@@ -571,7 +588,7 @@ function ArchitectureSection({ plan, update }: { plan: any; update: (p: any) => 
         {!on && (
           <button onClick={() => set(ARCH_PRESET)}
             className="w-full rounded-2xl py-3 font-bold text-[0.95rem] text-white active:scale-[0.98] transition-transform"
-            style={{ background: 'var(--color-calm)' }}>
+            style={{ background: 'var(--color-calm-strong)' }}>
             Set up the standard architecture
           </button>
         )}
@@ -740,6 +757,7 @@ function SchemeList({ who, set }: { who: any; set: (patch: any) => void }) {
 }
 
 function PartnerCard({ p, name, set, adv }: { p: any; name: 'partnerA' | 'partnerB'; set: (patch: any) => void; adv?: boolean }) {
+  const plan = p;
   const who = p[name];
   const hasPots = (who.pots || []).length > 0;
   return (
@@ -760,10 +778,15 @@ function PartnerCard({ p, name, set, adv }: { p: any; name: 'partnerA' | 'partne
       </div>
       <MoneyField label="ISAs today" value={who.isa} onChange={v => set({ isa: v })} />
       <MoneyField label="Paying into ISAs monthly" value={who.monthlyIsa} onChange={v => set({ monthlyIsa: v })} />
-      {adv && <>
-        <MoneyField label="Annual income (for the pension-allowance taper)" value={who.income || 0} onChange={v => set({ income: v })} />
-        {who.db > 0 && <MoneyField label="DB transfer value (CETV), if quoted" value={who.dbTransferValue || 0} onChange={v => set({ dbTransferValue: v })} />}
-      </>}
+      <Accordion title="Still working, charges and relief">
+        <MoneyField label="Salary a year while still working (today's money)" value={who.income || 0} onChange={v => set({ income: v })}
+          hint="Taxed as earnings in any year this person is still working after the household stop year." />
+        <NumField label={`Stops work in (year; the household year is ${plan.retireYear})`} value={who.stopYear || plan.retireYear}
+          min={plan.retireYear} max={plan.startYear + 60}
+          onChange={v => set({ stopYear: v > plan.retireYear ? v : null })} />
+        <Toggle label="Pension contributions entered after basic-rate relief (grossed up by 25%)" checked={!!who.contribGrossUp} onChange={v => set({ contribGrossUp: v })} />
+        {adv && who.db > 0 && <MoneyField label="DB transfer value (CETV), if quoted" value={who.dbTransferValue || 0} onChange={v => set({ dbTransferValue: v })} />}
+      </Accordion>
       <Accordion title="Already taken tax-free cash or accessed the pension?">
         <MoneyField label="Tax-free cash already taken" value={who.pclsTaken || 0} onChange={v => set({ pclsTaken: v })} />
         {adv && hasPots ? (
@@ -778,16 +801,23 @@ function PartnerCard({ p, name, set, adv }: { p: any; name: 'partnerA' | 'partne
           (£268,275) is reduced by what you've already taken. New contributions rebuild the untouched part.
         </p>
       </Accordion>
-      <Accordion title="More — State Pension">
-        <NumField label="Birth year" value={who.birthYear} onChange={v => set({ birthYear: v })} />
-        <NumField label="State Pension age" value={who.spAge} onChange={v => set({ spAge: v })} />
-        <MoneyField label="State Pension a year" value={who.spAmount} onChange={v => set({ spAmount: v })} />
+      <Accordion title="More — State Pension, pension age and how long to plan for">
+        <NumField label="Birth year" value={who.birthYear} min={1920} max={plan.startYear - 16} onChange={v => set({ birthYear: v })} />
+        <NumField label={`State Pension age (${(E as any).spaFor(who.birthYear)} for a ${who.birthYear} birth; change only if you know otherwise)`}
+          value={(E as any).spAgeOf(who)} min={60} max={75} onChange={v => set({ spAge: v === (E as any).spaFor(who.birthYear) ? 0 : v })} />
+        <MoneyField label="State Pension a year (today's money; full new rate £12,548)" value={who.spAmount} onChange={v => set({ spAmount: v })} />
+        <NumField label={`Earliest pension access age (${(E as any).nmpaFor({ ...who, pensionAccessAge: null })} by law for a ${who.birthYear} birth; enter a protected age if you have one)`}
+          value={(E as any).nmpaFor(who)} min={50} max={75}
+          onChange={v => set({ pensionAccessAge: v === (E as any).nmpaFor({ ...who, pensionAccessAge: null }) ? null : v })} />
+        <NumField label={`Plan for ${who.name} to age (blank or 0 = the plan horizon; after this the survivor is modelled alone)`}
+          value={who.deathAge || 0} min={0} max={110} onChange={v => set({ deathAge: v > 0 ? v : null })}
+          hint="After a death: that State Pension stops, the survivor receives the scheme survivor pension, inherits the pots (tax-free when death is before 75), and spends the survivor share set under Plan." />
       </Accordion>
     </Group>
   );
 }
 
-function DetailsBody({ plan, update, reset, initial, plus, onUpgrade }: { plan: any; update: (p: any) => void; reset: () => void; initial?: 'plan' | 'people' | 'later' | 'arch'; plus: boolean; onUpgrade: () => void }) {
+function DetailsBody({ plan, update, reset, initial, plus, onUpgrade, issues = [] }: { plan: any; update: (p: any) => void; reset: () => void; initial?: 'plan' | 'people' | 'later' | 'arch'; plus: boolean; onUpgrade: () => void; issues?: { path: string; message: string; level: string }[] }) {
   const setA = (patch: any) => update((p: any) => ({ ...p, partnerA: { ...p.partnerA, ...patch } }));
   const setB = (patch: any) => update((p: any) => ({ ...p, partnerB: { ...p.partnerB, ...patch } }));
   const setInherit = (patch: any) => update((p: any) => ({ ...p, inherit: { ...p.inherit, ...patch } }));
@@ -811,10 +841,36 @@ function DetailsBody({ plan, update, reset, initial, plus, onUpgrade }: { plan: 
       </div>
 
       {sect === 'plan' && <>
+      {issues.length > 0 && (
+        <div className="rounded-2xl p-3 space-y-1" role="alert"
+             style={{ background: 'color-mix(in srgb, var(--color-hope) 12%, var(--color-canvas))', border: '1px solid color-mix(in srgb, var(--color-hope) 40%, transparent)' }}>
+          {issues.map((i, k) => (
+            <div key={k} className="flex items-start gap-2 text-[0.8rem] leading-snug" style={{ color: i.level === 'error' ? 'var(--color-hope)' : 'var(--color-ink-dim)' }}>
+              <AlertTriangle size={14} className="shrink-0 mt-0.5" /> <span>{i.message}</span>
+            </div>
+          ))}
+        </div>
+      )}
+      <Group title="Who the plan is for">
+        <Segmented small value={isSingle(plan) ? 'single' : 'couple'} onChange={(v: string) => update({ household: v })}
+          options={[{ value: 'couple', label: 'A couple' }, { value: 'single', label: 'Just me' }]} />
+        <p className="text-[0.78rem]" style={{ color: 'var(--color-ink-faint)' }}>
+          {isSingle(plan) ? 'One person: one State Pension, one allowance, one nil-rate band. Partner figures are ignored.' : 'Two people taxed as two individuals, planned to the later horizon, with the survivor modelled after a first death.'}
+        </p>
+        {!isSingle(plan) && <PctField label="Survivor spends (share of the couple's spending)" value={plan.survivorSpend ?? 0.75} onChange={v => update({ survivorSpend: v })} />}
+      </Group>
       <Group title="Your Someday">
-        <NumField label="Retire in year" value={plan.retireYear} onChange={v => update({ retireYear: v })} />
+        <NumField label="Retire in year" value={plan.retireYear} min={plan.startYear} max={plan.startYear + 50} onChange={v => update({ retireYear: v })} />
         <MoneyField label="Income you want each year" value={plan.targetNet} onChange={v => update({ targetNet: v, spendingPlanOn: false })} />
-        <NumField label="Plan through to age" value={plan.horizonAge} onChange={v => update({ horizonAge: v })} />
+        <NumField label="Plan through to age" value={plan.horizonAge} min={plan.retireYear - plan.partnerA.birthYear + 1} max={110} onChange={v => update({ horizonAge: v })} />
+      </Group>
+      <Group title="How your money is invested">
+        <Segmented small value={plan.riskPreset || 'custom'} onChange={(v: string) => update((p: any) => v === 'custom' ? { ...p, riskPreset: null } : (E as any).applyRiskPreset(p, v))}
+          options={[{ value: 'cautious', label: 'Cautious', sub: '~40% shares' }, { value: 'balanced', label: 'Balanced', sub: '~70% shares' }, { value: 'adventurous', label: 'Adventurous', sub: 'all shares' }, { value: 'custom', label: 'Custom' }]} />
+        <p className="text-[0.78rem]" style={{ color: 'var(--color-ink-faint)' }}>
+          Sets the Poor / Base / Positive growth lenses, the simulation’s spread and the share of your money the stress tests hit together. Custom keeps whatever you set under Later.
+        </p>
+        <PctField label="Charges a year (platform and funds, taken off every return)" value={plan.fee || 0} onChange={v => update({ fee: v, riskPreset: plan.riskPreset })} />
       </Group>
       <Group title="Where you pay income tax">
         <Segmented small value={plan.tax?.region || 'ruk'}
@@ -823,13 +879,18 @@ function DetailsBody({ plan, update, reset, initial, plus, onUpgrade }: { plan: 
         <p className="text-[0.78rem]" style={{ color: 'var(--color-ink-faint)' }}>
           Scottish income-tax bands differ (19%–48%). Every figure in the app recalculates on your choice.
         </p>
+        <Toggle label="Tax thresholds rise with inflation from April 2031 (the announced freeze ends then)" checked={plan.tax?.indexation !== 'frozen'}
+          onChange={v => update((p: any) => ({ ...p, tax: { ...p.tax, indexation: v ? 'cpi' : 'frozen' } }))} />
+        <p className="text-[0.78rem]" style={{ color: 'var(--color-ink-faint)' }}>
+          Off assumes the personal allowance and bands stay frozen for the whole plan, which overstates lifetime tax over thirty years.
+        </p>
       </Group>
       <Group title="How you draw it">
         <span className="block text-[0.8rem] font-semibold" style={{ color: 'var(--color-ink-dim)' }}>Tax-free cash</span>
         <Segmented small value={plan.pclsMode} onChange={(v: string) => update({ pclsMode: v })}
           options={[{ value: 'none', label: 'Take none' }, { value: 'phased', label: 'A little each year' }, { value: 'upfront', label: 'All at once' }]} />
         <p className="text-[0.78rem] leading-relaxed" style={{ color: 'var(--color-ink-faint)' }}>
-          {plan.pclsMode === 'none' && 'Leaves the 25% invested inside the pension — simplest, but every withdrawal is fully taxable.'}
+          {plan.pclsMode === 'none' && 'Draws everything as taxable income and never uses the tax-free entitlement — the simplest, but usually the most tax paid.'}
           {plan.pclsMode === 'phased' && 'Crystallises a slice with each withdrawal, so a quarter of each draw is tax-free — often the most tax-efficient, if you still have untouched pension and cap.'}
           {plan.pclsMode === 'upfront' && 'Takes all available tax-free cash at retirement and reinvests it — certainty now, but future growth on it sits outside the pension wrapper.'}
           {' '}Capped at £268,275 across your lifetime, less anything already taken (set under People).
@@ -842,6 +903,32 @@ function DetailsBody({ plan, update, reset, initial, plus, onUpgrade }: { plan: 
           {plan.strategy === 'isafirst' && 'Spends ISAs first and defers pensions — can preserve pension tax shelter, at the cost of using up the tax-free pot early.'}
           {plan.strategy === 'pafirst' && 'Takes only what the free personal allowances cover from pensions, then ISAs — minimises tax now, draws pensions slowly.'}
           {' '}This is an advice-grade decision — compare the lifetime tax of all three in Explore, and talk it through with an adviser before acting.
+        </p>
+      </Group>
+      <Group title="Your plan file">
+        <div className="flex gap-2">
+          <button onClick={() => {
+              const blob = new Blob([exportPlanJson(plan)], { type: 'application/json' });
+              const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+              a.download = `someday-plan-${new Date().toISOString().slice(0, 10)}.json`; a.click();
+              setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+            }} className="flex-1 flex items-center justify-center gap-1.5 rounded-2xl py-2.5 min-h-[44px] text-[0.85rem] font-semibold"
+            style={{ background: 'var(--color-canvas)', color: 'var(--color-calm-strong)', border: '1px solid var(--color-hairline)' }}>
+            <Download size={15} /> Export plan
+          </button>
+          <label className="flex-1 flex items-center justify-center gap-1.5 rounded-2xl py-2.5 min-h-[44px] text-[0.85rem] font-semibold cursor-pointer"
+            style={{ background: 'var(--color-canvas)', color: 'var(--color-calm-strong)', border: '1px solid var(--color-hairline)' }}>
+            <Upload size={15} /> Import plan
+            <input type="file" accept="application/json,.json" className="sr-only" onChange={async e => {
+              const file = e.target.files && e.target.files[0]; if (!file) return;
+              try { const p = importPlanJson(await file.text()); update(() => p); }
+              catch (err: any) { window.alert('That file is not a Someday plan: ' + (err && err.message || err)); }
+              e.target.value = '';
+            }} />
+          </label>
+        </div>
+        <p className="text-[0.75rem]" style={{ color: 'var(--color-ink-faint)' }}>
+          A plain JSON file, for your own backup or to move between devices. Nothing is uploaded anywhere.
         </p>
       </Group>
       <div className="pt-2">
@@ -869,7 +956,7 @@ function DetailsBody({ plan, update, reset, initial, plus, onUpgrade }: { plan: 
           line="Several pensions with different histories, protected tax-free cash, the allowance taper and DB transfer values." />
       )}
       <PartnerCard p={plan} name="partnerA" set={setA} adv={plus && !!plan.advanced} />
-      <PartnerCard p={plan} name="partnerB" set={setB} adv={plus && !!plan.advanced} />
+      {!isSingle(plan) && <PartnerCard p={plan} name="partnerB" set={setB} adv={plus && !!plan.advanced} />}
       </>}
 
       {sect === 'arch' && (plus
@@ -897,9 +984,13 @@ function DetailsBody({ plan, update, reset, initial, plus, onUpgrade }: { plan: 
       <Group title="The lens">
         <p className="text-[0.82rem]" style={{ color: 'var(--color-ink-dim)' }}>Three futures, not one guess. Most people leave these.</p>
         <div className="grid grid-cols-3 gap-2">
-          <PctField label="Poor" value={plan.growthBear} onChange={v => update({ growthBear: v })} />
-          <PctField label="Base" value={plan.growthBase} onChange={v => update({ growthBase: v })} />
-          <PctField label="Positive" value={plan.growthBull} onChange={v => update({ growthBull: v })} />
+          <PctField label="Poor" value={plan.growthBear} onChange={v => update({ growthBear: v, riskPreset: null })} />
+          <PctField label="Base" value={plan.growthBase} onChange={v => update({ growthBase: v, riskPreset: null })} />
+          <PctField label="Positive" value={plan.growthBull} onChange={v => update({ growthBull: v, riskPreset: null })} />
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <PctField label="Volatility (a year)" value={plan.mcSd} onChange={v => update({ mcSd: v, riskPreset: null })} />
+          <PctField label="Share in shares (stress tests)" value={plan.equityShare ?? 1} onChange={v => update({ equityShare: v, riskPreset: null })} />
         </div>
         <PctField label="Inflation" value={plan.inflation} onChange={v => update({ inflation: v })} />
       </Group>
@@ -923,7 +1014,7 @@ function DetailsBody({ plan, update, reset, initial, plus, onUpgrade }: { plan: 
             </div>
             <div className="mt-2"><Segmented small value={e.kind} onChange={(v: string) => setEvent(i, { kind: v, invest: v === 'income' ? e.invest : false })}
               options={[{ value: 'cost', label: 'Cost' }, { value: 'income', label: 'Windfall' }, { value: 'earned', label: 'Earnings (taxed)' }]} /></div>
-            {e.kind === 'earned' && <div className="mt-2"><Segmented small value={e.who || 'A'} onChange={(v: string) => setEvent(i, { who: v })}
+            {e.kind === 'earned' && !isSingle(plan) && <div className="mt-2"><Segmented small value={e.who || 'A'} onChange={(v: string) => setEvent(i, { who: v })}
               options={[{ value: 'A', label: `${plan.partnerA.name} earns it` }, { value: 'B', label: `${plan.partnerB.name} earns it` }]} /></div>}
           </div>
         ))}
@@ -1125,14 +1216,23 @@ function ExploreBody({ plan, dd, estate, mc, plus, onUpgrade }: { plan: any; dd:
     return { year: r.year, age: A ? r.ageA : r.ageB, start: D(start), drawn: D(drawn), ret: D(closing - (start - drawn)), tax: D(A ? r.taxA : r.taxB), closing: D(closing) };
   });
 
+  const jump = (id: string) => { const el = document.getElementById('explore-' + id); if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' }); };
   return (
     <div className="space-y-5 pb-2">
+      <div className="sticky top-0 z-10 -mx-6 px-6 pb-2" style={{ background: 'color-mix(in srgb, var(--color-surface) 92%, transparent)' }}>
+        <nav aria-label="Explore sections" className="flex gap-1.5 overflow-x-auto no-scrollbar">
+          {[['futures', 'Futures'], ['levers', 'Levers'], ['dates', 'Dates'], ['stress', 'Stress'], ['tax', 'Tax'], ['table', 'Year by year']].map(([id, l]) => (
+            <button key={id} onClick={() => jump(id)} className="shrink-0 rounded-full px-3 min-h-[36px] text-[0.75rem] font-semibold"
+              style={{ background: 'var(--color-canvas)', border: '1px solid var(--color-hairline)', color: 'var(--color-ink-dim)' }}>{l}</button>
+          ))}
+        </nav>
+      </div>
       {/* ── Monte Carlo ─────────────────────────────────────────── */}
       {mc && (
-        <div className="rounded-2xl p-4" style={{ background: 'var(--color-canvas)' }}>
+        <div id="explore-futures" className="rounded-2xl p-4" style={{ background: 'var(--color-canvas)' }}>
           <div className="flex items-baseline justify-between mb-1">
             <span className="text-[0.9rem] font-semibold">Monte Carlo · range of futures</span>
-            <span className="tnum text-[0.9rem] font-bold" style={{ color: 'var(--color-calm-strong)' }}>about {Math.round(mc.successProb * 20) * 5}% hold</span>
+            <span className="tnum text-[0.9rem] font-bold" style={{ color: 'var(--color-calm-strong)' }}>{confText(mc).main} hold</span>
           </div>
           <McFan mc={mc} retireYear={plan.retireYear} />
           <p className="text-[0.72rem] mt-1 mb-3" style={{ color: 'var(--color-ink-faint)' }}>
@@ -1148,15 +1248,17 @@ function ExploreBody({ plan, dd, estate, mc, plus, onUpgrade }: { plan: any; dd:
           </div>
           <p className="text-[0.72rem] mt-2 text-center" style={{ color: 'var(--color-ink-dim)' }}>
             Wealth left at {plan.horizonAge} (today's money). Confidence stays above {pct(mc.threshold ?? 0.85, 0)} until age <b className="tnum">{mc.confidenceAge}</b>.
+            {' '}Sampling range {confText(mc).range}. Weighted by how long you are likely to be here, the money outlives you in about <b className="tnum">{Math.round(mc.successLifetime * 100)}%</b> of futures.
+            {mc.successProbWithCuts > mc.successProb + 0.005 && <> With the written rules trimming spending, {Math.round(mc.successProbWithCuts * 100)}% stay solvent.</>}
           </p>
         </div>
       )}
 
       {/* ── What moves the needle: the levers, ranked (decision support) ── */}
-      <Levers plan={plan} plus={plus} onUpgrade={onUpgrade} />
+      <div id="explore-levers"><Levers plan={plan} plus={plus} onUpgrade={onUpgrade} /></div>
 
       {/* ── Dates that matter (free: personal from the first screen) ── */}
-      <Dates plan={plan} />
+      <div id="explore-dates"><Dates plan={plan} /></div>
 
       {/* ── Income mix ──────────────────────────────────────────── */}
       <div>
@@ -1176,7 +1278,7 @@ function ExploreBody({ plan, dd, estate, mc, plus, onUpgrade }: { plan: any; dd:
 
       <div className="flex gap-3">
         <StatCard label="Lifetime income tax (today's money)" value={fmtK(lifeTax)} tone="ink" />
-        <StatCard label={dd.exhaustedAgeA == null ? 'Money lasts' : 'Runs short at'} value={dd.exhaustedAgeA == null ? `${plan.horizonAge}+` : `age ${dd.exhaustedAgeA}`} tone={dd.exhaustedAgeA == null ? 'calm' : 'hope'} />
+        <StatCard label={dd.exhaustedAgeA == null ? ((dd as any).shortfallAgeA != null ? 'Funding gap around' : 'Money lasts') : 'Runs short at'} value={dd.exhaustedAgeA == null ? ((dd as any).shortfallAgeA != null ? `age ${(dd as any).shortfallAgeA}` : `${plan.horizonAge}+`) : `age ${dd.exhaustedAgeA}`} tone={dd.exhaustedAgeA == null && (dd as any).shortfallAgeA == null ? 'calm' : 'hope'} />
       </div>
       {estate && (plus ? (
         <div className="flex gap-3">
@@ -1299,7 +1401,7 @@ function ExploreBody({ plan, dd, estate, mc, plus, onUpgrade }: { plan: any; dd:
       })()}
 
       {/* ── Stress tests: sequence risk made concrete, for every plan ── */}
-      <StressTests plan={plan} plus={plus} onUpgrade={onUpgrade} />
+      <div id="explore-stress"><StressTests plan={plan} plus={plus} onUpgrade={onUpgrade} /></div>
 
       {/* ── Public-sector pensions: when to take each tranche (Plus) ── */}
       <DbTiming plan={plan} plus={plus} onUpgrade={onUpgrade} />
@@ -1310,8 +1412,8 @@ function ExploreBody({ plan, dd, estate, mc, plus, onUpgrade }: { plan: any; dd:
           line="Lifetime income tax under each of the three withdrawal orders, side by side, so the cheapest route is a fact rather than a guess." />
       )}
       {strat.length > 0 && plus && (
-        <div>
-          <h3 className="text-[0.72rem] font-bold uppercase tracking-widest mb-2" style={{ color: 'var(--color-ink-faint)' }}>Withdrawal order & tax</h3>
+        <div id="explore-tax">
+          <h3 className="text-[0.72rem] font-bold uppercase tracking-widest mb-2" style={{ color: 'var(--color-ink-faint)' }}>Withdrawal order & lifetime tax (today's money)</h3>
           <div className="space-y-2">
             {strat.map(s => {
               const active = s.id === plan.strategy, best = Math.abs(s.lifetimeTax - bestTax) < 1;
@@ -1346,9 +1448,9 @@ function ExploreBody({ plan, dd, estate, mc, plus, onUpgrade }: { plan: any; dd:
         <Segmented small value={tv} onChange={setTv} options={[
           { value: 'combined', label: 'Combined' },
           { value: 'A', label: plan.partnerA.name },
-          { value: 'B', label: plan.partnerB.name },
+          ...(isSingle(plan) ? [] : [{ value: 'B' as const, label: plan.partnerB.name }]),
         ]} />
-        <YearTable rows={table} />
+        <div id="explore-table"><YearTable rows={table} /></div>
         <p className="text-[0.72rem] mt-1.5" style={{ color: 'var(--color-ink-faint)' }}>
           Today's money. Start − Drawn + Return = Closing. {tv === 'combined' ? 'Both pots and ISAs together.' : `${tv === 'A' ? plan.partnerA.name : plan.partnerB.name}'s pension and ISA only — State Pension and DB income sit outside the pot.`}
         </p>
@@ -1586,16 +1688,16 @@ function YearTable({ rows }: { rows: YearRow[] }) {
 function PeaceBody({ plus, onUpgrade, plan, mc }: { plus: boolean; onUpgrade: () => void; plan: any; mc: MC | null }) {
   const rows = [
     ['Private by design', 'Every figure stays on this device. Nothing is uploaded, tracked, or shared. The only thing that ever leaves is a Plus licence key, if you buy one.'],
-    ['One possible future', 'This shows a range of outcomes across 500+ market histories — a way to think, not a promise.'],
+    ['One possible future', 'A projection on stated assumptions, tested across 2,000 simulated market histories and shown with its sampling range — a way to think, not a promise.'],
     ['Not financial advice', 'A calm place to explore your own numbers. For decisions, a good adviser is worth their fee.'],
-    ['UK-aware', 'State Pension, ISAs, pensions, tax-free cash and inheritance tax, modelled for two people with different ages. UK tax year 2026/27.'],
+    ['UK-aware', 'State Pension age and minimum pension age from your birth year, ISAs, pensions, tax-free cash, Scottish bands, the survivor’s position after a first death and inheritance tax. UK tax year 2026/27, thresholds frozen to April 2031 then indexed.'],
     ['Feels like an app', 'Add it to your Home Screen (Share → Add to Home Screen) for the full-screen experience — it works offline too.'],
   ];
   return (
     <div className="space-y-3 pb-2">
       <button onClick={() => plus ? window.print() : onUpgrade()}
         className="flex items-center justify-center gap-2 w-full rounded-2xl py-3.5 font-bold text-white active:scale-[0.98] transition-transform"
-        style={{ background: 'var(--color-calm)' }}>
+        style={{ background: 'var(--color-calm-strong)' }}>
         {plus ? <Download size={18} /> : <Sparkles size={18} />} Save the full report (PDF){plus ? '' : ' · Plus'}
       </button>
       <p className="text-[0.82rem] leading-relaxed px-1" style={{ color: 'var(--color-ink-dim)' }}>

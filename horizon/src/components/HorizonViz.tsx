@@ -59,10 +59,14 @@ export default function HorizonViz(props: HorizonProps) {
 
   const g = useMemo(() => {
     const yr0 = startYear, yr1 = horizonYear;
+    // Scale to the central path and the Poor band: the Positive band is
+    // allowed to leave the top of the picture, so the Base line is never
+    // squashed flat by an optimistic ceiling.
     let maxW = 1;
-    for (const s of [base, low, high]) for (const [, v] of s) if (v > maxW) maxW = v;
+    for (const s of [base, low]) for (const [, v] of s) if (v > maxW) maxW = v;
+    maxW *= 1.12;
     const x = (yr: number) => ((yr - yr0) / Math.max(1, yr1 - yr0)) * W;
-    const y = (v: number) => H - padBottom - (Math.max(0, v) / maxW) * (H - padTop - padBottom);
+    const y = (v: number) => Math.max(padTop - 6, H - padBottom - (Math.max(0, v) / maxW) * (H - padTop - padBottom));
     const map = (s: [number, number][]) => s.map(([yr, v]) => ({ x: x(yr), y: y(v) }));
     const baseP = map(base), lowP = map(low), highP = map(high);
     const bandTop = smooth(highP);
@@ -97,7 +101,8 @@ export default function HorizonViz(props: HorizonProps) {
   const emptyPlan = g.maxW < 10000;
 
   const sc = !emptyPlan && scrub != null ? g.byYear.get(scrub) : undefined;
-  const scToday = sc ? sc.v / Math.pow(1 + inflation, (scrub as number) - startYear) : 0;
+  // The series arrive in today's money already (App deflates them).
+  const scToday = sc ? sc.v : 0;
   const scLabel = sc
     ? `${scrub}${birthYear != null ? ` · age ${(scrub as number) - birthYear}` : ''} · ${fmtK(scToday)}`
     : '';
@@ -105,7 +110,7 @@ export default function HorizonViz(props: HorizonProps) {
 
   return (
     <svg ref={svgRef} viewBox={`0 0 ${W} ${H}`} width="100%" role="img"
-         aria-label="Your wealth over retirement, a calm horizon. Drag to read a year, tap for detail."
+         aria-label="Your wealth over retirement in today's money, a calm horizon. Drag to read a year, tap for detail."
          style={{ display: 'block', touchAction: 'pan-y', cursor: 'crosshair' }}
          onPointerDown={e => {
            if (g.maxW < 10000) return;

@@ -106,7 +106,7 @@ export default function PrintReport({ plan, acc, dd, mc, estate }: {
           <div><b>{plan.horizonAge}</b><span>Plan runs to age ({A.name})</span></div>
           <div><b>{fmt(Math.round(potsReal))}</b><span>Investable pots at retirement (today's money)</span></div>
           <div><b>{lasts ? `${plan.horizonAge}+` : `age ${dd.exhaustedAgeA}`}</b><span>Money projected to last to</span></div>
-          <div><b>{mc ? pct(mc.successProb) : '—'}</b><span>Monte-Carlo success rate</span></div>
+          <div><b>{mc ? (mc.successProb >= 0.975 ? 'over 95%' : 'about ' + Math.round(mc.successProb * 20) * 5 + '%') : '—'}</b><span>Simulated futures that pay the full plan</span></div>
           <div><b>{fmt(Math.round(lifeTax))}</b><span>Lifetime income tax (today's money)</span></div>
           <div><b>{estate ? fmt(Math.round(real(estate.netToHeirs, estate.year))) : '—'}</b><span>Estate to family (today's money)</span></div>
         </div>
@@ -235,10 +235,11 @@ export default function PrintReport({ plan, acc, dd, mc, estate }: {
         {mc && <>
           <h3 className="r-h3">Monte-Carlo stress test</h3>
           <div className="r-card">
-            <Row k="Plans that hold across simulated markets" v={pct(mc.successProb)} />
+            <Row k="Simulated futures that pay the full plan" v={`${pct(mc.successProb)} (sampling range ${Math.round((mc.successProb - 2 * (mc.successSe || 0)) * 100)}–${Math.round((mc.successProb + 2 * (mc.successSe || 0)) * 100)}%)`} />
+            <Row k="Weighted by how long you are likely to be here" v={pct(mc.successLifetime)} />
             <Row k="Confidence stays high until age" v={`${mc.confidenceAge} (above ${pct(mc.threshold ?? 0.85, 0)} of runs solvent)`} />
             <Row k="Wealth left at age " v={`${plan.horizonAge} (today's money): unlucky (10th) ${fmt(Math.round(real(mc.finalP10, horizonYear)))} · typical (50th) ${fmt(Math.round(real(mc.finalP50, horizonYear)))} · lucky (90th) ${fmt(Math.round(real(mc.finalP90, horizonYear)))}`} />
-            <Row k="Simulations" v={`${mc.nPaths} random return paths (normal, mean ${pct(plan.mcMean)}, volatility ${pct(plan.mcSd)})`} />
+            <Row k="Simulations" v={`${mc.nPaths.toLocaleString()} random return paths from today (normal, mean ${pct(mc.mcMean ?? plan.growthBase)} before charges, volatility ${pct(plan.mcSd)}); ${Math.round(mc.successLifetime * 100)}% weighted by survival`} />
           </div>
         </>}
 
@@ -286,7 +287,7 @@ export default function PrintReport({ plan, acc, dd, mc, estate }: {
             <Row k="Property growth" v={pct(plan.houseGrowth || 0)} />
           </div>
           <div className="r-card"><h3>Monte-Carlo model</h3>
-            <Row k="Average return" v={pct(plan.mcMean)} />
+            <Row k="Average return (arithmetic, before charges)" v={pct(mc?.mcMean ?? plan.growthBase)} />
             <Row k="Volatility (std. dev.)" v={pct(plan.mcSd)} />
             <Row k="Number of paths" v={mc?.nPaths ?? plan.mcPaths} />
             <Row k="Return distribution" v="Normal (Box–Muller)" />

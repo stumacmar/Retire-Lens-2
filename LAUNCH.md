@@ -171,13 +171,16 @@ set **Source** to **GitHub Actions**. Until that is set, GitHub also runs its ow
 the repo and can overwrite the real build. (CI keeps the committed copy of the
 build in step with the source as a safety net, but the setting is the fix.)
 
-Push to `main`. Two workflows run:
+Push to `main`. Two workflows run, one after the other:
 
 - **CI** — unit tests, stress test, then the Horizon UAT (120+ checks) and
   end-to-end sweep (140+ checks). The sweeps run both as a Plus customer and as
   a free user, so a gating mistake fails the build.
-- **Deploy** — builds `horizon/` from source and publishes it to the site root
-  (and `/horizon-app/` for old links).
+- **Deploy** — runs only once CI has passed on `main` (a red commit never
+  reaches the site). It builds `horizon/` from source, publishes it to the site
+  root (and `/horizon-app/` for old links), and uploads only the site files to
+  Pages (no sources, tests or `node_modules`). Re-run it by hand from the
+  Actions tab if ever needed.
 
 ## Step 7 — Test the real purchase
 

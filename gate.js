@@ -10,7 +10,7 @@
  *   https://…/?gate=the-phrase
  */
 (function () {
-  var ENABLED = true;
+  var ENABLED = false;   // preview gate off (set true to put it back)
   var HASH = 'cb324a4b2e31c92710892f6da1e947047d1c681ef5f94edeab60eac54b828e8f';
   var KEY = 'someday-gate-v1';
   var SALT = 'someday-gate:';

@@ -109,15 +109,21 @@ async function loadEx() { // robust: retry the example tap; wait for the plan to
   await acceptDisclaimer();
 }
 
-// Preview gate first: a stranger sees only the phrase screen; the right phrase opens it.
+// Preview gate: when enabled, a stranger sees only the phrase screen and the right phrase opens it;
+// when disabled (launch), a fresh visitor must never see it.
+const GATE_ON = /var ENABLED = true/.test(fs.readFileSync(path.join(__dir, 'public', 'gate.js'), 'utf8'));
 await p.goto(URL, { waitUntil: 'networkidle' }); await p.evaluate(() => localStorage.clear()).catch(() => {}); await p.reload({ waitUntil: 'networkidle' }); await wait(500);
-await check('00a preview gate shown to a fresh visitor', () => $('#someday-gate'));
-await p.fill('#someday-gate-input', 'wrong-phrase'); await p.keyboard.press('Enter'); await wait(400);
-await check('00b wrong phrase is refused', async () => (await $('#someday-gate')) && /not the phrase/.test(await bodyT()));
-await p.fill('#someday-gate-input', 'someday-preview-2026'); await p.keyboard.press('Enter'); await wait(500);
-await check('00c right phrase opens the app', async () => !(await $('#someday-gate')));
-await check('00d gate remembered on reload', async () => { await p.reload({ waitUntil: 'networkidle' }); await wait(500); return !(await $('#someday-gate')); });
-await check('00e noindex meta present while gated', async () => (await p.$('meta[name="robots"][content*="noindex"]')) != null);
+if (GATE_ON) {
+  await check('00a preview gate shown to a fresh visitor', () => $('#someday-gate'));
+  await p.fill('#someday-gate-input', 'wrong-phrase'); await p.keyboard.press('Enter'); await wait(400);
+  await check('00b wrong phrase is refused', async () => (await $('#someday-gate')) && /not the phrase/.test(await bodyT()));
+  await p.fill('#someday-gate-input', 'someday-preview-2026'); await p.keyboard.press('Enter'); await wait(500);
+  await check('00c right phrase opens the app', async () => !(await $('#someday-gate')));
+  await check('00d gate remembered on reload', async () => { await p.reload({ waitUntil: 'networkidle' }); await wait(500); return !(await $('#someday-gate')); });
+} else {
+  await check('00a gate is off: a fresh visitor goes straight in', async () => !(await $('#someday-gate')));
+}
+await check('00e noindex meta present (remove at public launch)', async () => (await p.$('meta[name="robots"][content*="noindex"]')) != null);
 
 await fresh();
 await check('01 onboarding on first visit', async () => /stop/i.test(await h1()));

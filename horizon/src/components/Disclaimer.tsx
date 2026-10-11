@@ -40,8 +40,8 @@ export default function Disclaimer({ onAccept }: { onAccept: () => void }) {
           ))}
         </div>
         <button onClick={() => { acceptDisclaimer(); onAccept(); }}
-          className="mt-7 w-full rounded-2xl py-4 font-bold text-[1.05rem] text-white active:scale-[0.98] transition-transform"
-          style={{ background: 'var(--color-calm-strong)' }}>
+          className="mt-7 w-full rounded-2xl py-4 font-bold text-[1.05rem] text-[var(--color-ink)] active:scale-[0.98] transition-transform"
+          style={{ background: 'var(--color-calm)' }}>
           I understand — show me my horizon
         </button>
         <p className="mt-3 text-center text-[0.78rem]" style={{ color: 'var(--color-ink-faint)' }}>

@@ -165,7 +165,7 @@ await check('20 multi-step onboarding completed', () => true);
 
 await loadEx();
 await check('21 example loads Stuart & Carol', async () => /Stuart|Carol/.test(await bodyT()));
-await check('22 example shows an answer', async () => /a year holds to|gets tight/i.test(await h1()));
+await check('22 example shows an answer', async () => /looks sustainable|gets tight/i.test(await h1()));
 await check('23 confidence % shown', async () => /%/.test(await bodyT()));
 
 let k = 24;
@@ -276,7 +276,7 @@ await check('84 rapid lens switch, no crash', () => pe.length === 0);
 for (let i = 0; i < 5; i++) { await tap('Details'); await wait(200); await closeSheet(); }
 await check('85 rapid sheet cycle, no crash', () => pe.length === 0);
 await closeSheet(); await wait(700); // let the debounced compute settle before reading the headline
-await check('86 headline valid after stress', async () => /a year holds to|gets tight/i.test(await h1()));
+await check('86 headline valid after stress', async () => /looks sustainable|gets tight/i.test(await h1()));
 
 await loadEx();
 await check('87 horizon svg on home', () => $('svg'));
@@ -301,7 +301,7 @@ await check('100 zero uncaught page errors overall', () => pe.length === 0);
 await p.evaluate(() => localStorage.removeItem('someday-licence-v1')).catch(() => {});
 await p.reload({ waitUntil: 'networkidle' }); await wait(900);
 await check('101 free: disclaimer not asked again', async () => !/calm place to think/i.test(await h1()));
-await check('102 free: the answer still renders', async () => /a year holds to|gets tight/i.test(await h1()));
+await check('102 free: the answer still renders', async () => /looks sustainable|gets tight/i.test(await h1()));
 await check('103 free: confidence % still shown', async () => /% of simulated futures/.test(await bodyT()));
 await check('104 free: Get Plus pill in header', () => $('button[aria-label="Get Someday Plus"]'));
 await tap('Explore'); await wait(900);

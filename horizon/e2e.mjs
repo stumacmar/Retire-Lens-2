@@ -312,7 +312,7 @@ await acheck('U60b choosing de-risking records the approach', async () => (await
 await acheck('U60c choosing de-risking arms the architecture', async () => (await plan()).architecture?.on === true);
 await acheck('U60d de-risking uses the 7-year ladder', async () => (await plan()).architecture?.ladderYears === 7);
 await acheck('U62 completes to Horizon with DB captured for both', async () => { const P = await plan(); return P.partnerA.db === 9000 && P.partnerB.db === 5000; });
-await acheck('U63 answer renders after DB entry', async () => /a year holds to|gets tight/i.test(await p.$eval('h1', e => e.textContent).catch(() => '')));
+await acheck('U63 answer renders after DB entry', async () => /looks sustainable|gets tight/i.test(await p.$eval('h1', e => e.textContent).catch(() => '')));
 
 // Confidence responds to the DB we entered (compare to DB=0 in the same UI)
 await wait(700);

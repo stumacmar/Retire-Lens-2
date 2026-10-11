@@ -126,9 +126,9 @@ export function Segmented<T extends string>({ options, value, onChange, small, l
           <button key={o.value} type="button" onClick={() => onChange(o.value)} aria-pressed={on}
             className={`flex-1 rounded-2xl text-center transition-transform active:scale-[0.97] min-h-[44px] ${small ? 'py-2 px-1.5' : 'py-3 px-2'}`}
             style={{
-              background: on ? 'var(--color-sage-strong)' : 'var(--color-canvas)',
-              color: on ? '#fff' : 'var(--color-ink)',
-              border: '1px solid ' + (on ? 'var(--color-sage-strong)' : 'var(--color-hairline)'),
+              background: on ? 'var(--color-sage)' : 'var(--color-canvas)',
+              color: 'var(--color-ink)',
+              border: '1px solid ' + (on ? 'var(--color-sage)' : 'var(--color-hairline)'),
             }}>
             <span className={`block font-bold ${small ? 'text-[0.78rem]' : 'text-[0.9rem]'}`}>{o.label}</span>
             {o.sub && <span className="block text-[0.7rem] opacity-90 tnum">{o.sub}</span>}

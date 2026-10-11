@@ -62,11 +62,14 @@ export default function HorizonViz(props: HorizonProps) {
     // Scale to the central path and the Poor band: the Positive band is
     // allowed to leave the top of the picture, so the Base line is never
     // squashed flat by an optimistic ceiling.
-    let maxW = 1;
+    let maxW = 1, maxHigh = 1;
     for (const s of [base, low]) for (const [, v] of s) if (v > maxW) maxW = v;
-    maxW *= 1.12;
+    for (const [, v] of high) if (v > maxHigh) maxHigh = v;
+    // The Positive band may run up to 1.6x the central path before it is
+    // clipped at the top of the sky, so the Base line keeps its shape.
+    maxW = Math.max(maxW * 1.1, Math.min(maxHigh, maxW * 1.6));
     const x = (yr: number) => ((yr - yr0) / Math.max(1, yr1 - yr0)) * W;
-    const y = (v: number) => Math.max(padTop - 6, H - padBottom - (Math.max(0, v) / maxW) * (H - padTop - padBottom));
+    const y = (v: number) => Math.max(2, H - padBottom - (Math.max(0, v) / maxW) * (H - padTop - padBottom));
     const map = (s: [number, number][]) => s.map(([yr, v]) => ({ x: x(yr), y: y(v) }));
     const baseP = map(base), lowP = map(low), highP = map(high);
     const bandTop = smooth(highP);
@@ -135,7 +138,8 @@ export default function HorizonViz(props: HorizonProps) {
           <stop offset="1" stopColor="var(--color-canvas)" stopOpacity="0" />
         </linearGradient>
         <linearGradient id="band" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stopColor="var(--color-sage)" stopOpacity="0.26" />
+          <stop offset="0" stopColor="var(--color-sage)" stopOpacity="0.05" />
+          <stop offset="0.45" stopColor="var(--color-sage)" stopOpacity="0.24" />
           <stop offset="1" stopColor="var(--color-sage)" stopOpacity="0.03" />
         </linearGradient>
         <radialGradient id="sun" cx="0.5" cy="0.5" r="0.5">
@@ -156,7 +160,8 @@ export default function HorizonViz(props: HorizonProps) {
         </g>
       ))}
       {/* Poor↔Positive confidence glow */}
-      <path d={g.areaD} fill="url(#band)" />
+      <clipPath id="sky-clip"><rect x="0" y="0" width={W} height={H - padBottom} /></clipPath>
+      <path d={g.areaD} fill="url(#band)" clipPath="url(#sky-clip)" />
       {/* Warm sun at the moment you stop work */}
       <circle cx={g.sunX} cy={g.sunY} r="30" fill="url(#sun)" />
       <circle cx={g.sunX} cy={g.sunY} r="7" fill="var(--color-calm)" />

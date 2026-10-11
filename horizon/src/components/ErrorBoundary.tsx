@@ -22,7 +22,7 @@ export default class ErrorBoundary extends Component<{ children: ReactNode }, { 
             Your figures are still saved on this device. Reloading usually fixes it. If it keeps happening, copy the details
             and email them to us — they contain the error, not your numbers.
           </p>
-          <button onClick={() => location.reload()} className="mt-5 w-full rounded-2xl py-3.5 font-bold text-white" style={{ background: 'var(--color-calm-strong)' }}>Reload</button>
+          <button onClick={() => location.reload()} className="mt-5 w-full rounded-2xl py-3.5 font-bold text-[var(--color-ink)]" style={{ background: 'var(--color-calm)' }}>Reload</button>
           <button onClick={() => { navigator.clipboard?.writeText(details).catch(() => {}); }} className="mt-2 w-full rounded-2xl py-3 font-semibold"
             style={{ background: 'var(--color-surface)', border: '1px solid var(--color-hairline)' }}>Copy the details</button>
           <button onClick={startOver} className="mt-2 w-full rounded-2xl py-3 font-semibold" style={{ color: 'var(--color-hope)' }}>Start over (clears the plan on this device)</button>

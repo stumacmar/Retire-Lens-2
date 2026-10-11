@@ -37,8 +37,8 @@ export default function Onboarding({ plan, update, onDone, onExample }: {
         A private, calm look at your retirement — start with the life you want, and the numbers follow.
         Everything stays on this device.
       </p>
-      <button onClick={next} className="mt-8 w-full rounded-2xl py-4 font-bold text-[1.05rem] text-white active:scale-[0.98] transition-transform"
-        style={{ background: 'var(--color-calm-strong)' }}>Begin</button>
+      <button onClick={next} className="mt-8 w-full rounded-2xl py-4 font-bold text-[1.05rem] text-[var(--color-ink)] active:scale-[0.98] transition-transform"
+        style={{ background: 'var(--color-calm)' }}>Begin</button>
       <button onClick={onExample} className="mt-3 w-full py-2 font-semibold text-[0.95rem]" style={{ color: 'var(--color-calm-strong)' }}>
         Or see a worked example
       </button>
@@ -74,8 +74,8 @@ export default function Onboarding({ plan, update, onDone, onExample }: {
         })}
       </div>
       <MoneyField label="Or your own figure, a year (today's money)" value={plan.targetNet} onChange={v => set({ targetNet: v })} />
-      <button onClick={next} className="mt-7 w-full rounded-2xl py-4 font-bold text-[1.05rem] text-white active:scale-[0.98] transition-transform"
-        style={{ background: 'var(--color-calm-strong)' }}>Continue</button>
+      <button onClick={next} className="mt-7 w-full rounded-2xl py-4 font-bold text-[1.05rem] text-[var(--color-ink)] active:scale-[0.98] transition-transform"
+        style={{ background: 'var(--color-calm)' }}>Continue</button>
     </div>,
 
     // 2 — You (and optional partner)
@@ -125,8 +125,8 @@ export default function Onboarding({ plan, update, onDone, onExample }: {
           </div>
         )}
       </div>
-      <button onClick={onDone} className="mt-7 w-full rounded-2xl py-4 font-bold text-[1.05rem] text-white active:scale-[0.98] transition-transform"
-        style={{ background: 'var(--color-calm-strong)' }}>See my horizon →</button>
+      <button onClick={onDone} className="mt-7 w-full rounded-2xl py-4 font-bold text-[1.05rem] text-[var(--color-ink)] active:scale-[0.98] transition-transform"
+        style={{ background: 'var(--color-calm)' }}>See my horizon →</button>
     </div>,
   ];
 

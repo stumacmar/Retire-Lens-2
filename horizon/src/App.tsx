@@ -271,9 +271,9 @@ function Horizon() {
         {hasMoney ? (<>
         <h1 className="mt-1 text-[1.85rem] leading-[1.18] font-extrabold tracking-tight">
           {lasts ? (
-            <>On these assumptions, about{' '}
+            <>About{' '}
               <span className="tnum" style={{ color: 'var(--color-calm-strong)' }}>{fmtK(shownSpend)}</span>{' '}
-              a year holds to {plan.horizonAge}{dd.shortfallAgeA != null && dd.exhaustedAgeA == null ? <>, after a gap around age {dd.shortfallAgeA}</> : null}.</>
+              a year looks sustainable into your {Math.floor(plan.horizonAge / 10) * 10}s{dd.shortfallAgeA != null && dd.exhaustedAgeA == null ? <>, after a gap around age {dd.shortfallAgeA}</> : null}.</>
           ) : (
             <>At <span className="tnum">{fmtK(shownSpend)}</span> a year, it gets tight around{' '}
               <span style={{ color: 'var(--color-hope)' }}>age {dd.exhaustedAgeA}</span>. A little less, or a little longer, holds it.</>
@@ -281,7 +281,7 @@ function Horizon() {
         </h1>
         <p className="mt-2.5 text-[0.95rem]" style={{ color: 'var(--color-ink-dim)' }}>
           Retiring {new Date(plan.retireYear, 3).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })}, at {ageAtRetire}.
-          {mc && <> It holds in <b className="tnum" style={{ color: 'var(--color-ink)' }}>{mc.successProb >= 0.975 ? 'over 95%' : 'about ' + Math.round(confAnim / 5) * 5 + '%'}</b> of simulated futures ({confText(mc).range}).</>}
+          {mc && <> It holds in <b className="tnum" style={{ color: 'var(--color-ink)' }}>{mc.successProb >= 0.975 ? 'over 95%' : 'about ' + Math.round(confAnim / 5) * 5 + '%'}</b> of simulated futures.</>}
         </p>
         </>) : (<>
         <h1 className="mt-1 text-[1.85rem] leading-[1.18] font-extrabold tracking-tight">
@@ -291,8 +291,8 @@ function Horizon() {
           Add your pensions, ISAs and savings — the picture appears the moment you do, and it never leaves this device.
         </p>
         <button onClick={() => { setDetailsSect('people'); setSheet('details'); }}
-          className="mt-4 rounded-2xl px-6 py-3.5 font-bold text-[1rem] text-white active:scale-[0.98] transition-transform"
-          style={{ background: 'var(--color-calm-strong)' }}>
+          className="mt-4 rounded-2xl px-6 py-3.5 font-bold text-[1rem] text-[var(--color-ink)] active:scale-[0.98] transition-transform"
+          style={{ background: 'var(--color-calm)' }}>
           Add your numbers
         </button>
         </>)}
@@ -377,7 +377,7 @@ function Horizon() {
             <span className="tnum text-[1.7rem] font-extrabold tracking-tight" style={{ color: 'var(--color-sage-strong)' }}>{confText(mc).main}</span>
             <span>
               <span className="block text-[0.82rem] font-semibold leading-snug">of simulated futures pay the full plan</span>
-              <span className="block text-[0.7rem] mt-0.5" style={{ color: 'var(--color-ink-faint)' }}>{mc.nPaths.toLocaleString()} market histories · range {confText(mc).range} · {Math.round(mc.successLifetime * 100)}% weighted by how long you are likely to be here</span>
+              <span className="block text-[0.7rem] mt-0.5" style={{ color: 'var(--color-ink-faint)' }}>{mc.nPaths.toLocaleString()} simulated futures · {confText(mc).range} at this sample size</span>
             </span>
           </div>
         )}
@@ -416,7 +416,7 @@ function Horizon() {
             <span className="tnum text-[2rem] font-extrabold tracking-tight" style={{ color: 'var(--color-sage-strong)' }}>{confText(mc).main}</span>
             <span>
               <span className="block text-[0.85rem] font-semibold leading-snug">of simulated futures pay the full plan</span>
-              <span className="block text-[0.72rem] mt-0.5" style={{ color: 'var(--color-ink-faint)' }}>{mc.nPaths.toLocaleString()} market histories · range {confText(mc).range} · {Math.round(mc.successLifetime * 100)}% weighted by how long you are likely to be here</span>
+              <span className="block text-[0.72rem] mt-0.5" style={{ color: 'var(--color-ink-faint)' }}>{mc.nPaths.toLocaleString()} simulated futures · {confText(mc).range} at this sample size</span>
             </span>
           </div>
         )}
@@ -587,8 +587,8 @@ function ArchitectureSection({ plan, update }: { plan: any; update: (p: any) => 
         </p>
         {!on && (
           <button onClick={() => set(ARCH_PRESET)}
-            className="w-full rounded-2xl py-3 font-bold text-[0.95rem] text-white active:scale-[0.98] transition-transform"
-            style={{ background: 'var(--color-calm-strong)' }}>
+            className="w-full rounded-2xl py-3 font-bold text-[0.95rem] text-[var(--color-ink)] active:scale-[0.98] transition-transform"
+            style={{ background: 'var(--color-calm)' }}>
             Set up the standard architecture
           </button>
         )}
@@ -1696,8 +1696,8 @@ function PeaceBody({ plus, onUpgrade, plan, mc }: { plus: boolean; onUpgrade: ()
   return (
     <div className="space-y-3 pb-2">
       <button onClick={() => plus ? window.print() : onUpgrade()}
-        className="flex items-center justify-center gap-2 w-full rounded-2xl py-3.5 font-bold text-white active:scale-[0.98] transition-transform"
-        style={{ background: 'var(--color-calm-strong)' }}>
+        className="flex items-center justify-center gap-2 w-full rounded-2xl py-3.5 font-bold text-[var(--color-ink)] active:scale-[0.98] transition-transform"
+        style={{ background: 'var(--color-calm)' }}>
         {plus ? <Download size={18} /> : <Sparkles size={18} />} Save the full report (PDF){plus ? '' : ' · Plus'}
       </button>
       <p className="text-[0.82rem] leading-relaxed px-1" style={{ color: 'var(--color-ink-dim)' }}>

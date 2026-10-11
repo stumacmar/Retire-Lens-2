@@ -13,14 +13,14 @@
   --color-surface: #F4F0E9;     /* card, a shade deeper than the page */
   --color-ink: #2C2C2C;
   --color-ink-dim: #6b655a;
-  --color-ink-faint: #726d5c;   /* 4.6:1 on the card surface (WCAG AA small text) */
+  --color-ink-faint: #756d5c;   /* 4.5:1 on the card surface (WCAG AA small text) */
   --color-hairline: rgba(44, 44, 44, 0.09);
 
   --color-calm: #D4A373;        /* dawn terracotta — primary/interactive */
-  --color-calm-strong: #8f6334;   /* 4.6:1 on the card surface; white on it 5.2:1 */
-  --color-hope: #92605a;        /* deep dusty rose, gentle concern, never alarm (4.6:1) */
+  --color-calm-strong: #a25c1a;   /* deep terracotta, 4.5:1 on the card surface */
+  --color-hope: #995c56;        /* dusty rose, gentle concern, never alarm (4.5:1) */
   --color-sage: #8FAE8B;        /* calm sage — confidence, positive states */
-  --color-sage-strong: #536d4e;   /* 5.0:1 on the card surface; white on it 5.3:1 */
+  --color-sage-strong: #4f6d4a;   /* 5:1 on the card surface */
   --color-ocean: #3A5F7B;       /* tranquil ocean — the median path */
   --color-dawn-1: #fbeedb;      /* dawn gradient for the horizon sky */
   --color-dawn-2: #f5dfc0;

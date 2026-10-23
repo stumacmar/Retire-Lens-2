@@ -257,7 +257,20 @@ const tapInSheet = async t => {
   catch { return false; }
 };
 // Jump to a named page of the form carousel via its rail.
-const goPage = async t => { const ok = (await tapInSheet(t)) || (await tap(t)); await wait(700); return ok; };
+// Jump to a named page of the form carousel via its rail, and WAIT for that
+// page to be the one on screen. A fixed sleep is a guess: a jump across five
+// pages takes as long as the device needs, and CI is slower than this one.
+const goPage = async t => {
+  if (!(await tapInSheet(t)) && !(await tap(t))) return false;
+  try {
+    await p.waitForFunction(want => {
+      const el = document.querySelector('[data-active]');
+      return !!el && el.getAttribute('data-title') === want;
+    }, t, { timeout: 10000 });
+  } catch { return false; }
+  await wait(200);
+  return true;
+};
 // Set a labelled MoneyField/NumField. Uses Playwright fill + blur with awaits
 // between them, so React processes the input (setText) BEFORE the blur commits —
 // synthetic input+blur in one tick would read stale state (MoneyField commits

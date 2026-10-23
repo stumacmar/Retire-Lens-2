@@ -94,7 +94,30 @@ const tapInSheet = async t => {
   catch { return false; }
 };
 // Jump to a named page of the form carousel via its rail.
-const goPage = async t => { const ok = await tapInSheet(t) || await tap(t); await wait(700); return ok; };
+// Jump to a named page of the form carousel via its rail, and WAIT for that
+// page to be the one on screen. A fixed sleep is a guess: a jump across five
+// pages takes as long as the device needs, and CI is slower than this one.
+// Wait for a named page to be the one on screen (after a Next/Back tap).
+const waitPage = async t => {
+  try {
+    await p.waitForFunction(want => {
+      const el = document.querySelector('[data-active]');
+      return !!el && el.getAttribute('data-title') === want;
+    }, t, { timeout: 8000 });
+    return true;
+  } catch { return false; }
+};
+const goPage = async t => {
+  if (!(await tapInSheet(t)) && !(await tap(t))) return false;
+  try {
+    await p.waitForFunction(want => {
+      const el = document.querySelector('[data-active]');
+      return !!el && el.getAttribute('data-title') === want;
+    }, t, { timeout: 10000 });
+  } catch { return false; }
+  await wait(200);
+  return true;
+};
 const closeSheet = async () => { if (await sheetOpen()) { await p.keyboard.press('Escape'); await wait(500); } };
 async function setRange(i, v) { try { await p.$$eval('input[type=range]', (els, [a, val]) => { const el = els[a]; if (!el) return; const s = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set; s.call(el, String(val)); el.dispatchEvent(new Event('input', { bubbles: true })); el.dispatchEvent(new Event('change', { bubbles: true })); }, [i, v]); } catch { /* ignore */ } }
 // Clear per-navigation (NOT via addInitScript — that would wipe storage on every
@@ -176,11 +199,11 @@ await check('09 name accepts typing', async () => (await p.$eval('input[placehol
 await check('10 household choice offered', async () => (await has('A couple')) && (await has('Just me')));
 await tap('A couple'); await wait(500);
 await check('11 partner fields appear on the same page', async () => (await p.$('input[placeholder=Partner]')) != null);
-await tap('Next'); await wait(800);
+await tap('Next'); await waitPage('Someday'); await wait(200);
 await check('12 page two is the someday', async () => /^Someday/.test(await pageTitle()));
 await setField('Income you want each year', 59000);
 await check('13 target income captured', async () => (await planOf()).targetNet === 59000);
-await tap('Next'); await wait(800);
+await tap('Next'); await waitPage('Your pots'); await wait(200);
 await check('14 page three is the pots', async () => /pots$/.test(await pageTitle()));
 await setField('Workplace pension', 250000);
 await check('15 pension captured', async () => (await planOf()).partnerA?.pension === 250000);

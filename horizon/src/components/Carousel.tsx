@@ -26,6 +26,7 @@ export default function Carousel({ pages, index, onIndex, footer, railBg = 'var(
   const [h, setH] = useState<number | undefined>(undefined);
   const programmatic = useRef(false);
   const settle = useRef<number | undefined>(undefined);
+  const arrive = useRef<number | undefined>(undefined);
 
   const i = Math.max(0, Math.min(pages.length - 1, index));
 
@@ -45,12 +46,35 @@ export default function Carousel({ pages, index, onIndex, footer, railBg = 'var(
     const sc = scroller.current; const el = paneRefs.current[n];
     if (!sc || !el) return;
     programmatic.current = true;
+    window.clearTimeout(arrive.current);
     sc.scrollTo({ left: el.offsetLeft - sc.offsetLeft, behavior: smooth ? 'smooth' : 'auto' });
-    window.setTimeout(() => { programmatic.current = false; }, smooth ? 700 : 0);
+    if (!smooth) { programmatic.current = false; return; }
+    // Hold the guard until the scroll has ARRIVED, not for a guessed duration.
+    // A jump across five pages on a slow device takes far longer than any
+    // fixed timeout; releasing early makes the carousel act on a position it
+    // is still travelling through and dump you on a page you did not choose.
+    const started = Date.now();
+    const check = () => {
+      const s2 = scroller.current, e2 = paneRefs.current[n];
+      if (!s2 || !e2) { programmatic.current = false; return; }
+      const want = e2.offsetLeft - s2.offsetLeft;
+      if (Math.abs(s2.scrollLeft - want) <= 2 || Date.now() - started > 4000) programmatic.current = false;
+      else arrive.current = window.setTimeout(check, 60);
+    };
+    arrive.current = window.setTimeout(check, 60);
   }, []);
 
   // Index changed from outside (rail, arrows, a jump) → move the scroller.
-  useEffect(() => { goTo(i, true); }, [i, goTo]);
+  // Neighbouring pages slide, because that reads as movement and is over in a
+  // blink. A jump across the rail goes straight there: at that distance the
+  // slide is a blur, and a long animation in flight is state that can disagree
+  // with the page you asked for.
+  const prevI = useRef(i);
+  useEffect(() => {
+    const adjacent = Math.abs(i - prevI.current) === 1;
+    prevI.current = i;
+    goTo(i, adjacent);
+  }, [i, goTo]);
   // Page set changed under us (a partner added) → stay put, no animation.
   useEffect(() => { goTo(Math.min(i, pages.length - 1), false); }, [pages.length]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -72,7 +96,7 @@ export default function Carousel({ pages, index, onIndex, footer, railBg = 'var(
       if (best !== i) onIndex(best);
     }, 140);
   };
-  useEffect(() => () => window.clearTimeout(settle.current), []);
+  useEffect(() => () => { window.clearTimeout(settle.current); window.clearTimeout(arrive.current); }, []);
 
   // Keep the current step visible in the rail without yanking the page.
   useEffect(() => {
@@ -118,7 +142,7 @@ export default function Carousel({ pages, index, onIndex, footer, railBg = 'var(
         {pages.map((p, n) => (
           <section key={p.id} ref={el => { paneRefs.current[n] = el; }}
             className="flex-[0_0_100%] snap-start space-y-5 pb-1"
-            data-pane={p.id}
+            data-pane={p.id} data-title={p.title}
             // Every page stays in the DOM so the scroll is real; this marks
             // the one actually on screen, for anything that needs to tell
             // them apart (tests included).

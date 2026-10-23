@@ -1,20 +1,19 @@
 import { useEffect, useMemo, useState } from 'react';
 import { motion, MotionConfig } from 'framer-motion';
-import { Sunrise, SlidersHorizontal, Compass, ShieldCheck, Plus, X, Download, Upload, RotateCcw, Lightbulb, Sparkles, AlertTriangle } from 'lucide-react';
-import { usePlan, hasSavedPlan, E, exportPlanJson, importPlanJson } from './lib/usePlan';
+import { Sunrise, SlidersHorizontal, Compass, ShieldCheck, Download, Lightbulb, Sparkles } from 'lucide-react';
+import { usePlan, hasSavedPlan, E } from './lib/usePlan';
 import type { Accum, Drawdown, MC } from './engine/engine';
 import { fmt, fmtK, pct, deflate } from './lib/format';
 import { useCountUp } from './lib/useCountUp';
 import HorizonViz from './components/HorizonViz';
 import Sheet from './components/Sheet';
-import Accordion from './components/Accordion';
 import Onboarding from './components/Onboarding';
+import Constellation from './components/Constellation';
 import PrintReport from './components/PrintReport';
-import Approach, { DERISKING_ARCHITECTURE } from './components/Approach';
-import { MoneyField, NumField, PctField, Toggle, Segmented } from './components/Field';
+import Approach from './components/Approach';
+import { MoneyField, NumField, Segmented } from './components/Field';
 import Disclaimer, { disclaimerAccepted } from './components/Disclaimer';
 import Dates from './components/Dates';
-import SchemePensions from './components/SchemePensions';
 import Assumptions from './components/Assumptions';
 import { PlusPill, Locked, PlusSheetBody } from './components/Plus';
 import { EntitlementContext, useEntitlement, useEntitlementState } from './lib/entitlement';
@@ -61,7 +60,6 @@ function Horizon() {
   // and the confidence figure do — one set of numbers, never two.
   const planL = useMemo(() => ({ ...plan, growth: S.growth }), [plan, S.growth]);
   const [sheet, setSheet] = useState<Tab | null>(null);
-  const [detailsSect, setDetailsSect] = useState<'plan' | 'people' | 'later' | 'arch'>('plan');
   const [yearSel, setYearSel] = useState<number | null>(null);
   const [onboarded, setOnboarded] = useState(hasSavedPlan());
   const [disclaimerOk, setDisclaimerOk] = useState(disclaimerAccepted());
@@ -222,6 +220,7 @@ function Horizon() {
   if (!onboarded) {
     return (
       <Onboarding plan={plan} update={update}
+        viz={viz} horizonYear={horizonYear} lasts={lasts} plus={plus} onUpgrade={openPlus}
         onDone={() => { update((p: any) => ({ ...p })); setOnboarded(true); }}
         onExample={() => { update(() => ({ ...E.defaults(), approach: 'traditional' })); setOnboarded(true); }} />
     );
@@ -290,7 +289,7 @@ function Horizon() {
         <p className="mt-2.5 text-[0.95rem]" style={{ color: 'var(--color-ink-dim)' }}>
           Add your pensions, ISAs and savings — the picture appears the moment you do, and it never leaves this device.
         </p>
-        <button onClick={() => { setDetailsSect('people'); setSheet('details'); }}
+        <button onClick={() => setSheet('details')}
           className="mt-4 rounded-2xl px-6 py-3.5 font-bold text-[1rem] text-[var(--color-ink)] active:scale-[0.98] transition-transform"
           style={{ background: 'var(--color-calm)' }}>
           Add your numbers
@@ -482,14 +481,15 @@ function Horizon() {
                     borderTop: '0.5px solid var(--color-hairline)' }}>
         <div className="flex justify-around mx-auto max-w-[560px]">
           <TabButton icon={<Sunrise size={24} />} label="Horizon" active={sheet === null} onClick={() => setSheet(null)} />
-          <TabButton icon={<SlidersHorizontal size={24} />} label="Details" active={sheet === 'details'} onClick={() => { setDetailsSect('plan'); setSheet('details'); }} />
+          <TabButton icon={<SlidersHorizontal size={24} />} label="Details" active={sheet === 'details'} onClick={() => setSheet('details')} />
           <TabButton icon={<Compass size={24} />} label="Explore" active={sheet === 'explore'} onClick={() => setSheet('explore')} />
           <TabButton icon={<ShieldCheck size={24} />} label="Peace" active={sheet === 'peace'} onClick={() => setSheet('peace')} />
         </div>
       </nav>
 
       <Sheet open={sheet === 'details'} onClose={() => setSheet(null)} title="Your details">
-        <DetailsBody plan={plan} update={update} reset={resetAll} initial={detailsSect} plus={plus} onUpgrade={openPlus} issues={S.issues} />
+        <DetailsBody plan={plan} update={update} reset={resetAll} plus={plus} onUpgrade={openPlus} issues={S.issues}
+          viz={viz} horizonYear={horizonYear} lasts={lasts} dryYear={dd.exhaustedYear} />
       </Sheet>
       <Sheet open={sheet === 'explore'} onClose={() => setSheet(null)} title="Explore">
         <ExploreBody plan={planL} dd={dd} estate={estate} mc={mc} plus={plus} onUpgrade={openPlus} />
@@ -561,472 +561,17 @@ function WhatIf({ label, out, min, max, step, value, onChange, onEdit }: {
   );
 }
 
-// ── Plan structure: the architecture controls ───────────────────────────
-// A real plan is not one growth rate. It is a shape: safe money for the next
-// few years, a growth engine behind it, and written rules for when to trim.
-const ARCH_PRESET = DERISKING_ARCHITECTURE;
-
-function ArchitectureSection({ plan, update }: { plan: any; update: (p: any) => void }) {
-  const A = plan.architecture || {};
-  // Keep the recorded approach in step with the switch, so the two can never
-  // disagree about what the plan is doing.
-  const set = (patch: any) => update((p: any) => ({
-    ...p,
-    ...(patch.on === undefined ? {} : { approach: patch.on ? 'derisking' : 'traditional' }),
-    architecture: { ...p.architecture, ...patch },
-  }));
-  const on = !!A.on;
+// Your details — the same "build your sky" interface used at setup, so the
+// whole product is learned once. Each point of light opens only the figures
+// that belong to it; nothing is reachable from two places.
+function DetailsBody({ plan, update, reset, plus, onUpgrade, issues = [], viz, horizonYear, lasts, dryYear }: {
+  plan: any; update: (p: any) => void; reset: () => void; plus: boolean; onUpgrade: () => void;
+  issues?: { path: string; message: string; level: string }[];
+  viz: any; horizonYear: number; lasts: boolean; dryYear?: number | null;
+}) {
   return (
-    <>
-      <Group title="Plan structure">
-        <Toggle label="Model the plan's structure, not one growth rate" checked={on} onChange={v => set({ on: v })} />
-        <p className="text-[0.78rem] leading-relaxed" style={{ color: 'var(--color-ink-faint)' }}>
-          Off, everything grows at a single rate. On, your money is split into a <b>gilt ladder</b> holding the next
-          few years of spending and a <b>growth engine</b>, with an annual top-up and written rules for trimming.
-          It is how a real plan survives a bad decade — and it is measured, not assumed: see Explore.
-        </p>
-        {!on && (
-          <button onClick={() => set(ARCH_PRESET)}
-            className="w-full rounded-2xl py-3 font-bold text-[0.95rem] text-[var(--color-ink)] active:scale-[0.98] transition-transform"
-            style={{ background: 'var(--color-calm)' }}>
-            Set up the standard architecture
-          </button>
-        )}
-      </Group>
-
-      {on && <>
-      <Group title="The gilt ladder (your envelopes)">
-        <NumField label="Years of spending held in gilts" value={A.ladderYears ?? 7} onChange={v => set({ ladderYears: Math.max(0, Math.min(15, v)) })} />
-        <span className="block text-[0.8rem] font-semibold" style={{ color: 'var(--color-ink-dim)' }}>The conveyor belt</span>
-        <Segmented small value={A.refill || 'whenUp'} onChange={(v: string) => set({ refill: v })}
-          options={[{ value: 'whenUp', label: 'Top up only after a good year' }, { value: 'always', label: 'Top up every year' }]} />
-        <p className="text-[0.78rem] leading-relaxed" style={{ color: 'var(--color-ink-faint)' }}>
-          Each envelope is sized to one year's spending after your guaranteed income. Spending comes out of the
-          envelopes, so the engine is never sold into a fallen market. Index-linked gilts held to maturity are
-          modelled as a known real return — which is the whole point of the ladder.
-        </p>
-        <PctField label="Gilt real return (after inflation)" value={A.giltReal ?? 0.015} onChange={v => set({ giltReal: v })} />
-      </Group>
-
-      <Group title="The growth engine">
-        <PctField label="Equity real return" value={A.equityReal ?? 0.05} onChange={v => set({ equityReal: v })} />
-        <PctField label="Equity volatility" value={A.equitySd ?? 0.16} onChange={v => set({ equitySd: v })} />
-        <PctField label="Gold & diversifiers — share of the engine" value={A.goldPct ?? 0.15} onChange={v => set({ goldPct: v })} />
-        <PctField label="Gold real return" value={A.goldReal ?? 0.01} onChange={v => set({ goldReal: v })} />
-        <p className="text-[0.78rem] leading-relaxed" style={{ color: 'var(--color-ink-faint)' }}>
-          A single low-cost global all-world fund is the usual engine. Returns here are <b>real</b> — the Poor /
-          Base / Positive lens shifts them all together.
-        </p>
-      </Group>
-
-      <Group title="Written spending rules">
-        <Toggle label="Trim and treat on a funded-ratio trigger" checked={A.rulesOn !== false} onChange={v => set({ rulesOn: v })} />
-        <p className="text-[0.78rem] leading-relaxed" style={{ color: 'var(--color-ink-faint)' }}>
-          The funded ratio is everything you have, over everything you still need to a conservative age — so the
-          rule fires on the plan's health, not on a market headline.
-        </p>
-        <NumField label="Longevity age used as the denominator" value={A.longevityAge ?? 95} onChange={v => set({ longevityAge: v })} />
-        <PctField label="Trim spending when the ratio falls below" value={A.cutBelow ?? 0.9} onChange={v => set({ cutBelow: v })} />
-        <PctField label="…trim by" value={A.cutBy ?? 0.1} onChange={v => set({ cutBy: v })} />
-        <PctField label="Allow a treat when the ratio is above" value={A.raiseAbove ?? 1.25} onChange={v => set({ raiseAbove: v })} />
-        <NumField label="…only after this many good years (the lag)" value={A.raiseLagYears ?? 2} onChange={v => set({ raiseLagYears: v })} />
-        <PctField label="Never trim below this share of plan spending" value={A.floorMult ?? 0.75} onChange={v => set({ floorMult: v })} />
-      </Group>
-
-      <Group title="The annuity review">
-        <Toggle label="Buy guaranteed income at a planned date" checked={!!A.annuityOn} onChange={v => set({ annuityOn: v })} />
-        {A.annuityOn && <>
-          <NumField label="Year of the review" value={A.annuityYear ?? 2037} onChange={v => set({ annuityYear: v })} />
-          <MoneyField label="Amount to convert (today's money)" value={A.annuityAmount ?? 150000} onChange={v => set({ annuityAmount: v })} />
-          <PctField label="Annuity rate" value={A.annuityRate ?? 0.06} onChange={v => set({ annuityRate: v })} />
-          <Toggle label="Rises with inflation" checked={A.annuityIndexed !== false} onChange={v => set({ annuityIndexed: v })} />
-          <p className="text-[0.78rem]" style={{ color: 'var(--color-ink-faint)' }}>
-            Converts part of the pension into taxable income for life. Rates quoted today are a guide only — an
-            advice-grade decision to take with quotes in hand.
-          </p>
-        </>}
-      </Group>
-
-      <Group title="Care, and the house as a parachute">
-        <Toggle label="Model a block of care costs" checked={!!A.careOn} onChange={v => set({ careOn: v })} />
-        {A.careOn && <>
-          <NumField label="From age" value={A.careFromAge ?? 85} onChange={v => set({ careFromAge: v })} />
-          <MoneyField label="Cost a year (today's money)" value={A.careAnnual ?? 45000} onChange={v => set({ careAnnual: v })} />
-          <NumField label="For how many years" value={A.careYears ?? 4} onChange={v => set({ careYears: v })} />
-        </>}
-        <Toggle label="Release housing wealth if the plan goes off track" checked={!!A.parachuteOn} onChange={v => set({ parachuteOn: v })} />
-        {A.parachuteOn && <>
-          <NumField label="Not before age" value={A.parachuteFrom ?? 80} onChange={v => set({ parachuteFrom: v })} />
-          <PctField label="Only if the funded ratio falls below" value={A.parachuteBelow ?? 0.75} onChange={v => set({ parachuteBelow: v })} />
-          <PctField label="Share of the house released" value={A.parachuteFraction ?? 0.5} onChange={v => set({ parachuteFraction: v })} />
-        </>}
-        <p className="text-[0.78rem] leading-relaxed" style={{ color: 'var(--color-ink-faint)' }}>
-          The house stays out of core funding — it is released once, late, and only if the plan is genuinely off track.
-        </p>
-      </Group>
-
-      <Group title="How the verdict is judged">
-        <span className="block text-[0.8rem] font-semibold" style={{ color: 'var(--color-ink-dim)' }}>How much a lean year hurts</span>
-        <Segmented small value={String(A.riskAversion ?? 4)} onChange={(v: string) => set({ riskAversion: Number(v) })}
-          options={[{ value: '2', label: 'Relaxed' }, { value: '4', label: 'Typical' }, { value: '8', label: 'Cautious' }]} />
-        <p className="text-[0.78rem] leading-relaxed" style={{ color: 'var(--color-ink-faint)' }}>
-          Explore answers <b>is the structure worth it</b> by comparing the spending each plan actually delivers, not
-          by counting survivals — a rule that trims spending must not score as a win for cutting what you live on.
-          This setting says how much more a lean year hurts than a plump one helps, which is what decides the verdict.
-        </p>
-      </Group>
-
-      <Group title="Stress the sequence">
-        <span className="block text-[0.8rem] font-semibold" style={{ color: 'var(--color-ink-dim)' }}>Force a historic bad start</span>
-        <Segmented small value={A.stressPath || 'none'} onChange={(v: string) => set({ stressPath: v })}
-          options={[{ value: 'none', label: 'Normal' }, { value: 'japan', label: 'Japan 1990' },
-                    { value: 'gfc', label: 'GFC 2008' }, { value: 'stagflation', label: '1970s' }]} />
-        <p className="text-[0.78rem] leading-relaxed" style={{ color: 'var(--color-ink-faint)' }}>
-          Replays an approximate historic real-return sequence through your growth engine from the year you stop
-          work. Illustrative shapes of a bad decade, not precise history.
-        </p>
-      </Group>
-      </>}
-    </>
-  );
-}
-
-function Group({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <section>
-      <h3 className="text-[0.72rem] font-bold uppercase tracking-widest mb-3" style={{ color: 'var(--color-ink-faint)' }}>{title}</h3>
-      <div className="space-y-3">{children}</div>
-    </section>
-  );
-}
-
-// Aggregate a scheme list into what the tax engine needs: total value, total
-// accessed, and a blended tax-free rate weighted by untouched value.
-function aggregatePots(pots: any[]) {
-  const val = (q: any) => Number(q.value) || 0;
-  const acc = (q: any) => Math.min(Number(q.accessed) || 0, val(q));
-  const unc = (q: any) => Math.max(0, val(q) - acc(q));
-  const totalUnc = pots.reduce((s, q) => s + unc(q), 0);
-  return {
-    pension: pots.reduce((s, q) => s + val(q), 0),
-    crystallised: pots.reduce((s, q) => s + acc(q), 0),
-    tfcRate: totalUnc > 0
-      ? pots.reduce((s, q) => s + ((Number(q.tfcPct) || 25) / 100) * unc(q), 0) / totalUnc
-      : 0.25,
-  };
-}
-
-function SchemeList({ who, set }: { who: any; set: (patch: any) => void }) {
-  const pots = who.pots || [];
-  const commit = (next: any[]) => set({ pots: next, ...aggregatePots(next) });
-  const edit = (i: number, patch: any) => commit(pots.map((q: any, j: number) => (j === i ? { ...q, ...patch } : q)));
-  const add = () => commit([...pots, pots.length === 0
-    ? { label: 'Scheme 1', value: who.pension || 0, accessed: who.crystallised || 0, tfcPct: 25 }
-    : { label: `Scheme ${pots.length + 1}`, value: 0, accessed: 0, tfcPct: 25 }]);
-  const del = (i: number) => commit(pots.filter((_: any, j: number) => j !== i));
-  return (
-    <div className="rounded-2xl p-3 space-y-3" style={{ background: 'var(--color-canvas)' }}>
-      <div className="flex items-baseline justify-between gap-2">
-        <span className="text-[0.8rem] font-semibold" style={{ color: 'var(--color-ink-dim)' }}>Pension schemes (DC)</span>
-        {pots.length > 0 && (
-          <span className="tnum text-[0.72rem] text-right" style={{ color: 'var(--color-ink-faint)' }}>
-            total {fmtK(who.pension || 0)} · untouched {fmtK(Math.max(0, (who.pension || 0) - (who.crystallised || 0)))} · tax-free {Math.round((who.tfcRate ?? 0.25) * 100)}%
-          </span>
-        )}
-      </div>
-      {pots.map((q: any, i: number) => (
-        <div key={i} className="rounded-xl p-3 space-y-2" style={{ background: 'var(--color-surface)', border: '1px solid var(--color-hairline)' }}>
-          <div className="flex items-center gap-2">
-            <input className="flex-1 bg-transparent outline-none font-semibold text-[0.92rem]" value={q.label}
-              onChange={e => edit(i, { label: e.target.value })} aria-label="Scheme name" />
-            <button onClick={() => del(i)} aria-label="Remove scheme" style={{ color: 'var(--color-ink-faint)' }}><X size={15} /></button>
-          </div>
-          <div className="grid grid-cols-2 gap-2">
-            <MoneyField label="Value" value={q.value || 0} onChange={v => edit(i, { value: v })} />
-            <MoneyField label="Already accessed" value={q.accessed || 0} onChange={v => edit(i, { accessed: v })} />
-          </div>
-          <NumField label="Tax-free entitlement (25 unless protected)" value={q.tfcPct ?? 25} suffix="%" onChange={v => edit(i, { tfcPct: v })} />
-        </div>
-      ))}
-      <button onClick={add} className="flex items-center justify-center gap-1.5 w-full rounded-xl py-2.5 text-[0.85rem] font-semibold"
-        style={{ background: 'var(--color-surface)', color: 'var(--color-calm-strong)', border: '1px solid var(--color-hairline)' }}>
-        <Plus size={15} /> Add a scheme
-      </button>
-    </div>
-  );
-}
-
-function PartnerCard({ p, name, set, adv }: { p: any; name: 'partnerA' | 'partnerB'; set: (patch: any) => void; adv?: boolean }) {
-  const plan = p;
-  const who = p[name];
-  const hasPots = (who.pots || []).length > 0;
-  return (
-    <Group title={who.name}>
-      {!(adv && hasPots) &&
-        <MoneyField label="Workplace pension (defined contribution) today" value={who.pension}
-          onChange={v => set({ pension: v, pots: [], tfcRate: 0.25 })} />}
-      {adv && <SchemeList who={who} set={set} />}
-      <MoneyField label="Paying into pension monthly" value={who.monthlyPension} onChange={v => set({ monthlyPension: v })} />
-      <MoneyField label="Company / final-salary (defined benefit) pension a year" value={who.db} onChange={v => set({ db: v })} />
-      {who.db > 0 && <>
-        <NumField label="…starts in (year)" value={who.dbStartYear} onChange={v => set({ dbStartYear: v })} />
-        <Toggle label="…rises with inflation" checked={!!who.dbIndexed} onChange={v => set({ dbIndexed: v })} />
-      </>}
-      <div>
-        <span className="block text-[0.8rem] font-semibold mb-1.5" style={{ color: 'var(--color-ink-dim)' }}>Public-sector pensions (NHS, Teachers’, LGPS, Civil Service, Police, Fire, Forces)</span>
-        <SchemePensions plan={p} who={who} set={set} adv={adv} />
-      </div>
-      <MoneyField label="ISAs today" value={who.isa} onChange={v => set({ isa: v })} />
-      <MoneyField label="Paying into ISAs monthly" value={who.monthlyIsa} onChange={v => set({ monthlyIsa: v })} />
-      <Accordion title="Still working, charges and relief">
-        <MoneyField label="Salary a year while still working (today's money)" value={who.income || 0} onChange={v => set({ income: v })}
-          hint="Taxed as earnings in any year this person is still working after the household stop year." />
-        <NumField label={`Stops work in (year; the household year is ${plan.retireYear})`} value={who.stopYear || plan.retireYear}
-          min={plan.retireYear} max={plan.startYear + 60}
-          onChange={v => set({ stopYear: v > plan.retireYear ? v : null })} />
-        <Toggle label="Pension contributions entered after basic-rate relief (grossed up by 25%)" checked={!!who.contribGrossUp} onChange={v => set({ contribGrossUp: v })} />
-        {adv && who.db > 0 && <MoneyField label="DB transfer value (CETV), if quoted" value={who.dbTransferValue || 0} onChange={v => set({ dbTransferValue: v })} />}
-      </Accordion>
-      <Accordion title="Already taken tax-free cash or accessed the pension?">
-        <MoneyField label="Tax-free cash already taken" value={who.pclsTaken || 0} onChange={v => set({ pclsTaken: v })} />
-        {adv && hasPots ? (
-          <p className="text-[0.78rem]" style={{ color: 'var(--color-ink-faint)' }}>
-            Accessed amounts come from your scheme list above ({fmtK(who.crystallised || 0)} in total).
-          </p>
-        ) : (
-          <MoneyField label="Pension already accessed (crystallised)" value={who.crystallised || 0} onChange={v => set({ crystallised: v })} />
-        )}
-        <p className="text-[0.78rem] leading-relaxed" style={{ color: 'var(--color-ink-faint)' }}>
-          Only the untouched part of a pension can still pay 25% tax-free, and the lifetime cash cap
-          (£268,275) is reduced by what you've already taken. New contributions rebuild the untouched part.
-        </p>
-      </Accordion>
-      <Accordion title="More — State Pension, pension age and how long to plan for">
-        <NumField label="Birth year" value={who.birthYear} min={1920} max={plan.startYear - 16} onChange={v => set({ birthYear: v })} />
-        <NumField label={`State Pension age (${(E as any).spaFor(who.birthYear)} for a ${who.birthYear} birth; change only if you know otherwise)`}
-          value={(E as any).spAgeOf(who)} min={60} max={75} onChange={v => set({ spAge: v === (E as any).spaFor(who.birthYear) ? 0 : v })} />
-        <MoneyField label="State Pension a year (today's money; full new rate £12,548)" value={who.spAmount} onChange={v => set({ spAmount: v })} />
-        <NumField label={`Earliest pension access age (${(E as any).nmpaFor({ ...who, pensionAccessAge: null })} by law for a ${who.birthYear} birth; enter a protected age if you have one)`}
-          value={(E as any).nmpaFor(who)} min={50} max={75}
-          onChange={v => set({ pensionAccessAge: v === (E as any).nmpaFor({ ...who, pensionAccessAge: null }) ? null : v })} />
-        <NumField label={`Plan for ${who.name} to age (blank or 0 = the plan horizon; after this the survivor is modelled alone)`}
-          value={who.deathAge || 0} min={0} max={110} onChange={v => set({ deathAge: v > 0 ? v : null })}
-          hint="After a death: that State Pension stops, the survivor receives the scheme survivor pension, inherits the pots (tax-free when death is before 75), and spends the survivor share set under Plan." />
-      </Accordion>
-    </Group>
-  );
-}
-
-function DetailsBody({ plan, update, reset, initial, plus, onUpgrade, issues = [] }: { plan: any; update: (p: any) => void; reset: () => void; initial?: 'plan' | 'people' | 'later' | 'arch'; plus: boolean; onUpgrade: () => void; issues?: { path: string; message: string; level: string }[] }) {
-  const setA = (patch: any) => update((p: any) => ({ ...p, partnerA: { ...p.partnerA, ...patch } }));
-  const setB = (patch: any) => update((p: any) => ({ ...p, partnerB: { ...p.partnerB, ...patch } }));
-  const setInherit = (patch: any) => update((p: any) => ({ ...p, inherit: { ...p.inherit, ...patch } }));
-  const addEvent = (kind: string) => update((p: any) => ({
-    ...p, lifeEvents: [...(p.lifeEvents || []), { year: p.retireYear + 2, label: kind === 'cost' ? 'One-off cost' : 'Windfall', amount: kind === 'cost' ? 20000 : 40000, kind, invest: kind !== 'cost' }],
-  }));
-  const setEvent = (i: number, patch: any) => update((p: any) => ({ ...p, lifeEvents: p.lifeEvents.map((e: any, j: number) => j === i ? { ...e, ...patch } : e) }));
-  const delEvent = (i: number) => update((p: any) => ({ ...p, lifeEvents: p.lifeEvents.filter((_: any, j: number) => j !== i) }));
-  const [sect, setSect] = useState<'plan' | 'people' | 'later' | 'arch'>(initial ?? 'plan');
-
-  // Landing on a fresh segment should start at its top, not mid-scroll.
-  useEffect(() => { document.querySelector('[data-sheet-scroll]')?.scrollTo({ top: 0 }); }, [sect]);
-
-  return (
-    <div className="space-y-6 pb-2">
-      {/* Segment the sheet so it's never one long scroll (UX audit fix). */}
-      <div className="sticky top-0 z-10 -mx-6 px-6 pb-2" style={{ background: 'color-mix(in srgb, var(--color-surface) 92%, transparent)' }}>
-        <Segmented small value={sect} onChange={setSect}
-          options={[{ value: 'plan', label: 'Plan' }, { value: 'people', label: 'People' },
-                    { value: 'later', label: 'Later' }, { value: 'arch', label: 'Structure' }]} />
-      </div>
-
-      {sect === 'plan' && <>
-      {issues.length > 0 && (
-        <div className="rounded-2xl p-3 space-y-1" role="alert"
-             style={{ background: 'color-mix(in srgb, var(--color-hope) 12%, var(--color-canvas))', border: '1px solid color-mix(in srgb, var(--color-hope) 40%, transparent)' }}>
-          {issues.map((i, k) => (
-            <div key={k} className="flex items-start gap-2 text-[0.8rem] leading-snug" style={{ color: i.level === 'error' ? 'var(--color-hope)' : 'var(--color-ink-dim)' }}>
-              <AlertTriangle size={14} className="shrink-0 mt-0.5" /> <span>{i.message}</span>
-            </div>
-          ))}
-        </div>
-      )}
-      <Group title="Who the plan is for">
-        <Segmented small value={isSingle(plan) ? 'single' : 'couple'} onChange={(v: string) => update({ household: v })}
-          options={[{ value: 'couple', label: 'A couple' }, { value: 'single', label: 'Just me' }]} />
-        <p className="text-[0.78rem]" style={{ color: 'var(--color-ink-faint)' }}>
-          {isSingle(plan) ? 'One person: one State Pension, one allowance, one nil-rate band. Partner figures are ignored.' : 'Two people taxed as two individuals, planned to the later horizon, with the survivor modelled after a first death.'}
-        </p>
-        {!isSingle(plan) && <PctField label="Survivor spends (share of the couple's spending)" value={plan.survivorSpend ?? 0.75} onChange={v => update({ survivorSpend: v })} />}
-      </Group>
-      <Group title="Your Someday">
-        <NumField label="Retire in year" value={plan.retireYear} min={plan.startYear} max={plan.startYear + 50} onChange={v => update({ retireYear: v })} />
-        <MoneyField label="Income you want each year" value={plan.targetNet} onChange={v => update({ targetNet: v, spendingPlanOn: false })} />
-        <NumField label="Plan through to age" value={plan.horizonAge} min={plan.retireYear - plan.partnerA.birthYear + 1} max={110} onChange={v => update({ horizonAge: v })} />
-      </Group>
-      <Group title="How your money is invested">
-        <Segmented small value={plan.riskPreset || 'custom'} onChange={(v: string) => update((p: any) => v === 'custom' ? { ...p, riskPreset: null } : (E as any).applyRiskPreset(p, v))}
-          options={[{ value: 'cautious', label: 'Cautious', sub: '~40% shares' }, { value: 'balanced', label: 'Balanced', sub: '~70% shares' }, { value: 'adventurous', label: 'Adventurous', sub: 'all shares' }, { value: 'custom', label: 'Custom' }]} />
-        <p className="text-[0.78rem]" style={{ color: 'var(--color-ink-faint)' }}>
-          Sets the Poor / Base / Positive growth lenses, the simulation’s spread and the share of your money the stress tests hit together. Custom keeps whatever you set under Later.
-        </p>
-        <PctField label="Charges a year (platform and funds, taken off every return)" value={plan.fee || 0} onChange={v => update({ fee: v, riskPreset: plan.riskPreset })} />
-      </Group>
-      <Group title="Where you pay income tax">
-        <Segmented small value={plan.tax?.region || 'ruk'}
-          onChange={(v: string) => update((p: any) => ({ ...p, tax: { ...p.tax, region: v } }))}
-          options={[{ value: 'ruk', label: 'England, Wales & NI' }, { value: 'scotland', label: 'Scotland' }]} />
-        <p className="text-[0.78rem]" style={{ color: 'var(--color-ink-faint)' }}>
-          Scottish income-tax bands differ (19%–48%). Every figure in the app recalculates on your choice.
-        </p>
-        <Toggle label="Tax thresholds rise with inflation from April 2031 (the announced freeze ends then)" checked={plan.tax?.indexation !== 'frozen'}
-          onChange={v => update((p: any) => ({ ...p, tax: { ...p.tax, indexation: v ? 'cpi' : 'frozen' } }))} />
-        <p className="text-[0.78rem]" style={{ color: 'var(--color-ink-faint)' }}>
-          Off assumes the personal allowance and bands stay frozen for the whole plan, which overstates lifetime tax over thirty years.
-        </p>
-      </Group>
-      <Group title="How you draw it">
-        <span className="block text-[0.8rem] font-semibold" style={{ color: 'var(--color-ink-dim)' }}>Tax-free cash</span>
-        <Segmented small value={plan.pclsMode} onChange={(v: string) => update({ pclsMode: v })}
-          options={[{ value: 'none', label: 'Take none' }, { value: 'phased', label: 'A little each year' }, { value: 'upfront', label: 'All at once' }]} />
-        <p className="text-[0.78rem] leading-relaxed" style={{ color: 'var(--color-ink-faint)' }}>
-          {plan.pclsMode === 'none' && 'Draws everything as taxable income and never uses the tax-free entitlement — the simplest, but usually the most tax paid.'}
-          {plan.pclsMode === 'phased' && 'Crystallises a slice with each withdrawal, so a quarter of each draw is tax-free — often the most tax-efficient, if you still have untouched pension and cap.'}
-          {plan.pclsMode === 'upfront' && 'Takes all available tax-free cash at retirement and reinvests it — certainty now, but future growth on it sits outside the pension wrapper.'}
-          {' '}Capped at £268,275 across your lifetime, less anything already taken (set under People).
-        </p>
-        <span className="block text-[0.8rem] font-semibold pt-1" style={{ color: 'var(--color-ink-dim)' }}>Which pot first</span>
-        <Segmented small value={plan.strategy} onChange={(v: string) => update({ strategy: v })}
-          options={[{ value: 'sippfirst', label: 'Pensions' }, { value: 'isafirst', label: 'ISAs' }, { value: 'pafirst', label: 'Allowances' }]} />
-        <p className="text-[0.78rem] leading-relaxed" style={{ color: 'var(--color-ink-faint)' }}>
-          {plan.strategy === 'sippfirst' && 'Draws pensions up to the cheap tax bands first, topping up from ISAs — keeps ISAs growing tax-free for later.'}
-          {plan.strategy === 'isafirst' && 'Spends ISAs first and defers pensions — can preserve pension tax shelter, at the cost of using up the tax-free pot early.'}
-          {plan.strategy === 'pafirst' && 'Takes only what the free personal allowances cover from pensions, then ISAs — minimises tax now, draws pensions slowly.'}
-          {' '}This is an advice-grade decision — compare the lifetime tax of all three in Explore, and talk it through with an adviser before acting.
-        </p>
-      </Group>
-      <Group title="Your plan file">
-        <div className="flex gap-2">
-          <button onClick={() => {
-              const blob = new Blob([exportPlanJson(plan)], { type: 'application/json' });
-              const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
-              a.download = `someday-plan-${new Date().toISOString().slice(0, 10)}.json`; a.click();
-              setTimeout(() => URL.revokeObjectURL(a.href), 2000);
-            }} className="flex-1 flex items-center justify-center gap-1.5 rounded-2xl py-2.5 min-h-[44px] text-[0.85rem] font-semibold"
-            style={{ background: 'var(--color-canvas)', color: 'var(--color-calm-strong)', border: '1px solid var(--color-hairline)' }}>
-            <Download size={15} /> Export plan
-          </button>
-          <label className="flex-1 flex items-center justify-center gap-1.5 rounded-2xl py-2.5 min-h-[44px] text-[0.85rem] font-semibold cursor-pointer"
-            style={{ background: 'var(--color-canvas)', color: 'var(--color-calm-strong)', border: '1px solid var(--color-hairline)' }}>
-            <Upload size={15} /> Import plan
-            <input type="file" accept="application/json,.json" className="sr-only" onChange={async e => {
-              const file = e.target.files && e.target.files[0]; if (!file) return;
-              try { const p = importPlanJson(await file.text()); update(() => p); }
-              catch (err: any) { window.alert('That file is not a Someday plan: ' + (err && err.message || err)); }
-              e.target.value = '';
-            }} />
-          </label>
-        </div>
-        <p className="text-[0.75rem]" style={{ color: 'var(--color-ink-faint)' }}>
-          A plain JSON file, for your own backup or to move between devices. Nothing is uploaded anywhere.
-        </p>
-      </Group>
-      <div className="pt-2">
-        <button onClick={reset}
-          className="flex items-center justify-center gap-2 w-full rounded-2xl py-3 font-semibold text-[0.9rem] active:scale-[0.98] transition-transform"
-          style={{ background: 'var(--color-canvas)', color: 'var(--color-hope)', border: '1px solid var(--color-hairline)' }}>
-          <RotateCcw size={16} /> Start over — clear everything
-        </button>
-        <p className="mt-2 text-center text-[0.75rem]" style={{ color: 'var(--color-ink-faint)' }}>
-          Wipes every figure on this device and returns to the welcome screen.
-        </p>
-      </div>
-      </>}
-
-      {sect === 'people' && <>
-      {plus ? (
-        <div>
-          <Toggle label="Advanced — schemes, allowances & transfer values" checked={!!plan.advanced} onChange={v => update({ advanced: v })} />
-          <p className="text-[0.78rem] mt-1" style={{ color: 'var(--color-ink-faint)' }}>
-            For multiple pensions with different histories, protected tax-free cash, the allowance taper and DB transfer values.
-          </p>
-        </div>
-      ) : (
-        <Locked compact title="Advanced detail" onUpgrade={onUpgrade}
-          line="Several pensions with different histories, protected tax-free cash, the allowance taper and DB transfer values." />
-      )}
-      <PartnerCard p={plan} name="partnerA" set={setA} adv={plus && !!plan.advanced} />
-      {!isSingle(plan) && <PartnerCard p={plan} name="partnerB" set={setB} adv={plus && !!plan.advanced} />}
-      </>}
-
-      {sect === 'arch' && (plus
-        ? <ArchitectureSection plan={plan} update={update} />
-        : <Locked title="Plan structure" onUpgrade={onUpgrade}
-            line={(plan.architecture?.on
-              ? 'Your plan runs the de-risking structure you chose — a gilt ladder, a growth engine and written spending rules. Plus lets you tune every part of it and measures whether it earns its keep.'
-              : 'Model a gilt ladder, a growth engine and written spending rules instead of one growth rate — then see, measured on your own figures, whether the structure is worth it.')} />)}
-
-      {sect === 'later' && <>
-      <Group title="Spending as you age">
-        <p className="text-[0.82rem]" style={{ color: 'var(--color-ink-dim)' }}>Most people spend less later. Both figures are measured against your full retirement spend — so {pct(plan.phase2Cut, 0)} at {plan.phase2Age} means {pct(1 - plan.phase2Cut, 0)} of today's plan, not a cut on top of the first.</p>
-        <Toggle label={`Ease spending from ${plan.phase1Age}`} checked={plan.phase1On} onChange={v => update({ phase1On: v })} />
-        {plan.phase1On && <div className="grid grid-cols-2 gap-3">
-          <NumField label="From age" value={plan.phase1Age} onChange={v => update({ phase1Age: v })} />
-          <PctField label="Spend less by" value={plan.phase1Cut} onChange={v => update({ phase1Cut: v })} />
-        </div>}
-        <Toggle label={`A deeper step-down from ${plan.phase2Age}`} checked={plan.phase2On} onChange={v => update({ phase2On: v })} />
-        {plan.phase2On && <div className="grid grid-cols-2 gap-3">
-          <NumField label="From age" value={plan.phase2Age} onChange={v => update({ phase2Age: v })} />
-          <PctField label="Spend less by (total)" value={plan.phase2Cut} onChange={v => update({ phase2Cut: v })} />
-        </div>}
-      </Group>
-
-      <Group title="The lens">
-        <p className="text-[0.82rem]" style={{ color: 'var(--color-ink-dim)' }}>Three futures, not one guess. Most people leave these.</p>
-        <div className="grid grid-cols-3 gap-2">
-          <PctField label="Poor" value={plan.growthBear} onChange={v => update({ growthBear: v, riskPreset: null })} />
-          <PctField label="Base" value={plan.growthBase} onChange={v => update({ growthBase: v, riskPreset: null })} />
-          <PctField label="Positive" value={plan.growthBull} onChange={v => update({ growthBull: v, riskPreset: null })} />
-        </div>
-        <div className="grid grid-cols-2 gap-3">
-          <PctField label="Volatility (a year)" value={plan.mcSd} onChange={v => update({ mcSd: v, riskPreset: null })} />
-          <PctField label="Share in shares (stress tests)" value={plan.equityShare ?? 1} onChange={v => update({ equityShare: v, riskPreset: null })} />
-        </div>
-        <PctField label="Inflation" value={plan.inflation} onChange={v => update({ inflation: v })} />
-      </Group>
-
-      <Group title="Life events">
-        <Toggle label="Expect an inheritance" checked={plan.inherit?.on} onChange={v => setInherit({ on: v })} />
-        {plan.inherit?.on && <div className="grid grid-cols-2 gap-3">
-          <NumField label="Year" value={plan.inherit.year} onChange={v => setInherit({ year: v })} />
-          <MoneyField label="Amount" value={plan.inherit.amount} onChange={v => setInherit({ amount: v })} />
-        </div>}
-        {(plan.lifeEvents || []).map((e: any, i: number) => (
-          <div key={i} className="rounded-2xl p-3" style={{ background: 'var(--color-canvas)' }}>
-            <div className="flex items-center gap-2">
-              <input className="flex-1 bg-transparent outline-none font-semibold text-[0.95rem]" value={e.label}
-                onChange={ev => setEvent(i, { label: ev.target.value })} />
-              <button onClick={() => delEvent(i)} style={{ color: 'var(--color-ink-faint)' }}><X size={16} /></button>
-            </div>
-            <div className="grid grid-cols-2 gap-2 mt-2">
-              <NumField label="Year" value={e.year} onChange={v => setEvent(i, { year: v })} />
-              <MoneyField label="Amount" value={e.amount} onChange={v => setEvent(i, { amount: v })} />
-            </div>
-            <div className="mt-2"><Segmented small value={e.kind} onChange={(v: string) => setEvent(i, { kind: v, invest: v === 'income' ? e.invest : false })}
-              options={[{ value: 'cost', label: 'Cost' }, { value: 'income', label: 'Windfall' }, { value: 'earned', label: 'Earnings (taxed)' }]} /></div>
-            {e.kind === 'earned' && !isSingle(plan) && <div className="mt-2"><Segmented small value={e.who || 'A'} onChange={(v: string) => setEvent(i, { who: v })}
-              options={[{ value: 'A', label: `${plan.partnerA.name} earns it` }, { value: 'B', label: `${plan.partnerB.name} earns it` }]} /></div>}
-          </div>
-        ))}
-        <div className="flex gap-2">
-          <button onClick={() => addEvent('cost')} className="flex-1 flex items-center justify-center gap-1.5 rounded-2xl py-2.5 text-[0.85rem] font-semibold"
-            style={{ background: 'var(--color-canvas)', color: 'var(--color-calm-strong)' }}><Plus size={15} /> Add a cost</button>
-          <button onClick={() => addEvent('income')} className="flex-1 flex items-center justify-center gap-1.5 rounded-2xl py-2.5 text-[0.85rem] font-semibold"
-            style={{ background: 'var(--color-canvas)', color: 'var(--color-calm-strong)' }}><Plus size={15} /> Add a windfall</button>
-        </div>
-      </Group>
-      </>}
-    </div>
+    <Constellation plan={plan} update={update} reset={reset} plus={plus} onUpgrade={onUpgrade}
+      issues={issues} viz={viz} horizonYear={horizonYear} lasts={lasts} dryYear={dryYear} height={300} />
   );
 }
 

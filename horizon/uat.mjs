@@ -81,6 +81,12 @@ const tap = async t => {
   catch { try { await p.locator(`text=${t}`).first().click({ timeout: 2000 }); return true; } catch { return false; } }
 };
 const sheetOpen = async () => (await p.locator('[role=dialog]').count()) > 0;
+// Some controls (spending style, the lens) exist both on the Horizon and
+// inside a sheet — scope the tap so it can never hit the card behind.
+const tapInSheet = async t => {
+  try { await p.locator('[role=dialog]').getByRole('button', { name: t }).first().click({ timeout: 4000 }); return true; }
+  catch { return false; }
+};
 const closeSheet = async () => { if (await sheetOpen()) { await p.keyboard.press('Escape'); await wait(500); } };
 async function setRange(i, v) { try { await p.$$eval('input[type=range]', (els, [a, val]) => { const el = els[a]; if (!el) return; const s = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set; s.call(el, String(val)); el.dispatchEvent(new Event('input', { bubbles: true })); el.dispatchEvent(new Event('change', { bubbles: true })); }, [i, v]); } catch { /* ignore */ } }
 // Clear per-navigation (NOT via addInitScript — that would wipe storage on every
@@ -102,6 +108,22 @@ const fresh = async () => {
   await seedPlus();
   await p.reload({ waitUntil: 'networkidle' }); await wait(700);
 };
+const planOf = async () => p.evaluate(() => { try { return JSON.parse(localStorage.getItem('horizon-plan-v1') || '{}'); } catch { return {}; } });
+async function setField(label, value, which = 0) {
+  const inp = p.locator(`label:has-text(${JSON.stringify(label)}) input`).nth(which);
+  if (await inp.count() === 0) return false;
+  const before = await p.evaluate(() => localStorage.getItem('horizon-plan-v1'));
+  await inp.fill(String(value)); await wait(150); await inp.blur();
+  // Wait for the write rather than guessing: the commit lands inside a render
+  // that also recomputes the engine, so a fixed sleep is a flaky race.
+  for (let i = 0; i < 25; i++) {
+    if ((await p.evaluate(() => localStorage.getItem('horizon-plan-v1'))) !== before) break;
+    await wait(80);
+  }
+  await wait(120);
+  return true;
+}
+
 async function loadEx() { // robust: retry the example tap; wait for the plan to persist
   await fresh();
   for (let i = 0; i < 3; i++) { await tap('worked example'); await wait(1000); if (!/Begin/.test(await bodyT())) break; }
@@ -129,26 +151,41 @@ await fresh();
 await check('01 onboarding on first visit', async () => /stop/i.test(await h1()));
 await check('02 Begin button', () => has('Begin'));
 await check('03 example link', () => has('worked example'));
-await tap('Begin'); await wait(500);
-await check('04 advances to vision', async () => /Picture your Someday/i.test(await h1()));
-await check('05 vision slider present', async () => (await p.$$('input[type=range]')).length >= 1);
-await setRange(0, 10); await wait(200);
-await check('06 benchmark £22k', () => has('£22k'));
-await check('07 benchmark £43k', () => has('£43k'));
-await check('08 benchmark £59k', () => has('£59k'));
-await tap('£59k'); await wait(150);
-await check('09 £59k selects (field=59000)', async () => (await p.$eval('input[inputmode=decimal]', e => e.value)).replace(/\D/g, '') === '59000');
-await check('10 Continue button', () => has('Continue'));
-await tap('Continue'); await wait(500);
-await check('11 advances to starting-from', async () => /starting from/i.test(await h1()));
-await p.fill('input[placeholder=You]', 'Alex').catch(() => {}); await wait(120);
-await check('12 name accepts typing', async () => (await p.$eval('input[placeholder=You]', e => e.value)) === 'Alex');
-await check('13 numeric field present', async () => (await p.$$('input[inputmode=numeric]')).length >= 1);
-await check('14 money fields present', async () => (await p.$$('input[inputmode=decimal]')).length >= 2);
-await check('15 partner toggle present', () => $('[role=switch]'));
-await p.click('[role=switch]').catch(() => {}); await wait(300);
-await check('16 partner reveals fields', async () => (await p.$$('input[inputmode=decimal]')).length >= 4);
-await check('17 See-my-horizon button', () => has('See my horizon'));
+await tap('Begin'); await wait(600);
+// Setup is the sky itself: constellations filled in any order, not a form.
+await check('04 advances to the sky', async () => /Build your sky/i.test(await h1()));
+await check('05 four core constellations present', async () =>
+  (await p.locator('text=You & yours').count()) > 0 &&
+  (await p.locator("text=What you've saved").count()) > 0 &&
+  (await p.locator('text=Your someday').count()) > 0 &&
+  (await p.locator("text=What's promised").count()) > 0);
+await check('06 the ghosted horizon is drawn behind them', async () => (await p.$$('svg')).length >= 1);
+await check('07 cannot continue with nothing saved', async () =>
+  /Add what/i.test(await p.$$eval('button', els => els.map(e => e.textContent).join(' '))));
+// You & yours
+await tap('You & yours'); await wait(600);
+await check('08 identity editor opens', () => has('Your name'));
+await p.fill('input[placeholder=You]', 'Alex').catch(() => {}); await wait(200);
+await check('09 name accepts typing', async () => (await p.$eval('input[placeholder=You]', e => e.value)) === 'Alex');
+await check('10 birth year field present', async () => (await p.$$('input[inputmode=numeric]')).length >= 1);
+await check('10b household choice lives here', async () => (await has('A couple')) && (await has('Just me')));
+await tap('Done'); await wait(600);
+// What you've saved — the one constellation the picture cannot do without
+await tap("What you've saved"); await wait(600);
+await check('11 savings editor opens', () => has('Workplace pension'));
+await setField('Workplace pension', 250000);
+await check('12 pension captured', async () => (await planOf()).partnerA?.pension === 250000);
+await setField('ISAs today', 40000);
+await check('13 ISA captured', async () => (await planOf()).partnerA?.isa === 40000);
+await tap('Done'); await wait(700);
+// Your someday
+await tap('Your someday'); await wait(600);
+await check('14 someday editor opens', () => has('Income you want each year'));
+await setField('Income you want each year', 48000);
+await check('15 target income captured', async () => (await planOf()).targetNet === 48000);
+await tap('Done'); await wait(600);
+await check('16 the sky records what you filled', async () => (await planOf()).partnerA?.pension > 0);
+await check('17 See-my-horizon now offered', () => has('See my horizon'));
 await tap('See my horizon'); await wait(900);
 // The disclaimer, accepted once before the first horizon
 await check('17a disclaimer shown once, before the horizon', async () => /calm place to think/i.test(await h1()));
@@ -193,27 +230,19 @@ await check('34 retire slider, no crash', () => pe.length === 0);
 await setRange(2, 4000); await wait(500);
 await check('35 save slider updates readout', async () => /4,000|4000/.test(await bodyT()));
 
-await loadEx(); await tap('Details'); await wait(600);
-await check('36 details segmented Plan/People/Later', async () => (await has('Plan')) && (await has('People')) && (await has('Later')));
+await loadEx(); await tap('Details'); await wait(700);
+// Editing is the same sky, so the interface is learned exactly once.
+await check('36 details opens the sky, not a form', async () =>
+  (await p.locator('text=You & yours').count()) > 0 && (await p.locator("text=How it's run").count()) > 0);
+// Your someday — when you stop, what you spend, and the life events around it
+await tap('Your someday'); await wait(500);
 await check('37 retire-in-year field', () => has('Retire in year'));
-await check('38 tax-free-cash options', () => has('Take none'));
-await check('38b income-tax region choice (Scotland)', () => has('Scotland'));
-await tap('A little each year'); await wait(400); await check('39 phased tax-free, no crash', () => pe.length === 0);
-await tap('All at once'); await wait(400); await check('40 upfront tax-free, no crash', () => pe.length === 0);
-await check('41 withdrawal-order options', async () => (await has('Pensions')) && (await has('Allowances')));
-await tap('ISAs'); await wait(400); await check('42 strategy switch, no crash', () => pe.length === 0);
-await tap('People'); await wait(400);
-await check('43 partner names present', async () => /Stuart|Carol/.test(await bodyT()));
-await check('44 pension pot field', () => has('Workplace pension'));
-await check('44b advanced-mode toggle present', () => has('Advanced'));
-await check('44c public-sector scheme pension can be added', () => has('Add an NHS'));
-await tap('More — State Pension'); await wait(500);
-await check('45 accordion opens (State Pension age)', () => has('State Pension age'));
-await tap('Later'); await wait(400);
-await check('46 spending step-down toggle', () => has('Ease spending from'));
-await p.$$eval('[role=switch]', e => e[0] && e[0].click()).catch(() => {}); await wait(400);
-await check('47 step-down reveals fields', () => has('Spend less by'));
-await check('48 lens inflation field', () => has('Inflation'));
+await check('46 spending style offered', () => has('Go-go'));
+await tapInSheet('No-go'); await wait(400);
+await check('47a No-go flattens the spending plan', async () => { const q = await planOf(); return q.phase1On === false && q.phase2On === false; });
+await tapInSheet('Go-go'); await wait(400);
+await check('47b Go-go turns both step-downs on', async () => { const q = await planOf(); return q.phase1On === true && q.phase2On === true; });
+await check('47c step-down figures revealed', () => has('Spend less by'));
 await check('49 inheritance toggle', () => has('Expect an inheritance'));
 await check('50 add-a-cost button', () => has('Add a cost'));
 await tap('Add a cost'); await wait(400);
@@ -221,6 +250,29 @@ await check('51 adding a cost creates an event row', () => inputHasValue('One-of
 await tap('Add a windfall'); await wait(400);
 await check('52 adding a windfall creates a row', () => inputHasValue('Windfall'));
 await check('53 events section stable', () => pe.length === 0);
+await tap('All of it'); await wait(500);
+// How it's run — tax, drawing order, structure and the lens
+await tap("How it's run"); await wait(500);
+await check('38 tax-free-cash options', () => has('Take none'));
+await check('38b income-tax region choice (Scotland)', () => has('Scotland'));
+await tap('A little each year'); await wait(400); await check('39 phased tax-free, no crash', () => pe.length === 0);
+await tap('All at once'); await wait(400); await check('40 upfront tax-free, no crash', () => pe.length === 0);
+await check('41 withdrawal-order options', async () => (await has('Pensions')) && (await has('Allowances')));
+await tap('ISAs'); await wait(400); await check('42 strategy switch, no crash', () => pe.length === 0);
+await check('48 lens inflation field', () => has('Inflation'));
+await tap('All of it'); await wait(500);
+// What you've saved — the pots, per person
+await tap("What you've saved"); await wait(500);
+await check('43 partner names present', async () => /Stuart|Carol/.test(await bodyT()));
+await check('44 pension pot field', () => has('Workplace pension'));
+await check('44b advanced-mode toggle present', () => has('Advanced'));
+await check('44d cash and the home are reachable', async () => (await has('Cash & Premium Bonds')) && (await has('Home value')));
+await tap('All of it'); await wait(500);
+// What's promised — the income that arrives whatever markets do
+await tap("What's promised"); await wait(500);
+await check('45 State Pension fields present', () => has('State Pension age'));
+await check('44c public-sector scheme pension can be added', () => has('Add an NHS'));
+await check('45b company DB pension reachable', () => has('final-salary'));
 await closeSheet();
 await check('54 headline valid after edits', async () => (await h1()).length > 5);
 await check('55 no £NaN after edits', async () => !/£NaN/.test(await bodyT()));
@@ -258,7 +310,7 @@ await check('74 no NaN at extreme spend', async () => !/NaN|undefined/.test(awai
 await setRange(1, 20000); await wait(600); await check('75 minimal spend renders', async () => (await h1()).length > 5);
 await setRange(0, 2); await wait(600); await check('76 near-term retire, no crash', () => pe.length === 0);
 await setRange(0, 25); await wait(600); await check('77 far-out retire, no crash', () => pe.length === 0);
-await tap('Details'); await wait(500); await tap('People'); await wait(300);
+await tap('Details'); await wait(500); await tap("What you've saved"); await wait(400);
 await p.$$eval('input[inputmode=decimal]', e => { const s = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set; e.forEach(el => { s.call(el, '0'); el.dispatchEvent(new Event('input', { bubbles: true })); el.dispatchEvent(new Event('blur', { bubbles: true })); }); }).catch(() => {}); await wait(700);
 await check('78 all pots zero survives', () => pe.length === 0);
 await check('79 no £NaN with zero pots', async () => !/£NaN/.test(await bodyT()));
@@ -287,8 +339,9 @@ await check('91 four tab destinations', async () => (await has('Horizon')) && (a
 await tap('Details'); await wait(500);
 await check('92 sheet opens (dialog role)', () => sheetOpen());
 await check('93 £ prefix in fields', async () => /£/.test(await bodyT()));
-await tap('Plan'); await wait(300); await check('94 Plan tab: draw section', () => has('How you draw it'));
-await tap('Later'); await wait(300); await check('95 Later tab: spending section', () => has('Spending as you age'));
+await tap("How it's run"); await wait(500); await check('94 strategy section reachable', () => has('How you draw it'));
+await tap('All of it'); await wait(400);
+await tap('Your someday'); await wait(500); await check('95 spending section reachable', () => has('Spending as you age'));
 await closeSheet();
 await tap('Peace'); await wait(500); await p.mouse.click(195, 25); await wait(500);
 await check('96 sheet closes on backdrop tap', async () => !(await sheetOpen()));
@@ -319,10 +372,10 @@ await tap('Already have a licence key?'); await wait(300);
 await p.fill('input[aria-label="Licence key"]', 'not-a-key'); await tap('Activate on this device'); await wait(500);
 await check('113 free: malformed key is refused locally (no network)', async () => /doesn’t look like a licence key/.test(await bodyT()));
 await closeSheet();
-await tap('Details'); await wait(500); await tap('People'); await wait(300);
+await tap('Details'); await wait(500); await tap("What you've saved"); await wait(400);
 await check('114 free: advanced detail locked', async () => (await has('Advanced detail')) && (await p.locator('[role=switch]:has-text("Advanced")').count()) === 0);
-await tap('Structure'); await wait(300);
-await check('115 free: structure tab locked', async () => (await has('Plan structure')) && !(await has('Set up the standard architecture')));
+await tap('All of it'); await wait(400); await tap("How it's run"); await wait(500);
+await check('115 free: plan structure locked', async () => (await has('Plan structure')) && !(await has('Set up the standard architecture')));
 await closeSheet();
 await tap('Peace'); await wait(500);
 await check('116 free: report button routes to Plus', async () => { await tap('Save the full report'); await wait(600); return has('Already have a licence key?'); });

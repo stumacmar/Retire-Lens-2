@@ -69,9 +69,15 @@ let pass = 0, fail = 0; const fails = [];
 const check = async (n, f) => { try { if ((await f()) === false) throw new Error('assertion false'); pass++; } catch (e) { fail++; fails.push(`✗ ${n}: ${e.message}`); } };
 const wait = ms => p.waitForTimeout(ms);
 const has = async t => (await p.locator(`text=${t}`).count()) > 0;
+// Every carousel page stays in the DOM, so "is this text on screen?" has to
+// mean "on the page you are actually looking at" — otherwise an assertion
+// about the Drawing page passes while you sit on Who.
+const onPage = async t => (await p.locator('[data-active]').locator(`text=${t}`).count()) > 0;
 const $ = async s => (await p.$(s)) != null;
 const h1 = async () => (await p.$eval('h1', e => e.textContent).catch(() => ''));
 const bodyT = async () => (await p.$eval('body', e => e.innerText).catch(() => ''));
+const h2 = async () => (await p.$eval('h2', e => e.textContent).catch(() => ''));
+const pageTitle = async () => (await p.$$eval('h2', els => { const v = els.filter(e => e.offsetParent !== null); return v.length ? v[v.length - 1].textContent : ''; }).catch(() => ''));
 const visH1 = async () => p.$$eval('h1', els => els.filter(e => e.offsetParent !== null).length).catch(() => 0);
 const inputHasValue = async v => p.$$eval('input', (els, val) => els.some(e => e.value === val), v).catch(() => false);
 // Buttons-first: every tap target in the app is a button, so prefer the
@@ -81,6 +87,14 @@ const tap = async t => {
   catch { try { await p.locator(`text=${t}`).first().click({ timeout: 2000 }); return true; } catch { return false; } }
 };
 const sheetOpen = async () => (await p.locator('[role=dialog]').count()) > 0;
+// Controls that exist both on the Horizon and inside a sheet must be tapped
+// where they are meant, never on the card behind.
+const tapInSheet = async t => {
+  try { await p.locator('[role=dialog]').getByRole('button', { name: t }).first().click({ timeout: 4000 }); return true; }
+  catch { return false; }
+};
+// Jump to a named page of the form carousel via its rail.
+const goPage = async t => { const ok = await tapInSheet(t) || await tap(t); await wait(700); return ok; };
 const closeSheet = async () => { if (await sheetOpen()) { await p.keyboard.press('Escape'); await wait(500); } };
 async function setRange(i, v) { try { await p.$$eval('input[type=range]', (els, [a, val]) => { const el = els[a]; if (!el) return; const s = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set; s.call(el, String(val)); el.dispatchEvent(new Event('input', { bubbles: true })); el.dispatchEvent(new Event('change', { bubbles: true })); }, [i, v]); } catch { /* ignore */ } }
 // Clear per-navigation (NOT via addInitScript — that would wipe storage on every
@@ -102,6 +116,26 @@ const fresh = async () => {
   await seedPlus();
   await p.reload({ waitUntil: 'networkidle' }); await wait(700);
 };
+const planOf = async () => p.evaluate(() => { try { return JSON.parse(localStorage.getItem('horizon-plan-v1') || '{}'); } catch { return {}; } });
+// Every carousel page stays in the DOM, so a page-wide selector would happily
+// type into the page you are NOT looking at (and did: Carol's figures landed
+// on Stuart). Prefer the active page; fall back to the document for the
+// screens that are not a carousel.
+async function setField(label, value, which = 0) {
+  const sel = `label:has-text(${JSON.stringify(label)}) input`;
+  const onPane = p.locator(`[data-active] ${sel}`);
+  const inp = (await onPane.count()) > 0 ? onPane.nth(which) : p.locator(sel).nth(which);
+  if (await inp.count() === 0) return false;
+  const before = await p.evaluate(() => localStorage.getItem('horizon-plan-v1'));
+  await inp.fill(String(value)); await wait(260); await inp.blur();
+  for (let i = 0; i < 25; i++) {
+    if ((await p.evaluate(() => localStorage.getItem('horizon-plan-v1'))) !== before) break;
+    await wait(80);
+  }
+  await wait(120);
+  return true;
+}
+
 async function loadEx() { // robust: retry the example tap; wait for the plan to persist
   await fresh();
   for (let i = 0; i < 3; i++) { await tap('worked example'); await wait(1000); if (!/Begin/.test(await bodyT())) break; }
@@ -129,26 +163,30 @@ await fresh();
 await check('01 onboarding on first visit', async () => /stop/i.test(await h1()));
 await check('02 Begin button', () => has('Begin'));
 await check('03 example link', () => has('worked example'));
-await tap('Begin'); await wait(500);
-await check('04 advances to vision', async () => /Picture your Someday/i.test(await h1()));
-await check('05 vision slider present', async () => (await p.$$('input[type=range]')).length >= 1);
-await setRange(0, 10); await wait(200);
-await check('06 benchmark £22k', () => has('£22k'));
-await check('07 benchmark £43k', () => has('£43k'));
-await check('08 benchmark £59k', () => has('£59k'));
-await tap('£59k'); await wait(150);
-await check('09 £59k selects (field=59000)', async () => (await p.$eval('input[inputmode=decimal]', e => e.value)).replace(/\D/g, '') === '59000');
-await check('10 Continue button', () => has('Continue'));
-await tap('Continue'); await wait(500);
-await check('11 advances to starting-from', async () => /starting from/i.test(await h1()));
-await p.fill('input[placeholder=You]', 'Alex').catch(() => {}); await wait(120);
-await check('12 name accepts typing', async () => (await p.$eval('input[placeholder=You]', e => e.value)) === 'Alex');
-await check('13 numeric field present', async () => (await p.$$('input[inputmode=numeric]')).length >= 1);
-await check('14 money fields present', async () => (await p.$$('input[inputmode=decimal]')).length >= 2);
-await check('15 partner toggle present', () => $('[role=switch]'));
-await p.click('[role=switch]').catch(() => {}); await wait(300);
-await check('16 partner reveals fields', async () => (await p.$$('input[inputmode=decimal]')).length >= 4);
-await check('17 See-my-horizon button', () => has('See my horizon'));
+await tap('Begin'); await wait(700);
+// Setup is the form carousel: one idea per page, swipe or tap the rail.
+await check('04 opens on the first page of the carousel', async () => /^Who/.test(await pageTitle()));
+await check('05 the rail names every page', async () => (await has('Someday')) && (await has('Your pots')));
+await check('06 a page counter orients you', async () => /1 \/ \d/.test(await bodyT()));
+await check('07 next and previous are offered', async () => (await p.locator('button[aria-label=Next]').count()) === 1);
+await check('08 cannot finish with nothing saved', async () =>
+  /Add a pension or ISA/.test(await p.$$eval('button', els => els.map(e => e.textContent).join(' '))));
+await p.fill('input[placeholder=You]', 'Alex').catch(() => {}); await wait(250);
+await check('09 name accepts typing', async () => (await p.$eval('input[placeholder=You]', e => e.value)) === 'Alex');
+await check('10 household choice offered', async () => (await has('A couple')) && (await has('Just me')));
+await tap('A couple'); await wait(500);
+await check('11 partner fields appear on the same page', async () => (await p.$('input[placeholder=Partner]')) != null);
+await tap('Next'); await wait(800);
+await check('12 page two is the someday', async () => /^Someday/.test(await pageTitle()));
+await setField('Income you want each year', 59000);
+await check('13 target income captured', async () => (await planOf()).targetNet === 59000);
+await tap('Next'); await wait(800);
+await check('14 page three is the pots', async () => /pots$/.test(await pageTitle()));
+await setField('Workplace pension', 250000);
+await check('15 pension captured', async () => (await planOf()).partnerA?.pension === 250000);
+await setField('ISAs today', 40000);
+await check('16 ISA captured', async () => (await planOf()).partnerA?.isa === 40000);
+await check('17 See-my-horizon unlocks once there is money', () => has('See my horizon'));
 await tap('See my horizon'); await wait(900);
 // The disclaimer, accepted once before the first horizon
 await check('17a disclaimer shown once, before the horizon', async () => /calm place to think/i.test(await h1()));
@@ -193,33 +231,45 @@ await check('34 retire slider, no crash', () => pe.length === 0);
 await setRange(2, 4000); await wait(500);
 await check('35 save slider updates readout', async () => /4,000|4000/.test(await bodyT()));
 
-await loadEx(); await tap('Details'); await wait(600);
-await check('36 details segmented Plan/People/Later', async () => (await has('Plan')) && (await has('People')) && (await has('Later')));
-await check('37 retire-in-year field', () => has('Retire in year'));
-await check('38 tax-free-cash options', () => has('Take none'));
-await check('38b income-tax region choice (Scotland)', () => has('Scotland'));
-await tap('A little each year'); await wait(400); await check('39 phased tax-free, no crash', () => pe.length === 0);
-await tap('All at once'); await wait(400); await check('40 upfront tax-free, no crash', () => pe.length === 0);
-await check('41 withdrawal-order options', async () => (await has('Pensions')) && (await has('Allowances')));
-await tap('ISAs'); await wait(400); await check('42 strategy switch, no crash', () => pe.length === 0);
-await tap('People'); await wait(400);
+await loadEx(); await tap('Details'); await wait(800);
+// Editing is the same carousel: a rail of named pages, one idea on each.
+await check('36 details opens the carousel on page one', async () => /^Who/.test(await pageTitle()) && /1 \/ \d/.test(await bodyT()));
+await check('36b the rail names the pages', async () => (await has('Someday')) && (await has('Drawing')) && (await has('The lens')));
+await goPage('Someday');
+await check('37 retire-in-year field', () => onPage('Retire in year'));
+await goPage('Drawing');
+await check('38 tax-free-cash options', () => onPage('Take none'));
+await tapInSheet('A little each year'); await wait(400); await check('39 phased tax-free, no crash', () => pe.length === 0);
+await tapInSheet('All at once'); await wait(400); await check('40 upfront tax-free, no crash', () => pe.length === 0);
+await check('41 withdrawal-order options', async () => (await onPage('Pensions')) && (await onPage('Allowances')));
+await tapInSheet('ISAs'); await wait(400); await check('42 strategy switch, no crash', () => pe.length === 0);
+await goPage('Tax');
+await check('38b income-tax region choice (Scotland)', () => onPage('Scotland'));
+await goPage('Stuart’s pots');
 await check('43 partner names present', async () => /Stuart|Carol/.test(await bodyT()));
-await check('44 pension pot field', () => has('Workplace pension'));
-await check('44b advanced-mode toggle present', () => has('Advanced'));
-await check('44c public-sector scheme pension can be added', () => has('Add an NHS'));
-await tap('More — State Pension'); await wait(500);
-await check('45 accordion opens (State Pension age)', () => has('State Pension age'));
-await tap('Later'); await wait(400);
-await check('46 spending step-down toggle', () => has('Ease spending from'));
-await p.$$eval('[role=switch]', e => e[0] && e[0].click()).catch(() => {}); await wait(400);
-await check('47 step-down reveals fields', () => has('Spend less by'));
-await check('48 lens inflation field', () => has('Inflation'));
-await check('49 inheritance toggle', () => has('Expect an inheritance'));
-await check('50 add-a-cost button', () => has('Add a cost'));
-await tap('Add a cost'); await wait(400);
-await check('51 adding a cost creates an event row', () => inputHasValue('One-off cost'));
-await tap('Add a windfall'); await wait(400);
-await check('52 adding a windfall creates a row', () => inputHasValue('Windfall'));
+await check('44 pension pot field', () => onPage('Workplace pension'));
+await check('44b advanced-mode toggle present', () => onPage('Advanced'));
+await goPage('Stuart’s guaranteed income');
+await check('45 State Pension fields present', () => onPage('State Pension age'));
+await check('44c public-sector scheme pension can be added', () => onPage('Add an NHS'));
+await goPage('Spending');
+await check('46 spending step-down toggle', () => onPage('Ease spending from'));
+// Prove the control both ways: on reveals its figures, off puts them away.
+const easeSwitch = () => p.locator('[role=dialog] [role=switch]:has-text("Ease spending")').first();
+if (!(await planOf()).phase1On) { await easeSwitch().click().catch(() => {}); await wait(600); }
+await check('47 step-down on reveals its figures', async () => (await planOf()).phase1On === true && (await onPage('Spend less by')));
+await easeSwitch().click().catch(() => {}); await wait(600);
+await check('47b step-down off puts them away', async () => (await planOf()).phase1On === false);
+await easeSwitch().click().catch(() => {}); await wait(600);
+await goPage('The lens');
+await check('48 lens inflation field', () => onPage('Inflation'));
+await goPage('Life events');
+await check('49 inheritance toggle', () => onPage('Expect an inheritance'));
+await check('50 add-a-cost button', () => onPage('Add a cost'));
+await tapInSheet('Add a cost'); await wait(500);
+await check('51 adding a cost creates an event row', async () => (await p.locator('[data-active] input').evaluateAll(els => els.some(e => e.value === 'One-off cost'))));
+await tapInSheet('Add a windfall'); await wait(500);
+await check('52 adding a windfall creates a row', async () => (await p.locator('[data-active] input').evaluateAll(els => els.some(e => e.value === 'Windfall'))));
 await check('53 events section stable', () => pe.length === 0);
 await closeSheet();
 await check('54 headline valid after edits', async () => (await h1()).length > 5);
@@ -258,8 +308,8 @@ await check('74 no NaN at extreme spend', async () => !/NaN|undefined/.test(awai
 await setRange(1, 20000); await wait(600); await check('75 minimal spend renders', async () => (await h1()).length > 5);
 await setRange(0, 2); await wait(600); await check('76 near-term retire, no crash', () => pe.length === 0);
 await setRange(0, 25); await wait(600); await check('77 far-out retire, no crash', () => pe.length === 0);
-await tap('Details'); await wait(500); await tap('People'); await wait(300);
-await p.$$eval('input[inputmode=decimal]', e => { const s = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set; e.forEach(el => { s.call(el, '0'); el.dispatchEvent(new Event('input', { bubbles: true })); el.dispatchEvent(new Event('blur', { bubbles: true })); }); }).catch(() => {}); await wait(700);
+await tap('Details'); await wait(700); await goPage('Stuart’s pots');
+await p.$$eval('[role=dialog] input[inputmode=decimal]', e => { const s = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set; e.forEach(el => { s.call(el, '0'); el.dispatchEvent(new Event('input', { bubbles: true })); el.dispatchEvent(new Event('blur', { bubbles: true })); }); }).catch(() => {}); await wait(700);
 await check('78 all pots zero survives', () => pe.length === 0);
 await check('79 no £NaN with zero pots', async () => !/£NaN/.test(await bodyT()));
 await closeSheet();
@@ -287,8 +337,8 @@ await check('91 four tab destinations', async () => (await has('Horizon')) && (a
 await tap('Details'); await wait(500);
 await check('92 sheet opens (dialog role)', () => sheetOpen());
 await check('93 £ prefix in fields', async () => /£/.test(await bodyT()));
-await tap('Plan'); await wait(300); await check('94 Plan tab: draw section', () => has('How you draw it'));
-await tap('Later'); await wait(300); await check('95 Later tab: spending section', () => has('Spending as you age'));
+await goPage('Drawing'); await check('94 drawing page reachable from the rail', () => onPage('Which pot first'));
+await goPage('Spending'); await check('95 spending page reachable from the rail', () => onPage('Ease spending from'));
 await closeSheet();
 await tap('Peace'); await wait(500); await p.mouse.click(195, 25); await wait(500);
 await check('96 sheet closes on backdrop tap', async () => !(await sheetOpen()));
@@ -319,10 +369,10 @@ await tap('Already have a licence key?'); await wait(300);
 await p.fill('input[aria-label="Licence key"]', 'not-a-key'); await tap('Activate on this device'); await wait(500);
 await check('113 free: malformed key is refused locally (no network)', async () => /doesn’t look like a licence key/.test(await bodyT()));
 await closeSheet();
-await tap('Details'); await wait(500); await tap('People'); await wait(300);
-await check('114 free: advanced detail locked', async () => (await has('Advanced detail')) && (await p.locator('[role=switch]:has-text("Advanced")').count()) === 0);
-await tap('Structure'); await wait(300);
-await check('115 free: structure tab locked', async () => (await has('Plan structure')) && !(await has('Set up the standard architecture')));
+await tap('Details'); await wait(700); await goPage('Stuart’s pots');
+await check('114 free: advanced detail locked', async () => (await onPage('Advanced detail')) && (await p.locator('[role=switch]:has-text("Advanced")').count()) === 0);
+await goPage('Structure');
+await check('115 free: structure page locked', async () => (await onPage('Plan structure')) && !(await onPage('Set up the standard architecture')));
 await closeSheet();
 await tap('Peace'); await wait(500);
 await check('116 free: report button routes to Plus', async () => { await tap('Save the full report'); await wait(600); return has('Already have a licence key?'); });

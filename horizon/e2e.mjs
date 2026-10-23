@@ -250,12 +250,26 @@ const tap = async t => {
 };
 // Exact-name button (segmented tabs: 'Plan' would otherwise substring-match "Adjust your plan").
 const seg = async t => { try { await p.getByRole('button', { name: t, exact: true }).first().click({ timeout: 4000 }); await wait(300); return true; } catch { return false; } };
+// Controls that exist both on the Horizon and inside a sheet must be tapped
+// where they are meant, never on the card behind it.
+const tapInSheet = async t => {
+  try { await p.locator('[role=dialog]').getByRole('button', { name: t }).first().click({ timeout: 4000 }); return true; }
+  catch { return false; }
+};
+// Jump to a named page of the form carousel via its rail.
+const goPage = async t => { const ok = (await tapInSheet(t)) || (await tap(t)); await wait(700); return ok; };
 // Set a labelled MoneyField/NumField. Uses Playwright fill + blur with awaits
 // between them, so React processes the input (setText) BEFORE the blur commits —
 // synthetic input+blur in one tick would read stale state (MoneyField commits
 // on blur). `which` picks the nth match (0=first partner, 1=second).
+// Every carousel page stays in the DOM, so a page-wide selector would happily
+// type into the page you are NOT looking at (and did: Carol's figures landed
+// on Stuart). Prefer the active page; fall back to the document for the
+// screens that are not a carousel.
 async function setField(label, value, which = 0) {
-  const inp = p.locator(`label:has-text(${JSON.stringify(label)}) input`).nth(which);
+  const sel = `label:has-text(${JSON.stringify(label)}) input`;
+  const onPane = p.locator(`[data-active] ${sel}`);
+  const inp = (await onPane.count()) > 0 ? onPane.nth(which) : p.locator(sel).nth(which);
   if (await inp.count() === 0) return false;
   await inp.fill(String(value));
   await wait(260);            // let React commit the controlled value before blur reads it
@@ -273,31 +287,39 @@ await p.evaluate(h => localStorage.setItem('someday-gate-v1', h), fs.readFileSyn
 // Run as a Plus customer so every input is reachable (pre-validated local record; no network).
 await p.evaluate(() => localStorage.setItem('someday-licence-v1', JSON.stringify({ key: 'e2e-seeded-licence', instanceId: 'e2e', instanceName: 'E2E', status: 'active', expiresAt: null, activatedAt: Date.now(), validatedAt: Date.now() })));
 await p.reload({ waitUntil: 'networkidle' }); await wait(700);
-await tap('Begin'); await wait(400);
-// vision: set retire in 8 years + target
-await p.$$eval('input[type=range]', els => { const s = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set; s.call(els[0], '8'); els[0].dispatchEvent(new Event('input', { bubbles: true })); }); await wait(150);
-await tap('£43k'); await wait(150);
-await tap('Continue'); await wait(400);
-await p.fill('input[placeholder=You]', 'Stuart').catch(() => {});
+await tap('Begin'); await wait(800);
+// Setup is the form carousel: short pages, swipe or tap the rail to move.
+await acheck('U50a a new plan starts as one person', async () => (await plan()).household === 'single');
+await p.fill('input[placeholder=You]', 'Stuart').catch(() => {}); await wait(250);
 await acheck('U51 onboarding: name captured', async () => (await plan()).partnerA?.name === 'Stuart');
+await tap('A couple'); await wait(500);
+await acheck('U51b onboarding: household becomes a couple', async () => (await plan()).household === 'couple');
+await p.fill('input[placeholder=Partner]', 'Carol').catch(() => {}); await wait(250);
+await acheck('U57 onboarding: partner name captured', async () => (await plan()).partnerB?.name === 'Carol');
+await goPage('Someday');
+const sy0 = (await plan()).startYear;
+await setField('Retire in year', sy0 + 8);
+await acheck('U51c onboarding: retire year captured', async () => (await plan()).retireYear === sy0 + 8);
+await setField('Income you want each year', 43100);
+await acheck('U51d onboarding: target income captured', async () => (await plan()).targetNet === 43100);
+await goPage('Stuart’s pots');
 await setField('Workplace pension', 600000);
 await acheck('U52 onboarding: Stuart pension captured', async () => (await plan()).partnerA?.pension === 600000);
-await setField('Paying into your pension', 3000);
+await setField('Paying into pension monthly', 3000);
 await acheck('U53 onboarding: Stuart monthly captured', async () => (await plan()).partnerA?.monthlyPension === 3000);
 await setField('ISAs today', 47000);
 await acheck('U54 onboarding: Stuart ISA captured', async () => (await plan()).partnerA?.isa === 47000);
+await goPage('Stuart’s guaranteed income');
 await setField('final-salary pension a year', 9000);
 await acheck('U55 onboarding: Stuart DB amount captured', async () => (await plan()).partnerA?.db === 9000);
 await acheck('U56 onboarding: Stuart DB start = retire year (the fix)', async () => { const P = await plan(); return P.partnerA.dbStartYear === P.retireYear; });
-// Target the partner switch by name (a DB-indexation switch may precede it now).
-await p.locator('[role=switch]:has-text("Planning with a partner")').click().catch(() => {}); await wait(300);
-await p.fill('input[placeholder=Partner]', 'Carol').catch(() => {});
-await acheck('U57 onboarding: partner name captured', async () => (await plan()).partnerB?.name === 'Carol');
-await setField('Their workplace pension', 46000);
+await goPage('Carol’s pots');
+await setField('Workplace pension', 46000);
 await acheck('U58 onboarding: Carol pension captured', async () => (await plan()).partnerB?.pension === 46000);
-await setField('Their ISAs today', 46000);
+await setField('ISAs today', 46000);
 await acheck('U59 onboarding: Carol ISA captured', async () => (await plan()).partnerB?.isa === 46000);
-await setField('Their company or final-salary', 5000);
+await goPage('Carol’s guaranteed income');
+await setField('final-salary pension a year', 5000);
 await acheck('U60 onboarding: Carol DB captured (the reported bug)', async () => (await plan()).partnerB?.db === 5000);
 await acheck('U61 onboarding: Carol DB start = retire year', async () => { const P = await plan(); return P.partnerB.dbStartYear === P.retireYear; });
 await tap('See my horizon'); await wait(900);
@@ -317,72 +339,34 @@ await acheck('U63 answer renders after DB entry', async () => /looks sustainable
 // Confidence responds to the DB we entered (compare to DB=0 in the same UI)
 await wait(700);
 // Details: zero both DBs, confidence should drop (guaranteed income removed)
-await tap('Details'); await wait(500); await tap('People'); await wait(400);
-const accs = await p.$$('text=More — State Pension');
-for (const a of accs) { await a.click().catch(() => {}); await wait(250); }
+await tap('Details'); await wait(800);
+
+// ── Stuart's guaranteed income ──────────────────────────────────────────
+await goPage('Stuart’s guaranteed income');
 await acheck('U64 Details: Stuart DB start-year field appears when DB>0', async () => (await p.locator('text=…starts in (year)').count()) >= 1);
 await acheck('U65 Details: DB indexation toggle appears when DB>0', async () => (await p.locator('text=…rises with inflation').count()) >= 1);
-await setField('final-salary pension a year', 0); // this hits Stuart's (first match)
+await setField('final-salary pension a year', 0);
 await acheck('U66 Details: setting Stuart DB=0 updates plan', async () => (await plan()).partnerA?.db === 0);
-// set Stuart DB start year via UI (re-enter DB first)
 await setField('final-salary pension a year', 11000);
-await wait(300);
 await acheck('U67 Details: re-entering Stuart DB updates plan', async () => (await plan()).partnerA?.db === 11000);
 await setField('…starts in (year)', 2036);
 await acheck('U68 Details: Stuart DB start-year editable → plan', async () => (await plan()).partnerA?.dbStartYear === 2036);
-// indexation toggle
-await p.evaluate(() => { const lab = [...document.querySelectorAll('[role=switch]')].find(s => /rises with inflation/i.test(s.textContent)); lab && lab.click(); }); await wait(300);
+await p.locator('[role=dialog] [role=switch]:has-text("rises with inflation")').first().click().catch(() => {}); await wait(400);
 await acheck('U69 Details: Stuart DB indexation toggle → plan', async () => (await plan()).partnerA?.dbIndexed === true);
-// State Pension + monthly ISA capture
 await setField('State Pension a year', 11500);
 await acheck('U70 Details: State Pension amount → plan', async () => (await plan()).partnerA?.spAmount === 11500);
-await setField('Paying into ISAs monthly', 200);
-await acheck('U71 Details: monthly ISA → plan', async () => (await plan()).partnerA?.monthlyIsa === 200);
-// Already-accessed block (open the accordion, set both fields)
-await tap('Already taken tax-free cash'); await wait(400);
-await setField('Tax-free cash already taken', 165000);
-await acheck('U72a Details: prior PCLS → plan', async () => (await plan()).partnerA?.pclsTaken === 165000);
-await setField('Pension already accessed (crystallised)', 400000);
-await acheck('U72b Details: crystallised amount → plan', async () => (await plan()).partnerA?.crystallised === 400000);
-await setField('Tax-free cash already taken', 0);
-await setField('Pension already accessed (crystallised)', 0);
-// Advanced mode: scheme list aggregates into the plan
-await p.locator('[role=switch]:has-text("Advanced")').click().catch(() => {}); await wait(350);
-await acheck('U72c Details: advanced mode → plan', async () => (await plan()).advanced === true);
-await tap('Add a scheme'); await wait(300);
-await acheck('U72d first scheme seeds from the existing pot', async () => {
-  const P = await plan(); return (P.partnerA.pots || []).length === 1 && P.partnerA.pots[0].value === P.partnerA.pension; });
-await setField('Value', 250000);
-await acheck('U72e scheme edit aggregates into the pension total', async () => (await plan()).partnerA?.pension === 250000);
-await tap('Add a scheme'); await wait(300);
-await setField('Value', 100000, 1);
-await acheck('U72f two schemes sum into the pot (350k)', async () => (await plan()).partnerA?.pension === 350000);
-await p.locator('[role=switch]:has-text("Advanced")').click().catch(() => {}); await wait(300);
-// Structure tab: the preset wires up the whole architecture
-await tap('Structure'); await wait(400);
-await acheck('U72g Structure section opens', async () => (await p.locator('text=Plan structure').count()) > 0);
-await tap('Set up the standard architecture'); await wait(600);
-await acheck('U72h preset turns the architecture on', async () => (await plan()).architecture?.on === true);
-await acheck('U72i preset uses a 7-year ladder', async () => (await plan()).architecture?.ladderYears === 7);
-await acheck('U72j preset arms the written rules', async () => (await plan()).architecture?.rulesOn === true);
-await p.locator('[role=switch]').first().click().catch(() => {}); await wait(400);
-await acheck('U72k architecture can be switched back off', async () => (await plan()).architecture?.on === false);
-await tap('People'); await wait(300);
-// Carol side (second card of the same label) — proves BOTH partners' DB works
-await setField('final-salary pension a year', 7000, 1);
-await acheck('U72 Details: Carol DB editable → plan (both partners work)', async () => (await plan()).partnerB?.db === 7000);
 
 // Public-sector scheme tranche: added, captured, and it moves the engine
-await p.getByRole('button', { name: /Add an NHS/ }).first().click(); await wait(350);
+await p.locator('[role=dialog]').getByRole('button', { name: /Add an NHS/ }).first().click(); await wait(400);
 await acheck('U72m scheme tranche added to Stuart', async () => ((await plan()).partnerA?.dbSchemes || []).length === 1);
 await setField('Pension a year on your latest statement', 14000);
 await acheck('U72n scheme pension captured → plan', async () => (await plan()).partnerA?.dbSchemes?.[0]?.pension === 14000);
-await p.locator('select[aria-label="Pension scheme"]').first().selectOption('nhs1995'); await wait(300);
+await p.locator('[role=dialog] select[aria-label="Pension scheme"]').first().selectOption('nhs1995'); await wait(400);
 await acheck('U72o scheme choice captured (NHS 1995)', async () => (await plan()).partnerA?.dbSchemes?.[0]?.scheme === 'nhs1995');
 await setField('Take it from age', 57);
 await acheck('U72p take-age captured', async () => (await plan()).partnerA?.dbSchemes?.[0]?.takeAge === 57);
 await acheck('U72q early reduction shown in the UI', async () => /years? early: about \d+% less/.test(await p.$eval('body', e => e.innerText)));
-await p.getByRole('button', { name: /^Maximum/ }).first().click(); await wait(300);
+await p.locator('[role=dialog]').getByRole('button', { name: /^Maximum/ }).first().click(); await wait(400);
 await acheck('U72r maximum lump sum captured (commutePct=1)', async () => (await plan()).partnerA?.dbSchemes?.[0]?.commutePct === 1);
 await acheck('U72s tranche raises guaranteed income in the engine', async () => {
   const P = await plan(); const Q = { ...P, growth: P.growthBase };
@@ -392,39 +376,82 @@ await acheck('U72t tranche at NPA pays the statement figure (engine)', async () 
   const P = await plan(); const t = { ...P.partnerA.dbSchemes[0], takeAge: 60, commutePct: 0 };
   return Math.abs(E.trancheBenefits(P, P.partnerA, t).pension - 14000) < 0.01; });
 
-// core plan fields
-await seg('Plan'); await wait(300);
+// ── Stuart's pots ───────────────────────────────────────────────────────
+await goPage('Stuart’s pots');
+await setField('Paying into ISAs monthly', 200);
+await acheck('U71 Details: monthly ISA → plan', async () => (await plan()).partnerA?.monthlyIsa === 200);
+await tapInSheet('Already taken tax-free cash'); await wait(500);
+await setField('Tax-free cash already taken', 165000);
+await acheck('U72a Details: prior PCLS → plan', async () => (await plan()).partnerA?.pclsTaken === 165000);
+await setField('Pension already accessed (crystallised)', 400000);
+await acheck('U72b Details: crystallised amount → plan', async () => (await plan()).partnerA?.crystallised === 400000);
+await setField('Tax-free cash already taken', 0);
+await setField('Pension already accessed (crystallised)', 0);
+// Advanced mode: scheme list aggregates into the plan
+await p.locator('[role=dialog] [role=switch]:has-text("Advanced")').first().click().catch(() => {}); await wait(450);
+await acheck('U72c Details: advanced mode → plan', async () => (await plan()).advanced === true);
+await tapInSheet('Add a scheme'); await wait(450);
+await acheck('U72d first scheme seeds from the existing pot', async () => {
+  const P = await plan(); return (P.partnerA.pots || []).length === 1 && P.partnerA.pots[0].value === P.partnerA.pension; });
+await setField('Value', 250000);
+await acheck('U72e scheme edit aggregates into the pension total', async () => (await plan()).partnerA?.pension === 250000);
+await tapInSheet('Add a scheme'); await wait(450);
+await setField('Value', 100000, 1);
+await acheck('U72f two schemes sum into the pot (350k)', async () => (await plan()).partnerA?.pension === 350000);
+await p.locator('[role=dialog] [role=switch]:has-text("Advanced")').first().click().catch(() => {}); await wait(400);
+
+// ── Structure ───────────────────────────────────────────────────────────
+await goPage('Structure');
+await acheck('U72g Structure page opens', async () => (await p.locator('text=Plan structure').count()) > 0);
+await tapInSheet('Set up the standard architecture'); await wait(700);
+await acheck('U72h preset turns the architecture on', async () => (await plan()).architecture?.on === true);
+await acheck('U72i preset uses a 7-year ladder', async () => (await plan()).architecture?.ladderYears === 7);
+await acheck('U72j preset arms the written rules', async () => (await plan()).architecture?.rulesOn === true);
+await p.locator('[role=dialog] [role=switch]:has-text("Model the plan")').first().click().catch(() => {}); await wait(500);
+await acheck('U72k architecture can be switched back off', async () => (await plan()).architecture?.on === false);
+
+// ── Carol's own pages — proves BOTH partners work ───────────────────────
+await goPage('Carol’s guaranteed income');
+await setField('final-salary pension a year', 7000);
+await acheck('U72 Details: Carol DB editable → plan (both partners work)', async () => (await plan()).partnerB?.db === 7000);
+
+// ── The someday ─────────────────────────────────────────────────────────
+await goPage('Someday');
 await setField('Retire in year', 2033);
 await acheck('U73 Details: retire year → plan', async () => (await plan()).retireYear === 2033);
 await setField('Income you want each year', 55000);
 await acheck('U74 Details: target → plan', async () => (await plan()).targetNet === 55000);
 await setField('Plan through to age', 92);
 await acheck('U75 Details: horizon age → plan', async () => (await plan()).horizonAge === 92);
-// pcls + strategy segmented
-await tap('All at once'); await wait(300);
+
+// ── Drawing and tax ─────────────────────────────────────────────────────
+await goPage('Drawing');
+await tapInSheet('All at once'); await wait(400);
 await acheck('U76 Details: PCLS upfront → plan', async () => (await plan()).pclsMode === 'upfront');
-await tap('ISAs'); await wait(300);
+await tapInSheet('ISAs'); await wait(400);
 await acheck('U77 Details: strategy ISAs-first → plan', async () => (await plan()).strategy === 'isafirst');
-// tax region segmented
-await seg('Scotland');
+await goPage('Tax');
+await tapInSheet('Scotland'); await wait(400);
 await acheck('U77b Details: Scottish tax region → plan', async () => (await plan()).tax?.region === 'scotland');
-await seg('England, Wales & NI');
+await tapInSheet('England, Wales & NI'); await wait(400);
 await acheck('U77c Details: region back to rUK → plan', async () => (await plan()).tax?.region === 'ruk');
-// Later: step-downs, inheritance, lens
-await tap('Later'); await wait(400);
+
+// ── Spending, the lens and life events ──────────────────────────────────
+await goPage('Spending');
 const p1before = (await plan()).phase1On;
-await p.evaluate(() => { const s = [...document.querySelectorAll('[role=switch]')].find(x => /Ease spending/i.test(x.textContent)); s && s.click(); }); await wait(400);
+await p.locator('[role=dialog] [role=switch]:has-text("Ease spending")').first().click().catch(() => {}); await wait(500);
 await acheck('U78 Details: step-down toggle flips phase1On', async () => (await plan()).phase1On !== p1before);
-await p.evaluate(() => { const s = [...document.querySelectorAll('[role=switch]')].find(x => /inheritance/i.test(x.textContent)); s && s.click(); }); await wait(300);
-await acheck('U79 Details: inheritance toggle → plan', async () => (await plan()).inherit?.on === true);
+await goPage('The lens');
 await setField('Poor', 3.5);
 await acheck('U80 Details: lens Poor rate → plan', async () => Math.abs((await plan()).growthBear - 0.035) < 1e-6);
 await setField('Inflation', 2.5);
 await acheck('U81 Details: inflation → plan', async () => Math.abs((await plan()).inflation - 0.025) < 1e-6);
-// life event add + edit
-await tap('Add a cost'); await wait(300);
+await goPage('Life events');
+await p.locator('[role=dialog] [role=switch]:has-text("inheritance")').first().click().catch(() => {}); await wait(400);
+await acheck('U79 Details: inheritance toggle → plan', async () => (await plan()).inherit?.on === true);
+await tapInSheet('Add a cost'); await wait(450);
 await acheck('U82 Details: add a cost → cost event in plan', async () => ((await plan()).lifeEvents || []).some(e => e.kind === 'cost'));
-await tap('Add a windfall'); await wait(300);
+await tapInSheet('Add a windfall'); await wait(450);
 await acheck('U83 Details: add a windfall → income event in plan', async () => ((await plan()).lifeEvents || []).some(e => e.kind === 'income'));
 
 // UI edits actually recompute the answer (end-to-end through the engine)

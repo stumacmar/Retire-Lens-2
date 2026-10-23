@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { fmtK } from '../lib/format';
-import { MoneyField, NumField, Toggle } from './Field';
+import { Card, MoneyField, NumField, TextField, Toggle } from './Field';
 import SchemePensions from './SchemePensions';
 
 /**
@@ -73,7 +73,7 @@ export default function Onboarding({ plan, update, onDone, onExample }: {
           );
         })}
       </div>
-      <MoneyField label="Or your own figure, a year (today's money)" value={plan.targetNet} onChange={v => set({ targetNet: v })} />
+      <Card><MoneyField label="Or your own figure, a year (today's money)" value={plan.targetNet} onChange={v => set({ targetNet: v })} /></Card>
       <button onClick={next} className="mt-7 w-full rounded-2xl py-4 font-bold text-[1.05rem] text-[var(--color-ink)] active:scale-[0.98] transition-transform"
         style={{ background: 'var(--color-calm)' }}>Continue</button>
     </div>,
@@ -82,46 +82,38 @@ export default function Onboarding({ plan, update, onDone, onExample }: {
     <div key="y">
       <h1 className="text-[1.6rem] font-extrabold tracking-tight">Where you’re starting from.</h1>
       <p className="mt-2 mb-5 text-[0.95rem]" style={{ color: 'var(--color-ink-dim)' }}>Honest beats hopeful — and it never leaves this device.</p>
-      <div className="space-y-3">
-        <label className="block">
-          <span className="block text-[0.8rem] font-semibold mb-1.5" style={{ color: 'var(--color-ink-dim)' }}>Your name</span>
-          <input value={plan.partnerA.name === 'You' ? '' : plan.partnerA.name} placeholder="You"
-            onChange={e => setA({ name: e.target.value || 'You' })}
-            className="w-full rounded-2xl px-4 h-[52px] text-[1.15rem] font-semibold outline-none"
-            style={{ background: 'var(--color-canvas)', border: '1px solid var(--color-hairline)' }} />
-        </label>
-        <NumField label="Your birth year" value={plan.partnerA.birthYear} onChange={v => setA({ birthYear: v })} />
-        <MoneyField label="Workplace pension (defined contribution) today" value={plan.partnerA.pension} onChange={v => setA({ pension: v })} />
-        <MoneyField label="Paying into your pension monthly" value={plan.partnerA.monthlyPension} onChange={v => setA({ monthlyPension: v })} />
-        <MoneyField label="Company / final-salary (defined benefit) pension a year (0 if none)" value={plan.partnerA.db}
-          onChange={v => update((q: any) => ({ ...q, partnerA: { ...q.partnerA, db: v, dbStartYear: v > 0 ? q.retireYear : q.partnerA.dbStartYear } }))} />
-        {plan.partnerA.db > 0 && (
-          <div className="pt-0.5"><Toggle label="…and it rises with inflation" checked={!!plan.partnerA.dbIndexed} onChange={v => setA({ dbIndexed: v })} /></div>
-        )}
+      <div className="space-y-4">
+        <Card>
+          <TextField label="Your name" value={plan.partnerA.name === 'You' ? '' : plan.partnerA.name} placeholder="You"
+            onChange={v => setA({ name: v || 'You' })} />
+          <NumField label="Your birth year" value={plan.partnerA.birthYear} onChange={v => setA({ birthYear: v })} />
+          <MoneyField label="Workplace pension today (defined contribution)" value={plan.partnerA.pension} onChange={v => setA({ pension: v })} />
+          <MoneyField label="Paying into your pension monthly" value={plan.partnerA.monthlyPension} onChange={v => setA({ monthlyPension: v })} />
+          <MoneyField label="Company or final-salary pension a year, 0 if none (defined benefit)" value={plan.partnerA.db}
+            onChange={v => update((q: any) => ({ ...q, partnerA: { ...q.partnerA, db: v, dbStartYear: v > 0 ? q.retireYear : q.partnerA.dbStartYear } }))} />
+          {plan.partnerA.db > 0 &&
+            <Toggle label="…and it rises with inflation" checked={!!plan.partnerA.dbIndexed} onChange={v => setA({ dbIndexed: v })} />}
+          <MoneyField label="ISAs today" value={plan.partnerA.isa} onChange={v => setA({ isa: v })} />
+          <MoneyField label="Paying into ISAs monthly" value={plan.partnerA.monthlyIsa} onChange={v => setA({ monthlyIsa: v })} />
+        </Card>
         <SchemePensions plan={plan} who={plan.partnerA} set={setA} compact />
-        <MoneyField label="ISAs today" value={plan.partnerA.isa} onChange={v => setA({ isa: v })} />
-        <MoneyField label="Paying into ISAs monthly" value={plan.partnerA.monthlyIsa} onChange={v => setA({ monthlyIsa: v })} />
-        <div className="pt-1"><Toggle label="Planning with a partner" checked={addPartner} onChange={setAddPartner} /></div>
+        <Card><Toggle label="Planning with a partner" checked={addPartner} onChange={setAddPartner} /></Card>
         {addPartner && (
-          <div className="space-y-3 pt-1">
-            <label className="block">
-              <span className="block text-[0.8rem] font-semibold mb-1.5" style={{ color: 'var(--color-ink-dim)' }}>Partner’s name</span>
-              <input value={plan.partnerB.name === 'Partner' ? '' : plan.partnerB.name} placeholder="Partner"
-                onChange={e => setB({ name: e.target.value || 'Partner' })}
-                className="w-full rounded-2xl px-4 h-[52px] text-[1.15rem] font-semibold outline-none"
-                style={{ background: 'var(--color-canvas)', border: '1px solid var(--color-hairline)' }} />
-            </label>
-            <NumField label="Their birth year" value={plan.partnerB.birthYear} onChange={v => setB({ birthYear: v })} />
-            <MoneyField label="Their workplace pension (defined contribution) today" value={plan.partnerB.pension} onChange={v => setB({ pension: v })} />
-            <MoneyField label="Paying into their pension monthly" value={plan.partnerB.monthlyPension} onChange={v => setB({ monthlyPension: v })} />
-            <MoneyField label="Their company / final-salary (defined benefit) pension a year (0 if none)" value={plan.partnerB.db}
-              onChange={v => update((q: any) => ({ ...q, partnerB: { ...q.partnerB, db: v, dbStartYear: v > 0 ? q.retireYear : q.partnerB.dbStartYear } }))} />
-            {plan.partnerB.db > 0 && (
-              <div className="pt-0.5"><Toggle label="…and it rises with inflation" checked={!!plan.partnerB.dbIndexed} onChange={v => setB({ dbIndexed: v })} /></div>
-            )}
+          <div className="space-y-4">
+            <Card>
+              <TextField label="Partner’s name" value={plan.partnerB.name === 'Partner' ? '' : plan.partnerB.name} placeholder="Partner"
+                onChange={v => setB({ name: v || 'Partner' })} />
+              <NumField label="Their birth year" value={plan.partnerB.birthYear} onChange={v => setB({ birthYear: v })} />
+              <MoneyField label="Their workplace pension today (defined contribution)" value={plan.partnerB.pension} onChange={v => setB({ pension: v })} />
+              <MoneyField label="Paying into their pension monthly" value={plan.partnerB.monthlyPension} onChange={v => setB({ monthlyPension: v })} />
+              <MoneyField label="Their company or final-salary pension a year, 0 if none (defined benefit)" value={plan.partnerB.db}
+                onChange={v => update((q: any) => ({ ...q, partnerB: { ...q.partnerB, db: v, dbStartYear: v > 0 ? q.retireYear : q.partnerB.dbStartYear } }))} />
+              {plan.partnerB.db > 0 &&
+                <Toggle label="…and it rises with inflation" checked={!!plan.partnerB.dbIndexed} onChange={v => setB({ dbIndexed: v })} />}
+              <MoneyField label="Their ISAs today" value={plan.partnerB.isa} onChange={v => setB({ isa: v })} />
+              <MoneyField label="Paying into their ISAs monthly" value={plan.partnerB.monthlyIsa} onChange={v => setB({ monthlyIsa: v })} />
+            </Card>
             <SchemePensions plan={plan} who={plan.partnerB} set={setB} compact />
-            <MoneyField label="Their ISAs today" value={plan.partnerB.isa} onChange={v => setB({ isa: v })} />
-            <MoneyField label="Paying into their ISAs monthly" value={plan.partnerB.monthlyIsa} onChange={v => setB({ monthlyIsa: v })} />
           </div>
         )}
       </div>

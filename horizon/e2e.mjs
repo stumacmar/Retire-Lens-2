@@ -258,7 +258,7 @@ async function setField(label, value, which = 0) {
   const inp = p.locator(`label:has-text(${JSON.stringify(label)}) input`).nth(which);
   if (await inp.count() === 0) return false;
   await inp.fill(String(value));
-  await wait(150);            // let React commit the controlled value
+  await wait(260);            // let React commit the controlled value before blur reads it
   await inp.blur();          // fires onBlur → commits to the plan
   await wait(200);
   return true;
@@ -286,7 +286,7 @@ await setField('Paying into your pension', 3000);
 await acheck('U53 onboarding: Stuart monthly captured', async () => (await plan()).partnerA?.monthlyPension === 3000);
 await setField('ISAs today', 47000);
 await acheck('U54 onboarding: Stuart ISA captured', async () => (await plan()).partnerA?.isa === 47000);
-await setField('final-salary (defined benefit) pension a year', 9000);
+await setField('final-salary pension a year', 9000);
 await acheck('U55 onboarding: Stuart DB amount captured', async () => (await plan()).partnerA?.db === 9000);
 await acheck('U56 onboarding: Stuart DB start = retire year (the fix)', async () => { const P = await plan(); return P.partnerA.dbStartYear === P.retireYear; });
 // Target the partner switch by name (a DB-indexation switch may precede it now).
@@ -297,7 +297,7 @@ await setField('Their workplace pension', 46000);
 await acheck('U58 onboarding: Carol pension captured', async () => (await plan()).partnerB?.pension === 46000);
 await setField('Their ISAs today', 46000);
 await acheck('U59 onboarding: Carol ISA captured', async () => (await plan()).partnerB?.isa === 46000);
-await setField('Their company / final-salary', 5000);
+await setField('Their company or final-salary', 5000);
 await acheck('U60 onboarding: Carol DB captured (the reported bug)', async () => (await plan()).partnerB?.db === 5000);
 await acheck('U61 onboarding: Carol DB start = retire year', async () => { const P = await plan(); return P.partnerB.dbStartYear === P.retireYear; });
 await tap('See my horizon'); await wait(900);
@@ -322,10 +322,10 @@ const accs = await p.$$('text=More — State Pension');
 for (const a of accs) { await a.click().catch(() => {}); await wait(250); }
 await acheck('U64 Details: Stuart DB start-year field appears when DB>0', async () => (await p.locator('text=…starts in (year)').count()) >= 1);
 await acheck('U65 Details: DB indexation toggle appears when DB>0', async () => (await p.locator('text=…rises with inflation').count()) >= 1);
-await setField('final-salary (defined benefit) pension a year', 0); // this hits Stuart's (first match)
+await setField('final-salary pension a year', 0); // this hits Stuart's (first match)
 await acheck('U66 Details: setting Stuart DB=0 updates plan', async () => (await plan()).partnerA?.db === 0);
 // set Stuart DB start year via UI (re-enter DB first)
-await setField('final-salary (defined benefit) pension a year', 11000);
+await setField('final-salary pension a year', 11000);
 await wait(300);
 await acheck('U67 Details: re-entering Stuart DB updates plan', async () => (await plan()).partnerA?.db === 11000);
 await setField('…starts in (year)', 2036);
@@ -369,7 +369,7 @@ await p.locator('[role=switch]').first().click().catch(() => {}); await wait(400
 await acheck('U72k architecture can be switched back off', async () => (await plan()).architecture?.on === false);
 await tap('People'); await wait(300);
 // Carol side (second card of the same label) — proves BOTH partners' DB works
-await setField('final-salary (defined benefit) pension a year', 7000, 1);
+await setField('final-salary pension a year', 7000, 1);
 await acheck('U72 Details: Carol DB editable → plan (both partners work)', async () => (await plan()).partnerB?.db === 7000);
 
 // Public-sector scheme tranche: added, captured, and it moves the engine

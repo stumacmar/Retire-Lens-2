@@ -11,7 +11,7 @@ import Accordion from './components/Accordion';
 import Onboarding from './components/Onboarding';
 import PrintReport from './components/PrintReport';
 import Approach, { DERISKING_ARCHITECTURE } from './components/Approach';
-import { MoneyField, NumField, PctField, Toggle, Segmented } from './components/Field';
+import { Card, MoneyField, NumField, PctField, Toggle, Segmented } from './components/Field';
 import Disclaimer, { disclaimerAccepted } from './components/Disclaimer';
 import Dates from './components/Dates';
 import SchemePensions from './components/SchemePensions';
@@ -691,11 +691,18 @@ function ArchitectureSection({ plan, update }: { plan: any; update: (p: any) => 
   );
 }
 
+/**
+ * A card of questions. The heading sits outside it, quietly; inside, every
+ * child is inset and hairline-divided, so a section reads as one object
+ * rather than a drift of floating controls. Children keep their own markup —
+ * the card supplies the rhythm — so prose, segmented controls and accordions
+ * all land on the same grid without each needing to know about it.
+ */
 function Group({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <section>
-      <h3 className="text-[0.72rem] font-bold uppercase tracking-widest mb-3" style={{ color: 'var(--color-ink-faint)' }}>{title}</h3>
-      <div className="space-y-3">{children}</div>
+      <h3 className="text-[0.76rem] font-bold tracking-wide mb-2 px-1" style={{ color: 'var(--color-ink-faint)' }}>{title}</h3>
+      <Card>{children}</Card>
     </section>
   );
 }
@@ -763,11 +770,11 @@ function PartnerCard({ p, name, set, adv }: { p: any; name: 'partnerA' | 'partne
   return (
     <Group title={who.name}>
       {!(adv && hasPots) &&
-        <MoneyField label="Workplace pension (defined contribution) today" value={who.pension}
+        <MoneyField label="Workplace pension today (defined contribution)" value={who.pension}
           onChange={v => set({ pension: v, pots: [], tfcRate: 0.25 })} />}
       {adv && <SchemeList who={who} set={set} />}
       <MoneyField label="Paying into pension monthly" value={who.monthlyPension} onChange={v => set({ monthlyPension: v })} />
-      <MoneyField label="Company / final-salary (defined benefit) pension a year" value={who.db} onChange={v => set({ db: v })} />
+      <MoneyField label="Company or final-salary pension a year (defined benefit)" value={who.db} onChange={v => set({ db: v })} />
       {who.db > 0 && <>
         <NumField label="…starts in (year)" value={who.dbStartYear} onChange={v => set({ dbStartYear: v })} />
         <Toggle label="…rises with inflation" checked={!!who.dbIndexed} onChange={v => set({ dbIndexed: v })} />
@@ -834,7 +841,7 @@ function DetailsBody({ plan, update, reset, initial, plus, onUpgrade, issues = [
   return (
     <div className="space-y-6 pb-2">
       {/* Segment the sheet so it's never one long scroll (UX audit fix). */}
-      <div className="sticky top-0 z-10 -mx-6 px-6 pb-2" style={{ background: 'color-mix(in srgb, var(--color-surface) 92%, transparent)' }}>
+      <div className="sticky top-0 z-10 -mx-6 px-6 pb-2" style={{ background: 'var(--color-surface)' }}>
         <Segmented small value={sect} onChange={setSect}
           options={[{ value: 'plan', label: 'Plan' }, { value: 'people', label: 'People' },
                     { value: 'later', label: 'Later' }, { value: 'arch', label: 'Structure' }]} />
@@ -1219,7 +1226,7 @@ function ExploreBody({ plan, dd, estate, mc, plus, onUpgrade }: { plan: any; dd:
   const jump = (id: string) => { const el = document.getElementById('explore-' + id); if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' }); };
   return (
     <div className="space-y-5 pb-2">
-      <div className="sticky top-0 z-10 -mx-6 px-6 pb-2" style={{ background: 'color-mix(in srgb, var(--color-surface) 92%, transparent)' }}>
+      <div className="sticky top-0 z-10 -mx-6 px-6 pb-2" style={{ background: 'var(--color-surface)' }}>
         <nav aria-label="Explore sections" className="flex gap-1.5 overflow-x-auto no-scrollbar">
           {[['futures', 'Futures'], ['levers', 'Levers'], ['dates', 'Dates'], ['stress', 'Stress'], ['tax', 'Tax'], ['table', 'Year by year']].map(([id, l]) => (
             <button key={id} onClick={() => jump(id)} className="shrink-0 rounded-full px-3 min-h-[36px] text-[0.75rem] font-semibold"

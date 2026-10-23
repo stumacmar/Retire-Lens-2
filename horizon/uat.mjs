@@ -96,30 +96,54 @@ async function loadEx() { // robust: retry the example tap; wait for the plan to
   await p.waitForFunction(() => !!localStorage.getItem('horizon-plan-v1'), { timeout: 3000 }).catch(() => {});
 }
 
+const planOf = async () => p.evaluate(() => { try { return JSON.parse(localStorage.getItem('horizon-plan-v1') || '{}'); } catch { return {}; } });
+async function setField(label, value, which = 0) {
+  const inp = p.locator(`label:has-text(${JSON.stringify(label)}) input`).nth(which);
+  if (await inp.count() === 0) return false;
+  await inp.fill(String(value)); await wait(150); await inp.blur(); await wait(200);
+  return true;
+}
+
 await fresh();
 await check('01 onboarding on first visit', async () => /stop/i.test(await h1()));
 await check('02 Begin button', () => has('Begin'));
 await check('03 example link', () => has('worked example'));
-await tap('Begin'); await wait(500);
-await check('04 advances to vision', async () => /Picture your Someday/i.test(await h1()));
-await check('05 vision slider present', async () => (await p.$$('input[type=range]')).length >= 1);
-await setRange(0, 10); await wait(200);
-await check('06 benchmark £22k', () => has('£22k'));
-await check('07 benchmark £43k', () => has('£43k'));
-await check('08 benchmark £59k', () => has('£59k'));
-await tap('£59k'); await wait(150);
-await check('09 £59k selects (field=59000)', async () => (await p.$eval('input[inputmode=decimal]', e => e.value)).replace(/\D/g, '') === '59000');
-await check('10 Continue button', () => has('Continue'));
-await tap('Continue'); await wait(500);
-await check('11 advances to starting-from', async () => /starting from/i.test(await h1()));
-await p.fill('input[placeholder=You]', 'Alex').catch(() => {}); await wait(120);
-await check('12 name accepts typing', async () => (await p.$eval('input[placeholder=You]', e => e.value)) === 'Alex');
-await check('13 numeric field present', async () => (await p.$$('input[inputmode=numeric]')).length >= 1);
-await check('14 money fields present', async () => (await p.$$('input[inputmode=decimal]')).length >= 2);
-await check('15 partner toggle present', () => $('[role=switch]'));
-await p.click('[role=switch]').catch(() => {}); await wait(300);
-await check('16 partner reveals fields', async () => (await p.$$('input[inputmode=decimal]')).length >= 4);
-await check('17 See-my-horizon button', () => has('See my horizon'));
+await tap('Begin'); await wait(600);
+// Setup is now the sky itself: constellations, filled in any order
+await check('04 advances to the sky', async () => /Build your sky/i.test(await h1()));
+await check('05 four core constellations present', async () =>
+  (await p.locator('text=You & yours').count()) > 0 &&
+  (await p.locator("text=What you've saved").count()) > 0 &&
+  (await p.locator('text=Your someday').count()) > 0 &&
+  (await p.locator("text=What's promised").count()) > 0);
+await check('06 the horizon is ghosted until it knows you', async () =>
+  (await p.$$eval('svg[role=img]', els => els.length)) >= 1);
+await check('07 cannot continue with nothing saved', async () =>
+  /Add what/i.test(await p.$$eval('button', els => els.map(e => e.textContent).join(' '))));
+// You & yours
+await tap('You & yours'); await wait(600);
+await check('08 identity editor opens', () => has('Your name'));
+await p.fill('input[placeholder=You]', 'Alex').catch(() => {}); await wait(200);
+await check('09 name accepts typing', async () => (await p.$eval('input[placeholder=You]', e => e.value)) === 'Alex');
+await check('10 birth year field present', async () => (await p.$$('input[inputmode=numeric]')).length >= 1);
+await tap('Done'); await wait(600);
+// What you've saved
+await tap("What you've saved"); await wait(600);
+await check('11 savings editor opens', () => has('Workplace pension'));
+await setField('Workplace pension', 250000);
+await check('12 pension captured', async () => (await planOf()).partnerA?.pension === 250000);
+await setField('ISAs today', 40000);
+await check('13 ISA captured', async () => (await planOf()).partnerA?.isa === 40000);
+await tap('Done'); await wait(700);
+// Your someday
+await tap('Your someday'); await wait(600);
+await check('14 someday editor opens', () => has('Income you want each year'));
+await setField('Income you want each year', 48000);
+await check('15 target income captured', async () => (await planOf()).targetNet === 48000);
+await tap('Done'); await wait(600);
+await check('16 filling the sky sharpens it (constellation marked done)', async () =>
+  (await planOf()).partnerA?.pension > 0);
+await check('17 See-my-horizon now offered', () => has('See my horizon'));
 await tap('See my horizon'); await wait(900);
 // The framing choice, asked once before the horizon
 await check('17b approach screen asks how the money is run', async () => /How should the money be run/i.test(await h1()));
@@ -160,32 +184,42 @@ await check('34 retire slider, no crash', () => pe.length === 0);
 await setRange(2, 4000); await wait(500);
 await check('35 save slider updates readout', async () => /4,000|4000/.test(await bodyT()));
 
-await loadEx(); await tap('Details'); await wait(600);
-await check('36 details segmented Plan/People/Later', async () => (await has('Plan')) && (await has('People')) && (await has('Later')));
+await loadEx(); await tap('Details'); await wait(700);
+// Editing is the same sky: constellations, each opening into its own figures
+await check('36 details opens the sky, not a form', async () =>
+  (await p.locator('text=You & yours').count()) > 0 && (await p.locator("text=How it's run").count()) > 0);
+await tap('Your someday'); await wait(500);
 await check('37 retire-in-year field', () => has('Retire in year'));
-await check('38 tax-free-cash options', () => has('Take none'));
-await check('38b income-tax region choice (Scotland)', () => has('Scotland'));
-await tap('A little each year'); await wait(400); await check('39 phased tax-free, no crash', () => pe.length === 0);
-await tap('All at once'); await wait(400); await check('40 upfront tax-free, no crash', () => pe.length === 0);
-await check('41 withdrawal-order options', async () => (await has('Pensions')) && (await has('Allowances')));
-await tap('ISAs'); await wait(400); await check('42 strategy switch, no crash', () => pe.length === 0);
-await tap('People'); await wait(400);
-await check('43 partner names present', async () => /Stuart|Carol/.test(await bodyT()));
-await check('44 pension pot field', () => has('Workplace pension'));
-await check('44b advanced-mode toggle present', () => has('Advanced'));
-await tap('More — State Pension'); await wait(500);
-await check('45 accordion opens (State Pension age)', () => has('State Pension age'));
-await tap('Later'); await wait(400);
-await check('46 spending step-down toggle', () => has('Ease spending from'));
-await p.$$eval('[role=switch]', e => e[0] && e[0].click()).catch(() => {}); await wait(400);
-await check('47 step-down reveals fields', () => has('Spend less by'));
-await check('48 lens inflation field', () => has('Inflation'));
+await check('37b spending style offered', () => has('Go-go'));
+await check('37c life events live with the someday', () => has('Expect an inheritance'));
 await check('49 inheritance toggle', () => has('Expect an inheritance'));
 await check('50 add-a-cost button', () => has('Add a cost'));
 await tap('Add a cost'); await wait(400);
 await check('51 adding a cost creates an event row', () => inputHasValue('One-off cost'));
 await tap('Add a windfall'); await wait(400);
 await check('52 adding a windfall creates a row', () => inputHasValue('Windfall'));
+await check('46 spending step-down controls', async () => (await has('Go-go')) || (await has('From age')));
+await check('47 step-down reveals fields', async () => (await has('Spend less by')) || (await has('Slow-go')));
+await tap('All of it'); await wait(500);
+// How it's run
+await tap("How it's run"); await wait(500);
+await check('38 tax-free-cash options', () => has('Take none'));
+await check('38b income-tax region choice (Scotland)', () => has('Scotland'));
+await tap('A little each year'); await wait(400); await check('39 phased tax-free, no crash', () => pe.length === 0);
+await tap('All at once'); await wait(400); await check('40 upfront tax-free, no crash', () => pe.length === 0);
+await check('41 withdrawal-order options', async () => (await has('Pensions')) && (await has('Allowances')));
+await tap('ISAs'); await wait(400); await check('42 strategy switch, no crash', () => pe.length === 0);
+await check('48 lens inflation field', () => has('Inflation'));
+await tap('All of it'); await wait(500);
+// What you've saved
+await tap("What you've saved"); await wait(500);
+await check('43 partner names present', async () => /Stuart|Carol/.test(await bodyT()));
+await check('44 pension pot field', () => has('Workplace pension'));
+await check('44b advanced-mode toggle present', () => has('Advanced'));
+await tap('All of it'); await wait(500);
+// What's promised
+await tap("What's promised"); await wait(500);
+await check('45 state pension fields present', () => has('State Pension age'));
 await check('53 events section stable', () => pe.length === 0);
 await closeSheet();
 await check('54 headline valid after edits', async () => (await h1()).length > 5);
@@ -249,7 +283,7 @@ await check('91 four tab destinations', async () => (await has('Horizon')) && (a
 await tap('Details'); await wait(500);
 await check('92 sheet opens (dialog role)', () => sheetOpen());
 await check('93 £ prefix in fields', async () => /£/.test(await bodyT()));
-await tap('Plan'); await wait(300); await check('94 Plan tab: draw section', () => has('How you draw it'));
+await tap("How it's run"); await wait(500); await check('94 strategy section reachable', () => has('How you draw it'));
 await tap('Later'); await wait(300); await check('95 Later tab: spending section', () => has('Spending as you age'));
 await closeSheet();
 await tap('Peace'); await wait(500); await p.mouse.click(195, 25); await wait(500);

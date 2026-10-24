@@ -7,25 +7,46 @@ const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]), selec
  * Glass bottom sheet. (HIG: materials + depth — a translucent layer over the
  * content, with a grabber and drag-to-dismiss.) Springy, interruptible motion.
  * A modal dialog for keyboards and screen readers too: focus moves in on
- * open, stays inside (Tab wraps), and returns to the opener on close.
+ * open, follows the visible order and never leaves (Tab wraps), and returns
+ * to the opener on close.
  */
 export default function Sheet({ open, onClose, title, children }: {
   open: boolean; onClose: () => void; title?: string; children: ReactNode;
 }) {
   const panel = useRef<HTMLDivElement | null>(null);
   const opener = useRef<Element | null>(null);
+  // Read onClose through a ref. Callers pass an inline arrow, which is a new
+  // function on every render — and as an effect dependency that tore the
+  // effect down on every edit: committing a figure re-rendered the app, the
+  // teardown "returned focus to the opener", and focus was thrown out of the
+  // sheet onto the tab bar behind it. The effect is about open and closed,
+  // nothing else.
+  const closeRef = useRef(onClose);
+  closeRef.current = onClose;
   useEffect(() => {
     if (!open) return;
     opener.current = document.activeElement;
+    // What a keyboard can actually reach: not inside an inert or hidden
+    // subtree (a carousel keeps its off-screen pages in the DOM, inert), and
+    // actually rendered. offsetParent is the wrong test — it is null for
+    // anything position:fixed, and non-null for an inert page scrolled away.
+    const reachable = () => Array.from(panel.current!.querySelectorAll<HTMLElement>(FOCUSABLE))
+      .filter(el => !el.closest('[inert],[hidden],[aria-hidden="true"]') && el.getClientRects().length > 0);
+    // The sheet owns Tab outright rather than only catching the two ends.
+    // Catching the ends trusts the browser's order in between, and that order
+    // escaped the dialog: from a field on the visible page Tab skipped the
+    // page's own remaining fields and landed on the tab bar behind the sheet.
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') { onClose(); return; }
+      if (e.key === 'Escape') { closeRef.current(); return; }
       if (e.key !== 'Tab' || !panel.current) return;
-      const items = Array.from(panel.current.querySelectorAll<HTMLElement>(FOCUSABLE)).filter(el => el.offsetParent !== null);
-      if (!items.length) { e.preventDefault(); panel.current.focus(); return; }
-      const first = items[0], last = items[items.length - 1];
-      const active = document.activeElement;
-      if (e.shiftKey && (active === first || !panel.current.contains(active))) { e.preventDefault(); last.focus(); }
-      else if (!e.shiftKey && active === last) { e.preventDefault(); first.focus(); }
+      e.preventDefault();
+      const items = reachable();
+      if (!items.length) { panel.current.focus(); return; }
+      const at = items.indexOf(document.activeElement as HTMLElement);
+      const next = e.shiftKey
+        ? items[at <= 0 ? items.length - 1 : at - 1]
+        : items[at === -1 || at === items.length - 1 ? 0 : at + 1];
+      next.focus();
     };
     document.addEventListener('keydown', onKey);
     // Focus the panel itself (not the first field) so a sheet full of inputs
@@ -37,7 +58,7 @@ export default function Sheet({ open, onClose, title, children }: {
       const back = opener.current as HTMLElement | null;
       if (back && typeof back.focus === 'function' && document.contains(back)) back.focus();
     };
-  }, [open, onClose]);
+  }, [open]);
   return (
     <AnimatePresence>
       {open && (

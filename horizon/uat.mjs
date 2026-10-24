@@ -258,6 +258,23 @@ await loadEx(); await tap('Details'); await wait(800);
 // Editing is the same carousel: a rail of named pages, one idea on each.
 await check('36 details opens the carousel on page one', async () => /^Who/.test(await pageTitle()) && /1 \/ \d/.test(await bodyT()));
 await check('36b the rail names the pages', async () => (await has('Someday')) && (await has('Drawing')) && (await has('The lens')));
+// Off-screen pages must be genuinely inert. They were not: React 19 reads
+// inert="" as false, so it was silently dropped and Tab could land on a page
+// you could not see. The production build does not log that warning.
+await check('36c off-screen pages are genuinely inert', async () => {
+  const total = await p.locator('[data-pane]').count();
+  return total > 1 && (await p.locator('[data-pane][inert]').count()) === total - 1;
+});
+// Committing a figure must keep focus where it was. It did not: an edit
+// re-rendered the app, the sheet's open/close effect re-ran on a fresh
+// onClose, and its teardown threw focus out to the tab bar behind the sheet.
+const surv = p.locator('[data-active] label:has-text("Survivor spends") input');
+await surv.fill('80'); await p.keyboard.press('Tab'); await wait(700);
+// (Merely "focus is somewhere in the sheet" is not enough: the broken sheet
+// re-focused its own panel 30ms after throwing focus out, so that passed.)
+await check('36d committing a figure, Tab lands on the next field', async () =>
+  p.evaluate(() => /Your name/.test(document.activeElement?.closest('label')?.textContent || '')));
+await surv.fill('75'); await surv.blur(); await wait(500);
 await goPage('Someday');
 await check('37 retire-in-year field', () => onPage('Retire in year'));
 await goPage('Drawing');

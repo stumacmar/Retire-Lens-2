@@ -148,9 +148,10 @@ export default function Carousel({ pages, index, onIndex, footer, railBg = 'var(
             // them apart (tests included).
             {...(n === i ? { 'data-active': '' } : {})}
             aria-hidden={n === i ? undefined : true}
-            // Only the page in view takes focus, so a swipe never lands you
-            // in a field you cannot see.
-            {...(n === i ? {} : { inert: '' as any })}>
+            // Only the page in view takes focus, so Tab never lands you in a
+            // field you cannot see. React 19 treats inert as a true boolean:
+            // an empty string reads as FALSE and silently drops it.
+            inert={n !== i}>
             {p.body}
           </section>
         ))}

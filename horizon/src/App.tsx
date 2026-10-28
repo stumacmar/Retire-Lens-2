@@ -9,7 +9,7 @@ import HorizonViz from './components/HorizonViz';
 import Sheet from './components/Sheet';
 import Onboarding from './components/Onboarding';
 import PlanForm from './components/PlanForm';
-import { Payslip, Guardrails } from './components/Paycheck';
+import { Payslip, Guardrails } from './components/Payslip';
 import Months from './components/Months';
 import DecisionMap from './components/DecisionMap';
 import Guess from './components/Guess';

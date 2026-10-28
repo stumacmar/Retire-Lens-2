@@ -1,5 +1,5 @@
 /**
- * The figures behind the Paycheck, Months and the decision map. Pure
+ * The figures behind the payslip, Months and the decision map. Pure
  * functions of a plan and an engine instance, so the same code runs on the
  * main thread and in the insight worker and can never disagree.
  *

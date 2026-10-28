@@ -12,6 +12,7 @@ import PlanForm from './components/PlanForm';
 import { Payslip, Guardrails } from './components/Paycheck';
 import Months from './components/Months';
 import DecisionMap from './components/DecisionMap';
+import Guess from './components/Guess';
 import PrintReport from './components/PrintReport';
 import Approach from './components/Approach';
 import { MoneyField, NumField, Segmented } from './components/Field';
@@ -73,6 +74,8 @@ function Horizon() {
   const [yearSel, setYearSel] = useState<number | null>(null);
   const [onboarded, setOnboarded] = useState(hasSavedPlan());
   const [disclaimerOk, setDisclaimerOk] = useState(disclaimerAccepted());
+  // Predict-then-reveal, once per device, before the first answer.
+  const [guessed, setGuessed] = useState(() => { try { return localStorage.getItem('someday-guessed-v1') === '1'; } catch { return true; } });
   const openPlus = () => setSheet('plus');
 
   // A plan with no money in it is a blank canvas — show the invitation,
@@ -245,6 +248,12 @@ function Horizon() {
   // existed, which is why it lives here rather than inside onboarding.
   if (plan.approach == null) {
     return <Approach plan={plan} update={update} onDone={() => { /* plan now carries the choice */ }} />;
+  }
+
+  // Draw what you expect, then see what Someday projects. Once per device.
+  if (hasMoney && !guessed) {
+    return <Guess plan={plan} series={viz.base} dd={dd}
+      onDone={() => { setGuessed(true); try { localStorage.setItem('someday-guessed-v1', '1'); } catch { /* private mode */ } }} />;
   }
 
   return (

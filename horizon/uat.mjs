@@ -132,11 +132,14 @@ const GATE_HASH = fs.readFileSync(path.join(__dir, 'public', 'gate.js'), 'utf8')
 const passGate = () => p.evaluate(h => localStorage.setItem('someday-gate-v1', h), GATE_HASH).catch(() => {});
 const seedPlus = () => p.evaluate(v => localStorage.setItem('someday-licence-v1', v), PLUS).catch(() => {});
 const acceptDisclaimer = async () => { if (await has('I understand')) { await tap('I understand'); await wait(700); } };
-const fresh = async () => {
+// The one-time "First, a guess" screen is exercised in the onboarding run;
+// every other fresh start has already guessed, so it lands on the answer.
+const fresh = async ({ guess = false } = {}) => {
   await p.goto(URL, { waitUntil: 'networkidle' });
   await p.evaluate(() => localStorage.clear()).catch(() => {});
   await passGate();
   await seedPlus();
+  if (!guess) await p.evaluate(() => localStorage.setItem('someday-guessed-v1', '1')).catch(() => {});
   await p.reload({ waitUntil: 'networkidle' }); await wait(700);
 };
 const planOf = async () => p.evaluate(() => { try { return JSON.parse(localStorage.getItem('horizon-plan-v1') || '{}'); } catch { return {}; } });
@@ -182,7 +185,7 @@ if (GATE_ON) {
 }
 await check('00e noindex meta present (remove at public launch)', async () => (await p.$('meta[name="robots"][content*="noindex"]')) != null);
 
-await fresh();
+await fresh({ guess: true });
 await check('01 onboarding on first visit', async () => /stop/i.test(await h1()));
 await check('02 Begin button', () => has('Begin'));
 await check('03 example link', () => has('worked example'));
@@ -220,6 +223,20 @@ await check('17b approach screen asks how the money is run', async () => /How sh
 await check('17c traditional option offered', () => has('Traditional'));
 await check('17d de-risking option offered', () => has('De-risking'));
 await tap('Traditional'); await wait(900);
+// Predict, then reveal — once, before the first answer.
+await check('17e guess comes before the answer', async () => /First, a guess/.test(await h1()));
+await check('17f cannot reveal before drawing', async () => (await p.locator('button:has-text("Draw your line first")').isDisabled().catch(() => false)));
+{
+  const c = await p.locator('canvas').first().boundingBox();
+  await p.mouse.move(c.x + 12, c.y + c.height * 0.5); await p.mouse.down();
+  for (let i = 1; i <= 20; i++) await p.mouse.move(c.x + 12 + (i / 20) * (c.width - 24), c.y + c.height * (0.5 + 0.45 * i / 20), { steps: 2 });
+  await p.mouse.up(); await wait(300);
+}
+await check('17g drawing unlocks the reveal', () => has('Show me the real answer'));
+await tap('Show me the real answer'); await wait(1500);
+await check('17h reveal compares your line with the projection', async () => /You drew it .* Someday.s projection/.test((await bodyT()).replace(/\s+/g, ' ')));
+await tap('See my plan'); await wait(900);
+await check('17i the guess is asked only once', async () => p.evaluate(() => localStorage.getItem('someday-guessed-v1') === '1'));
 await check('18 lands on the Horizon', async () => /a month to live on|draw your horizon|runs short at/i.test(await h1()));
 await check('19 bottom tab bar visible', () => has('Horizon'));
 await check('20 multi-step onboarding completed', () => true);

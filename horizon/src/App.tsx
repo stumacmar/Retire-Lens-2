@@ -9,6 +9,8 @@ import HorizonViz from './components/HorizonViz';
 import Sheet from './components/Sheet';
 import Onboarding from './components/Onboarding';
 import PlanForm from './components/PlanForm';
+import { Payslip, Guardrails } from './components/Paycheck';
+import Months from './components/Months';
 import PrintReport from './components/PrintReport';
 import Approach from './components/Approach';
 import { MoneyField, NumField, Segmented } from './components/Field';
@@ -62,6 +64,11 @@ function Horizon() {
   const [sheet, setSheet] = useState<Tab | null>(null);
   // Which carousel page the Details sheet opens on (0 = Who).
   const [detailsPage, setDetailsPage] = useState(0);
+  // The answer has three pictures: a payslip, your months, the wealth chart.
+  const [homeView, setHomeViewState] = useState<'pay' | 'months' | 'chart'>(() => {
+    try { const v = localStorage.getItem('someday-home-view'); return v === 'months' || v === 'chart' ? v : 'pay'; } catch { return 'pay'; }
+  });
+  const setHomeView = (v: 'pay' | 'months' | 'chart') => { setHomeViewState(v); try { localStorage.setItem('someday-home-view', v); } catch { /* private mode */ } };
   const [yearSel, setYearSel] = useState<number | null>(null);
   const [onboarded, setOnboarded] = useState(hasSavedPlan());
   const [disclaimerOk, setDisclaimerOk] = useState(disclaimerAccepted());
@@ -271,11 +278,10 @@ function Horizon() {
         {hasMoney ? (<>
         <h1 className="mt-1 text-[1.85rem] leading-[1.18] font-extrabold tracking-tight">
           {lasts ? (
-            <>About{' '}
-              <span className="tnum" style={{ color: 'var(--color-calm-strong)' }}>{fmtK(shownSpend)}</span>{' '}
-              a year looks sustainable into your {Math.floor(plan.horizonAge / 10) * 10}s{dd.shortfallAgeA != null && dd.exhaustedAgeA == null ? <>, after a gap around age {dd.shortfallAgeA}</> : null}.</>
+            <><span className="tnum" style={{ color: 'var(--color-calm-strong)' }}>{fmt(Math.round(shownSpend / 12))}</span>{' '}
+              a month to live on, into your {Math.floor(plan.horizonAge / 10) * 10}s{dd.shortfallAgeA != null && dd.exhaustedAgeA == null ? <>, after a gap around age {dd.shortfallAgeA}</> : null}.</>
           ) : (
-            <>At <span className="tnum">{fmtK(shownSpend)}</span> a year, it gets tight around{' '}
+            <><span className="tnum">{fmt(Math.round(shownSpend / 12))}</span> a month runs short at{' '}
               <span style={{ color: 'var(--color-hope)' }}>age {dd.exhaustedAgeA}</span>. A little less, or a little longer, holds it.</>
           )}
         </h1>
@@ -308,6 +314,20 @@ function Horizon() {
           Projected wealth in today's money · drag to read a year, tap for detail
         </p>
       </div>
+      {hasMoney && <div className="mt-5">
+        <Segmented value={homeView} onChange={setHomeView} label="How to see it" options={[
+          { value: 'pay', label: 'Payslip' }, { value: 'months', label: 'Months' }, { value: 'chart', label: 'Chart' },
+        ]} />
+      </div>}
+
+      {hasMoney && homeView === 'pay' && <>
+        <Payslip plan={plan} dd={dd} single={isSingle(plan)} />
+        <Guardrails plan={plan} />
+      </>}
+
+      {hasMoney && homeView === 'months' && <Months plan={plan} dd={dd} />}
+
+      {(!hasMoney || homeView === 'chart') && <>
       <div className="mt-4 lg:mt-2 -mx-1 lg:mx-0">
         <HorizonViz base={viz.base} low={viz.low} high={viz.high}
           startYear={plan.startYear} retireYear={plan.retireYear} horizonYear={horizonYear}
@@ -334,6 +354,7 @@ function Horizon() {
         </span>}
         <span style={{ color: 'var(--color-ink-faint)' }}>· height = total wealth · tap any year for detail</span>
       </div>}
+      </>}
 
       <div className="mt-3">
         <Segmented value={lens} onChange={setLens} options={[

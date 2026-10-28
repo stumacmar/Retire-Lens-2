@@ -220,13 +220,13 @@ await check('17b approach screen asks how the money is run', async () => /How sh
 await check('17c traditional option offered', () => has('Traditional'));
 await check('17d de-risking option offered', () => has('De-risking'));
 await tap('Traditional'); await wait(900);
-await check('18 lands on the Horizon', async () => /spend about|draw your horizon|gets tight/i.test(await h1()));
+await check('18 lands on the Horizon', async () => /a month to live on|draw your horizon|runs short at/i.test(await h1()));
 await check('19 bottom tab bar visible', () => has('Horizon'));
 await check('20 multi-step onboarding completed', () => true);
 
 await loadEx();
 await check('21 example loads Stuart & Carol', async () => /Stuart|Carol/.test(await bodyT()));
-await check('22 example shows an answer', async () => /looks sustainable|gets tight/i.test(await h1()));
+await check('22 example shows an answer', async () => /a month to live on|runs short at/i.test(await h1()));
 await check('23 confidence % shown', async () => /%/.test(await bodyT()));
 
 let k = 24;
@@ -238,6 +238,16 @@ for (const [t, m] of [['Details', 'Your details'], ['Explore', 'Explore'], ['Pea
 }
 
 await closeSheet();
+// The answer opens as a payslip; the guardrails and the month grid are the other pictures.
+await check('29a home opens on the payslip', () => has('Someday payslip'));
+await check('29b payslip shows take-home and tax', async () => (await has('Take home')) && (await has('Income tax')));
+await p.waitForSelector('text=How far could it fall?', { timeout: 8000 }).catch(() => {});
+await check('29c guardrails from real bad histories', async () => (await has('Japan, 1990 on')) && (await has('2008, the day you stop')));
+await p.getByRole('button', { name: 'Next year' }).click().catch(() => {}); await wait(300);
+await check('29d payslip steps to the next year', async () => /2031\/32/.test(await bodyT()));
+await p.getByRole('button', { name: 'Months', exact: true }).click(); await wait(500);
+await check('29e months view counts the months', async () => /\d+ months\./.test(await bodyT()) && (await has('paid by guaranteed pensions')));
+await p.getByRole('button', { name: 'Chart', exact: true }).click(); await wait(600);
 const mpath = () => p.$eval('svg path[stroke="var(--color-ocean)"]', e => e.getAttribute('d') || '').catch(() => '');
 // Click the segmented buttons specifically (the legend also contains "Poor").
 await p.locator('button:has-text("Poor")').first().click(); await wait(700); const cP = await mpath();
@@ -366,7 +376,7 @@ await check('84 rapid lens switch, no crash', () => pe.length === 0);
 for (let i = 0; i < 5; i++) { await tap('Details'); await wait(200); await closeSheet(); }
 await check('85 rapid sheet cycle, no crash', () => pe.length === 0);
 await closeSheet(); await wait(700); // let the debounced compute settle before reading the headline
-await check('86 headline valid after stress', async () => /looks sustainable|gets tight/i.test(await h1()));
+await check('86 headline valid after stress', async () => /a month to live on|runs short at/i.test(await h1()));
 
 await loadEx();
 await check('87 horizon svg on home', () => $('svg'));
@@ -391,7 +401,7 @@ await check('100 zero uncaught page errors overall', () => pe.length === 0);
 await p.evaluate(() => localStorage.removeItem('someday-licence-v1')).catch(() => {});
 await p.reload({ waitUntil: 'networkidle' }); await wait(900);
 await check('101 free: disclaimer not asked again', async () => !/calm place to think/i.test(await h1()));
-await check('102 free: the answer still renders', async () => /looks sustainable|gets tight/i.test(await h1()));
+await check('102 free: the answer still renders', async () => /a month to live on|runs short at/i.test(await h1()));
 await check('103 free: confidence % still shown', async () => /% of simulated futures/.test(await bodyT()));
 await check('104 free: Get Plus pill in header', () => $('button[aria-label="Get Someday Plus"]'));
 await tap('Explore'); await wait(900);

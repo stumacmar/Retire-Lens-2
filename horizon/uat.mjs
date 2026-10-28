@@ -326,6 +326,18 @@ await check('54 headline valid after edits', async () => (await h1()).length > 5
 await check('55 no £NaN after edits', async () => !/£NaN/.test(await bodyT()));
 
 await tap('Explore'); await wait(800);
+// The decision map: every (stop year × spending) retirement, and the dot is your plan.
+await p.waitForSelector('#explore-map canvas', { timeout: 8000 }).catch(() => {});
+await wait(1500);
+await check('55a decision map shown first in Explore', () => has('Every retirement you could choose'));
+await check('55b map states the edge for your stop year', async () => /the most you can spend for each year you might stop/.test(await bodyT()));
+{
+  const before = await p.evaluate(() => JSON.parse(localStorage.getItem('horizon-plan-v1')));
+  const c = await p.locator('#explore-map canvas').boundingBox();
+  await p.mouse.click(c.x + c.width * 0.75, c.y + c.height * 0.3); await wait(900);
+  const after = await p.evaluate(() => JSON.parse(localStorage.getItem('horizon-plan-v1')));
+  await check('55c dragging the map changes the plan', () => after.retireYear !== before.retireYear || after.targetNet !== before.targetNet);
+}
 await check('56 Monte-Carlo fan renders', () => has('Range of futures'));
 await check('57 income breakdown', () => has('Where your income comes from'));
 await check('56b decision levers ranked (What moves the needle)', async () => (await has('What moves the needle')) && /pts/.test(await bodyT()));

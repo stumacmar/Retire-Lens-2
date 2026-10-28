@@ -11,6 +11,7 @@ import Onboarding from './components/Onboarding';
 import PlanForm from './components/PlanForm';
 import { Payslip, Guardrails } from './components/Paycheck';
 import Months from './components/Months';
+import DecisionMap from './components/DecisionMap';
 import PrintReport from './components/PrintReport';
 import Approach from './components/Approach';
 import { MoneyField, NumField, Segmented } from './components/Field';
@@ -514,7 +515,7 @@ function Horizon() {
           index={detailsPage} onIndex={setDetailsPage} />
       </Sheet>
       <Sheet open={sheet === 'explore'} onClose={() => setSheet(null)} title="Explore">
-        <ExploreBody plan={planL} dd={dd} estate={estate} mc={mc} plus={plus} onUpgrade={openPlus} />
+        <ExploreBody plan={planL} dd={dd} estate={estate} mc={mc} plus={plus} onUpgrade={openPlus} update={update} />
       </Sheet>
       <Sheet open={sheet === 'peace'} onClose={() => setSheet(null)} title="Peace of mind">
         <PeaceBody plus={plus} onUpgrade={openPlus} plan={plan} mc={mc} />
@@ -730,7 +731,7 @@ function McFan({ mc, retireYear }: { mc: MC; retireYear: number }) {
   );
 }
 
-function ExploreBody({ plan, dd, estate, mc, plus, onUpgrade }: { plan: any; dd: Drawdown; estate: any; mc: MC | null; plus: boolean; onUpgrade: () => void }) {
+function ExploreBody({ plan, dd, estate, mc, plus, onUpgrade, update }: { plan: any; dd: Drawdown; estate: any; mc: MC | null; plus: boolean; onUpgrade: () => void; update: (p: any) => void }) {
   const today = (v: number, year: number) => deflate(v, year, plan.startYear, plan.inflation);
   const lifeTax = (dd as any).lifetimeTaxReal ?? dd.lifetimeTax;
   const mix = fundingMix(dd);
@@ -787,12 +788,14 @@ function ExploreBody({ plan, dd, estate, mc, plus, onUpgrade }: { plan: any; dd:
     <div className="space-y-5 pb-2">
       <div className="sticky top-0 z-10 -mx-6 px-6 pb-2" style={{ background: 'var(--color-surface)' }}>
         <nav aria-label="Explore sections" className="flex gap-1.5 overflow-x-auto no-scrollbar">
-          {[['futures', 'Futures'], ['levers', 'Levers'], ['dates', 'Dates'], ['stress', 'Stress'], ['tax', 'Tax'], ['table', 'Year by year']].map(([id, l]) => (
+          {[['map', 'Map'], ['futures', 'Futures'], ['levers', 'Levers'], ['dates', 'Dates'], ['stress', 'Stress'], ['tax', 'Tax'], ['table', 'Year by year']].map(([id, l]) => (
             <button key={id} onClick={() => jump(id)} className="shrink-0 rounded-full px-3 min-h-[36px] text-[0.75rem] font-semibold"
               style={{ background: 'var(--color-canvas)', border: '1px solid var(--color-hairline)', color: 'var(--color-ink-dim)' }}>{l}</button>
           ))}
         </nav>
       </div>
+      {/* ── Every retirement you could choose ────────────────────── */}
+      <DecisionMap plan={plan} update={update} />
       {/* ── Monte Carlo ─────────────────────────────────────────── */}
       {mc && (
         <div id="explore-futures" className="rounded-2xl p-4" style={{ background: 'var(--color-canvas)' }}>

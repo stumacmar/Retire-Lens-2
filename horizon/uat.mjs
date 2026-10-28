@@ -132,11 +132,14 @@ const GATE_HASH = fs.readFileSync(path.join(__dir, 'public', 'gate.js'), 'utf8')
 const passGate = () => p.evaluate(h => localStorage.setItem('someday-gate-v1', h), GATE_HASH).catch(() => {});
 const seedPlus = () => p.evaluate(v => localStorage.setItem('someday-licence-v1', v), PLUS).catch(() => {});
 const acceptDisclaimer = async () => { if (await has('I understand')) { await tap('I understand'); await wait(700); } };
-const fresh = async () => {
+// The one-time "First, a guess" screen is exercised in the onboarding run;
+// every other fresh start has already guessed, so it lands on the answer.
+const fresh = async ({ guess = false } = {}) => {
   await p.goto(URL, { waitUntil: 'networkidle' });
   await p.evaluate(() => localStorage.clear()).catch(() => {});
   await passGate();
   await seedPlus();
+  if (!guess) await p.evaluate(() => localStorage.setItem('someday-guessed-v1', '1')).catch(() => {});
   await p.reload({ waitUntil: 'networkidle' }); await wait(700);
 };
 const planOf = async () => p.evaluate(() => { try { return JSON.parse(localStorage.getItem('horizon-plan-v1') || '{}'); } catch { return {}; } });
@@ -182,7 +185,7 @@ if (GATE_ON) {
 }
 await check('00e noindex meta present (remove at public launch)', async () => (await p.$('meta[name="robots"][content*="noindex"]')) != null);
 
-await fresh();
+await fresh({ guess: true });
 await check('01 onboarding on first visit', async () => /stop/i.test(await h1()));
 await check('02 Begin button', () => has('Begin'));
 await check('03 example link', () => has('worked example'));
@@ -220,13 +223,27 @@ await check('17b approach screen asks how the money is run', async () => /How sh
 await check('17c traditional option offered', () => has('Traditional'));
 await check('17d de-risking option offered', () => has('De-risking'));
 await tap('Traditional'); await wait(900);
-await check('18 lands on the Horizon', async () => /spend about|draw your horizon|gets tight/i.test(await h1()));
+// Predict, then reveal — once, before the first answer.
+await check('17e guess comes before the answer', async () => /First, a guess/.test(await h1()));
+await check('17f cannot reveal before drawing', async () => (await p.locator('button:has-text("Draw your line first")').isDisabled().catch(() => false)));
+{
+  const c = await p.locator('canvas').first().boundingBox();
+  await p.mouse.move(c.x + 12, c.y + c.height * 0.5); await p.mouse.down();
+  for (let i = 1; i <= 20; i++) await p.mouse.move(c.x + 12 + (i / 20) * (c.width - 24), c.y + c.height * (0.5 + 0.45 * i / 20), { steps: 2 });
+  await p.mouse.up(); await wait(300);
+}
+await check('17g drawing unlocks the reveal', () => has('Show me the real answer'));
+await tap('Show me the real answer'); await wait(1500);
+await check('17h reveal compares your line with the projection', async () => /You drew it .* Someday.s projection/.test((await bodyT()).replace(/\s+/g, ' ')));
+await tap('See my plan'); await wait(900);
+await check('17i the guess is asked only once', async () => p.evaluate(() => localStorage.getItem('someday-guessed-v1') === '1'));
+await check('18 lands on the Horizon', async () => /a month to live on|draw your horizon|runs short at/i.test(await h1()));
 await check('19 bottom tab bar visible', () => has('Horizon'));
 await check('20 multi-step onboarding completed', () => true);
 
 await loadEx();
 await check('21 example loads Stuart & Carol', async () => /Stuart|Carol/.test(await bodyT()));
-await check('22 example shows an answer', async () => /looks sustainable|gets tight/i.test(await h1()));
+await check('22 example shows an answer', async () => /a month to live on|runs short at/i.test(await h1()));
 await check('23 confidence % shown', async () => /%/.test(await bodyT()));
 
 let k = 24;
@@ -238,6 +255,16 @@ for (const [t, m] of [['Details', 'Your details'], ['Explore', 'Explore'], ['Pea
 }
 
 await closeSheet();
+// The answer opens as a payslip; the guardrails and the month grid are the other pictures.
+await check('29a home opens on the payslip', () => has('Someday payslip'));
+await check('29b payslip shows take-home and tax', async () => (await has('Take home')) && (await has('Income tax')));
+await p.waitForSelector('text=How far could it fall?', { timeout: 8000 }).catch(() => {});
+await check('29c guardrails from real bad histories', async () => (await has('Japan, 1990 on')) && (await has('2008, the day you stop')));
+await p.getByRole('button', { name: 'Next year' }).click().catch(() => {}); await wait(300);
+await check('29d payslip steps to the next year', async () => /2031\/32/.test(await bodyT()));
+await p.getByRole('button', { name: 'Months', exact: true }).click(); await wait(500);
+await check('29e months view counts the months', async () => /\d+ months\./.test(await bodyT()) && (await has('paid by guaranteed pensions')));
+await p.getByRole('button', { name: 'Chart', exact: true }).click(); await wait(600);
 const mpath = () => p.$eval('svg path[stroke="var(--color-ocean)"]', e => e.getAttribute('d') || '').catch(() => '');
 // Click the segmented buttons specifically (the legend also contains "Poor").
 await p.locator('button:has-text("Poor")').first().click(); await wait(700); const cP = await mpath();
@@ -316,6 +343,18 @@ await check('54 headline valid after edits', async () => (await h1()).length > 5
 await check('55 no £NaN after edits', async () => !/£NaN/.test(await bodyT()));
 
 await tap('Explore'); await wait(800);
+// The decision map: every (stop year × spending) retirement, and the dot is your plan.
+await p.waitForSelector('#explore-map canvas', { timeout: 8000 }).catch(() => {});
+await wait(1500);
+await check('55a decision map shown first in Explore', () => has('Every retirement you could choose'));
+await check('55b map states the edge for your stop year', async () => /the most you can spend for each year you might stop/.test(await bodyT()));
+{
+  const before = await p.evaluate(() => JSON.parse(localStorage.getItem('horizon-plan-v1')));
+  const c = await p.locator('#explore-map canvas').boundingBox();
+  await p.mouse.click(c.x + c.width * 0.75, c.y + c.height * 0.3); await wait(900);
+  const after = await p.evaluate(() => JSON.parse(localStorage.getItem('horizon-plan-v1')));
+  await check('55c dragging the map changes the plan', () => after.retireYear !== before.retireYear || after.targetNet !== before.targetNet);
+}
 await check('56 Monte-Carlo fan renders', () => has('Range of futures'));
 await check('57 income breakdown', () => has('Where your income comes from'));
 await check('56b decision levers ranked (What moves the needle)', async () => (await has('What moves the needle')) && /pts/.test(await bodyT()));
@@ -366,7 +405,7 @@ await check('84 rapid lens switch, no crash', () => pe.length === 0);
 for (let i = 0; i < 5; i++) { await tap('Details'); await wait(200); await closeSheet(); }
 await check('85 rapid sheet cycle, no crash', () => pe.length === 0);
 await closeSheet(); await wait(700); // let the debounced compute settle before reading the headline
-await check('86 headline valid after stress', async () => /looks sustainable|gets tight/i.test(await h1()));
+await check('86 headline valid after stress', async () => /a month to live on|runs short at/i.test(await h1()));
 
 await loadEx();
 await check('87 horizon svg on home', () => $('svg'));
@@ -391,7 +430,7 @@ await check('100 zero uncaught page errors overall', () => pe.length === 0);
 await p.evaluate(() => localStorage.removeItem('someday-licence-v1')).catch(() => {});
 await p.reload({ waitUntil: 'networkidle' }); await wait(900);
 await check('101 free: disclaimer not asked again', async () => !/calm place to think/i.test(await h1()));
-await check('102 free: the answer still renders', async () => /looks sustainable|gets tight/i.test(await h1()));
+await check('102 free: the answer still renders', async () => /a month to live on|runs short at/i.test(await h1()));
 await check('103 free: confidence % still shown', async () => /% of simulated futures/.test(await bodyT()));
 await check('104 free: Get Plus pill in header', () => $('button[aria-label="Get Someday Plus"]'));
 await tap('Explore'); await wait(900);

@@ -9,6 +9,10 @@ import HorizonViz from './components/HorizonViz';
 import Sheet from './components/Sheet';
 import Onboarding from './components/Onboarding';
 import PlanForm from './components/PlanForm';
+import { Payslip, Guardrails } from './components/Payslip';
+import Months from './components/Months';
+import DecisionMap from './components/DecisionMap';
+import Guess from './components/Guess';
 import PrintReport from './components/PrintReport';
 import Approach from './components/Approach';
 import { MoneyField, NumField, Segmented } from './components/Field';
@@ -62,9 +66,16 @@ function Horizon() {
   const [sheet, setSheet] = useState<Tab | null>(null);
   // Which carousel page the Details sheet opens on (0 = Who).
   const [detailsPage, setDetailsPage] = useState(0);
+  // The answer has three pictures: a payslip, your months, the wealth chart.
+  const [homeView, setHomeViewState] = useState<'pay' | 'months' | 'chart'>(() => {
+    try { const v = localStorage.getItem('someday-home-view'); return v === 'months' || v === 'chart' ? v : 'pay'; } catch { return 'pay'; }
+  });
+  const setHomeView = (v: 'pay' | 'months' | 'chart') => { setHomeViewState(v); try { localStorage.setItem('someday-home-view', v); } catch { /* private mode */ } };
   const [yearSel, setYearSel] = useState<number | null>(null);
   const [onboarded, setOnboarded] = useState(hasSavedPlan());
   const [disclaimerOk, setDisclaimerOk] = useState(disclaimerAccepted());
+  // Predict-then-reveal, once per device, before the first answer.
+  const [guessed, setGuessed] = useState(() => { try { return localStorage.getItem('someday-guessed-v1') === '1'; } catch { return true; } });
   const openPlus = () => setSheet('plus');
 
   // A plan with no money in it is a blank canvas — show the invitation,
@@ -239,6 +250,12 @@ function Horizon() {
     return <Approach plan={plan} update={update} onDone={() => { /* plan now carries the choice */ }} />;
   }
 
+  // Draw what you expect, then see what Someday projects. Once per device.
+  if (hasMoney && !guessed) {
+    return <Guess plan={plan} series={viz.base} dd={dd}
+      onDone={() => { setGuessed(true); try { localStorage.setItem('someday-guessed-v1', '1'); } catch { /* private mode */ } }} />;
+  }
+
   return (
     <div className="min-h-full mx-auto max-w-[560px] lg:max-w-[1140px] px-5 lg:px-8"
          style={{ paddingBottom: 'calc(8.5rem + env(safe-area-inset-bottom))' }}>
@@ -271,11 +288,10 @@ function Horizon() {
         {hasMoney ? (<>
         <h1 className="mt-1 text-[1.85rem] leading-[1.18] font-extrabold tracking-tight">
           {lasts ? (
-            <>About{' '}
-              <span className="tnum" style={{ color: 'var(--color-calm-strong)' }}>{fmtK(shownSpend)}</span>{' '}
-              a year looks sustainable into your {Math.floor(plan.horizonAge / 10) * 10}s{dd.shortfallAgeA != null && dd.exhaustedAgeA == null ? <>, after a gap around age {dd.shortfallAgeA}</> : null}.</>
+            <><span className="tnum" style={{ color: 'var(--color-calm-strong)' }}>{fmt(Math.round(shownSpend / 12))}</span>{' '}
+              a month to live on, into your {Math.floor(plan.horizonAge / 10) * 10}s{dd.shortfallAgeA != null && dd.exhaustedAgeA == null ? <>, after a gap around age {dd.shortfallAgeA}</> : null}.</>
           ) : (
-            <>At <span className="tnum">{fmtK(shownSpend)}</span> a year, it gets tight around{' '}
+            <><span className="tnum">{fmt(Math.round(shownSpend / 12))}</span> a month runs short at{' '}
               <span style={{ color: 'var(--color-hope)' }}>age {dd.exhaustedAgeA}</span>. A little less, or a little longer, holds it.</>
           )}
         </h1>
@@ -308,6 +324,20 @@ function Horizon() {
           Projected wealth in today's money · drag to read a year, tap for detail
         </p>
       </div>
+      {hasMoney && <div className="mt-5">
+        <Segmented value={homeView} onChange={setHomeView} label="How to see it" options={[
+          { value: 'pay', label: 'Payslip' }, { value: 'months', label: 'Months' }, { value: 'chart', label: 'Chart' },
+        ]} />
+      </div>}
+
+      {hasMoney && homeView === 'pay' && <>
+        <Payslip plan={plan} dd={dd} single={isSingle(plan)} />
+        <Guardrails plan={plan} />
+      </>}
+
+      {hasMoney && homeView === 'months' && <Months plan={plan} dd={dd} />}
+
+      {(!hasMoney || homeView === 'chart') && <>
       <div className="mt-4 lg:mt-2 -mx-1 lg:mx-0">
         <HorizonViz base={viz.base} low={viz.low} high={viz.high}
           startYear={plan.startYear} retireYear={plan.retireYear} horizonYear={horizonYear}
@@ -334,6 +364,7 @@ function Horizon() {
         </span>}
         <span style={{ color: 'var(--color-ink-faint)' }}>· height = total wealth · tap any year for detail</span>
       </div>}
+      </>}
 
       <div className="mt-3">
         <Segmented value={lens} onChange={setLens} options={[
@@ -493,7 +524,7 @@ function Horizon() {
           index={detailsPage} onIndex={setDetailsPage} />
       </Sheet>
       <Sheet open={sheet === 'explore'} onClose={() => setSheet(null)} title="Explore">
-        <ExploreBody plan={planL} dd={dd} estate={estate} mc={mc} plus={plus} onUpgrade={openPlus} />
+        <ExploreBody plan={planL} dd={dd} estate={estate} mc={mc} plus={plus} onUpgrade={openPlus} update={update} />
       </Sheet>
       <Sheet open={sheet === 'peace'} onClose={() => setSheet(null)} title="Peace of mind">
         <PeaceBody plus={plus} onUpgrade={openPlus} plan={plan} mc={mc} />
@@ -709,7 +740,7 @@ function McFan({ mc, retireYear }: { mc: MC; retireYear: number }) {
   );
 }
 
-function ExploreBody({ plan, dd, estate, mc, plus, onUpgrade }: { plan: any; dd: Drawdown; estate: any; mc: MC | null; plus: boolean; onUpgrade: () => void }) {
+function ExploreBody({ plan, dd, estate, mc, plus, onUpgrade, update }: { plan: any; dd: Drawdown; estate: any; mc: MC | null; plus: boolean; onUpgrade: () => void; update: (p: any) => void }) {
   const today = (v: number, year: number) => deflate(v, year, plan.startYear, plan.inflation);
   const lifeTax = (dd as any).lifetimeTaxReal ?? dd.lifetimeTax;
   const mix = fundingMix(dd);
@@ -766,12 +797,14 @@ function ExploreBody({ plan, dd, estate, mc, plus, onUpgrade }: { plan: any; dd:
     <div className="space-y-5 pb-2">
       <div className="sticky top-0 z-10 -mx-6 px-6 pb-2" style={{ background: 'var(--color-surface)' }}>
         <nav aria-label="Explore sections" className="flex gap-1.5 overflow-x-auto no-scrollbar">
-          {[['futures', 'Futures'], ['levers', 'Levers'], ['dates', 'Dates'], ['stress', 'Stress'], ['tax', 'Tax'], ['table', 'Year by year']].map(([id, l]) => (
+          {[['map', 'Map'], ['futures', 'Futures'], ['levers', 'Levers'], ['dates', 'Dates'], ['stress', 'Stress'], ['tax', 'Tax'], ['table', 'Year by year']].map(([id, l]) => (
             <button key={id} onClick={() => jump(id)} className="shrink-0 rounded-full px-3 min-h-[36px] text-[0.75rem] font-semibold"
               style={{ background: 'var(--color-canvas)', border: '1px solid var(--color-hairline)', color: 'var(--color-ink-dim)' }}>{l}</button>
           ))}
         </nav>
       </div>
+      {/* ── Every retirement you could choose ────────────────────── */}
+      <DecisionMap plan={plan} update={update} />
       {/* ── Monte Carlo ─────────────────────────────────────────── */}
       {mc && (
         <div id="explore-futures" className="rounded-2xl p-4" style={{ background: 'var(--color-canvas)' }}>

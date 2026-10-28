@@ -25,6 +25,8 @@
   --color-dawn-1: #fbeedb;      /* dawn gradient for the horizon sky */
   --color-dawn-2: #f5dfc0;
   --color-dusk: #dfe5de;        /* sea-sage hills */
+  --color-paper: #fffdf8;       /* the payslip */
+  --color-work: #c9d6e2;        /* months still working */
 
   --radius-xl: 28px;
   --radius-lg: 22px;
@@ -53,6 +55,8 @@
     --color-dawn-1: #2a323a;        /* dusk-indigo sky */
     --color-dawn-2: #362b1d;        /* ember band above the hills */
     --color-dusk: #242e23;
+    --color-paper: #241e18;
+    --color-work: #3a4a58;
   }
 }
 

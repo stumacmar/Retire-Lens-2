@@ -299,6 +299,8 @@ await p.evaluate(() => localStorage.clear());
 await p.evaluate(h => localStorage.setItem('someday-gate-v1', h), fs.readFileSync(path.join(__dir, 'public', 'gate.js'), 'utf8').match(/var HASH = '([0-9a-f]{64})'/)[1]);
 // Run as a Plus customer so every input is reachable (pre-validated local record; no network).
 await p.evaluate(() => localStorage.setItem('someday-licence-v1', JSON.stringify({ key: 'e2e-seeded-licence', instanceId: 'e2e', instanceName: 'E2E', status: 'active', expiresAt: null, activatedAt: Date.now(), validatedAt: Date.now() })));
+// The one-time guess screen is covered by the UAT sweep; this run goes straight to the answer.
+await p.evaluate(() => localStorage.setItem('someday-guessed-v1', '1'));
 await p.reload({ waitUntil: 'networkidle' }); await wait(700);
 await tap('Begin'); await wait(800);
 // Setup is the form carousel: short pages, swipe or tap the rail to move.
@@ -347,7 +349,7 @@ await acheck('U60b choosing de-risking records the approach', async () => (await
 await acheck('U60c choosing de-risking arms the architecture', async () => (await plan()).architecture?.on === true);
 await acheck('U60d de-risking uses the 7-year ladder', async () => (await plan()).architecture?.ladderYears === 7);
 await acheck('U62 completes to Horizon with DB captured for both', async () => { const P = await plan(); return P.partnerA.db === 9000 && P.partnerB.db === 5000; });
-await acheck('U63 answer renders after DB entry', async () => /looks sustainable|gets tight/i.test(await p.$eval('h1', e => e.textContent).catch(() => '')));
+await acheck('U63 answer renders after DB entry', async () => /a month to live on|runs short at/i.test(await p.$eval('h1', e => e.textContent).catch(() => '')));
 
 // Confidence responds to the DB we entered (compare to DB=0 in the same UI)
 await wait(700);

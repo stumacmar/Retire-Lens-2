@@ -87,6 +87,33 @@ const tap = async t => {
   catch { try { await p.locator(`text=${t}`).first().click({ timeout: 2000 }); return true; } catch { return false; } }
 };
 const sheetOpen = async () => (await p.locator('[role=dialog]').count()) > 0;
+// The cryptex: which face is lined up on each ring, rolling a ring, and the
+// controls on the face in front. Faces turned away are inert and aria-hidden.
+const cxFront = async () => p.$$eval('section[aria-hidden="false"][aria-label]', els => els
+  .filter(e => e.parentElement?.closest('[aria-roledescription="carousel"][role="group"]') && !e.closest('[role=dialog]'))
+  .map(e => e.getAttribute('aria-label')));
+const viewFront = async () => (await cxFront())[0];
+const codeFront = async () => (await cxFront())[1];
+const roll = async (ring, dir = 'next') => { await p.getByRole('button', { name: `${ring}: ${dir}` }).click().catch(() => {}); await wait(650); };
+const rollTo = async (ring, name) => {
+  for (let i = 0; i < 7; i++) { if ((ring === 'The view' ? await viewFront() : await codeFront()) === name) return true; await roll(ring); }
+  return false;
+};
+const setSlider = async (label, value) => {
+  const ok = await p.evaluate(([l, v]) => {
+    const el = [...document.querySelectorAll('section[aria-hidden="false"] input[type=range]')].find(i => i.getAttribute('aria-label') === l);
+    if (!el) return false;
+    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(el, String(v));
+    el.dispatchEvent(new Event('input', { bubbles: true })); el.dispatchEvent(new Event('change', { bubbles: true }));
+    return true;
+  }, [label, value]);
+  await wait(300); return ok;
+};
+const setPiece = async () => {
+  await p.evaluate(() => { const b = [...document.querySelectorAll('section[aria-hidden="false"] button')].find(x => /Set this piece/.test(x.textContent)); b && b.click(); });
+  await wait(750);
+};
+const answerText = async () => p.$$eval('section[aria-label="The answer"]', els => els.map(e => e.innerText).join(' ')).catch(() => '');
 // Controls that exist both on the Horizon and inside a sheet must be tapped
 // where they are meant, never on the card behind.
 const tapInSheet = async t => {
@@ -132,14 +159,11 @@ const GATE_HASH = fs.readFileSync(path.join(__dir, 'public', 'gate.js'), 'utf8')
 const passGate = () => p.evaluate(h => localStorage.setItem('someday-gate-v1', h), GATE_HASH).catch(() => {});
 const seedPlus = () => p.evaluate(v => localStorage.setItem('someday-licence-v1', v), PLUS).catch(() => {});
 const acceptDisclaimer = async () => { if (await has('I understand')) { await tap('I understand'); await wait(700); } };
-// The one-time "First, a guess" screen is exercised in the onboarding run;
-// every other fresh start has already guessed, so it lands on the answer.
-const fresh = async ({ guess = false } = {}) => {
+const fresh = async () => {
   await p.goto(URL, { waitUntil: 'networkidle' });
   await p.evaluate(() => localStorage.clear()).catch(() => {});
   await passGate();
   await seedPlus();
-  if (!guess) await p.evaluate(() => localStorage.setItem('someday-guessed-v1', '1')).catch(() => {});
   await p.reload({ waitUntil: 'networkidle' }); await wait(700);
 };
 const planOf = async () => p.evaluate(() => { try { return JSON.parse(localStorage.getItem('horizon-plan-v1') || '{}'); } catch { return {}; } });
@@ -185,66 +209,51 @@ if (GATE_ON) {
 }
 await check('00e noindex meta present (remove at public launch)', async () => (await p.$('meta[name="robots"][content*="noindex"]')) != null);
 
-await fresh({ guess: true });
+await fresh();
 await check('01 onboarding on first visit', async () => /stop/i.test(await h1()));
 await check('02 Begin button', () => has('Begin'));
 await check('03 example link', () => has('worked example'));
-await tap('Begin'); await wait(700);
-// Setup is the form carousel: one idea per page, swipe or tap the rail.
-await check('04 opens on the first page of the carousel', async () => /^Who/.test(await pageTitle()));
-await check('05 the rail names every page', async () => (await has('Someday')) && (await has('Your pots')));
-await check('06 a page counter orients you', async () => /1 \/ \d/.test(await bodyT()));
-await check('07 next and previous are offered', async () => (await p.locator('button[aria-label=Next]').count()) === 1);
-await check('08 cannot finish with nothing saved', async () =>
-  /Add a pension or ISA/.test(await p.$$eval('button', els => els.map(e => e.textContent).join(' '))));
-await p.fill('input[placeholder=You]', 'Alex').catch(() => {}); await wait(250);
-await check('09 name accepts typing', async () => (await p.$eval('input[placeholder=You]', e => e.value)) === 'Alex');
-await check('10 household choice offered', async () => (await has('A couple')) && (await has('Just me')));
-await tap('A couple'); await wait(500);
-await check('11 partner fields appear on the same page', async () => (await p.$('input[placeholder=Partner]')) != null);
-await tap('Next'); await waitPage('Someday'); await wait(200);
-await check('12 page two is the someday', async () => /^Someday/.test(await pageTitle()));
-await setField('Income you want each year', 59000);
-await check('13 target income captured', async () => (await planOf()).targetNet === 59000);
-await tap('Next'); await waitPage('Your pots'); await wait(200);
-await check('14 page three is the pots', async () => /pots$/.test(await pageTitle()));
-await setField('Workplace pension', 250000);
-await check('15 pension captured', async () => (await planOf()).partnerA?.pension === 250000);
-await setField('ISAs today', 40000);
-await check('16 ISA captured', async () => (await planOf()).partnerA?.isa === 40000);
-await check('17 See-my-horizon unlocks once there is money', () => has('See my horizon'));
-await tap('See my horizon'); await wait(900);
-// The disclaimer, accepted once before the first horizon
+await tap('Begin'); await wait(900);
+// The disclaimer, accepted once before the first answer
 await check('17a disclaimer shown once, before the horizon', async () => /calm place to think/i.test(await h1()));
 await check('17a2 disclaimer links to the legal page', async () => (await p.$('a[href="legal.html"]')) != null);
 await tap('I understand'); await wait(800);
-// The framing choice, asked once before the horizon
 await check('17b approach screen asks how the money is run', async () => /How should the money be run/i.test(await h1()));
 await check('17c traditional option offered', () => has('Traditional'));
 await check('17d de-risking option offered', () => has('De-risking'));
-await tap('Traditional'); await wait(900);
-// Predict, then reveal — once, before the first answer.
-await check('17e guess comes before the answer', async () => /First, a guess/.test(await h1()));
-await check('17f cannot reveal before drawing', async () => (await p.locator('button:has-text("Draw your line first")').isDisabled().catch(() => false)));
-{
-  const c = await p.locator('canvas').first().boundingBox();
-  await p.mouse.move(c.x + 12, c.y + c.height * 0.5); await p.mouse.down();
-  for (let i = 1; i <= 20; i++) await p.mouse.move(c.x + 12 + (i / 20) * (c.width - 24), c.y + c.height * (0.5 + 0.45 * i / 20), { steps: 2 });
-  await p.mouse.up(); await wait(300);
-}
-await check('17g drawing unlocks the reveal', () => has('Show me the real answer'));
-await tap('Show me the real answer'); await wait(1500);
-await check('17h reveal compares your line with the projection', async () => /You drew it .* Someday.s projection/.test((await bodyT()).replace(/\s+/g, ' ')));
-await tap('See my plan'); await wait(900);
-await check('17i the guess is asked only once', async () => p.evaluate(() => localStorage.getItem('someday-guessed-v1') === '1'));
-await check('18 lands on the Horizon', async () => /a month to live on|draw your horizon|runs short at/i.test(await h1()));
+await tap('Traditional'); await wait(1200);
+// Setting up IS the cryptex: locked, at night, six pieces to set.
+await check('04 home is the cryptex, locked', async () => /Unlock your pension code/i.test(await h1()));
+await check('05 two rings: the view above, the code below', async () => (await viewFront()) === 'The answer' && (await codeFront()) === 'You');
+await check('06 nothing set yet', async () => (await p.locator('[aria-label="0 of 6 pieces set"]').count()) === 1);
+await check('07 an empty plan asks for money rather than showing a figure', async () => /Set your pensions and savings/.test(await answerText()));
+await check('08 only the faces in front can be reached', async () => (await p.locator('section[inert]').count()) === 10);
+await check('09 household choice on the You piece', async () => (await has('The two of us')) && (await has('Just me')));
+await p.locator('section[aria-label="You"] button', { hasText: 'The two of us' }).click(); await wait(400);
+await check('10 choosing the two of us records a couple', async () => (await planOf()).household === 'couple');
+await setPiece();
+await check('11 setting a piece records it and rolls on', async () => (await planOf()).codeSet?.includes('you') && (await codeFront()) === 'Someday');
+await check('12 take-home slider writes the plan (a month × 12)', async () => (await setSlider('Take home a month', 3500)) && (await planOf()).targetNet === 42000);
+await setSlider('Stop work in', (await planOf()).startYear + 6);
+await check('13 stop-year slider writes the plan', async () => (await planOf()).retireYear === (await planOf()).startYear + 6);
+await setPiece();
+await check('14 pensions piece comes next', async () => (await codeFront()) === 'Pensions');
+await setSlider('Your pot', 300000); await setSlider('Their pot', 120000);
+await check('15 both pots captured', async () => { const q = await planOf(); return q.partnerA.pension === 300000 && q.partnerB.pension === 120000; });
+await check('16 with money in, the answer shows a monthly figure', async () => /a month, for life/i.test(await answerText()));
+await setPiece(); await setSlider('Your ISAs', 40000); await setPiece(); await setPiece(); await setPiece();
+await wait(1200);
+await check('17 all six set unlocks it', async () => /pension code is unlocked/i.test(await h1()));
+await check('17e the code shows all six set', async () => (await p.locator('[aria-label="6 of 6 pieces set"]').count()) === 1);
+await check('17f unlocking turns the view to the answer', async () => (await viewFront()) === 'The answer');
+await check('18 the set pieces are saved on the plan', async () => ((await planOf()).codeSet || []).length === 6);
 await check('19 bottom tab bar visible', () => has('Horizon'));
-await check('20 multi-step onboarding completed', () => true);
+await check('20 setup completed without a form', () => true);
 
 await loadEx();
-await check('21 example loads Stuart & Carol', async () => /Stuart|Carol/.test(await bodyT()));
-await check('22 example shows an answer', async () => /a month to live on|runs short at/i.test(await h1()));
-await check('23 confidence % shown', async () => /%/.test(await bodyT()));
+await check('21 example loads Stuart & Carol', async () => (await planOf()).partnerA?.name === 'Stuart');
+await check('22 example shows an answer', async () => /a month, for life/i.test(await answerText()));
+await check('23 confidence % shown', async () => /% of simulated futures/.test(await answerText()));
 
 let k = 24;
 for (const [t, m] of [['Details', 'Your details'], ['Explore', 'Explore'], ['Peace', 'Peace of mind']]) {
@@ -254,32 +263,37 @@ for (const [t, m] of [['Details', 'Your details'], ['Explore', 'Explore'], ['Pea
   await check(`${k++} ${t} sheet closes on Escape`, async () => !(await sheetOpen()));
 }
 
+// The view ring: six ways of seeing the same plan.
 await closeSheet();
-// The answer opens as a payslip; the guardrails and the month grid are the other pictures.
-await check('29a home opens on the payslip', () => has('Someday payslip'));
-await check('29b payslip shows take-home and tax', async () => (await has('Take home')) && (await has('Income tax')));
-await p.waitForSelector('text=How far could it fall?', { timeout: 8000 }).catch(() => {});
-await check('29c guardrails from real bad histories', async () => (await has('Japan, 1990 on')) && (await has('2008, the day you stop')));
-await p.getByRole('button', { name: 'Next year' }).click().catch(() => {}); await wait(300);
-await check('29d payslip steps to the next year', async () => /2031\/32/.test(await bodyT()));
-await p.getByRole('button', { name: 'Months', exact: true }).click(); await wait(500);
-await check('29e months view counts the months', async () => /\d+ months\./.test(await bodyT()) && (await has('paid by guaranteed pensions')));
-await p.getByRole('button', { name: 'Chart', exact: true }).click(); await wait(600);
-const mpath = () => p.$eval('svg path[stroke="var(--color-ocean)"]', e => e.getAttribute('d') || '').catch(() => '');
-// Click the segmented buttons specifically (the legend also contains "Poor").
-await p.locator('button:has-text("Poor")').first().click(); await wait(700); const cP = await mpath();
-await p.locator('button:has-text("Positive")').first().click(); await wait(700); const cB = await mpath();
-await check('30 lens reshapes the horizon (Poor≠Positive)', () => !!cP && cP !== cB);
-await tap('Base'); await wait(500);
-await check('31 Base lens, no crash', () => pe.length === 0);
+await rollTo('The view', 'Payslip');
+await check('29a payslip view: take-home and tax', async () => /Take home/i.test(await p.locator('section[aria-label="Payslip"]').innerText()) && /Income tax/.test(await p.locator('section[aria-label="Payslip"]').innerText()));
+await rollTo('The view', 'Your months');
+await check('29b months view counts the months', async () => /\d+ months from stopping/.test(await p.locator('section[aria-label="Your months"]').innerText()));
+await rollTo('The view', 'The horizon');
+await check('29c horizon view draws the wealth line', async () => (await p.locator('section[aria-label="The horizon"] svg path').count()) >= 2);
+await rollTo('The view', 'How far it could fall');
+await p.waitForFunction(() => /Japan, 1990 on/.test(document.querySelector('section[aria-label="How far it could fall"]')?.textContent || ''), null, { timeout: 8000 }).catch(() => {});
+await check('29d guardrails from real bad histories', async () => /Japan, 1990 on/.test(await p.locator('section[aria-label="How far it could fall"]').innerText()));
+await rollTo('The view', 'The edge');
+await p.waitForFunction(() => /the most you can spend/.test(document.querySelector('section[aria-label="The edge"]')?.textContent || ''), null, { timeout: 10000 }).catch(() => {});
+await check('29e the edge: every retirement', async () => /the most you can spend and still last/.test(await p.locator('section[aria-label="The edge"]').innerText()));
+await roll('The view'); 
+await check('30 the view ring wraps round to the answer', async () => (await viewFront()) === 'The answer');
+// Rolling by hand: drag the view up and it turns to the next face.
+{
+  const box = await p.locator('section[aria-label="The answer"]').boundingBox();
+  await p.mouse.move(box.x + box.width / 2, box.y + box.height * 0.75); await p.mouse.down();
+  await p.mouse.move(box.x + box.width / 2, box.y + box.height * 0.2, { steps: 10 }); await p.mouse.up(); await wait(900);
+}
+await check('31 dragging a ring rolls it', async () => (await viewFront()) !== 'The answer');
 await check('32 exactly one visible h1', async () => (await visH1()) === 1);
-
-const before = await h1(); await setRange(1, 105000); await wait(600);
-await check('33 spend slider changes headline', async () => (await h1()) !== before);
-await setRange(0, 22); await wait(600);
-await check('34 retire slider, no crash', () => pe.length === 0);
-await setRange(2, 4000); await wait(500);
-await check('35 save slider updates readout', async () => /4,000|4000/.test(await bodyT()));
+await rollTo('The view', 'The answer'); await rollTo('The code', 'Someday');
+const before = await answerText(); await setSlider('Take home a month', 9000); await wait(500);
+await check('33 take-home slider changes the answer', async () => (await answerText()) !== before);
+await setSlider('Stop work in', (await planOf()).startYear + 2); await wait(400);
+await check('34 stop-year slider, no crash', () => pe.length === 0);
+await rollTo('The code', 'Pensions'); await setSlider('Still paying in, a month', 4000); await wait(400);
+await check('35 paying-in slider shows its figure', async () => /£4,000/.test(await p.locator('section[aria-label="Pensions"]').innerText()));
 
 await loadEx(); await tap('Details'); await wait(800);
 // Editing is the same carousel: a rail of named pages, one idea on each.
@@ -381,12 +395,13 @@ await check('71 story link → story.html', async () => (await p.$eval('a[href="
 await check('72 no classic-planner link (one product, one app)', async () => (await p.$('a[href="app.html"]')) == null);
 await closeSheet();
 
-await setRange(1, 120000); await wait(700);
+await rollTo('The code', 'Someday');
+await setSlider('Take home a month', 15000); await wait(700);
 await check('73 extreme spend renders, no crash', async () => (await h1()).length > 5 && pe.length === 0);
 await check('74 no NaN at extreme spend', async () => !/NaN|undefined/.test(await bodyT()));
-await setRange(1, 20000); await wait(600); await check('75 minimal spend renders', async () => (await h1()).length > 5);
-await setRange(0, 2); await wait(600); await check('76 near-term retire, no crash', () => pe.length === 0);
-await setRange(0, 25); await wait(600); await check('77 far-out retire, no crash', () => pe.length === 0);
+await setSlider('Take home a month', 900); await wait(600); await check('75 minimal spend renders', async () => /a month, for life/i.test(await answerText()));
+await setSlider('Stop work in', (await planOf()).startYear + 1); await wait(600); await check('76 near-term retire, no crash', () => pe.length === 0);
+await setSlider('Stop work in', (await planOf()).startYear + 20); await wait(600); await check('77 far-out retire, no crash', () => pe.length === 0);
 await tap('Details'); await wait(700); await goPage('Stuart’s pots');
 await p.$$eval('[role=dialog] input[inputmode=decimal]', e => { const s = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set; e.forEach(el => { s.call(el, '0'); el.dispatchEvent(new Event('input', { bubbles: true })); el.dispatchEvent(new Event('blur', { bubbles: true })); }); }).catch(() => {}); await wait(700);
 await check('78 all pots zero survives', () => pe.length === 0);
@@ -398,20 +413,24 @@ await loadEx(); await p.reload({ waitUntil: 'networkidle' }); await wait(800);
 await check('81 reload keeps plan (no onboarding)', async () => !/Begin/.test(await bodyT()));
 await check('82 reload renders an answer', async () => (await h1()).length > 5);
 
-await closeSheet(); for (let i = 0; i < 12; i++) await setRange(1, 22000 + i * 8000); await wait(700);
+await closeSheet(); await rollTo('The code', 'Someday');
+for (let i = 0; i < 12; i++) await p.evaluate(v => { const el = [...document.querySelectorAll('section[aria-hidden="false"] input[type=range]')].find(x => x.getAttribute('aria-label') === 'Take home a month');
+  if (el) { Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(el, String(v)); el.dispatchEvent(new Event('input', { bubbles: true })); } }, 2000 + i * 900);
+await wait(700);
 await check('83 rapid slider hammer, no crash', () => pe.length === 0);
-await closeSheet(); for (const l of ['Poor', 'Positive', 'Base', 'Poor', 'Base']) { await tap(l); await wait(150); }
-await check('84 rapid lens switch, no crash', () => pe.length === 0);
+for (let i = 0; i < 8; i++) await p.getByRole('button', { name: 'The view: next' }).click();
+await wait(900);
+await check('84 rapid ring rolling, no crash', () => pe.length === 0);
 for (let i = 0; i < 5; i++) { await tap('Details'); await wait(200); await closeSheet(); }
 await check('85 rapid sheet cycle, no crash', () => pe.length === 0);
 await closeSheet(); await wait(700); // let the debounced compute settle before reading the headline
-await check('86 headline valid after stress', async () => /a month to live on|runs short at/i.test(await h1()));
+await check('86 headline valid after stress', async () => /pension code/i.test(await h1()));
 
 await loadEx();
-await check('87 horizon svg on home', () => $('svg'));
-await check('88 "Adjust your plan" card', () => has('Adjust your plan'));
-await check('89 privacy line on home', async () => /never leave this device/i.test(await bodyT()));
-await check('90 three lens options', async () => (await p.$$eval('button', e => e.filter(x => /Poor|Base|Positive/.test(x.textContent)).length)) >= 3);
+await check('87 the example starts locked, figures intact', async () => /Unlock your pension code/i.test(await h1()) && /a month, for life/i.test(await answerText()));
+await check('88 the code ring offers to set each piece', () => has('Set this piece'));
+await check('89 the code ring points to Details for everything else', async () => { await rollTo('The code', 'Later life'); return has('is in Details'); });
+await check('90 six views on the view ring', async () => (await p.$$eval('section[aria-label]', els => els.filter(e => e.className.includes('cx-face-view')).length)) === 6);
 await check('91 four tab destinations', async () => (await has('Horizon')) && (await has('Details')) && (await has('Explore')) && (await has('Peace')));
 await tap('Details'); await wait(500);
 await check('92 sheet opens (dialog role)', () => sheetOpen());
@@ -430,8 +449,8 @@ await check('100 zero uncaught page errors overall', () => pe.length === 0);
 await p.evaluate(() => localStorage.removeItem('someday-licence-v1')).catch(() => {});
 await p.reload({ waitUntil: 'networkidle' }); await wait(900);
 await check('101 free: disclaimer not asked again', async () => !/calm place to think/i.test(await h1()));
-await check('102 free: the answer still renders', async () => /a month to live on|runs short at/i.test(await h1()));
-await check('103 free: confidence % still shown', async () => /% of simulated futures/.test(await bodyT()));
+await check('102 free: the answer still renders', async () => /a month, for life/i.test(await answerText()));
+await check('103 free: confidence % still shown', async () => /% of simulated futures/.test(await answerText()));
 await check('104 free: Get Plus pill in header', () => $('button[aria-label="Get Someday Plus"]'));
 await tap('Explore'); await wait(900);
 await check('105 free: Monte Carlo stays free', () => has('Range of futures'));

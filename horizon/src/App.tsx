@@ -1,21 +1,17 @@
 import { useEffect, useMemo, useState } from 'react';
 import { motion, MotionConfig } from 'framer-motion';
-import { Sunrise, SlidersHorizontal, Compass, ShieldCheck, Download, Lightbulb, Sparkles } from 'lucide-react';
+import { Sunrise, SlidersHorizontal, Compass, ShieldCheck, Download, Sparkles } from 'lucide-react';
 import { usePlan, hasSavedPlan, E } from './lib/usePlan';
 import type { Accum, Drawdown, MC } from './engine/engine';
 import { fmt, fmtK, pct, deflate } from './lib/format';
-import { useCountUp } from './lib/useCountUp';
-import HorizonViz from './components/HorizonViz';
 import Sheet from './components/Sheet';
 import Onboarding from './components/Onboarding';
 import PlanForm from './components/PlanForm';
-import { Payslip, Guardrails } from './components/Payslip';
-import Months from './components/Months';
+import Cryptex from './components/cryptex/Cryptex';
 import DecisionMap from './components/DecisionMap';
-import Guess from './components/Guess';
 import PrintReport from './components/PrintReport';
 import Approach from './components/Approach';
-import { MoneyField, NumField, Segmented } from './components/Field';
+import { Segmented } from './components/Field';
 import Disclaimer, { disclaimerAccepted } from './components/Disclaimer';
 import Dates from './components/Dates';
 import Assumptions from './components/Assumptions';
@@ -59,31 +55,18 @@ export default function App() {
 function Horizon() {
   const { plus } = useEntitlement();
   const S = usePlan();
-  const { plan, dd, acc, ddBear, ddBull, mc, estate, lens, setLens, update } = S;
+  const { plan, dd, acc, ddBear, ddBull, mc, estate, setLens, update } = S;
   // Explore reads the plan through the chosen lens, exactly as the Horizon
   // and the confidence figure do — one set of numbers, never two.
   const planL = useMemo(() => ({ ...plan, growth: S.growth }), [plan, S.growth]);
   const [sheet, setSheet] = useState<Tab | null>(null);
   // Which carousel page the Details sheet opens on (0 = Who).
   const [detailsPage, setDetailsPage] = useState(0);
-  // The answer has three pictures: a payslip, your months, the wealth chart.
-  const [homeView, setHomeViewState] = useState<'pay' | 'months' | 'chart'>(() => {
-    try { const v = localStorage.getItem('someday-home-view'); return v === 'months' || v === 'chart' ? v : 'pay'; } catch { return 'pay'; }
-  });
-  const setHomeView = (v: 'pay' | 'months' | 'chart') => { setHomeViewState(v); try { localStorage.setItem('someday-home-view', v); } catch { /* private mode */ } };
   const [yearSel, setYearSel] = useState<number | null>(null);
   const [onboarded, setOnboarded] = useState(hasSavedPlan());
   const [disclaimerOk, setDisclaimerOk] = useState(disclaimerAccepted());
-  // Predict-then-reveal, once per device, before the first answer.
-  const [guessed, setGuessed] = useState(() => { try { return localStorage.getItem('someday-guessed-v1') === '1'; } catch { return true; } });
   const openPlus = () => setSheet('plus');
 
-  // A plan with no money in it is a blank canvas — show the invitation,
-  // not a broken chart and an alarming zero-confidence sentence.
-  const A = plan.partnerA, B = plan.partnerB;
-  const hasMoney = (A.pension + A.isa + A.monthlyPension + A.monthlyIsa + A.db
-    + B.pension + B.isa + B.monthlyPension + B.monthlyIsa + B.db + (plan.cash || 0)) > 0
-    || (E as any).hasAnyDb(A) || (E as any).hasAnyDb(B);
 
   const resetAll = () => {
     if (typeof window !== 'undefined' &&
@@ -94,17 +77,6 @@ function Horizon() {
     setOnboarded(false);
   };
 
-  const horizonYear = (E as any).planEndYear(plan);
-  const lasts = dd.exhaustedAgeA == null;
-  const spendToday = Math.round(plan.targetNet);
-  const conf = mc ? mc.successProb : (lasts ? 0.9 : 0.5);
-
-  // While a slider is actively dragged, show the live figure (no count-up
-  // re-tween → no stutter). Count-up plays on arrival and after you let go.
-  const [editing, setEditing] = useState(false);
-  const spendAnim = useCountUp(spendToday);
-  const confAnim = useCountUp(Math.round(conf * 100));
-  const shownSpend = editing ? spendToday : spendAnim;
 
   const viz = useMemo(() => {
     const base = series(plan, acc, dd);
@@ -114,120 +86,8 @@ function Horizon() {
     return { base, low, high, atRetire };
   }, [plan, acc, dd, ddBear, ddBull]);
 
-  const ageAtRetire = plan.retireYear - plan.partnerA.birthYear;
-  const ageNow = plan.startYear - plan.partnerA.birthYear;
 
-  // Spending Style (brief): the classic go-go / slow-go / no-go retirement
-  // spending shape, mapped honestly onto the engine's phased step-downs.
-  const spendStyle: 'gogo' | 'slowgo' | 'nogo' = plan.phase2On ? 'gogo' : plan.phase1On ? 'slowgo' : 'nogo';
-  const setSpendStyle = (v: string) => update(
-    v === 'gogo' ? { phase1On: true, phase2On: true }
-      : v === 'slowgo' ? { phase1On: true, phase2On: false }
-      : { phase1On: false, phase2On: false });
 
-  // Years of buffer: extend the horizon to 105 and see how far the money
-  // actually runs past your chosen age — headroom, in plain years.
-  const bufferYears = useMemo(() => {
-    if (!hasMoney) return null;
-    try {
-      const r = E.drawdown({ ...plan, growth: plan.growthBase, horizonAge: 105 });
-      if (r.exhaustedAgeA == null) return `${105 - plan.horizonAge}+`;
-      return String(Math.max(0, r.exhaustedAgeA - plan.horizonAge));
-    } catch { return null; }
-  }, [plan, hasMoney]);
-
-  // The Coach — a few grounded, on-device thoughts computed from the same
-  // verified engine (never generic tips). Prompts for an adviser, not advice.
-  const coach = useMemo(() => {
-    const items: { t: string; b: string }[] = [];
-    if (!hasMoney) return items;   // nothing sensible to say about a blank plan
-    try {
-      const P = { ...plan, growth: plan.growthBase };
-      // All Coach figures in today's money, like the rest of the app.
-      const realTax = (r: any) => r.lifetimeTaxReal ?? r.lifetimeTax;
-      const labels: Record<string, string> = {
-        sippfirst: 'pensions first, ISA for the excess',
-        pafirst: 'pensions to the free allowances, then ISA',
-        isafirst: 'ISA first, pensions deferred',
-      };
-      const runs = (['sippfirst', 'pafirst', 'isafirst'] as const)
-        .map(id => ({ id, tax: realTax(E.drawdown({ ...P, strategy: id })) }));
-      const cur = runs.find(s => s.id === plan.strategy);
-      const best = [...runs].sort((a, b) => a.tax - b.tax)[0];
-      if (cur && best && best.id !== cur.id && cur.tax - best.tax > 2500) {
-        items.push({
-          t: `A different drawdown order could save ~${fmtK(cur.tax - best.tax)} in tax`,
-          b: `Over the whole journey (today's money), “${labels[best.id]}” pays the least income tax. You can switch it in your settings and watch the effect live.`,
-        });
-      }
-      if (plan.pclsMode !== 'phased') {
-        const now = E.drawdown(P);
-        const phased = E.drawdown({ ...P, pclsMode: 'phased' });
-        const save = realTax(now) - realTax(phased);
-        if (save > 2500 && (phased.exhaustedAgeA == null || phased.exhaustedAgeA >= (now.exhaustedAgeA ?? 999))) {
-          items.push({
-            t: `Phased tax-free cash could save ~${fmtK(save)} in tax`,
-            b: 'Taking a slice of your 25% tax-free amount with each withdrawal lowers the tax on every year’s income, over the whole journey (today’s money).',
-          });
-        }
-      }
-      if (plan.architecture?.on && (dd as any).architecture?.on) {
-        const a = (dd as any).architecture;
-        if (a.spendMultFinal < 0.999) {
-          items.push({
-            t: `Your written rules end up trimming spending to ×${a.spendMultFinal.toFixed(2)}`,
-            b: 'On the central path the funded ratio falls far enough to fire the trim rule. That is the rule working as designed — but worth knowing the plan leans on it, rather than being comfortable without it.',
-          });
-        } else if (a.fundedRatioFinal != null && a.fundedRatioFinal > 1.4) {
-          items.push({
-            t: 'The plan finishes well over-funded',
-            b: `The funded ratio ends around ${Math.round(a.fundedRatioFinal * 100)}%. Either the spending target is lower than it needs to be, or there is room to bring the date forward — both worth testing on the Horizon.`,
-          });
-        }
-      }
-      for (const who of [plan.partnerA, plan.partnerB]) {
-        const annual = who.monthlyPension * 12;
-        const accessed = (who.pclsTaken || 0) > 0 || (who.crystallised || 0) > 0;
-        const income = who.income || 0;
-        const tapered = income > 260000 ? Math.max(10000, 60000 - (income - 260000) / 2) : 60000;
-        const allowance = accessed ? Math.min(10000, tapered) : tapered;
-        if (annual > allowance) {
-          items.push({
-            t: `${who.name}'s pension saving may exceed the ~${fmtK(allowance)} annual allowance`,
-            b: accessed
-              ? 'Flexibly accessing a pension can trigger the Money Purchase Annual Allowance (£10,000 a year of tax-relieved saving). The current contributions exceed that — one to confirm with an adviser.'
-              : 'High incomes taper the £60,000 annual allowance down to as little as £10,000. Contributions above it can trigger a tax charge — worth an adviser check. The projection itself is unchanged.',
-          });
-          break;
-        }
-      }
-      for (const who of [plan.partnerA, plan.partnerB]) {
-        if ((who.db || 0) > 0 && (who.dbTransferValue || 0) > 0) {
-          items.push({
-            t: `${who.name}'s DB transfer value is ~${((who.dbTransferValue || 0) / who.db).toFixed(0)}× the annual pension`,
-            b: 'For context only: giving up index-linked guaranteed income is rarely right, and transfers over £30,000 legally require regulated financial advice. The plan models the pension as kept.',
-          });
-          break;
-        }
-      }
-      if (mc && mc.successProb < 0.75) {
-        const now = E.drawdown(P);
-        const Q1 = JSON.parse(JSON.stringify(P)); (E as any).shiftRetirement(Q1, 1);
-        const oneMore = E.drawdown(Q1);
-        const gain = deflate(oneMore.endWealth - now.endWealth, horizonYear, plan.startYear, plan.inflation);
-        items.push({
-          t: 'The plan is sensitive to rough markets',
-          b: `It holds in ${Math.round(mc.successProb * 100)}% of simulated futures. One more working year adds roughly ${fmtK(Math.max(0, gain))} of headroom; a small trim to spending does similar work.`,
-        });
-      } else if (mc && mc.successProb >= 0.9 && estate && estate.iht > 0) {
-        items.push({
-          t: 'Strong plan — the estate is now the bigger question',
-          b: `With ${Math.round(mc.successProb * 100)}% of futures holding, the ~${fmtK(deflate(estate.iht, estate.year, plan.startYear, plan.inflation))} inheritance-tax exposure matters more than running out. Gifting and allowances are worth an adviser conversation.`,
-        });
-      }
-    } catch { /* the coach must never break the horizon */ }
-    return items.slice(0, 3);
-  }, [plan, mc, estate, horizonYear, hasMoney]);
 
   // New visitor → the calm vision-first onboarding (all hooks run above first).
   if (!onboarded) {
@@ -250,267 +110,29 @@ function Horizon() {
     return <Approach plan={plan} update={update} onDone={() => { /* plan now carries the choice */ }} />;
   }
 
-  // Draw what you expect, then see what Someday projects. Once per device.
-  if (hasMoney && !guessed) {
-    return <Guess plan={plan} series={viz.base} dd={dd}
-      onDone={() => { setGuessed(true); try { localStorage.setItem('someday-guessed-v1', '1'); } catch { /* private mode */ } }} />;
-  }
 
   return (
-    <div className="min-h-full mx-auto max-w-[560px] lg:max-w-[1140px] px-5 lg:px-8"
-         style={{ paddingBottom: 'calc(8.5rem + env(safe-area-inset-bottom))' }}>
+    <div className="min-h-full" style={{ background: '#070b10' }}>
 
-      <header className="pt-[calc(env(safe-area-inset-top)+1.1rem)] pb-1 flex items-center gap-2.5">
-        <svg width="24" height="24" viewBox="0 0 42 42" fill="none" aria-hidden="true">
-          <path d="M9 27a12 12 0 0 1 24 0" stroke="var(--color-calm)" strokeWidth="3.2" strokeLinecap="round" />
-          <circle cx="21" cy="27" r="4.5" stroke="var(--color-calm)" strokeWidth="3.2" />
-          <path d="M5 33.5h32" stroke="var(--color-calm)" strokeWidth="3.2" strokeLinecap="round" opacity=".5" />
-        </svg>
-        <div className="flex-1">
-          <div className="text-[1.15rem] font-extrabold tracking-tight leading-none">Someday</div>
-          <div className="text-[0.72rem] italic mt-0.5" style={{ color: 'var(--color-ink-faint)' }}>see your horizon</div>
-        </div>
-        <PlusPill plus={plus} onClick={openPlus} />
-        <div className="hidden lg:flex items-center justify-center rounded-full text-[0.7rem] font-bold"
-             style={{ width: 34, height: 34, color: 'var(--color-canvas)',
-                      background: 'linear-gradient(145deg, var(--color-sage), var(--color-sage-strong))' }}>
-          {(plan.partnerA.name[0] || 'Y')}{isSingle(plan) ? '' : (plan.partnerB.name[0] || 'P')}
-        </div>
-      </header>
-
-      {/* The answer — the single most important line, instantly obvious.
-          With no money in the plan yet, invite rather than alarm: a zero plan
-          is a blank canvas, not a crisis. */}
-      <section className="pt-3">
-        <p className="text-[0.85rem] font-semibold tracking-wide" style={{ color: 'var(--color-ink-dim)' }}>
-          {plan.partnerA.name}{!isSingle(plan) && <> &amp; {plan.partnerB.name}</>}
-        </p>
-        {hasMoney ? (<>
-        <h1 className="mt-1 text-[1.85rem] leading-[1.18] font-extrabold tracking-tight">
-          {lasts ? (
-            <><span className="tnum" style={{ color: 'var(--color-calm-strong)' }}>{fmt(Math.round(shownSpend / 12))}</span>{' '}
-              a month to live on, into your {Math.floor(plan.horizonAge / 10) * 10}s{dd.shortfallAgeA != null && dd.exhaustedAgeA == null ? <>, after a gap around age {dd.shortfallAgeA}</> : null}.</>
-          ) : (
-            <><span className="tnum">{fmt(Math.round(shownSpend / 12))}</span> a month runs short at{' '}
-              <span style={{ color: 'var(--color-hope)' }}>age {dd.exhaustedAgeA}</span>. A little less, or a little longer, holds it.</>
-          )}
-        </h1>
-        <p className="mt-2.5 text-[0.95rem]" style={{ color: 'var(--color-ink-dim)' }}>
-          Retiring {new Date(plan.retireYear, 3).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })}, at {ageAtRetire}.
-          {mc && <> It holds in <b className="tnum" style={{ color: 'var(--color-ink)' }}>{mc.successProb >= 0.975 ? 'over 95%' : 'about ' + Math.round(confAnim / 5) * 5 + '%'}</b> of simulated futures.</>}
-        </p>
-        </>) : (<>
-        <h1 className="mt-1 text-[1.85rem] leading-[1.18] font-extrabold tracking-tight">
-          Let&rsquo;s draw your horizon.
-        </h1>
-        <p className="mt-2.5 text-[0.95rem]" style={{ color: 'var(--color-ink-dim)' }}>
-          Add your pensions, ISAs and savings — the picture appears the moment you do, and it never leaves this device.
-        </p>
-        <button onClick={() => { setDetailsPage(2); setSheet('details'); }}
-          className="mt-4 rounded-2xl px-6 py-3.5 font-bold text-[1rem] text-[var(--color-ink)] active:scale-[0.98] transition-transform"
-          style={{ background: 'var(--color-calm)' }}>
-          Add your numbers
-        </button>
-        </>)}
-      </section>
-
-      {/* Desktop: inputs on the left, the horizon large on the right (mobile keeps
-          the vision-first order: horizon, then controls). */}
-      <div className="lg:flex lg:gap-10 lg:items-start lg:mt-2">
-      <div className="lg:order-2 lg:w-[62%] lg:min-w-0">
-      <div className="hidden lg:block mt-4">
-        <h2 className="text-[1.1rem] font-bold tracking-tight">Your Horizon</h2>
-        <p className="text-[0.78rem] mt-0.5" style={{ color: 'var(--color-ink-faint)' }}>
-          Projected wealth in today's money · drag to read a year, tap for detail
-        </p>
-      </div>
-      {hasMoney && <div className="mt-5">
-        <Segmented value={homeView} onChange={setHomeView} label="How to see it" options={[
-          { value: 'pay', label: 'Payslip' }, { value: 'months', label: 'Months' }, { value: 'chart', label: 'Chart' },
-        ]} />
-      </div>}
-
-      {hasMoney && homeView === 'pay' && <>
-        <Payslip plan={plan} dd={dd} single={isSingle(plan)} />
-        <Guardrails plan={plan} />
-      </>}
-
-      {hasMoney && homeView === 'months' && <Months plan={plan} dd={dd} />}
-
-      {(!hasMoney || homeView === 'chart') && <>
-      <div className="mt-4 lg:mt-2 -mx-1 lg:mx-0">
-        <HorizonViz base={viz.base} low={viz.low} high={viz.high}
-          startYear={plan.startYear} retireYear={plan.retireYear} horizonYear={horizonYear}
-          retireWealth={viz.atRetire} lasts={lasts} dryYear={dd.exhaustedYear}
-          inflation={plan.inflation} birthYear={plan.partnerA.birthYear}
-          spYear={isSingle(plan) ? plan.partnerA.birthYear + (E as any).spAgeOf(plan.partnerA) : Math.min(plan.partnerA.birthYear + (E as any).spAgeOf(plan.partnerA), plan.partnerB.birthYear + (E as any).spAgeOf(plan.partnerB))}
-          pclsTaken={plan.pclsMode !== 'none'}
-          onYearTap={setYearSel} />
-      </div>
-
-      {/* A quiet key so the shapes are legible — height is your total wealth. */}
-      {hasMoney && <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 px-1 text-[0.72rem]" style={{ color: 'var(--color-ink-dim)' }}>
-        <span className="flex items-center gap-1.5">
-          <span style={{ width: 16, height: 3, borderRadius: 2, background: 'var(--color-ocean)', display: 'inline-block' }} /> Typical path
-        </span>
-        <span className="flex items-center gap-1.5">
-          <span style={{ width: 12, height: 10, borderRadius: 3, background: 'var(--color-sage)', opacity: 0.45, display: 'inline-block' }} /> Poor–Positive range
-        </span>
-        <span className="flex items-center gap-1.5">
-          <span style={{ width: 9, height: 9, borderRadius: 9, background: 'var(--color-calm)', display: 'inline-block' }} /> You stop work
-        </span>
-        {!lasts && <span className="flex items-center gap-1.5">
-          <span style={{ width: 9, height: 9, borderRadius: 9, background: 'var(--color-hope)', display: 'inline-block' }} /> Money runs short
-        </span>}
-        <span style={{ color: 'var(--color-ink-faint)' }}>· height = total wealth · tap any year for detail</span>
-      </div>}
-      </>}
-
-      <div className="mt-3">
-        <Segmented value={lens} onChange={setLens} options={[
-          { value: 'bear', label: 'Poor', sub: pct(plan.growthBear, 0) },
-          { value: 'base', label: 'Base', sub: pct(plan.growthBase, 0) },
-          { value: 'bull', label: 'Positive', sub: pct(plan.growthBull, 0) },
-        ]} />
-      </div>
-      </div>
-
-      <div className="lg:order-1 lg:w-[38%] lg:min-w-0">
-      {/* Live "what if" — direct manipulation, immediate feedback (the compact
-          mobile card; the desktop brief card above replaces it at lg). */}
-      <section className="lg:hidden mt-5 rounded-3xl p-5"
-               style={{ background: 'var(--color-surface)', border: '1px solid var(--color-hairline)',
-                        boxShadow: '0 1px 2px rgba(60,50,35,0.05), 0 8px 24px rgba(60,50,35,0.06)' }}>
-        <div className="flex items-baseline justify-between">
-          <h2 className="text-[0.72rem] font-bold uppercase tracking-widest" style={{ color: 'var(--color-ink-faint)' }}>Adjust your plan</h2>
-          <span className="text-[0.7rem]" style={{ color: 'var(--color-ink-faint)' }}>saves as you go</span>
-        </div>
-        <WhatIf label="Retire in" out={`${plan.retireYear} · age ${ageAtRetire}`} onEdit={setEditing}
-          min={plan.startYear + 1} max={plan.startYear + 25} step={1} value={plan.retireYear}
-          onChange={v => update({ retireYear: v })} />
-        <WhatIf label="Spend each year" out={fmt(spendToday)} onEdit={setEditing}
-          min={20000} max={120000} step={1000} value={plan.targetNet}
-          onChange={v => update({ targetNet: v, spendingPlanOn: false })} />
-        <WhatIf label={`${plan.partnerA.name} saves monthly`} out={fmt(plan.partnerA.monthlyPension)} onEdit={setEditing}
-          min={0} max={5000} step={50} value={plan.partnerA.monthlyPension}
-          onChange={v => update((p: any) => ({ ...p, partnerA: { ...p.partnerA, monthlyPension: v } }))} />
-        <div className="mt-5">
-          <span className="block text-[0.8rem] font-semibold mb-2" style={{ color: 'var(--color-ink-dim)' }}>Spending Style</span>
-          <Segmented small value={spendStyle} onChange={setSpendStyle} options={[
-            { value: 'gogo', label: 'Go-go', sub: 'eases at 75 & 82' },
-            { value: 'slowgo', label: 'Slow-go', sub: 'eases from 75' },
-            { value: 'nogo', label: 'No-go', sub: 'flat throughout' },
-          ]} />
-        </div>
-        {mc && hasMoney && (
-          <div className="mt-4 rounded-2xl px-4 py-3.5 flex items-center gap-4"
-               style={{ background: 'color-mix(in srgb, var(--color-sage) 16%, var(--color-surface))' }}>
-            <span className="tnum text-[1.7rem] font-extrabold tracking-tight" style={{ color: 'var(--color-sage-strong)' }}>{confText(mc).main}</span>
-            <span>
-              <span className="block text-[0.82rem] font-semibold leading-snug">of simulated futures pay the full plan</span>
-              <span className="block text-[0.7rem] mt-0.5" style={{ color: 'var(--color-ink-faint)' }}>{mc.nPaths.toLocaleString()} simulated futures · {confText(mc).range} at this sample size</span>
-            </span>
+      {/* The home is the cryptex: the view above, the code below, at first light. */}
+      <Cryptex plan={plan} update={update} dd={dd} mc={mc} viz={viz} onDetails={() => setSheet('details')}
+        header={
+          <div className="flex items-center gap-2.5">
+            <svg width="22" height="22" viewBox="0 0 42 42" fill="none" aria-hidden="true">
+              <path d="M9 27a12 12 0 0 1 24 0" stroke="#dcc08c" strokeWidth="3.2" strokeLinecap="round" />
+              <circle cx="21" cy="27" r="4.5" stroke="#dcc08c" strokeWidth="3.2" />
+              <path d="M5 33.5h32" stroke="#dcc08c" strokeWidth="3.2" strokeLinecap="round" opacity=".5" />
+            </svg>
+            <span className="flex-1 cx-serif text-[1.3rem] leading-none">Someday <em style={{ color: 'var(--cx-gold)' }}>cryptex</em></span>
+            <PlusPill plus={plus} onClick={openPlus} />
           </div>
-        )}
-      </section>
+        } />
 
-      {/* Desktop: the full inputs card from the design brief. */}
-      <section className="hidden lg:block mt-4 rounded-2xl p-6"
-               style={{ background: 'var(--color-surface)', border: '1px solid var(--color-hairline)',
-                        boxShadow: '0 1px 2px rgba(60,50,35,0.05), 0 8px 24px rgba(60,50,35,0.06)' }}>
-        <h2 className="text-[1.1rem] font-bold tracking-tight mb-4">Your Horizon Inputs</h2>
-        <WhatIf label="Current Age" out={`${ageNow}`} onEdit={setEditing}
-          min={30} max={70} step={1} value={ageNow}
-          onChange={v => update((p: any) => ({ ...p, partnerA: { ...p.partnerA, birthYear: p.startYear - v } }))} />
-        <WhatIf label="Target Annual Net Income (£)" out={fmt(spendToday)} onEdit={setEditing}
-          min={20000} max={120000} step={500} value={plan.targetNet}
-          onChange={v => update({ targetNet: v, spendingPlanOn: false })} />
-        <div className="mt-5 space-y-3">
-          <MoneyField label="Current Pension Pot (£)" value={plan.partnerA.pension}
-            onChange={v => update((p: any) => ({ ...p, partnerA: { ...p.partnerA, pension: v } }))} />
-          <MoneyField label="Annual Contributions (£)" value={Math.round(plan.partnerA.monthlyPension * 12)}
-            onChange={v => update((p: any) => ({ ...p, partnerA: { ...p.partnerA, monthlyPension: v / 12 } }))} />
-          <NumField label="Desired Retirement Age" value={ageAtRetire}
-            onChange={v => update((p: any) => ({ ...p, retireYear: p.partnerA.birthYear + v }))} />
-        </div>
-        <div className="mt-5">
-          <span className="block text-[0.8rem] font-semibold mb-2" style={{ color: 'var(--color-ink-dim)' }}>Spending Style</span>
-          <Segmented small value={spendStyle} onChange={setSpendStyle} options={[
-            { value: 'gogo', label: 'Go-go', sub: 'more early, eases at 75 & 82' },
-            { value: 'slowgo', label: 'Slow-go', sub: 'eases from 75' },
-            { value: 'nogo', label: 'No-go', sub: 'flat throughout' },
-          ]} />
-        </div>
-        {mc && hasMoney && (
-          <div className="mt-5 rounded-2xl px-5 py-4 flex items-center gap-4"
-               style={{ background: 'color-mix(in srgb, var(--color-sage) 16%, var(--color-surface))' }}>
-            <span className="tnum text-[2rem] font-extrabold tracking-tight" style={{ color: 'var(--color-sage-strong)' }}>{confText(mc).main}</span>
-            <span>
-              <span className="block text-[0.85rem] font-semibold leading-snug">of simulated futures pay the full plan</span>
-              <span className="block text-[0.72rem] mt-0.5" style={{ color: 'var(--color-ink-faint)' }}>{mc.nPaths.toLocaleString()} simulated futures · {confText(mc).range} at this sample size</span>
-            </span>
-          </div>
-        )}
-        <p className="mt-3 text-[0.7rem] text-right" style={{ color: 'var(--color-ink-faint)' }}>
-          {plan.partnerA.name}'s figures · {isSingle(plan) ? 'more' : plan.partnerB.name + "'s and more"} in Details · saves as you go
-        </p>
-      </section>
-
-      {/* The Coach — quiet, grounded nudges computed from your own numbers. */}
-      {coach.length > 0 && (
-        <section className="mt-4 rounded-3xl p-5"
-                 style={{ background: 'var(--color-surface)', border: '1px solid var(--color-hairline)',
-                          boxShadow: '0 1px 2px rgba(60,50,35,0.05), 0 8px 24px rgba(60,50,35,0.06)' }}>
-          <div className="flex items-center gap-2">
-            <Lightbulb size={15} style={{ color: 'var(--color-hope)' }} />
-            <h2 className="text-[0.72rem] font-bold uppercase tracking-widest" style={{ color: 'var(--color-ink-faint)' }}>Worth a thought</h2>
-          </div>
-          <div className="mt-1">
-            {coach.map((c, i) => (
-              <div key={i} className="py-2.5" style={{ borderTop: i ? '1px solid var(--color-hairline)' : 'none' }}>
-                {(plus || i === 0) ? (<>
-                  <div className="text-[0.92rem] font-semibold">{c.t}</div>
-                  <div className="mt-0.5 text-[0.84rem] leading-relaxed" style={{ color: 'var(--color-ink-dim)' }}>{c.b}</div>
-                </>) : (
-                  // Free: the first thought in full; the rest named, not hidden.
-                  <button onClick={openPlus} className="w-full text-left flex items-start gap-2">
-                    <span className="text-[0.92rem] font-semibold" style={{ color: 'var(--color-ink-dim)' }}>{c.t}</span>
-                    <span className="ml-auto shrink-0 rounded-full px-2 py-0.5 text-[0.64rem] font-bold uppercase tracking-wider"
-                      style={{ background: 'color-mix(in srgb, var(--color-calm) 18%, transparent)', color: 'var(--color-calm-strong)' }}>Plus</span>
-                  </button>
-                )}
-              </div>
-            ))}
-          </div>
-          <p className="mt-1 text-[0.72rem]" style={{ color: 'var(--color-ink-faint)' }}>
-            Computed from your own figures, on this device. Prompts to explore — not advice.
-            {!plus && coach.length > 1 && ' The first is free; Plus opens the rest.'}
-          </p>
-        </section>
-      )}
-      </div>
-      </div>
-
-      {/* Desktop: three calm metrics along the bottom (per the design brief). */}
-      {hasMoney && <div className="flex flex-col lg:flex-row gap-3 lg:gap-8 mt-6 lg:mt-8">
-        <DeskStat value={lasts ? `age ${plan.horizonAge}+` : `age ${dd.exhaustedAgeA}`} label="Sustainable to"
-          desc={lasts ? (dd.shortfallAgeA != null ? `Holds to the horizon on the central path, with a funding gap around age ${dd.shortfallAgeA} (see Explore).` : 'Your income holds through your plan horizon on the central path. A projection, not a promise.') : 'Where the pots run short on today’s settings — see what moves the needle in Explore.'}
-          color={lasts ? 'var(--color-ocean)' : 'var(--color-hope)'} />
-        {estate && <DeskStat value={fmtK(deflate(estate.netToHeirs, estate.year, plan.startYear, plan.inflation))} label="Potential legacy"
-          desc="What could pass to the people you love, in today’s money." color="var(--color-sage-strong)" />}
-        {bufferYears != null && <DeskStat value={`${bufferYears} years`} label="Years of Buffer"
-          desc={`Spare room beyond age ${plan.horizonAge} if you live longer than planned.`} color="var(--color-calm-strong)" />}
-      </div>}
-
-      <p className="mt-4 text-center text-[0.8rem]" style={{ color: 'var(--color-ink-faint)' }}>
-        One possible future, not a promise. Your figures never leave this device.
-      </p>
-
-      <nav className="fixed bottom-0 left-0 right-0 z-40"
+      <nav className="cx fixed bottom-0 left-0 right-0 z-40"
            style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 0.3rem)', paddingTop: '0.5rem',
-                    background: 'color-mix(in srgb, var(--color-canvas) 82%, transparent)',
-                    backdropFilter: 'saturate(180%) blur(22px)', WebkitBackdropFilter: 'saturate(180%) blur(22px)',
-                    borderTop: '0.5px solid var(--color-hairline)' }}>
+                    background: 'rgba(7,11,16,.82)',
+                    backdropFilter: 'saturate(160%) blur(22px)', WebkitBackdropFilter: 'saturate(160%) blur(22px)',
+                    borderTop: '1px solid rgba(220,192,140,.22)' }}>
         <div className="flex justify-around mx-auto max-w-[560px]">
           <TabButton icon={<Sunrise size={24} />} label="Horizon" active={sheet === null} onClick={() => setSheet(null)} />
           <TabButton icon={<SlidersHorizontal size={24} />} label="Details" active={sheet === 'details'} onClick={() => setSheet('details')} />
@@ -543,18 +165,6 @@ function Horizon() {
   );
 }
 
-// Desktop-only bottom metric card (the mobile equivalents live in Explore).
-function DeskStat({ value, label, desc, color }: { value: string; label: string; desc: string; color: string }) {
-  return (
-    <div className="flex-1 rounded-3xl p-6"
-         style={{ background: 'var(--color-surface)', border: '1px solid var(--color-hairline)',
-                  boxShadow: '0 1px 2px rgba(60,50,35,0.05), 0 8px 24px rgba(60,50,35,0.06)' }}>
-      <div className="tnum text-[1.7rem] font-extrabold tracking-tight" style={{ color }}>{value}</div>
-      <div className="mt-0.5 text-[0.85rem] font-semibold">{label}</div>
-      <div className="mt-1 text-[0.76rem] leading-relaxed" style={{ color: 'var(--color-ink-faint)' }}>{desc}</div>
-    </div>
-  );
-}
 
 function TabButton({ icon, label, active, onClick }: { icon: React.ReactNode; label: string; active: boolean; onClick: () => void }) {
   // A tiny haptic tick where the platform supports it (progressive enhancement;
@@ -563,37 +173,15 @@ function TabButton({ icon, label, active, onClick }: { icon: React.ReactNode; la
   return (
     <button onClick={tap} className="flex flex-col items-center justify-center gap-1 px-3 py-1 min-h-[44px] min-w-[44px]"
             aria-current={active ? 'page' : undefined}
-            style={{ color: active ? 'var(--color-calm-strong)' : 'var(--color-ink-faint)' }}>
+            style={{ color: active ? 'var(--cx-gold-hi)' : 'var(--cx-dim)' }}>
       <motion.span animate={{ scale: active ? 1.08 : 1 }} transition={{ type: 'spring', stiffness: 400, damping: 20 }}>{icon}</motion.span>
       <span className="text-[0.62rem] font-semibold">{label}</span>
     </button>
   );
 }
 
-function WhatIf({ label, out, min, max, step, value, onChange, onEdit }: {
-  label: string; out: string; min: number; max: number; step: number; value: number;
-  onChange: (v: number) => void; onEdit?: (b: boolean) => void;
-}) {
-  return (
-    <div className="mt-4 first:mt-3">
-      <div className="flex items-baseline justify-between">
-        <span className="text-[0.9rem] font-medium">{label}</span>
-        <span className="tnum text-[0.95rem] font-bold" style={{ color: 'var(--color-calm-strong)' }}>{out}</span>
-      </div>
-      <input type="range" min={min} max={max} step={step} value={value}
-             onChange={e => onChange(Number(e.target.value))}
-             onPointerDown={() => onEdit?.(true)}
-             onPointerUp={() => onEdit?.(false)}
-             onPointerCancel={() => onEdit?.(false)}
-             onBlur={() => onEdit?.(false)}
-             className="w-full mt-2 dawn-range"
-             style={{ height: 28, '--fill': `${((value - min) / Math.max(1, max - min)) * 100}%` } as React.CSSProperties}
-             aria-label={label} />
-    </div>
-  );
-}
-// Your details — the same carousel used at setup, so the whole form is
-// learned once: one idea per page, a rail that names every other page.
+// Your details — every figure the plan can hold, page by page. The cryptex
+// carries the six pieces most people need; this is where everything else lives.
 function DetailsBody({ plan, update, reset, plus, onUpgrade, issues = [], index, onIndex }: {
   plan: any; update: (p: any) => void; reset: () => void; plus: boolean; onUpgrade: () => void;
   issues?: { path: string; message: string; level: string }[];

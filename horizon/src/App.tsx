@@ -114,27 +114,27 @@ function Horizon() {
 
 
   return (
-    <div className="min-h-full" style={{ background: '#070b10' }}>
+    <div className="min-h-full">
 
-      {/* The home: the answer above the horizon, the six steps beneath it. */}
-      <Home plan={plan} update={update} dd={dd} mc={mc} viz={viz} onDetails={() => setSheet('details')}
+      {/* The home: the answer at the top, every figure beneath it, one page. */}
+      <Home plan={plan} update={update} dd={dd} mc={mc} viz={viz} plus={plus} onUpgrade={openPlus} onDetails={() => setSheet('details')}
         header={
           <div className="flex items-center gap-2.5">
             <svg width="22" height="22" viewBox="0 0 42 42" fill="none" aria-hidden="true">
-              <path d="M9 27a12 12 0 0 1 24 0" stroke="#dcc08c" strokeWidth="3.2" strokeLinecap="round" />
-              <circle cx="21" cy="27" r="4.5" stroke="#dcc08c" strokeWidth="3.2" />
-              <path d="M5 33.5h32" stroke="#dcc08c" strokeWidth="3.2" strokeLinecap="round" opacity=".5" />
+              <path d="M9 27a12 12 0 0 1 24 0" stroke="var(--color-calm)" strokeWidth="3.2" strokeLinecap="round" />
+              <circle cx="21" cy="27" r="4.5" stroke="var(--color-calm)" strokeWidth="3.2" />
+              <path d="M5 33.5h32" stroke="var(--color-calm)" strokeWidth="3.2" strokeLinecap="round" opacity=".5" />
             </svg>
-            <span className="flex-1 cx-serif text-[1.3rem] leading-none">Someday</span>
+            <span className="flex-1 serif text-[1.35rem] leading-none" style={{ color: 'var(--color-ink)' }}>Someday</span>
             <PlusPill plus={plus} onClick={openPlus} />
           </div>
         } />
 
-      <nav className="cx fixed bottom-0 left-0 right-0 z-40"
+      <nav className="fixed bottom-0 left-0 right-0 z-40"
            style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 0.3rem)', paddingTop: '0.5rem',
-                    background: 'rgba(7,11,16,.82)',
+                    background: 'color-mix(in srgb, var(--color-surface) 88%, transparent)',
                     backdropFilter: 'saturate(160%) blur(22px)', WebkitBackdropFilter: 'saturate(160%) blur(22px)',
-                    borderTop: '1px solid rgba(220,192,140,.22)' }}>
+                    borderTop: '1px solid var(--color-hairline)' }}>
         <div className="flex justify-around mx-auto max-w-[560px]">
           <TabButton icon={<Sunrise size={24} />} label="Horizon" active={sheet === null} onClick={() => setSheet(null)} />
           <TabButton icon={<SlidersHorizontal size={24} />} label="Details" active={sheet === 'details'} onClick={() => setSheet('details')} />
@@ -175,7 +175,7 @@ function TabButton({ icon, label, active, onClick }: { icon: React.ReactNode; la
   return (
     <button onClick={tap} className="flex flex-col items-center justify-center gap-1 px-3 py-1 min-h-[44px] min-w-[44px]"
             aria-current={active ? 'page' : undefined}
-            style={{ color: active ? 'var(--cx-gold-hi)' : 'var(--cx-dim)' }}>
+            style={{ color: active ? 'var(--color-calm-strong)' : 'var(--color-ink-dim)' }}>
       <motion.span animate={{ scale: active ? 1.08 : 1 }} transition={{ type: 'spring', stiffness: 400, damping: 20 }}>{icon}</motion.span>
       <span className="text-[0.62rem] font-semibold">{label}</span>
     </button>

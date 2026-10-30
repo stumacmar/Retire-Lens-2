@@ -2,14 +2,14 @@ import { useEffect } from 'react';
 import { motion } from 'framer-motion';
 
 /**
- * The welcome. Setting up is the cryptex itself — Begin goes straight to it,
- * locked, at night — so there is no separate form to fill in first.
+ * The welcome. Setting up is the home itself — Begin goes straight to it,
+ * at night, six steps to go — so there is no separate form to fill in first.
  */
 export default function Onboarding({ plan, update, onDone, onExample }: {
   plan: any; update: (p: any) => void; onDone: () => void; onExample: () => void;
   plus?: boolean; onUpgrade?: () => void;
 }) {
-  // A brand-new plan is one person until "You" on the code ring says otherwise,
+  // A brand-new plan is one person until the "You" step says otherwise,
   // so somebody planning alone never has to clear a partner's figures.
   useEffect(() => {
     const B = plan.partnerB || {};
@@ -29,7 +29,7 @@ export default function Onboarding({ plan, update, onDone, onExample }: {
         </svg>
         <h1 className="cx-serif text-[2.6rem] leading-[1.02]">See the day<br /><em style={{ color: 'var(--cx-gold)' }}>you can stop.</em></h1>
         <p className="mt-4 text-[1rem] leading-relaxed" style={{ color: 'var(--cx-dim)' }}>
-          Your plan is a code of six pieces. Set each one and it unlocks your answer. Everything stays on this device.
+          Six steps, a few minutes, and the day you can stop is in front of you. Everything stays on this device.
         </p>
         <button onClick={onDone} className="mt-8 w-full rounded-2xl py-4 font-semibold text-[1.05rem] active:scale-[0.98] transition-transform"
           style={{ background: 'rgba(220,192,140,.16)', border: '1px solid rgba(220,192,140,.6)', color: 'var(--cx-gold-hi)' }}>Begin</button>

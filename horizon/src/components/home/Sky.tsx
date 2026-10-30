@@ -1,23 +1,23 @@
 import { useEffect, useRef, useState } from 'react';
 
 /**
- * The world behind the cryptex. Night while the code is unset; each piece
- * set brings the light up, and the last one brings the sun over the horizon.
+ * The sky behind the home. Night while nothing is set; each step set brings
+ * the light up, and the last one brings the sun over the horizon.
  * The hills are not decoration: they are drawn from your own projection —
  * the farthest ridge on good returns, the middle on base, the nearest on
- * poor — and they turn with the view ring, as if you were looking along them.
+ * poor — and they drift a little with each step, as if you were looking along them.
  */
 const NIGHT = { s0: [5, 8, 13], s1: [9, 15, 23], s2: [15, 24, 34], s3: [24, 33, 44], l0: [6, 9, 13], l1: [5, 7, 10] };
 const DAWN = { s0: [12, 26, 46], s1: [44, 62, 98], s2: [196, 128, 108], s3: [244, 196, 138], l0: [20, 24, 36], l1: [9, 11, 17] };
 const mix = (a: number[], b: number[], t: number) => a.map((v, i) => Math.round(v + (b[i] - v) * t));
 const rgb = (c: number[]) => `rgb(${c.join(',')})`;
 
-export default function Dawn({ k, horizonY, sun, ridges, turn }: {
+export default function Sky({ k, horizonY, sun, ridges, turn }: {
   k: number;                                   // 0 = night, 1 = sunrise
   horizonY: number;                            // in viewport pixels
   sun: { cx: number; size: number };           // where the sun comes up
   ridges: { good: number[]; base: number[]; poor: number[] } | null;
-  turn: number;                                // the view ring's angle, for the panorama
+  turn: number;                                // degrees; the panorama drifts with the step
 }) {
   const [shown, setShown] = useState(k);
   const shownRef = useRef(k); shownRef.current = shown;
@@ -79,7 +79,7 @@ export default function Dawn({ k, horizonY, sun, ridges, turn }: {
   }, [ridges, turn, e]);
 
   // The sun climbs from behind the land; nothing of it shows below the horizon.
-  const sunTop = horizonY - sun.size * 0.5 - sun.size * 0.42 * e + sun.size * 0.05;
+  const sunTop = horizonY - sun.size * 0.5 - sun.size * 0.2 * e + sun.size * 0.05;
   const cut = Math.max(0, sunTop + sun.size - horizonY);
   return (
     <div className="fixed inset-0 pointer-events-none" style={{ zIndex: 0 }} aria-hidden="true">
@@ -89,7 +89,7 @@ export default function Dawn({ k, horizonY, sun, ridges, turn }: {
       <div className="absolute rounded-full" style={{
         left: sun.cx - sun.size / 2, top: sunTop, width: sun.size, height: sun.size, opacity: 0.06 + 0.94 * e,
         clipPath: `inset(0 0 ${cut.toFixed(1)}px 0)`,
-        background: 'radial-gradient(circle, rgba(255,228,176,.95) 0%, rgba(246,192,120,.55) 30%, rgba(232,150,96,.18) 56%, rgba(232,150,96,0) 70%)' }} />
+        background: 'radial-gradient(circle, rgba(255,228,176,.82) 0%, rgba(246,192,120,.5) 30%, rgba(232,150,96,.18) 56%, rgba(232,150,96,0) 70%)' }} />
       <canvas ref={land} className="absolute left-0 w-full" style={{ top: horizonY - LAND_H + 2, height: LAND_H }} />
     </div>
   );

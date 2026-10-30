@@ -7,7 +7,9 @@ import { fmt, fmtK, pct, deflate } from './lib/format';
 import Sheet from './components/Sheet';
 import Onboarding from './components/Onboarding';
 import PlanForm from './components/PlanForm';
-import Cryptex from './components/cryptex/Cryptex';
+import Home from './components/home/Home';
+import { useInsight } from './lib/useInsight';
+import type { Rail } from './lib/insights';
 import DecisionMap from './components/DecisionMap';
 import PrintReport from './components/PrintReport';
 import Approach from './components/Approach';
@@ -114,8 +116,8 @@ function Horizon() {
   return (
     <div className="min-h-full" style={{ background: '#070b10' }}>
 
-      {/* The home is the cryptex: the view above, the code below, at first light. */}
-      <Cryptex plan={plan} update={update} dd={dd} mc={mc} viz={viz} onDetails={() => setSheet('details')}
+      {/* The home: the answer above the horizon, the six steps beneath it. */}
+      <Home plan={plan} update={update} dd={dd} mc={mc} viz={viz} onDetails={() => setSheet('details')}
         header={
           <div className="flex items-center gap-2.5">
             <svg width="22" height="22" viewBox="0 0 42 42" fill="none" aria-hidden="true">
@@ -123,7 +125,7 @@ function Horizon() {
               <circle cx="21" cy="27" r="4.5" stroke="#dcc08c" strokeWidth="3.2" />
               <path d="M5 33.5h32" stroke="#dcc08c" strokeWidth="3.2" strokeLinecap="round" opacity=".5" />
             </svg>
-            <span className="flex-1 cx-serif text-[1.3rem] leading-none">Someday <em style={{ color: 'var(--cx-gold)' }}>cryptex</em></span>
+            <span className="flex-1 cx-serif text-[1.3rem] leading-none">Someday</span>
             <PlusPill plus={plus} onClick={openPlus} />
           </div>
         } />
@@ -180,7 +182,7 @@ function TabButton({ icon, label, active, onClick }: { icon: React.ReactNode; la
   );
 }
 
-// Your details — every figure the plan can hold, page by page. The cryptex
+// Your details — every figure the plan can hold, page by page. The home
 // carries the six pieces most people need; this is where everything else lives.
 function DetailsBody({ plan, update, reset, plus, onUpgrade, issues = [], index, onIndex }: {
   plan: any; update: (p: any) => void; reset: () => void; plus: boolean; onUpgrade: () => void;
@@ -385,7 +387,7 @@ function ExploreBody({ plan, dd, estate, mc, plus, onUpgrade, update }: { plan: 
     <div className="space-y-5 pb-2">
       <div className="sticky top-0 z-10 -mx-6 px-6 pb-2" style={{ background: 'var(--color-surface)' }}>
         <nav aria-label="Explore sections" className="flex gap-1.5 overflow-x-auto no-scrollbar">
-          {[['map', 'Map'], ['futures', 'Futures'], ['levers', 'Levers'], ['dates', 'Dates'], ['stress', 'Stress'], ['tax', 'Tax'], ['table', 'Year by year']].map(([id, l]) => (
+          {[['map', 'Map'], ['fall', 'Safe spend'], ['futures', 'Futures'], ['levers', 'Levers'], ['dates', 'Dates'], ['stress', 'Stress'], ['tax', 'Tax'], ['table', 'Year by year']].map(([id, l]) => (
             <button key={id} onClick={() => jump(id)} className="shrink-0 rounded-full px-3 min-h-[36px] text-[0.75rem] font-semibold"
               style={{ background: 'var(--color-canvas)', border: '1px solid var(--color-hairline)', color: 'var(--color-ink-dim)' }}>{l}</button>
           ))}
@@ -393,6 +395,8 @@ function ExploreBody({ plan, dd, estate, mc, plus, onUpgrade, update }: { plan: 
       </div>
       {/* ── Every retirement you could choose ────────────────────── */}
       <DecisionMap plan={plan} update={update} />
+      {/* ── How far it could fall: safe spending under real bad histories ── */}
+      <div id="explore-fall"><Guardrails plan={plan} /></div>
       {/* ── Monte Carlo ─────────────────────────────────────────── */}
       {mc && (
         <div id="explore-futures" className="rounded-2xl p-4" style={{ background: 'var(--color-canvas)' }}>
@@ -629,6 +633,38 @@ function ExploreBody({ plan, dd, estate, mc, plus, onUpgrade, update }: { plan: 
 // Decision support: every candidate action run through the plan and the
 // seeded Monte Carlo, ranked by the confidence it buys. Free: the single best
 // lever, in full. Plus: the whole list.
+// How far it could fall: the most you could spend a month and still last,
+// under each real bad history and the three lenses — against what you plan to.
+function Guardrails({ plan }: { plan: any }) {
+  const key = useMemo(() => JSON.stringify({ ...plan, targetNet: 0, codeSet: null, spendingPlanOn: false }), [plan]);
+  const rails = useInsight<Rail[]>('guardrails', plan, key);
+  const month = Math.round((plan.targetNet || 0) / 12);
+  const list = rails?.filter(r => r.key !== 'good') ?? [];
+  const max = Math.max(month * 1.1, ...list.map(r => r.year / 12)) * 1.04;
+  return (
+    <div className="rounded-2xl p-4" style={{ background: 'var(--color-canvas)' }}>
+      <div className="flex items-baseline justify-between mb-1">
+        <span className="text-[0.9rem] font-semibold">How far it could fall</span>
+        <span className="text-[0.72rem]" style={{ color: 'var(--color-ink-faint)' }}>safe a month · you plan {fmt(month)}</span>
+      </div>
+      {!rails ? <p className="text-[0.8rem]" style={{ color: 'var(--color-ink-dim)' }}>Working it out…</p> : (
+        <div className="relative grid gap-2 mt-2">
+          {list.map(r => { const v = r.year / 12, ok = month <= v + 0.5; return (
+            <div key={r.key}>
+              <div className="flex justify-between text-[0.76rem]" style={{ color: 'var(--color-ink-dim)' }}>
+                <span>{r.label}</span><b className="tnum" style={{ color: ok ? 'var(--color-calm-strong)' : 'var(--color-dusk)' }}>{fmt(v)}</b>
+              </div>
+              <div className="h-[5px] rounded mt-[3px]" style={{ background: 'var(--color-hairline)' }}>
+                <div className="h-full rounded" style={{ width: `${(v / max * 100).toFixed(1)}%`, background: ok ? 'var(--color-calm-strong)' : 'var(--color-dusk)', opacity: 0.75 }} />
+              </div>
+            </div>); })}
+          <div className="absolute top-0 bottom-0 w-[1.5px]" style={{ left: `${(month / max * 100).toFixed(1)}%`, background: 'var(--color-ink)' }} aria-hidden="true" />
+        </div>)}
+      <p className="text-[0.72rem] mt-2" style={{ color: 'var(--color-ink-faint)' }}>Each bar is the most you could take home a month and still last to {plan.horizonAge}, if that history repeated. The line is what you plan to take.</p>
+    </div>
+  );
+}
+
 function Levers({ plan, plus, onUpgrade }: { plan: any; plus: boolean; onUpgrade: () => void }) {
   // Same 500 futures and seed as the confidence figure, so the base here is
   // the number the person has already seen. Computed after the sheet has

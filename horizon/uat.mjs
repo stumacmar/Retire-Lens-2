@@ -87,21 +87,14 @@ const tap = async t => {
   catch { try { await p.locator(`text=${t}`).first().click({ timeout: 2000 }); return true; } catch { return false; } }
 };
 const sheetOpen = async () => (await p.locator('[role=dialog]').count()) > 0;
-// The cryptex: which face is lined up on each ring, rolling a ring, and the
-// controls on the face in front. Faces turned away are inert and aria-hidden.
-const cxFront = async () => p.$$eval('section[aria-hidden="false"][aria-label]', els => els
-  .filter(e => e.parentElement?.closest('[aria-roledescription="carousel"][role="group"]') && !e.closest('[role=dialog]'))
-  .map(e => e.getAttribute('aria-label')));
-const viewFront = async () => (await cxFront())[0];
-const codeFront = async () => (await cxFront())[1];
-const roll = async (ring, dir = 'next') => { await p.getByRole('button', { name: `${ring}: ${dir}` }).click().catch(() => {}); await wait(650); };
-const rollTo = async (ring, name) => {
-  for (let i = 0; i < 7; i++) { if ((ring === 'The view' ? await viewFront() : await codeFront()) === name) return true; await roll(ring); }
-  return false;
-};
+// The home: six steps in one panel (only the current one is in the DOM),
+// the answer in the open above it. A step counts as set the moment it is touched.
+const stepFront = async () => p.$eval('[data-step]', e => e.getAttribute('aria-label')).catch(() => '');
+const stepTo = async name => { await p.locator('nav[aria-label="Steps"] button', { hasText: new RegExp(`^${name}$`) }).first().click(); await wait(450); };
+const next = async () => { await p.locator('.hm-panel').getByRole('button', { name: /^(Next|Done)$/ }).first().click(); await wait(450); };
 const setSlider = async (label, value) => {
   const ok = await p.evaluate(([l, v]) => {
-    const el = [...document.querySelectorAll('section[aria-hidden="false"] input[type=range]')].find(i => i.getAttribute('aria-label') === l);
+    const el = [...document.querySelectorAll('[data-step] input[type=range]')].find(i => i.getAttribute('aria-label') === l);
     if (!el) return false;
     Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(el, String(v));
     el.dispatchEvent(new Event('input', { bubbles: true })); el.dispatchEvent(new Event('change', { bubbles: true }));
@@ -109,11 +102,8 @@ const setSlider = async (label, value) => {
   }, [label, value]);
   await wait(300); return ok;
 };
-const setPiece = async () => {
-  await p.evaluate(() => { const b = [...document.querySelectorAll('section[aria-hidden="false"] button')].find(x => /Set this piece/.test(x.textContent)); b && b.click(); });
-  await wait(750);
-};
-const answerText = async () => p.$$eval('section[aria-label="The answer"]', els => els.map(e => e.innerText).join(' ')).catch(() => '');
+const answerText = async () => p.$eval('[data-answer]', e => e.innerText).catch(() => '');
+const stepsSet = async () => p.$eval('nav[aria-label="Steps"] [aria-label$="steps set"]', e => e.getAttribute('aria-label')).catch(() => '');
 // Controls that exist both on the Horizon and inside a sheet must be tapped
 // where they are meant, never on the card behind.
 const tapInSheet = async t => {
@@ -222,31 +212,34 @@ await check('17b approach screen asks how the money is run', async () => /How sh
 await check('17c traditional option offered', () => has('Traditional'));
 await check('17d de-risking option offered', () => has('De-risking'));
 await tap('Traditional'); await wait(1200);
-// Setting up IS the cryptex: locked, at night, six pieces to set.
-await check('04 home is the cryptex, locked', async () => /Unlock your pension code/i.test(await h1()));
-await check('05 two rings: the view above, the code below', async () => (await viewFront()) === 'The answer' && (await codeFront()) === 'You');
-await check('06 nothing set yet', async () => (await p.locator('[aria-label="0 of 6 pieces set"]').count()) === 1);
+// Setting up IS the home: night, six steps, the answer appears as money goes in.
+await check('04 home opens on six steps, at night', async () => /Six steps to your someday/i.test(await h1()));
+await check('05 the first step is You', async () => (await stepFront()) === 'You');
+await check('06 nothing set yet', async () => (await stepsSet()) === '0 of 6 steps set');
 await check('07 an empty plan asks for money rather than showing a figure', async () => /Set your pensions and savings/.test(await answerText()));
-await check('08 only the faces in front can be reached', async () => (await p.locator('section[inert]').count()) === 10);
-await check('09 household choice on the You piece', async () => (await has('The two of us')) && (await has('Just me')));
-await p.locator('section[aria-label="You"] button', { hasText: 'The two of us' }).click(); await wait(400);
+await check('08 only the current step is in the DOM', async () => (await p.locator('[data-step]').count()) === 1);
+await check('09 household choice on the You step', async () => (await has('The two of us')) && (await has('Just me')));
+await p.locator('[data-step="you"] button', { hasText: 'The two of us' }).click(); await wait(400);
 await check('10 choosing the two of us records a couple', async () => (await planOf()).household === 'couple');
-await setPiece();
-await check('11 setting a piece records it and rolls on', async () => (await planOf()).codeSet?.includes('you') && (await codeFront()) === 'Someday');
+await check('10b touching a step sets it', async () => (await planOf()).codeSet?.includes('you') && (await stepsSet()) === '1 of 6 steps set');
+await next();
+await check('11 Next moves on to Someday', async () => (await stepFront()) === 'Someday');
 await check('12 take-home slider writes the plan (a month × 12)', async () => (await setSlider('Take home a month', 3500)) && (await planOf()).targetNet === 42000);
 await setSlider('Stop work in', (await planOf()).startYear + 6);
 await check('13 stop-year slider writes the plan', async () => (await planOf()).retireYear === (await planOf()).startYear + 6);
-await setPiece();
-await check('14 pensions piece comes next', async () => (await codeFront()) === 'Pensions');
+await next();
+await check('14 pensions step comes next', async () => (await stepFront()) === 'Pensions');
 await setSlider('Your pot', 300000); await setSlider('Their pot', 120000);
 await check('15 both pots captured', async () => { const q = await planOf(); return q.partnerA.pension === 300000 && q.partnerB.pension === 120000; });
 await check('16 with money in, the answer shows a monthly figure', async () => /a month, for life/i.test(await answerText()));
-await setPiece(); await setSlider('Your ISAs', 40000); await setPiece(); await setPiece(); await setPiece();
+await next(); await setSlider('Your ISAs', 40000); await next();
+await check('16b Next on an untouched step still sets it', async () => (await planOf()).codeSet?.includes('savings'));
+await next(); await next();
 await wait(1200);
-await check('17 all six set unlocks it', async () => /pension code is unlocked/i.test(await h1()));
-await check('17e the code shows all six set', async () => (await p.locator('[aria-label="6 of 6 pieces set"]').count()) === 1);
-await check('17f unlocking turns the view to the answer', async () => (await viewFront()) === 'The answer');
-await check('18 the set pieces are saved on the plan', async () => ((await planOf()).codeSet || []).length === 6);
+await check('17 all six set', async () => (await stepsSet()) === '6 of 6 steps set');
+await check('17e the last step says so', () => has('All six set'));
+await check('17f the strip can jump back to any step', async () => { await stepTo('Someday'); return (await stepFront()) === 'Someday'; });
+await check('18 the set steps are saved on the plan', async () => ((await planOf()).codeSet || []).length === 6);
 await check('19 bottom tab bar visible', () => has('Horizon'));
 await check('20 setup completed without a form', () => true);
 
@@ -263,37 +256,22 @@ for (const [t, m] of [['Details', 'Your details'], ['Explore', 'Explore'], ['Pea
   await check(`${k++} ${t} sheet closes on Escape`, async () => !(await sheetOpen()));
 }
 
-// The view ring: six ways of seeing the same plan.
+// The other ways of seeing it live in Explore now; the home is the answer and the steps.
+await closeSheet(); await tap('Explore'); await wait(900);
+await p.waitForFunction(() => /Japan, 1990 on/.test(document.getElementById('explore-fall')?.textContent || ''), null, { timeout: 8000 }).catch(() => {});
+await check('29d guardrails from real bad histories, in Explore', async () => /Japan, 1990 on/.test(await p.locator('#explore-fall').innerText()));
+await check('29e the edge: every retirement, in Explore', () => has('Every retirement you could choose'));
 await closeSheet();
-await rollTo('The view', 'Payslip');
-await check('29a payslip view: take-home and tax', async () => /Take home/i.test(await p.locator('section[aria-label="Payslip"]').innerText()) && /Income tax/.test(await p.locator('section[aria-label="Payslip"]').innerText()));
-await rollTo('The view', 'Your months');
-await check('29b months view counts the months', async () => /\d+ months from stopping/.test(await p.locator('section[aria-label="Your months"]').innerText()));
-await rollTo('The view', 'The horizon');
-await check('29c horizon view draws the wealth line', async () => (await p.locator('section[aria-label="The horizon"] svg path').count()) >= 2);
-await rollTo('The view', 'How far it could fall');
-await p.waitForFunction(() => /Japan, 1990 on/.test(document.querySelector('section[aria-label="How far it could fall"]')?.textContent || ''), null, { timeout: 8000 }).catch(() => {});
-await check('29d guardrails from real bad histories', async () => /Japan, 1990 on/.test(await p.locator('section[aria-label="How far it could fall"]').innerText()));
-await rollTo('The view', 'The edge');
-await p.waitForFunction(() => /the most you can spend/.test(document.querySelector('section[aria-label="The edge"]')?.textContent || ''), null, { timeout: 10000 }).catch(() => {});
-await check('29e the edge: every retirement', async () => /the most you can spend and still last/.test(await p.locator('section[aria-label="The edge"]').innerText()));
-await roll('The view'); 
-await check('30 the view ring wraps round to the answer', async () => (await viewFront()) === 'The answer');
-// Rolling by hand: drag the view up and it turns to the next face.
-{
-  const box = await p.locator('section[aria-label="The answer"]').boundingBox();
-  await p.mouse.move(box.x + box.width / 2, box.y + box.height * 0.75); await p.mouse.down();
-  await p.mouse.move(box.x + box.width / 2, box.y + box.height * 0.2, { steps: 10 }); await p.mouse.up(); await wait(900);
-}
-await check('31 dragging a ring rolls it', async () => (await viewFront()) !== 'The answer');
+await check('30 the home has no drums, rims or confirm buttons', async () => !(await has('Set this piece')) && (await p.locator('[aria-roledescription="carousel"]').count()) === 0);
+await check('31 Back and Next walk the steps', async () => { await stepTo('Savings'); await p.locator('.hm-panel').getByRole('button', { name: 'Back' }).click(); await wait(450); return (await stepFront()) === 'Pensions'; });
 await check('32 exactly one visible h1', async () => (await visH1()) === 1);
-await rollTo('The view', 'The answer'); await rollTo('The code', 'Someday');
+await stepTo('Someday');
 const before = await answerText(); await setSlider('Take home a month', 9000); await wait(500);
 await check('33 take-home slider changes the answer', async () => (await answerText()) !== before);
 await setSlider('Stop work in', (await planOf()).startYear + 2); await wait(400);
 await check('34 stop-year slider, no crash', () => pe.length === 0);
-await rollTo('The code', 'Pensions'); await setSlider('Still paying in, a month', 4000); await wait(400);
-await check('35 paying-in slider shows its figure', async () => /£4,000/.test(await p.locator('section[aria-label="Pensions"]').innerText()));
+await stepTo('Pensions'); await setSlider('Still paying in, a month', 4000); await wait(400);
+await check('35 paying-in slider shows its figure', async () => /£4,000/.test(await p.locator('[data-step="pensions"]').innerText()));
 
 await loadEx(); await tap('Details'); await wait(800);
 // Editing is the same carousel: a rail of named pages, one idea on each.
@@ -395,7 +373,7 @@ await check('71 story link → story.html', async () => (await p.$eval('a[href="
 await check('72 no classic-planner link (one product, one app)', async () => (await p.$('a[href="app.html"]')) == null);
 await closeSheet();
 
-await rollTo('The code', 'Someday');
+await stepTo('Someday');
 await setSlider('Take home a month', 15000); await wait(700);
 await check('73 extreme spend renders, no crash', async () => (await h1()).length > 5 && pe.length === 0);
 await check('74 no NaN at extreme spend', async () => !/NaN|undefined/.test(await bodyT()));
@@ -413,24 +391,24 @@ await loadEx(); await p.reload({ waitUntil: 'networkidle' }); await wait(800);
 await check('81 reload keeps plan (no onboarding)', async () => !/Begin/.test(await bodyT()));
 await check('82 reload renders an answer', async () => (await h1()).length > 5);
 
-await closeSheet(); await rollTo('The code', 'Someday');
-for (let i = 0; i < 12; i++) await p.evaluate(v => { const el = [...document.querySelectorAll('section[aria-hidden="false"] input[type=range]')].find(x => x.getAttribute('aria-label') === 'Take home a month');
+await closeSheet(); await stepTo('Someday');
+for (let i = 0; i < 12; i++) await p.evaluate(v => { const el = [...document.querySelectorAll('[data-step] input[type=range]')].find(x => x.getAttribute('aria-label') === 'Take home a month');
   if (el) { Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(el, String(v)); el.dispatchEvent(new Event('input', { bubbles: true })); } }, 2000 + i * 900);
 await wait(700);
 await check('83 rapid slider hammer, no crash', () => pe.length === 0);
-for (let i = 0; i < 8; i++) await p.getByRole('button', { name: 'The view: next' }).click();
+for (let i = 0; i < 8; i++) await p.locator('.hm-panel').getByRole('button', { name: /^(Next|Back)$/ }).first().click().catch(() => {});
 await wait(900);
-await check('84 rapid ring rolling, no crash', () => pe.length === 0);
+await check('84 rapid stepping, no crash', () => pe.length === 0);
 for (let i = 0; i < 5; i++) { await tap('Details'); await wait(200); await closeSheet(); }
 await check('85 rapid sheet cycle, no crash', () => pe.length === 0);
 await closeSheet(); await wait(700); // let the debounced compute settle before reading the headline
-await check('86 headline valid after stress', async () => /pension code/i.test(await h1()));
+await check('86 headline valid after stress', async () => /a month, for life|Six steps/i.test(await h1()));
 
 await loadEx();
-await check('87 the example starts locked, figures intact', async () => /Unlock your pension code/i.test(await h1()) && /a month, for life/i.test(await answerText()));
-await check('88 the code ring offers to set each piece', () => has('Set this piece'));
-await check('89 the code ring points to Details for everything else', async () => { await rollTo('The code', 'Later life'); return has('is in Details'); });
-await check('90 six views on the view ring', async () => (await p.$$eval('section[aria-label]', els => els.filter(e => e.className.includes('cx-face-view')).length)) === 6);
+await check('87 the example opens on its first step, figures intact', async () => (await stepFront()) === 'You' && /a month, for life/i.test(await answerText()));
+await check('88 the example starts with nothing set', async () => (await stepsSet()) === '0 of 6 steps set');
+await check('89 the last step points to Details for everything else', async () => { await stepTo('Later'); return has('is in Details'); });
+await check('90 six steps on the strip', async () => (await p.locator('nav[aria-label="Steps"] button').count()) === 6);
 await check('91 four tab destinations', async () => (await has('Horizon')) && (await has('Details')) && (await has('Explore')) && (await has('Peace')));
 await tap('Details'); await wait(500);
 await check('92 sheet opens (dialog role)', () => sheetOpen());

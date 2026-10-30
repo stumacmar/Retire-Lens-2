@@ -257,20 +257,11 @@ const tapInSheet = async t => {
   catch { return false; }
 };
 // Jump to a named page of the form carousel via its rail.
-// The cryptex: the face lined up on each ring, rolling, and the sliders on the face in front.
-const cxFront = async () => p.$$eval('section[aria-hidden="false"][aria-label]', els => els
-  .filter(e => e.parentElement?.closest('[aria-roledescription="carousel"][role="group"]') && !e.closest('[role=dialog]'))
-  .map(e => e.getAttribute('aria-label')));
-const rollTo = async (ring, name) => {
-  for (let i = 0; i < 7; i++) {
-    const f = await cxFront(); if ((ring === 'The view' ? f[0] : f[1]) === name) return true;
-    await p.getByRole('button', { name: `${ring}: next` }).click().catch(() => {}); await wait(650);
-  }
-  return false;
-};
+// The home: six steps in one panel (only the current one is in the DOM); the answer above.
+const stepTo = async name => { await p.locator('nav[aria-label="Steps"] button', { hasText: new RegExp(`^${name}$`) }).first().click(); await wait(450); };
 const setSlider = async (label, value) => {
   const ok = await p.evaluate(([l, v]) => {
-    const el = [...document.querySelectorAll('section[aria-hidden="false"] input[type=range]')].find(i => i.getAttribute('aria-label') === l);
+    const el = [...document.querySelectorAll('[data-step] input[type=range]')].find(i => i.getAttribute('aria-label') === l);
     if (!el) return false;
     Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(el, String(v));
     el.dispatchEvent(new Event('input', { bubbles: true })); el.dispatchEvent(new Event('change', { bubbles: true }));
@@ -278,7 +269,7 @@ const setSlider = async (label, value) => {
   }, [label, value]);
   await wait(300); return ok;
 };
-const answerText = async () => p.$$eval('section[aria-label="The answer"]', els => els.map(e => e.innerText).join(' ')).catch(() => '');
+const answerText = async () => p.$eval('[data-answer]', e => e.innerText).catch(() => '');
 // Jump to a named page of the form carousel via its rail, and WAIT for that
 // page to be the one on screen. A fixed sleep is a guess: a jump across five
 // pages takes as long as the device needs, and CI is slower than this one.
@@ -324,7 +315,7 @@ await p.evaluate(() => localStorage.setItem('someday-licence-v1', JSON.stringify
 await p.reload({ waitUntil: 'networkidle' }); await wait(700);
 await acheck('U50a a new plan starts as one person', async () => (await plan()).household === 'single');
 await tap('Begin'); await wait(900);
-// The disclaimer is accepted once, then the framing choice, then the cryptex
+// The disclaimer is accepted once, then the framing choice, then the home
 await acheck('U60z disclaimer appears before the first horizon',
   async () => /calm place to think/i.test(await p.$eval('h1', e => e.textContent).catch(() => '')));
 await tap('I understand'); await wait(800);
@@ -335,39 +326,39 @@ await acheck('U60b choosing de-risking records the approach', async () => (await
 await acheck('U60c choosing de-risking arms the architecture', async () => (await plan()).architecture?.on === true);
 await acheck('U60d de-risking uses the 7-year ladder', async () => (await plan()).architecture?.ladderYears === 7);
 
-// ── Setting the code on the cryptex: every slider writes the real plan ───
-await p.locator('section[aria-label="You"] button', { hasText: 'The two of us' }).click(); await wait(400);
-await acheck('U51b cryptex: household becomes a couple', async () => (await plan()).household === 'couple');
-await rollTo('The code', 'Someday');
+// ── The six steps: every slider writes the real plan ─────────────────────
+await p.locator('[data-step="you"] button', { hasText: 'The two of us' }).click(); await wait(400);
+await acheck('U51b home: household becomes a couple', async () => (await plan()).household === 'couple');
+await stepTo('Someday');
 const sy0 = (await plan()).startYear;
 await setSlider('Stop work in', sy0 + 8);
-await acheck('U51c cryptex: retire year captured', async () => (await plan()).retireYear === sy0 + 8);
+await acheck('U51c home: retire year captured', async () => (await plan()).retireYear === sy0 + 8);
 await setSlider('Take home a month', 3600);
-await acheck('U51d cryptex: take-home a month becomes the yearly target', async () => (await plan()).targetNet === 43200);
-await rollTo('The code', 'Pensions');
+await acheck('U51d home: take-home a month becomes the yearly target', async () => (await plan()).targetNet === 43200);
+await stepTo('Pensions');
 await setSlider('Your pot', 600000);
-await acheck('U52 cryptex: Stuart pension captured', async () => (await plan()).partnerA?.pension === 600000);
+await acheck('U52 home: Stuart pension captured', async () => (await plan()).partnerA?.pension === 600000);
 await setSlider('Their pot', 45000);
-await acheck('U58 cryptex: Carol pension captured', async () => (await plan()).partnerB?.pension === 45000);
+await acheck('U58 home: Carol pension captured', async () => (await plan()).partnerB?.pension === 45000);
 await setSlider('Still paying in, a month', 3000);
-await acheck('U53 cryptex: Stuart monthly captured', async () => (await plan()).partnerA?.monthlyPension === 3000);
-await rollTo('The code', 'Savings');
+await acheck('U53 home: Stuart monthly captured', async () => (await plan()).partnerA?.monthlyPension === 3000);
+await stepTo('Savings');
 await setSlider('Your ISAs', 45000); await setSlider('Their ISAs', 45000);
-await acheck('U54 cryptex: Stuart ISA captured', async () => (await plan()).partnerA?.isa === 45000);
-await acheck('U59 cryptex: Carol ISA captured', async () => (await plan()).partnerB?.isa === 45000);
-await rollTo('The code', 'Promised');
+await acheck('U54 home: Stuart ISA captured', async () => (await plan()).partnerA?.isa === 45000);
+await acheck('U59 home: Carol ISA captured', async () => (await plan()).partnerB?.isa === 45000);
+await stepTo('Promised');
 await setSlider('Your company pension', 9000);
-await acheck('U55 cryptex: Stuart DB amount captured', async () => (await plan()).partnerA?.db === 9000);
-await acheck('U56 cryptex: Stuart DB start = retire year (the fix)', async () => { const P = await plan(); return P.partnerA.dbStartYear === P.retireYear; });
-await setSlider('Theirs', 12548);       // the first "Theirs" on the face is the State Pension
-await acheck('U56b cryptex: partner State Pension captured', async () => (await plan()).partnerB?.spAmount === 12550 || (await plan()).partnerB?.spAmount === 12548);
-await p.evaluate(() => { const el = [...document.querySelectorAll('section[aria-hidden="false"] input[type=range]')].filter(i => i.getAttribute('aria-label') === 'Theirs')[1];
+await acheck('U55 home: Stuart DB amount captured', async () => (await plan()).partnerA?.db === 9000);
+await acheck('U56 home: Stuart DB start = retire year (the fix)', async () => { const P = await plan(); return P.partnerA.dbStartYear === P.retireYear; });
+await setSlider('Theirs', 12548);       // the first "Theirs" on the step is the State Pension
+await acheck('U56b home: partner State Pension captured', async () => (await plan()).partnerB?.spAmount === 12550 || (await plan()).partnerB?.spAmount === 12548);
+await p.evaluate(() => { const el = [...document.querySelectorAll('[data-step] input[type=range]')].filter(i => i.getAttribute('aria-label') === 'Theirs')[1];
   Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(el, '5000'); el.dispatchEvent(new Event('input', { bubbles: true })); }); await wait(300);
-await acheck('U60 cryptex: Carol DB captured (the reported bug)', async () => (await plan()).partnerB?.db === 5000);
-await acheck('U61 cryptex: Carol DB start = retire year', async () => { const P = await plan(); return P.partnerB.dbStartYear === P.retireYear; });
+await acheck('U60 home: Carol DB captured (the reported bug)', async () => (await plan()).partnerB?.db === 5000);
+await acheck('U61 home: Carol DB start = retire year', async () => { const P = await plan(); return P.partnerB.dbStartYear === P.retireYear; });
 await acheck('U62 both DBs captured', async () => { const P = await plan(); return P.partnerA.db === 9000 && P.partnerB.db === 5000; });
 await acheck('U63 the answer renders after DB entry', async () => /a month, for life/i.test(await answerText()));
-// Names live in Details (the cryptex is about figures)
+// Names live in Details (the home is about figures)
 await tap('Details'); await wait(800);
 await p.locator('[data-active] input[placeholder=You]').fill('Stuart').catch(() => {}); await wait(250);
 await acheck('U51 Details: name captured', async () => (await plan()).partnerA?.name === 'Stuart');
@@ -495,7 +486,7 @@ await acheck('U83 Details: add a windfall → income event in plan', async () =>
 
 // UI edits actually recompute the answer (end-to-end through the engine)
 await p.keyboard.press('Escape'); await wait(500);
-await rollTo('The view', 'The answer'); await rollTo('The code', 'Someday');
+await stepTo('Someday');
 const hA = await answerText();
 await setSlider('Take home a month', 9500); await wait(700);
 const hB = await answerText();

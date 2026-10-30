@@ -257,11 +257,10 @@ const tapInSheet = async t => {
   catch { return false; }
 };
 // Jump to a named page of the form carousel via its rail.
-// The home: six steps in one panel (only the current one is in the DOM); the answer above.
-const stepTo = async name => { await p.locator('nav[aria-label="Steps"] button', { hasText: new RegExp(`^${name}$`) }).first().click(); await wait(450); };
+// The home: one page — every figure is a slider (with a number beside it); the answer above.
 const setSlider = async (label, value) => {
   const ok = await p.evaluate(([l, v]) => {
-    const el = [...document.querySelectorAll('[data-step] input[type=range]')].find(i => i.getAttribute('aria-label') === l);
+    const el = [...document.querySelectorAll('[data-home] input[type=range]')].find(i => i.getAttribute('aria-label') === l);
     if (!el) return false;
     Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(el, String(v));
     el.dispatchEvent(new Event('input', { bubbles: true })); el.dispatchEvent(new Event('change', { bubbles: true }));
@@ -326,33 +325,30 @@ await acheck('U60b choosing de-risking records the approach', async () => (await
 await acheck('U60c choosing de-risking arms the architecture', async () => (await plan()).architecture?.on === true);
 await acheck('U60d de-risking uses the 7-year ladder', async () => (await plan()).architecture?.ladderYears === 7);
 
-// ── The six steps: every slider writes the real plan ─────────────────────
-await p.locator('[data-step="you"] button', { hasText: 'The two of us' }).click(); await wait(400);
+// ── The home: every slider writes the real plan ──────────────────────────
+await p.locator('[data-home] button', { hasText: 'The two of us' }).click(); await wait(400);
 await acheck('U51b home: household becomes a couple', async () => (await plan()).household === 'couple');
-await stepTo('Someday');
 const sy0 = (await plan()).startYear;
-await setSlider('Stop work in', sy0 + 8);
+const by0 = (await plan()).partnerA.birthYear;
+await setSlider('Retire at age', sy0 + 8 - by0);
 await acheck('U51c home: retire year captured', async () => (await plan()).retireYear === sy0 + 8);
 await setSlider('Take home a month', 3600);
 await acheck('U51d home: take-home a month becomes the yearly target', async () => (await plan()).targetNet === 43200);
-await stepTo('Pensions');
-await setSlider('Your pot', 600000);
+await setSlider('Your pension pots', 600000);
 await acheck('U52 home: Stuart pension captured', async () => (await plan()).partnerA?.pension === 600000);
-await setSlider('Their pot', 45000);
+await setSlider('Their pension pots', 45000);
 await acheck('U58 home: Carol pension captured', async () => (await plan()).partnerB?.pension === 45000);
 await setSlider('Still paying in, a month', 3000);
 await acheck('U53 home: Stuart monthly captured', async () => (await plan()).partnerA?.monthlyPension === 3000);
-await stepTo('Savings');
 await setSlider('Your ISAs', 45000); await setSlider('Their ISAs', 45000);
 await acheck('U54 home: Stuart ISA captured', async () => (await plan()).partnerA?.isa === 45000);
 await acheck('U59 home: Carol ISA captured', async () => (await plan()).partnerB?.isa === 45000);
-await stepTo('Promised');
-await setSlider('Your company pension', 9000);
+await setSlider('Your company pension a year', 9000);
 await acheck('U55 home: Stuart DB amount captured', async () => (await plan()).partnerA?.db === 9000);
 await acheck('U56 home: Stuart DB start = retire year (the fix)', async () => { const P = await plan(); return P.partnerA.dbStartYear === P.retireYear; });
-await setSlider('Theirs', 12548);       // the first "Theirs" on the step is the State Pension
+await setSlider('Their State Pension a year', 12548);
 await acheck('U56b home: partner State Pension captured', async () => (await plan()).partnerB?.spAmount === 12550 || (await plan()).partnerB?.spAmount === 12548);
-await p.evaluate(() => { const el = [...document.querySelectorAll('[data-step] input[type=range]')].filter(i => i.getAttribute('aria-label') === 'Theirs')[1];
+await p.evaluate(() => { const el = [...document.querySelectorAll('[data-home] input[type=range]')].find(i => i.getAttribute('aria-label') === 'Their company pension a year');
   Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(el, '5000'); el.dispatchEvent(new Event('input', { bubbles: true })); }); await wait(300);
 await acheck('U60 home: Carol DB captured (the reported bug)', async () => (await plan()).partnerB?.db === 5000);
 await acheck('U61 home: Carol DB start = retire year', async () => { const P = await plan(); return P.partnerB.dbStartYear === P.retireYear; });
@@ -486,7 +482,6 @@ await acheck('U83 Details: add a windfall → income event in plan', async () =>
 
 // UI edits actually recompute the answer (end-to-end through the engine)
 await p.keyboard.press('Escape'); await wait(500);
-await stepTo('Someday');
 const hA = await answerText();
 await setSlider('Take home a month', 9500); await wait(700);
 const hB = await answerText();

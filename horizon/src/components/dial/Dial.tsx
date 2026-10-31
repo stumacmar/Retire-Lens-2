@@ -88,7 +88,7 @@ export default function Dial({ plan, update, dd, mc, mcPending, viz, plus, onUpg
   const compact = vp.h < 720;
   const d = Math.max(236, Math.min(320, vp.w - 70, vp.h - (compact ? 425 : 440)));
   const R = d / 2, stripH = compact ? 72 : vp.h >= 820 ? 128 : 104;
-  const boxPad = compact ? 36 : 40;
+  const boxPad = compact ? 36 : 40, boxW = Math.min(vp.w - 20, d + 150), boxL = (boxW - d) / 2;
 
   // ── The ring: a tick scale that turns under a fixed needle ───────────
   const canvas = useRef<HTMLCanvasElement | null>(null);
@@ -252,9 +252,9 @@ export default function Dial({ plan, update, dd, mc, mcPending, viz, plus, onUpg
       {/* ── The dial ──────────────────────────────────────────────────── */}
       <AnimatePresence initial={false}>
         {view !== 'bands' && (
-          <motion.div key="dial" className="relative shrink-0" style={{ width: d + 60, height: d + boxPad * 2, marginTop: compact ? 0 : 6 }}
+          <motion.div key="dial" className="relative shrink-0" style={{ width: boxW, height: d + boxPad * 2, marginTop: compact ? 0 : 6 }}
             initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }} transition={{ duration: 0.25 }}>
-            <motion.div className="absolute" style={{ left: 30, top: boxPad, width: d, height: d }}
+            <motion.div className="absolute" style={{ left: boxL, top: boxPad, width: d, height: d }}
               animate={{ scaleX: 1 }} key={side} initial={{ scaleX: 0 }} transition={{ duration: reduced() ? 0 : 0.2 }}>
               <canvas ref={canvas} className="block" style={{ width: d, height: d, touchAction: 'none', cursor: 'grab' }} aria-hidden="true"
                 onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp} />
@@ -275,9 +275,9 @@ export default function Dial({ plan, update, dd, mc, mcPending, viz, plus, onUpg
               return (
                 <button key={f.id} type="button" disabled={empty} aria-pressed={on} data-face={f.id}
                   onClick={() => { if (on) setSub(s => (fv[1 - s] ? 1 - s : s)); else { setFace(f.id); setSub(0); } kick(); }}
-                  className="absolute px-1.5 py-1 min-h-[40px] min-w-[44px] leading-tight" style={{ ...pos(f.angle), opacity: empty ? 0.25 : set || on ? 1 : 0.55 }}>
-                  <span className="block text-[0.68rem] font-semibold uppercase tracking-[0.08em]" style={{ color: on ? 'var(--color-calm-strong)' : 'var(--color-ink-dim)' }}>{f.name}</span>
-                  <span className="block text-[0.78rem] tnum font-medium" style={{ color: 'var(--color-ink)' }}>
+                  className="absolute px-1 py-1 min-h-[40px] min-w-[44px] leading-tight" style={{ ...pos(f.angle), opacity: empty ? 0.25 : set || on ? 1 : 0.55, maxWidth: f.angle % 180 === 0 ? boxW * 0.34 : boxW * 0.33 }}>
+                  <span className={`block ${compact ? 'text-[0.62rem]' : 'text-[0.68rem]'} font-semibold uppercase tracking-[0.08em]`} style={{ color: on ? 'var(--color-calm-strong)' : 'var(--color-ink-dim)' }}>{f.name}</span>
+                  <span className={`block ${compact ? 'text-[0.72rem]' : 'text-[0.78rem]'} tnum font-medium whitespace-nowrap`} style={{ color: 'var(--color-ink)' }}>
                     {fv.map((v, i) => <span key={v.key} style={{ opacity: on && i !== sub ? 0.5 : 1 }}>{i ? ' · ' : ''}{v.short(v.get())}</span>)}
                   </span>
                 </button>);

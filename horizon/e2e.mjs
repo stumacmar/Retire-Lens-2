@@ -257,7 +257,7 @@ const tapInSheet = async t => {
   catch { return false; }
 };
 // Jump to a named page of the form carousel via its rail.
-// The home: one page — every figure is a slider (with a number beside it); the answer above.
+// The home: the Horizon Dial — hidden range inputs are the real controls; the ring is bound to them.
 const setSlider = async (label, value) => {
   const ok = await p.evaluate(([l, v]) => {
     const el = [...document.querySelectorAll('[data-home] input[type=range]')].find(i => i.getAttribute('aria-label') === l);
@@ -325,7 +325,8 @@ await acheck('U60b choosing de-risking records the approach', async () => (await
 await acheck('U60c choosing de-risking arms the architecture', async () => (await plan()).architecture?.on === true);
 await acheck('U60d de-risking uses the 7-year ladder', async () => (await plan()).architecture?.ladderYears === 7);
 
-// ── The home: every slider writes the real plan ──────────────────────────
+// ── The home: every figure behind the ring writes the real plan ─────────
+await p.locator('button[data-face="who"]').click(); await wait(350); await p.locator('button[data-face="who"]').click(); await wait(350);
 await p.locator('[data-home] button', { hasText: 'The two of us' }).click(); await wait(400);
 await acheck('U51b home: household becomes a couple', async () => (await plan()).household === 'couple');
 const sy0 = (await plan()).startYear;
@@ -353,7 +354,7 @@ await p.evaluate(() => { const el = [...document.querySelectorAll('[data-home] i
 await acheck('U60 home: Carol DB captured (the reported bug)', async () => (await plan()).partnerB?.db === 5000);
 await acheck('U61 home: Carol DB start = retire year', async () => { const P = await plan(); return P.partnerB.dbStartYear === P.retireYear; });
 await acheck('U62 both DBs captured', async () => { const P = await plan(); return P.partnerA.db === 9000 && P.partnerB.db === 5000; });
-await acheck('U63 the answer renders after DB entry', async () => /a month, for life/i.test(await answerText()));
+await acheck('U63 the answer renders after DB entry', async () => /£[\d,]+/.test(await answerText()) && /a month/.test(await answerText()));
 // Names live in Details (the home is about figures)
 await tap('Details'); await wait(800);
 await p.locator('[data-active] input[placeholder=You]').fill('Stuart').catch(() => {}); await wait(250);

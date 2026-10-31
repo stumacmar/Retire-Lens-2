@@ -87,8 +87,9 @@ const tap = async t => {
   catch { try { await p.locator(`text=${t}`).first().click({ timeout: 2000 }); return true; } catch { return false; } }
 };
 const sheetOpen = async () => (await p.locator('[role=dialog]').count()) > 0;
-// The home: one page — the answer at the top, every figure beneath it as a
-// slider with a number beside it. Both write the plan.
+// The home: the Horizon Dial. Six hidden range inputs (more for a couple) are
+// the real controls; the drawn ring is bound to them. Setting a range writes
+// the plan exactly as turning the ring does.
 const setSlider = async (label, value) => {
   const ok = await p.evaluate(([l, v]) => {
     const el = [...document.querySelectorAll('[data-home] input[type=range]')].find(i => i.getAttribute('aria-label') === l);
@@ -99,15 +100,21 @@ const setSlider = async (label, value) => {
   }, [label, value]);
   await wait(300); return ok;
 };
-const typeField = async (label, value) => {
-  const inp = p.locator(`[data-home] label:has-text("${label}")`).first();
-  if (!(await inp.count())) return false;
-  const id = await inp.getAttribute('for'); const box = p.locator(`#${CSS_escape(id)}`);
-  await box.fill(String(value)); await box.press('Enter'); await wait(350); return true;
-};
-const CSS_escape = id => id.replace(/([^a-zA-Z0-9_-])/g, '\\$1');
+const valueText = async label => p.$eval(`[data-home] input[type=range][aria-label="${label}"]`, e => e.getAttribute('aria-valuetext')).catch(() => '');
+const tapFace = async id => { await p.locator(`button[data-face="${id}"]`).click(); await wait(350); };
+const activeFace = async () => p.$eval('button[data-face][aria-pressed="true"]', e => e.getAttribute('data-face')).catch(() => '');
 const answerText = async () => p.$eval('[data-answer]', e => e.innerText).catch(() => '');
+const sentence = async () => p.$eval('[data-sentence]', e => e.innerText).catch(() => '');
 const sliders = async () => p.locator('[data-home] input[type=range]').count();
+// Turn the ring by hand: press on the track and sweep round it.
+const turnRing = async (fromDeg, toDeg, steps = 16) => {
+  const box = await p.locator('[data-home] canvas').first().boundingBox();
+  const cx = box.x + box.width / 2, cy = box.y + box.height / 2, r = box.width / 2 * 0.8;
+  const at = deg => [cx + r * Math.sin(deg * Math.PI / 180), cy - r * Math.cos(deg * Math.PI / 180)];
+  let [x, y] = at(fromDeg); await p.mouse.move(x, y); await p.mouse.down();
+  for (let i = 1; i <= steps; i++) { [x, y] = at(fromDeg + (toDeg - fromDeg) * i / steps); await p.mouse.move(x, y); await wait(16); }
+  await p.mouse.up(); await wait(700);
+};
 // Controls that exist both on the Horizon and inside a sheet must be tapped
 // where they are meant, never on the card behind.
 const tapInSheet = async t => {
@@ -216,37 +223,50 @@ await check('17b approach screen asks how the money is run', async () => /How sh
 await check('17c traditional option offered', () => has('Traditional'));
 await check('17d de-risking option offered', () => has('De-risking'));
 await tap('Traditional'); await wait(1200);
-// Setting up IS the home: one page, sensible defaults, the answer appears as money goes in.
-await check('04 home opens on the calculator, asking the question', async () => /What could you take home/i.test(await h1()));
-await check('05 every section is on one page', async () => (await has('About you')) && (await has('Your retirement')) && (await has('Pensions')) && (await has('Savings')) && (await has('Guaranteed income')) && (await has('Later life')));
-await check('06 one person: ten figures to slide', async () => (await sliders()) === 10);
-await check('07 an empty plan asks for money rather than showing a figure', async () => /Add your pension and savings/.test(await answerText()));
+// Setting up IS the home: one ring, sensible defaults, the answer appears as money goes in.
+await check('04 home is the dial, asking the question', async () => (await p.locator('[data-home] canvas').count()) >= 1 && /What could you take home/i.test(await h1()));
+await check('05 six engravings round the bezel', async () => (await p.locator('button[data-face]').count()) === 6);
+await check('06 one person: twelve figures behind the ring', async () => (await sliders()) === 12);
+await check('07 an empty plan says what to do', async () => /Turn the ring/.test(await sentence()));
 await check('08 no sign-up gate before the result', async () => (await p.locator('input[type=email]').count()) === 0);
-await check('09 household choice at the top of the form', async () => (await has('The two of us')) && (await has('Just me')));
+await tapFace('who'); await tapFace('who');
+await check('09 the Who engraving, tapped twice, offers who the plan is for', async () => (await activeFace()) === 'who' && (await has('The two of us')) && (await has('Just me')));
 await p.locator('[data-home] button', { hasText: 'The two of us' }).click(); await wait(400);
 await check('10 choosing the two of us records a couple', async () => (await planOf()).household === 'couple');
-await check('10b a couple brings in the partner figures', async () => (await sliders()) === 15);
-await check('12 take-home slider writes the plan (a month × 12)', async () => (await setSlider('Take home a month', 3500)) && (await planOf()).targetNet === 42000);
+await check('10b a couple brings the partner figures onto the back of the dial', async () => (await sliders()) === 19);
+await check('12 take-home range writes the plan (a month × 12)', async () => (await setSlider('Take home a month', 3500)) && (await planOf()).targetNet === 42000);
 { const q = await planOf(); await setSlider('Retire at age', q.startYear + 6 - q.partnerA.birthYear); }
-await check('13 retire-at-age slider writes the year', async () => (await planOf()).retireYear === (await planOf()).startYear + 6);
+await check('13 retire-at-age writes the year', async () => (await planOf()).retireYear === (await planOf()).startYear + 6);
 await setSlider('Your pension pots', 300000); await setSlider('Their pension pots', 120000);
 await check('15 both pots captured', async () => { const q = await planOf(); return q.partnerA.pension === 300000 && q.partnerB.pension === 120000; });
-await check('16 with money in, the answer shows a monthly figure', async () => /a month, for life/i.test(await answerText()));
-await check('16b typing the number beside a slider writes it too', async () => (await typeField('Your ISAs', '40,000')) && (await planOf()).partnerA.isa === 40000);
-await check('16c a typed figure is clamped to the slider range', async () => { await typeField('Take home a month', '99999'); return (await planOf()).targetNet === 15000 * 12; });
-await setSlider('Take home a month', 3500);
-await check('17 the result card carries the three plain figures', async () => /Pots when you stop/.test(await answerText()) && /Tax-free cash/.test(await answerText()) && /Guaranteed a month/.test(await answerText()));
-await check('17e the chart is drawn in the result', async () => (await p.locator('[data-answer] svg path').count()) >= 2);
-await p.waitForFunction(() => /\+\d+ pts|good place to be/.test(document.querySelector('section[aria-label="Your action plan"]')?.textContent || ''), null, { timeout: 20000 }).catch(() => {});
-await check('17f an action plan is measured beneath', async () => /\+\d+ pts|good place to be/.test(await p.locator('section[aria-label="Your action plan"]').innerText()));
-await check('18 the figures are saved on the plan', async () => (await planOf()).partnerA.pension === 300000);
+await check('16 with money in, the answer is in the middle of the dial', async () => /£[\d,]+/.test(await answerText()) && /a month/.test(await answerText()));
+await tapFace('pensions');
+await check('16a tapping an engraving makes it the needle\'s home', async () => (await activeFace()) === 'pensions' && /Pension pots/.test(await p.locator('[data-home] button[aria-label^="Pension pots"]').innerText()));
+await p.locator('[data-home] button[aria-label^="Pension pots"]').click(); await wait(200);
+await p.locator('[data-home] input[aria-label$="type a figure"]').fill('310000'); await p.keyboard.press('Enter'); await wait(400);
+await check('16b tapping the figure lets you type it', async () => (await planOf()).partnerA.pension === 310000);
+await p.locator('[data-home] button[aria-label="Your pension pots: more"]').click(); await wait(300);
+await check('16c the plus button is one detent', async () => (await planOf()).partnerA.pension === 315000);
+await tapFace('someday');
+{ const before = (await planOf()).retireYear; await turnRing(80, 150); const after = (await planOf()).retireYear;
+  await check('16d turning the ring by hand changes the value, landing on a whole year', () => after > before && Number.isInteger(after)); }
+await p.waitForFunction(() => /Holds in \d+ of 100 futures/.test(document.querySelector('[data-sentence]')?.textContent || ''), null, { timeout: 15000 }).catch(() => {});
+await check('17 the sentence counts the futures that hold', async () => /Holds in \d+ of 100 futures/.test(await sentence()));
+await check('17a the floor under a real bad history is named', async () => /2008 start/.test(await sentence()));
+await check('17e the strands are drawn under the dial', async () => (await p.locator('[data-home] canvas[role="img"]').count()) === 1);
+await p.getByRole('button', { name: 'What would help?' }).click();
+await p.waitForFunction(() => /\+\d+ of 100|Nothing measured/.test(document.querySelector('[role=dialog][aria-label="What would help most"]')?.textContent || ''), null, { timeout: 20000 }).catch(() => {});
+await check('17f the levers tray measures what would help', async () => /\+\d+ of 100|Nothing measured/.test(await p.locator('[role=dialog][aria-label="What would help most"]').innerText()));
+await p.getByRole('button', { name: 'Close' }).click(); await wait(400);
+await check('18 the figures are saved on the plan', async () => (await planOf()).partnerA.pension === 315000);
 await check('19 bottom tab bar visible', () => has('Horizon'));
 await check('20 setup completed without a separate form', () => true);
 
 await loadEx();
 await check('21 example loads Stuart & Carol', async () => (await planOf()).partnerA?.name === 'Stuart');
-await check('22 example shows an answer', async () => /a month, for life/i.test(await answerText()));
-await check('23 confidence % shown', async () => /% of simulated futures/.test(await answerText()));
+await check('22 example shows an answer', async () => /a month, to \d+/i.test(await answerText()));
+await p.waitForFunction(() => /Holds in \d+ of 100/.test(document.querySelector('[data-sentence]')?.textContent || ''), null, { timeout: 15000 }).catch(() => {});
+await check('23 the count of futures shown', async () => /Holds in \d+ of 100 futures/.test(await sentence()));
 
 let k = 24;
 for (const [t, m] of [['Details', 'Your details'], ['Explore', 'Explore'], ['Peace', 'Peace of mind']]) {
@@ -256,21 +276,24 @@ for (const [t, m] of [['Details', 'Your details'], ['Explore', 'Explore'], ['Pea
   await check(`${k++} ${t} sheet closes on Escape`, async () => !(await sheetOpen()));
 }
 
-// The other ways of seeing it live in Explore; the home is the answer and the figures.
+// Deeper views grow from the dial; the rest lives in Explore.
 await closeSheet(); await tap('Explore'); await wait(900);
 await p.waitForFunction(() => /Japan, 1990 on/.test(document.getElementById('explore-fall')?.textContent || ''), null, { timeout: 8000 }).catch(() => {});
 await check('29d guardrails from real bad histories, in Explore', async () => /Japan, 1990 on/.test(await p.locator('#explore-fall').innerText()));
 await check('29e the edge: every retirement, in Explore', () => has('Every retirement you could choose'));
 await closeSheet();
-await check('30 the home has no drums, steps or confirm buttons', async () => !(await has('Set this piece')) && !(await has('Next')) && (await p.locator('[aria-roledescription="carousel"]').count()) === 0);
-await check('31 the answer says after tax and when', async () => /After tax, in today's money, from \d{4} when you're \d+/.test(await answerText()));
+await check('30 nothing scrolls: the home fits the screen', async () => (await p.evaluate(() => document.documentElement.scrollHeight <= innerHeight + 1)) && !(await has('Set this piece')));
+await p.getByRole('button', { name: 'See the range of futures' }).click(); await wait(700);
+await check('31 tapping the strands grows them into the range of futures', async () => (await has('Poor to good markets shaded')) && /£[\d,]+/.test(await answerText()));
+await p.getByRole('button', { name: 'Back to the dial' }).click(); await wait(700);
+await check('31b and back again', async () => !(await has('Poor to good markets shaded')) && (await p.locator('button[data-face]').count()) === 6);
 await check('32 exactly one visible h1', async () => (await visH1()) === 1);
 const before = await answerText(); await setSlider('Take home a month', 9000); await wait(500);
-await check('33 take-home slider changes the answer', async () => (await answerText()) !== before);
+await check('33 take-home changes the answer', async () => (await answerText()) !== before);
 { const q = await planOf(); await setSlider('Retire at age', q.startYear + 2 - q.partnerA.birthYear); } await wait(400);
-await check('34 retire-at-age slider, no crash', () => pe.length === 0);
+await check('34 retire-at-age, no crash', () => pe.length === 0);
 await setSlider('Still paying in, a month', 4000); await wait(400);
-await check('35 paying-in slider shows its figure in the box beside it', async () => { const id = await p.locator('[data-home] label:has-text("Still paying in")').first().getAttribute('for'); return (await p.locator(`#${CSS_escape(id)}`).inputValue()) === '4,000'; });
+await check('35 paying-in reads back in plain English', async () => (await valueText('Still paying in, a month')) === 'Paying in £4,000 a month');
 
 await loadEx(); await tap('Details'); await wait(800);
 // Editing is the same carousel: a rail of named pages, one idea on each.
@@ -375,7 +398,7 @@ await closeSheet();
 await setSlider('Take home a month', 15000); await wait(700);
 await check('73 extreme spend renders, no crash', async () => (await h1()).length > 5 && pe.length === 0);
 await check('74 no NaN at extreme spend', async () => !/NaN|undefined/.test(await bodyT()));
-await setSlider('Take home a month', 900); await wait(600); await check('75 minimal spend renders', async () => /a month, for life/i.test(await answerText()));
+await setSlider('Take home a month', 900); await wait(600); await check('75 minimal spend renders', async () => /a month, to \d+/i.test(await answerText()));
 { const q = await planOf(); await setSlider('Retire at age', q.startYear + 1 - q.partnerA.birthYear); } await wait(600); await check('76 near-term retire, no crash', () => pe.length === 0);
 { const q = await planOf(); await setSlider('Retire at age', q.startYear + 20 - q.partnerA.birthYear); } await wait(600); await check('77 far-out retire, no crash', () => pe.length === 0);
 await tap('Details'); await wait(700); await goPage('Stuart’s pots');
@@ -383,7 +406,7 @@ await p.$$eval('[role=dialog] input[inputmode=decimal]', e => { const s = Object
 await check('78 all pots zero survives', () => pe.length === 0);
 await check('79 no £NaN with zero pots', async () => !/£NaN/.test(await bodyT()));
 await closeSheet();
-await check('80 home renders after zero pots', async () => (await h1()).length > 5);
+await check('80 home renders after zero pots', async () => /£[\d,]+|take home/i.test(await h1()));
 
 await loadEx(); await p.reload({ waitUntil: 'networkidle' }); await wait(800);
 await check('81 reload keeps plan (no onboarding)', async () => !/Begin/.test(await bodyT()));
@@ -400,13 +423,13 @@ await check('84 rapid retire-age changes, no crash', () => pe.length === 0);
 for (let i = 0; i < 5; i++) { await tap('Details'); await wait(200); await closeSheet(); }
 await check('85 rapid sheet cycle, no crash', () => pe.length === 0);
 await closeSheet(); await wait(700); // let the debounced compute settle before reading the headline
-await check('86 headline valid after stress', async () => /a month, for life|take home/i.test(await h1()));
+await check('86 headline valid after stress', async () => /£[\d,]+|take home/i.test(await h1()));
 
 await loadEx();
-await check('87 the example shows its answer and the plain figures', async () => /a month, for life/i.test(await answerText()) && /Pots when you stop/.test(await answerText()));
-await check('88 the example is a couple with both sets of figures', async () => (await sliders()) === 15);
-await check('89 the form points to Details for everything else', () => has('is in Details'));
-await check('90 six sections on the page', async () => (await p.locator('[data-home] section').count()) === 6);
+await check('87 the example shows its answer in the dial', async () => /£[\d,]+/.test(await answerText()) && /a month, to \d+/.test(await answerText()));
+await check('88 the example is a couple with both sets of figures', async () => (await sliders()) === 19);
+await check('89 the home points to Details for everything else', () => has('Everything else, in Details'));
+await check('90 six engravings on the bezel', async () => (await p.locator('button[data-face]').count()) === 6);
 await check('91 four tab destinations', async () => (await has('Horizon')) && (await has('Details')) && (await has('Explore')) && (await has('Peace')));
 await tap('Details'); await wait(500);
 await check('92 sheet opens (dialog role)', () => sheetOpen());
@@ -425,8 +448,9 @@ await check('100 zero uncaught page errors overall', () => pe.length === 0);
 await p.evaluate(() => localStorage.removeItem('someday-licence-v1')).catch(() => {});
 await p.reload({ waitUntil: 'networkidle' }); await wait(900);
 await check('101 free: disclaimer not asked again', async () => !/calm place to think/i.test(await h1()));
-await check('102 free: the answer still renders', async () => /a month, for life/i.test(await answerText()));
-await check('103 free: confidence % still shown', async () => /% of simulated futures/.test(await answerText()));
+await check('102 free: the answer still renders', async () => /a month, to \d+/i.test(await answerText()));
+await p.waitForFunction(() => /Holds in \d+ of 100/.test(document.querySelector('[data-sentence]')?.textContent || ''), null, { timeout: 15000 }).catch(() => {});
+await check('103 free: the count of futures still shown', async () => /Holds in \d+ of 100 futures/.test(await sentence()));
 await check('104 free: Get Plus pill in header', () => $('button[aria-label="Get Someday Plus"]'));
 await tap('Explore'); await wait(900);
 await check('105 free: Monte Carlo stays free', () => has('Range of futures'));

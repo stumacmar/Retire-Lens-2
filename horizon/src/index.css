@@ -203,3 +203,14 @@ input[type="range"].dawn-range::-moz-range-thumb {
 .range::-moz-range-thumb { width: 24px; height: 24px; border: 1px solid rgba(60,50,35,.12); border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(60,50,35,.28); }
 .range:focus-visible { outline: none; }
 .range:focus-visible::-webkit-slider-thumb { box-shadow: 0 0 0 4px color-mix(in srgb, var(--color-calm) 40%, transparent), 0 1px 3px rgba(60,50,35,.28); }
+
+/* ── The dial's sky: night while nothing is set, dawn when all six are ──── */
+@property --sky-t { syntax: '<number>'; inherits: true; initial-value: 0; }
+.dial-home { --ring-track: rgba(44,44,44,.2); --sky-na: #dfe2e6; --sky-nb: #efe9df; --sky-da: #fbeedb; --sky-db: #f6e3c6;
+  background: linear-gradient(180deg,
+    color-mix(in oklab, var(--sky-da) calc(var(--sky-t) * 100%), var(--sky-na)) 0%,
+    color-mix(in oklab, var(--sky-db) calc(var(--sky-t) * 100%), var(--sky-nb)) 100%);
+  transition: --sky-t .7s ease-out; }
+@media (prefers-color-scheme: dark) {
+  .dial-home { --ring-track: rgba(237,232,224,.22); --sky-na: #0f1216; --sky-nb: #1a1612; --sky-da: #2a323a; --sky-db: #4a3a28; }
+}

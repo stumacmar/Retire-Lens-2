@@ -7,7 +7,7 @@ import { fmt, fmtK, pct, deflate } from './lib/format';
 import Sheet from './components/Sheet';
 import Onboarding from './components/Onboarding';
 import PlanForm from './components/PlanForm';
-import Home from './components/home/Home';
+import Dial from './components/dial/Dial';
 import { useInsight } from './lib/useInsight';
 import type { Rail } from './lib/insights';
 import DecisionMap from './components/DecisionMap';
@@ -116,8 +116,8 @@ function Horizon() {
   return (
     <div className="min-h-full">
 
-      {/* The home: the answer at the top, every figure beneath it, one page. */}
-      <Home plan={plan} update={update} dd={dd} mc={mc} viz={viz} plus={plus} onUpgrade={openPlus} onDetails={() => setSheet('details')}
+      {/* The home: the Horizon Dial — one ring, six groups, the answer in the middle. */}
+      <Dial plan={plan} update={update} dd={dd} mc={mc} mcPending={S.mcPending} viz={viz} plus={plus} onUpgrade={openPlus} onDetails={() => setSheet('details')}
         header={
           <div className="flex items-center gap-2.5">
             <svg width="22" height="22" viewBox="0 0 42 42" fill="none" aria-hidden="true">

@@ -20,6 +20,34 @@ Memory between cycles. Read it first; update it last. Format is in
 _None yet beyond the desk research above (see `docs/reports/` and
 `docs/research_notes/` for the sources)._
 
+## Scorecard
+
+Updated every cycle. Standing: ahead · parity · behind · missing. Stop rule in
+`PENSION_SCOUT.md` §7.
+
+| # | Dimension | Best in market (planner) | Someday | Evidence |
+|---|---|---|---|---|
+| 1 | Honest headline | Someday | ahead | research report §C |
+| 2 | Uncertainty in the primary view | Wealthfront fan; Acme-style strands | ahead | grains + strands + floor |
+| 3 | UK tax correctness | HL / Timeline | ahead (unverified vs Timeline) | engine `taxFor`, Scotland |
+| 4 | State Pension | MoneyHelper | parity | `spaFor`, 12,548 |
+| 5 | Defined benefit | Timeline / Voyant | parity (unverified) | `DB_SCHEMES` |
+| 6 | Contributions and relief | MoneyHelper / HL | behind | B2 |
+| 7 | Sequence risk, bad histories | Timeline / cFIREsim | ahead | `STRESS_PATHS` |
+| 8 | Dynamic spending rules | Income Lab / Timeline | parity | guardrails, levers |
+| 9 | Couples and survivor | MaxiFi / Boldin | parity; UX thin | B1 |
+| 10 | Longevity | Rich Broke or Dead | behind (display) | B3 |
+| 11 | Care, housing, IHT | Boldin / Voyant | missing | B4 |
+| 12 | Levers, measured | Boldin | ahead | `levers` |
+| 13 | Time to first answer, defaults | Toss-style single input | parity | dial defaults |
+| 14 | Liveness | Wealthfront Path | ahead | the ring |
+| 15 | Accessibility | — | parity (unverified; no axe run yet) | hidden ranges |
+| 16 | Mobile fit | — | parity | 375 × 667 fits |
+| 17 | Trust signals | MoneyHelper (GOV) | behind (no assumptions page on the home) | Peace sheet has assumptions |
+| 18 | Performance | — | unknown (not measured on a real phone) | — |
+| 19 | Data safety | Someday | ahead | no server |
+| 20 | Copy | — | parity | — |
+
 ## Comparison
 
 | Feature | Best in market | Someday today | Verdict |
@@ -42,6 +70,9 @@ _None yet beyond the desk research above (see `docs/reports/` and
 | B3 | Mortality shading on the strands (Rich, Broke or Dead) | polish | low | small | Engaging Data | open |
 | B4 | Care-cost scenario as a lever | coverage | medium | large | Boldin, Voyant | open |
 | B5 | Hallway test the dial's bezel words (findability within 10 s) | ux-evidence | high | small | Research report §D | open |
+| B6 | One-tap "assumptions and sources" from the dial (trust) | trust | medium | small | Scorecard 17 | open |
+| B7 | Measure performance on a mid-range Android (engine call, MC latency) | performance | medium | small | Scorecard 18 | open |
+| B8 | Run axe-core in the UAT and fix what it finds | accessibility | medium | small | Scorecard 15 | open |
 
 ## Cycles
 

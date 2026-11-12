@@ -139,6 +139,10 @@ state and record the attempt in the ledger instead of shipping red.
    request to `main` titled `Scout: <improvement>`. Body: what changed, why
    (with the competitor evidence and links), how it was verified, what the
    ledger now recommends next. Do not merge. Do not touch other branches.
+   If no tool in the session can open a pull request (no GitHub tools and
+   no `gh`), push the branch anyway and say in the summary that the owner
+   should open the pull request from that branch; never work around it by
+   pushing to `main`.
 4. Finish with a short summary: planners examined, the improvement shipped,
    the PR link, and the top three backlog items.
 

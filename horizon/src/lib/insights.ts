@@ -86,7 +86,11 @@ export interface DecisionMap { years: number[]; spends: number[]; cells: MapCell
 /** Every (stop year × spending) retirement, plus the edge: the most you can spend for each stop year. */
 export function decisionMap(E: Eng, plan: any): DecisionMap {
   const P = prep(plan);
-  const years: number[] = []; for (let y = P.startYear + 1; y <= P.startYear + 19; y++) years.push(y);
+  // Every stop year from next year to age 75 (at most fifty years out), in
+  // steps that keep the map to about two dozen columns on a phone.
+  const first = P.startYear + 1, last = Math.max(first, Math.min(P.startYear + 50, P.partnerA.birthYear + 75));
+  const yStep = Math.max(1, Math.ceil((last - first) / 24));
+  const years: number[] = []; for (let y = first; y <= last; y += yStep) years.push(y);
   const top = Math.max(130000, Math.ceil(((P.targetNet || 0) * 1.4) / 5000) * 5000);
   const step = top > 200000 ? 10000 : 5000;
   const spends: number[] = []; for (let s = 20000; s <= top; s += step) spends.push(s);

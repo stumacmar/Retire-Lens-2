@@ -13,6 +13,13 @@ import type { DecisionMap as Map } from '../lib/insights';
  * worker, and only when something other than the two axes changes.
  */
 const L = 48, R = 18, T = 8, B = 26;
+// The map's columns may step by more than a year for a young planner, so
+// find the column nearest a stop year rather than demanding an exact match.
+const nearest = (years: number[], yr: number) => {
+  let k = 0;
+  for (let i = 1; i < years.length; i++) if (Math.abs(years[i] - yr) < Math.abs(years[k] - yr)) k = i;
+  return k;
+};
 
 export default function DecisionMap({ plan, update }: { plan: any; update: (p: any) => void }) {
   const key = useMemo(() => JSON.stringify({ ...plan, retireYear: 0, targetNet: 0, spendingPlanOn: false, spending: null }), [plan]);
@@ -22,7 +29,7 @@ export default function DecisionMap({ plan, update }: { plan: any; update: (p: a
   live.current = { plan, map, update };
 
   const age = plan.retireYear - plan.partnerA.birthYear;
-  const ix = map ? Math.max(0, Math.min(map.years.length - 1, map.years.indexOf(plan.retireYear))) : 0;
+  const ix = map ? nearest(map.years, plan.retireYear) : 0;
   const here = map?.edge[ix] ?? null, next = map?.edge[ix + 1] ?? null;
   const ok = here != null && plan.targetNet <= here;
 
@@ -37,7 +44,7 @@ export default function DecisionMap({ plan, update }: { plan: any; update: (p: a
       const iw = W - L - R, ih = H - T - B, cw = iw / map.years.length, ch = ih / map.spends.length;
       const lo = map.spends[0], step = map.spends[1] - map.spends[0], hi = map.spends[map.spends.length - 1];
       const fy = (v: number) => T + ih - ((v - lo + step / 2) / (hi - lo + step)) * ih;
-      const sage = css('--color-sage'), deep = css('--color-sage-strong'), amber = css('--color-calm'), rose = css('--color-hope');
+      const sage = css('--color-sage'), deep = css('--color-sage-strong'), amber = css('--color-map-late'), rose = css('--color-map-early');
       map.cells.forEach((col, i) => col.forEach((c, j) => {
         g.fillStyle = c.ok ? (c.left > 900000 ? deep : sage) : ((c.age ?? 0) >= 80 ? amber : rose);
         g.globalAlpha = c.ok ? 0.4 + Math.min(0.5, c.left / 2.5e6) : 0.5 + Math.min(0.4, (88 - (c.age ?? 60)) / 40);
@@ -53,10 +60,11 @@ export default function DecisionMap({ plan, update }: { plan: any; update: (p: a
       const tick = hi > 150000 ? 40000 : 20000;
       for (let v = Math.ceil(lo / tick) * tick; v <= hi; v += tick) g.fillText('£' + v / 1000 + 'k', L - 7, fy(v));
       g.textAlign = 'center'; g.textBaseline = 'top';
-      map.years.forEach((y, i) => { if ((y - map.years[0]) % 3 === 0) g.fillText(String(y), L + i * cw + cw / 2, T + ih + 7); });
+      const every = Math.max(1, Math.ceil(map.years.length / 7));   // about seven year labels across
+      map.years.forEach((y, i) => { if (i % every === 0) g.fillText(String(y), L + i * cw + cw / 2, T + ih + 7); });
       // your plan
-      const p = live.current.plan, k = map.years.indexOf(p.retireYear);
-      if (k >= 0) {
+      const p = live.current.plan, k = nearest(map.years, p.retireYear);
+      {
         const px = L + k * cw + cw / 2, py = Math.max(T, Math.min(T + ih, fy(p.targetNet)));
         g.strokeStyle = css('--color-calm-strong'); g.lineWidth = 1; g.setLineDash([3, 4]);
         g.beginPath(); g.moveTo(px, T); g.lineTo(px, T + ih); g.moveTo(L, py); g.lineTo(L + iw, py); g.stroke(); g.setLineDash([]);
@@ -90,7 +98,8 @@ export default function DecisionMap({ plan, update }: { plan: any; update: (p: a
       const { map: m, plan: p, update: up } = live.current; if (!m) return;
       const d = ({ ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, 1000], ArrowDown: [0, -1000] } as any)[e.key];
       if (!d) return; e.preventDefault();
-      const yr = Math.max(m.years[0], Math.min(m.years[m.years.length - 1], p.retireYear + d[0]));
+      const yStep = m.years.length > 1 ? m.years[1] - m.years[0] : 1;
+      const yr = Math.max(m.years[0], Math.min(m.years[m.years.length - 1], p.retireYear + d[0] * yStep));
       up({ retireYear: yr, targetNet: Math.max(m.spends[0], Math.min(m.spends[m.spends.length - 1], p.targetNet + d[1])), spendingPlanOn: false });
     };
     cv.addEventListener('pointerdown', dn); cv.addEventListener('pointermove', mv);
@@ -118,7 +127,7 @@ export default function DecisionMap({ plan, update }: { plan: any; update: (p: a
       </div>
       <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-[0.72rem]" style={{ color: 'var(--color-ink-dim)' }}>
         {[['lasts, with plenty left', 'var(--color-sage-strong)'], ['lasts, just', 'var(--color-sage)'],
-          ['runs out in your 80s', 'var(--color-calm)'], ['runs out sooner', 'var(--color-hope)']].map(([l, c]) => (
+          ['runs out in your 80s', 'var(--color-map-late)'], ['runs out sooner', 'var(--color-map-early)']].map(([l, c]) => (
           <span key={l} className="flex items-center gap-1.5"><span className="inline-block w-[10px] h-[10px] rounded-[3px]" style={{ background: c }} />{l}</span>
         ))}
       </div>

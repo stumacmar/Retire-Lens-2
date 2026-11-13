@@ -68,7 +68,7 @@ export default function Approach({ plan, update, onDone }: {
     <button onClick={() => choose(id)}
       className="w-full text-left rounded-3xl p-5 active:scale-[0.985] transition-transform"
       style={{ background: 'var(--color-surface)', border: '1px solid var(--color-hairline)',
-               boxShadow: '0 1px 2px rgba(60,50,35,0.05), 0 10px 28px rgba(60,50,35,0.06)' }}>
+               boxShadow: '0 1px 2px rgba(15,23,42,0.05), 0 10px 28px rgba(15,23,42,0.06)' }}>
       <div className="flex items-center gap-2.5">
         <span style={{ color: id === 'derisking' ? 'var(--color-sage-strong)' : 'var(--color-calm-strong)' }}>{icon}</span>
         <h2 className="text-[1.15rem] font-extrabold tracking-tight">{title}</h2>

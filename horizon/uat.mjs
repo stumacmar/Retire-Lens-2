@@ -514,6 +514,27 @@ await check('120 free/plus sweep: zero page errors', () => pe.length === 0);
   await check('123 unpaid years: zero page errors', () => pe.length === 0);
 }
 
+// ── A 26-year-old: the stop age must reach 75, and 46 must read as short ──
+{
+  const F = E.freshStart();
+  const Y = E.sanitisePlan({ ...F, retireYear: 2046, targetNet: 60000, cash: 24000, approach: 'traditional',
+    partnerA: { ...F.partnerA, birthYear: 2000, spAmount: 12548, pension: 570000, monthlyPension: 3200, isa: 48000 },
+    partnerB: { ...F.partnerB, birthYear: 2000 } });
+  await fresh();
+  await p.evaluate(v => localStorage.setItem('horizon-plan-v1', v), JSON.stringify(Y));
+  await p.reload({ waitUntil: 'networkidle' }); await wait(900); await acceptDisclaimer(); await wait(3500);
+  await check('124 young planner: the stop-age ring reaches 75, not 46', async () => (await p.$eval('[data-home] input[type=range][aria-label="Retire at age"]', e => e.getAttribute('max'))) === '75');
+  await check('125 young planner: stopping at 46 reads as running short at 48', async () => /to 48\b/.test(await answerText()));
+  await check('126 young planner: the futures agree (fewer than 5 in 100 hold)', async () => /Holds in [0-4] of 100/.test(await sentence()));
+  await check('127 first use: the ring hint is shown until the ring is turned', async () => (await p.$('[data-home] [data-hint]')) != null);
+  await setSlider('Retire at age', 60); await wait(1500);
+  await check('128 young planner: the ring moves the stop age to 60', async () => (await planOf()).retireYear === 2060);
+  await check('129 after the first turn the hint is gone', async () => (await p.$('[data-home] [data-hint]')) == null);
+  await tap('Every retirement'); await wait(4000);
+  await check('130 young planner: the map runs to age 75 (2075)', () => has('2075'));
+  await check('131 young planner: zero page errors', () => pe.length === 0);
+}
+
 console.log(`\n═══ Horizon UAT: ${pass}/${pass + fail} passed ═══`);
 if (fails.length) console.log('\nFAILURES:\n' + fails.map(f => '  ' + f).join('\n'));
 if (ce.length) console.log('\nCONSOLE ERRORS:\n' + [...new Set(ce)].slice(0, 10).map(e => '  • ' + e).join('\n'));

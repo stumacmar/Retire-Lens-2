@@ -89,6 +89,9 @@ export interface Engine {
   runMonteCarlo(P: Plan, n: number, seed: number): MC;
   DB_SCHEMES: Record<string, DbScheme>;
   DB_SCHEMES_ASOF: string;
+  LIVING_STANDARDS: LivingStandards;
+  livingStandards(P: Plan): LivingStandardSet;
+  livingStandardOf(P: Plan, net: number): LivingTier | null;
   trancheBenefits(P: Plan, who: Partner, t: DbTranche): TrancheBenefits;
   trancheNpa(who: Partner, t: DbTranche): number;
   trancheMinAge(who: Partner, t: DbTranche): number;
@@ -98,6 +101,16 @@ export interface Engine {
   [k: string]: any;
 }
 export function createEngine(): Engine;
+
+// ── Retirement Living Standards (Pensions UK, formerly the PLSA) ─────
+export type LivingTier = 'minimum' | 'moderate' | 'comfortable';
+export type LivingStandardSet = Record<LivingTier, number>;   // yearly spending after tax, home owned outright
+export interface LivingStandards {
+  asOf: string; source: string;
+  tiers: readonly LivingTier[];
+  labels: Record<LivingTier, string>;
+  single: LivingStandardSet; couple: LivingStandardSet;
+}
 
 // ── Defined-benefit scheme tranches (public sector) ──────────────────
 export interface DbTranche {

@@ -216,7 +216,7 @@ export function createEngine() {
     P.partnerA = { ...P.partnerA, name: 'You',     pension: 0, isa: 0, monthlyPension: 0, monthlyIsa: 0, db: 0 };
     P.partnerB = { ...P.partnerB, name: 'Partner', pension: 0, isa: 0, monthlyPension: 0, monthlyIsa: 0, db: 0 };
     P.house = 0; P.houseGrowth = 0.03; P.cash = 0; P.cashGrowth = 0.02;
-    P.targetNet = 43100;   // PLSA 2024 "Moderate" for a couple — an honest starting point
+    P.targetNet = LIVING_STANDARDS.couple.moderate;   // the "Moderate" standard for two — an honest starting point
     P.inherit = { on: false, year: 2035, amount: 0, invest: true };
     P.lifeEvents = [];
     // New plans assume spending naturally eases in later life (the workbook
@@ -394,6 +394,30 @@ export function createEngine() {
     custom:   { label: 'Other defined-benefit scheme', family: 'Other',       npa: 65,    accrual: 1 / 60, revalReal: 0,      autoLump: 0, commuteRate: 12, earlyRate: 0.05,  lateRate: 0,     minAge: 55 },
   });
   const DB_SCHEMES_ASOF = '2026-10';
+
+  // ── Retirement Living Standards ─────────────────────────────────────
+  // Pensions UK (formerly the PLSA) publishes what retirement costs at three
+  // standards of living, for one person and for two: yearly spending after
+  // tax, with the home owned outright — the same footing as targetNet.
+  // Source: https://www.retirementlivingstandards.org.uk/ (2026 edition).
+  // Roll these when the next edition is published; the UI reads asOf.
+  const LIVING_STANDARDS = Object.freeze({
+    asOf: '2026',
+    source: 'https://www.retirementlivingstandards.org.uk/',
+    tiers: Object.freeze(['minimum', 'moderate', 'comfortable']),
+    labels: Object.freeze({ minimum: 'Minimum', moderate: 'Moderate', comfortable: 'Comfortable' }),
+    single: Object.freeze({ minimum: 13900, moderate: 32700, comfortable: 45400 }),
+    couple: Object.freeze({ minimum: 22500, moderate: 45400, comfortable: 62700 }),
+  });
+  // The three standards for this household (one person or two).
+  const livingStandards = (P) => LIVING_STANDARDS[isSingle(P) ? 'single' : 'couple'];
+  // The highest standard a yearly after-tax spend meets, or null below Minimum.
+  function livingStandardOf(P, net) {
+    const L = livingStandards(P), n = Number(net) || 0;
+    let tier = null;
+    for (const t of LIVING_STANDARDS.tiers) if (n >= L[t]) tier = t;
+    return tier;
+  }
 
   const schemeOf = (t) => DB_SCHEMES[t && t.scheme] || DB_SCHEMES.custom;
   const trancheNpa = (who, t) => {
@@ -2317,6 +2341,18 @@ export function createEngine() {
       check('sanitisePlan repairs a bad horizon', sanitisePlan({ ...D, horizonAge: 55 }).horizonAge, 61, 0.01);
       check('migratePlan drops persisted tax constants', migratePlan({ ...D, schemaVersion: undefined, tax: { personalAllowance: 11000 } }).tax.personalAllowance, 12570, 0.01);
       check('Fresh plans default to phased tax-free cash', freshStart().pclsMode === 'phased' ? 0 : 1, 0, 0.1);
+      // R14 Retirement Living Standards (Pensions UK, 2026 edition).
+      {
+        const L = LIVING_STANDARDS, F = freshStart();
+        check('Living standards: a fresh start spends the Moderate standard for two', F.targetNet, L.couple.moderate, 0.01);
+        const ordered = ['single', 'couple'].every(h => L[h].minimum < L[h].moderate && L[h].moderate < L[h].comfortable)
+          && L.tiers.every(t => L.couple[t] > L.single[t]);
+        check('Living standards ascend, and two people cost more than one at every tier', ordered ? 0 : 1, 0, 0.1);
+        const tiers = [livingStandardOf(F, F.targetNet), livingStandardOf(F, L.couple.comfortable), livingStandardOf(F, L.couple.minimum - 1),
+          livingStandardOf({ ...F, household: 'single' }, L.single.moderate)];
+        check('Living standard of a spend: moderate / comfortable / below minimum / single moderate',
+          tiers[0] === 'moderate' && tiers[1] === 'comfortable' && tiers[2] === null && tiers[3] === 'moderate' ? 0 : 1, 0, 0.1);
+      }
       // Parity with the new features switched on.
       const parity2 = (name, P) => {
         const Q = { ...P, mcSd: 0, growthBase: P.growth, architecture: { ...(P.architecture || {}), on: false } };
@@ -2342,6 +2378,7 @@ export function createEngine() {
     runMonteCarlo, runAssertions, compareArchitecture, assessStructure, archOf, fundedRatio,
     TAX_DEFAULTS,
     DB_SCHEMES, DB_SCHEMES_ASOF, trancheBenefits, trancheNpa, trancheMinAge, maxCommute, dbSchedule, hasAnyDb, compareDbTiming,
+    LIVING_STANDARDS, livingStandards, livingStandardOf,
     levers, STRESS_PATHS, SCOT_BANDS, planEndYear, lumpAfterLsa, fundYear,
     taxFor, spaFor, nmpaFor, spAgeOf, isSingle, normalisePlan, validatePlan, sanitisePlan, migratePlan,
     RISK_PRESETS, applyRiskPreset, shiftRetirement, mcMeanFor, householdSurvival, prepare, SCHEMA_VERSION,

@@ -306,6 +306,8 @@ export default function Dial({ plan, update, dd, mc, mcPending, viz, plus, onUpg
                 style={{ color: 'var(--color-ink)' }}>
                 <b className="tnum">{active.text(active.get())}</b>
               </button>)}
+            {active.sub && typing == null && (
+              <div data-sub className="text-[0.7rem] leading-tight mt-0.5 truncate" style={{ color: 'var(--color-ink-faint)' }}>{active.sub(active.get())}</div>)}
             {!single && (
               <div className="flex justify-center gap-1 mt-0.5 text-[0.7rem]">
                 {(['A', 'B'] as Side[]).map(s => <button key={s} type="button" aria-pressed={side === s} onClick={() => flip(s)} className="px-2 py-0.5 rounded-full font-semibold"

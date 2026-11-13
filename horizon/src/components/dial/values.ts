@@ -1,4 +1,5 @@
 import { fmt, fmtK } from '../../lib/format';
+import { standardLine } from '../../lib/livingStandards';
 
 /**
  * What the ring can drive. Six faces round the bezel, each with up to two
@@ -28,6 +29,7 @@ export interface Val {
   set: (v: number) => any;             // a patch, or a function of the plan
   text: (v: number) => string;         // spoken and shown at the needle
   short: (v: number) => string;        // on the bezel
+  sub?: (v: number) => string;         // one quiet line of context under the needle
   options?: string[];                  // discrete values, by index
 }
 
@@ -76,7 +78,8 @@ export function valuesFor(plan: any, side: Side): Record<Face, Val[]> {
       { key: 'retireAge', label: 'Retire at age', min: Math.max(40, plan.startYear + 1 - plan.partnerA.birthYear), max: Math.min(75, plan.startYear + 20 - plan.partnerA.birthYear), step: 1, detent: () => 1,
         get: () => retireAge, set: n => ({ retireYear: plan.partnerA.birthYear + n }), text: n => `Stop work at ${n}`, short: n => `${n}` },
       { key: 'targetNet', label: 'Take home a month', min: 800, max: 15000, step: 50, detent: () => 50,
-        get: () => Math.round((plan.targetNet || 0) / 12), set: n => ({ targetNet: n * 12, spendingPlanOn: false }), text: n => `${fmt(n)} a month after tax`, short: n => `${fmt(n)}` });
+        get: () => Math.round((plan.targetNet || 0) / 12), set: n => ({ targetNet: n * 12, spendingPlanOn: false }), text: n => `${fmt(n)} a month after tax`, short: n => `${fmt(n)}`,
+        sub: n => standardLine(plan, n * 12, true) });
     v.savings.push({ key: 'cash', label: 'Cash and Premium Bonds', min: 0, max: 500000, step: 1000, detent: pots,
       get: () => plan.cash || 0, set: n => ({ cash: n }), text: n => `Cash ${fmt(n)}`, short: fmtK });
     v.later.push(

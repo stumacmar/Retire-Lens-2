@@ -318,6 +318,19 @@ await check('36d committing a figure, Tab lands on the next field', async () =>
 await surv.fill('75'); await surv.blur(); await wait(500);
 await goPage('Someday');
 await check('37 retire-in-year field', () => onPage('Retire in year'));
+// Retirement Living Standards (Pensions UK) sit beside the income question as
+// tappable reference points; one tap writes that standard into the plan.
+await check('37b living standards shown beside the target', async () => (await onPage('Retirement Living Standards')) && (await onPage('living standard')));
+{
+  const was = (await planOf()).targetNet;
+  const want = (await planOf()).household === 'single' ? 45400 : 62700;
+  await p.locator('[data-active]').getByRole('button', { name: /^Comfortable/ }).first().click({ timeout: 4000 }).catch(() => {});
+  await wait(500);
+  await check('37c tapping Comfortable writes that standard into the plan', async () => (await planOf()).targetNet === want);
+  await check('37d the chosen standard reads as pressed', async () => (await p.locator('[data-active] [aria-pressed="true"]:has-text("Comfortable")').count()) === 1);
+  await setField('Income you want each year', was); await wait(300);
+  await check('37e typing a figure restores the target', async () => (await planOf()).targetNet === was);
+}
 await goPage('Drawing');
 await check('38 tax-free-cash options', () => onPage('Take none'));
 await tapInSheet('A little each year'); await wait(400); await check('39 phased tax-free, no crash', () => pe.length === 0);

@@ -117,4 +117,4 @@ Updated every cycle. Standing: ahead · parity · behind · missing. Stop rule i
 | Date | Planners | Improvement | PR | Outcome |
 |---|---|---|---|---|
 | — | — | Ledger seeded from the October 2026 UX research | — | — |
-| 2026-11-13 | MoneyHelper, Hargreaves Lansdown, PensionBee | Retirement Living Standards (Pensions UK 2026) beside the target: engine constant + 3 assertions, chips on the Someday page, hint under the dial figure, Assumptions row; fresh default 43,100 → 45,400 | scout/2026-11-13-living-standards | green locally: build, UAT, e2e, root suites |
+| 2026-11-13 | MoneyHelper, Hargreaves Lansdown, PensionBee | Retirement Living Standards (Pensions UK 2026) beside the target: engine constant + 3 assertions, chips on the Someday page, hint under the dial figure, Assumptions row; fresh default 43,100 → 45,400 | [#34](https://github.com/stumacmar/Retire-Lens-2/pull/34) (branch scout/2026-11-13-living-standards) | green locally: build, UAT 156, e2e 165, assertions 117, root suites 13; awaiting review |

@@ -140,6 +140,13 @@ check('E47b a fresh start spends the Moderate living standard for two (Pensions 
   check('E47d stopping at 42 with the pension locked until 57 does not hold', dy.holds === false && dy.runsShortAgeA === 43 && dy.shortfallTotalReal > 500000);
   check('E47e the stress tests agree the base case does not hold', E.stressTests(Y).baseHolds === false && E.stressTests(Y).summary.holds === 0);
   check('E47f a funded plan still holds', E.drawdown(E.sanitisePlan(E.example())).holds === true);
+  // Seen on the live site: a 26-year-old stopping at 46 on £60,000 with the
+  // pension locked until 57. Runs short at 48; almost no future pays in full.
+  const Y26 = E.sanitisePlan({ ...F, retireYear: 2046, targetNet: 60000, cash: 24000,
+    partnerA: { ...F.partnerA, birthYear: 2000, spAmount: 12548, pension: 570000, monthlyPension: 3200, isa: 48000 },
+    partnerB: { ...F.partnerB, birthYear: 2000 } });
+  const d26 = E.drawdown(Y26), m26 = E.runMonteCarlo(Y26, 200, 7);
+  check('E47g a 26-year-old stopping at 46 runs short at 48 and the futures agree', d26.holds === false && d26.runsShortAgeA === 48 && m26.successProb < 0.05);
 }
 check('E47c living standard of a spend: single Minimum, couple Comfortable', E.livingStandardOf({ ...E.freshStart(), household: 'single' }, 13900) === 'minimum' && E.livingStandardOf(E.freshStart(), 70000) === 'comfortable');
 mono('E48 both partners DB together → bigger guaranteed than one', P => { setA(P, 'db', 10000); setB(P, 'db', 10000); }, 'guarTotal', 1);

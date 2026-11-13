@@ -82,7 +82,7 @@ export default function Sheet({ open, onClose, title, children }: {
               backdropFilter: 'saturate(180%) blur(26px)',
               WebkitBackdropFilter: 'saturate(180%) blur(26px)',
               borderRadius: 'var(--radius-xl) var(--radius-xl) 0 0',
-              boxShadow: '0 -12px 48px rgba(60,50,35,0.25)',
+              boxShadow: '0 -12px 48px rgba(15,23,42,0.25)',
               paddingBottom: 'calc(1.75rem + env(safe-area-inset-bottom))',
             }}
           >

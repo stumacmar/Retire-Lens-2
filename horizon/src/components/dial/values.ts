@@ -75,7 +75,9 @@ export function valuesFor(plan: any, side: Side): Record<Face, Val[]> {
     v.who.push({ key: 'household', label: 'Who the plan is for', min: 0, max: 1, step: 1, detent: () => 1, options: ['Just me', 'The two of us'],
       get: () => (single ? 0 : 1), set: n => ({ household: n ? 'couple' : 'single' }), text: n => (n ? 'The two of us' : 'Just me'), short: n => (n ? 'couple' : 'single') });
     v.someday.push(
-      { key: 'retireAge', label: 'Retire at age', min: Math.max(40, plan.startYear + 1 - plan.partnerA.birthYear), max: Math.min(75, plan.startYear + 20 - plan.partnerA.birthYear), step: 1, detent: () => 1,
+      // Any age from next year to 75: a 26-year-old must be able to ask
+      // about 60, not only about the next twenty years.
+      { key: 'retireAge', label: 'Retire at age', min: Math.max(40, plan.startYear + 1 - plan.partnerA.birthYear), max: Math.max(Math.max(40, plan.startYear + 1 - plan.partnerA.birthYear), 75), step: 1, detent: () => 1,
         get: () => retireAge, set: n => ({ retireYear: plan.partnerA.birthYear + n }), text: n => `Stop work at ${n}`, short: n => `${n}` },
       { key: 'targetNet', label: 'Take home a month', min: 800, max: 15000, step: 50, detent: () => 50,
         get: () => Math.round((plan.targetNet || 0) / 12), set: n => ({ targetNet: n * 12, spendingPlanOn: false }), text: n => `${fmt(n)} a month after tax`, short: n => `${fmt(n)}`,

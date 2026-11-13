@@ -275,7 +275,12 @@ export default function Dial({ plan, update, dd, mc, mcPending, viz, plus, onUpg
               return (
                 <button key={f.id} type="button" disabled={empty} aria-pressed={on} data-face={f.id}
                   onClick={() => { if (on) setSub(s => (fv[1 - s] ? 1 - s : s)); else { setFace(f.id); setSub(0); } kick(); }}
-                  className="absolute px-1 py-1 min-h-[40px] min-w-[44px] leading-tight" style={{ ...pos(f.angle), opacity: empty ? 0.25 : set || on ? 1 : 0.55, maxWidth: f.angle % 180 === 0 ? boxW * 0.34 : boxW * 0.33 }}>
+                  className="absolute px-2 py-1 min-h-[40px] min-w-[44px] leading-tight rounded-xl transition-colors"
+                  style={{ ...pos(f.angle), opacity: empty ? 0.25 : set || on ? 1 : 0.7, maxWidth: f.angle % 180 === 0 ? boxW * 0.34 : boxW * 0.33,
+                    // Each label is a button: a faint pill says so, and the one
+                    // the ring is turning is picked out in the action colour.
+                    background: on ? 'color-mix(in srgb, var(--color-calm) 12%, transparent)' : 'color-mix(in srgb, var(--color-ink) 4%, transparent)',
+                    border: `1px solid ${on ? 'color-mix(in srgb, var(--color-calm) 45%, transparent)' : 'var(--color-hairline)'}` }}>
                   <span className={`block ${compact ? 'text-[0.62rem]' : 'text-[0.68rem]'} font-semibold uppercase tracking-[0.08em]`} style={{ color: on ? 'var(--color-calm-strong)' : 'var(--color-ink-dim)' }}>{f.name}</span>
                   <span className={`block ${compact ? 'text-[0.72rem]' : 'text-[0.78rem]'} tnum font-medium whitespace-nowrap`} style={{ color: 'var(--color-ink)' }}>
                     {fv.map((v, i) => <span key={v.key} style={{ opacity: on && i !== sub ? 0.5 : 1 }}>{i ? ' · ' : ''}{v.short(v.get())}</span>)}
@@ -308,6 +313,8 @@ export default function Dial({ plan, update, dd, mc, mcPending, viz, plus, onUpg
               </button>)}
             {active.sub && typing == null && (
               <div data-sub className="text-[0.7rem] leading-tight mt-0.5 truncate" style={{ color: 'var(--color-ink-faint)' }}>{active.sub(active.get())}</div>)}
+            {touched.length === 0 && typing == null && (
+              <div data-hint className="text-[0.72rem] leading-tight mt-0.5" style={{ color: 'var(--color-calm-strong)' }}>Tap a label round the ring, then turn the ring.</div>)}
             {!single && (
               <div className="flex justify-center gap-1 mt-0.5 text-[0.7rem]">
                 {(['A', 'B'] as Side[]).map(s => <button key={s} type="button" aria-pressed={side === s} onClick={() => flip(s)} className="px-2 py-0.5 rounded-full font-semibold"

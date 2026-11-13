@@ -33,7 +33,7 @@ export default function Onboarding({ plan, update, onDone, onExample }: {
           No sign-up. Everything stays on this device.
         </p>
         <button onClick={onDone} className="mt-8 w-full rounded-2xl py-4 font-semibold text-[1.05rem] active:scale-[0.98] transition-transform"
-          style={{ background: 'var(--color-calm)', color: '#2C2C2C' }}>Begin</button>
+          style={{ background: 'var(--color-calm)', color: '#fff' }}>Begin</button>
         <button onClick={onExample} className="mt-3 w-full py-2 font-medium text-[0.95rem]" style={{ color: 'var(--color-ink-dim)' }}>
           Or see a worked example
         </button>

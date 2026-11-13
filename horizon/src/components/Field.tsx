@@ -185,7 +185,7 @@ export function Toggle({ label, checked, onChange }: { label: string; checked: b
       }}>
         <span className="absolute top-[2.5px] rounded-full transition-all"
           style={{ width: 24, height: 24, left: checked ? 21.5 : 2.5, background: '#fff',
-                   boxShadow: '0 1px 3px rgba(60,50,35,0.28), 0 0 0 0.5px rgba(60,50,35,0.06)' }} />
+                   boxShadow: '0 1px 3px rgba(15,23,42,0.28), 0 0 0 0.5px rgba(15,23,42,0.06)' }} />
       </span>
     </button>
   );
@@ -210,7 +210,7 @@ export function Segmented<T extends string>({ options, value, onChange, small, l
             style={{
               background: on ? 'var(--color-canvas)' : 'transparent',
               color: on ? 'var(--color-ink)' : 'var(--color-ink-dim)',
-              boxShadow: on ? '0 1px 2px rgba(60,50,35,0.14), 0 2px 8px rgba(60,50,35,0.07)' : 'none',
+              boxShadow: on ? '0 1px 2px rgba(15,23,42,0.14), 0 2px 8px rgba(15,23,42,0.07)' : 'none',
             }}>
             <span className={`block leading-[1.2] ${on ? 'font-bold' : 'font-semibold'} ${small ? 'text-[0.78rem]' : 'text-[0.85rem]'}`}>{o.label}</span>
             {o.sub && <span className="block text-[0.66rem] tnum leading-tight mt-0.5" style={{ color: 'var(--color-ink-faint)' }}>{o.sub}</span>}

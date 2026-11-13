@@ -3,7 +3,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { Minus, Plus, X } from 'lucide-react';
 import type { Drawdown, MC } from '../../engine/engine';
 import { E } from '../../lib/usePlan';
-import { deflate, fmt } from '../../lib/format';
+import { deflate, fmt, fmtK } from '../../lib/format';
 import { useInsight } from '../../lib/useInsight';
 import type { Rail } from '../../lib/insights';
 import DecisionMap from '../DecisionMap';
@@ -393,7 +393,7 @@ function Tray({ title, onClose, children, tall }: { title: string; onClose: () =
 // Your money over time: the typical path and two dozen simulated futures as
 // faint strands, in today's money; the floor under the worst real history.
 function Strands({ plan, dd, mc, viz, width, height, bands, floor, onTap }: {
-  plan: any; dd: Drawdown; mc: MC | null; viz: { base: [number, number][]; low: [number, number][]; high: [number, number][] };
+  plan: any; dd: Drawdown; mc: MC | null; viz: { base: [number, number][]; low: [number, number][]; high: [number, number][]; atRetire: number };
   width: number; height: number; bands: boolean; floor: number | null; onTap: () => void;
 }) {
   const cv = useRef<HTMLCanvasElement | null>(null);
@@ -409,8 +409,11 @@ function Strands({ plan, dd, mc, viz, width, height, bands, floor, onTap }: {
     const pre = base.filter(p => p[0] < plan.retireYear);
     const tracks: [number, number][][] = (mc?.tracks || []).filter((_: any, i: number) => i % Math.max(1, Math.floor((mc?.tracks?.length || 1) / (bands ? 60 : 24))) === 0)
       .map((t: number[]) => [...pre, ...t.map((v, i) => [rows[i]?.year ?? plan.retireYear + i, D(v, rows[i]?.year ?? plan.retireYear + i)] as [number, number])]);
+    // Scale to the ninth decile of the strands' peaks, never to the single
+    // wildest future: sixty years of compounding makes one path that would
+    // flatten everything else into the baseline.
     const tops = [...tracks.map(t => Math.max(...t.map(p => p[1]))), Math.max(...viz.high.map(p => p[1]))].sort((a, b) => a - b);
-    const max = Math.max(1, (bands ? tops[tops.length - 1] : tops[Math.floor(tops.length * 0.9)]) || 1) * 1.05;
+    const max = Math.max(1, tops[Math.min(tops.length - 1, Math.floor(tops.length * 0.9))] || 1) * 1.05;
     const X = (y: number) => 4 + ((y - y0) / Math.max(1, y1 - y0)) * (W - 8), Y = (v: number) => H - 16 - (Math.min(max, Math.max(0, v)) / max) * (H - 26);
     const line = (s: [number, number][], colour: string, w: number, alpha: number) => {
       g.beginPath(); s.forEach((p, i) => (i ? g.lineTo(X(p[0]), Y(p[1])) : g.moveTo(X(p[0]), Y(p[1]))));
@@ -432,6 +435,16 @@ function Strands({ plan, dd, mc, viz, width, height, bands, floor, onTap }: {
     g.textAlign = 'left'; g.fillText(`today ${new Date().getFullYear() - plan.partnerA.birthYear}`, 4, H - 4);
     g.textAlign = 'center'; g.fillText(`stop ${retireAge}`, Math.min(W - 40, Math.max(40, X(plan.retireYear))), 11);
     g.textAlign = 'right'; g.fillText(`to ${plan.horizonAge}`, W - 4, H - 4);
+    // The scale, so the strip means something: the top of the chart and what
+    // the central path says you have on the day you stop, in today's money.
+    g.fillStyle = faint; g.font = '500 10px system-ui, sans-serif';
+    g.textAlign = 'left'; g.fillText(`${fmtK(max / 1.05)} today's money`, 4, 11);
+    const atStop = viz.atRetire;
+    if (atStop > 0) {
+      const sx = X(plan.retireYear), sy = Y(atStop);
+      g.textAlign = sx > W * 0.6 ? 'right' : 'left';
+      g.fillText(`${fmtK(atStop)} at ${retireAge}`, sx + (sx > W * 0.6 ? -5 : 5), Math.max(22, sy - 5));
+    }
   }, [plan, dd, mc, viz, width, height, bands, retireAge]);
   return (
     <div className="relative mt-1.5 shrink-0" style={{ width, height }}>

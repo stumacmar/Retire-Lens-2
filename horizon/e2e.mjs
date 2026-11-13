@@ -128,6 +128,19 @@ check('E45 baseline endWealth is a finite number', Number.isFinite(metrics(base(
 check('E46 no NaN in baseline metrics', !Object.values(metrics(base())).some(v => Number.isNaN(v)));
 check('E47 engine load-time assertions all pass', E.runAssertions().every(a => a.pass));
 check('E47b a fresh start spends the Moderate living standard for two (Pensions UK 2026)', E.freshStart().targetNet === E.LIVING_STANDARDS.couple.moderate && E.LIVING_STANDARDS.couple.moderate === 45400);
+{
+  // A 41-year-old stopping at 42 on £70,000 a year with the pension locked
+  // until 57 and £72,000 of ISA and cash: fifteen unpaid years. The pot never
+  // "exhausts" (it cannot be touched), so "holds" must look at unpaid years.
+  const F = E.freshStart();
+  const Y = E.sanitisePlan({ ...F, retireYear: 2027, targetNet: 70000, cash: 24000,
+    partnerA: { ...F.partnerA, birthYear: 1985, spAmount: 12548, pension: 570000, monthlyPension: 3200, isa: 48000 },
+    partnerB: { ...F.partnerB, birthYear: 1985 } });
+  const dy = E.drawdown(Y);
+  check('E47d stopping at 42 with the pension locked until 57 does not hold', dy.holds === false && dy.runsShortAgeA === 43 && dy.shortfallTotalReal > 500000);
+  check('E47e the stress tests agree the base case does not hold', E.stressTests(Y).baseHolds === false && E.stressTests(Y).summary.holds === 0);
+  check('E47f a funded plan still holds', E.drawdown(E.sanitisePlan(E.example())).holds === true);
+}
 check('E47c living standard of a spend: single Minimum, couple Comfortable', E.livingStandardOf({ ...E.freshStart(), household: 'single' }, 13900) === 'minimum' && E.livingStandardOf(E.freshStart(), 70000) === 'comfortable');
 mono('E48 both partners DB together → bigger guaranteed than one', P => { setA(P, 'db', 10000); setB(P, 'db', 10000); }, 'guarTotal', 1);
 mono('E49 Stuart pension to 0 → pots↓', P => setA(P, 'pension', 0), 'pots', -1);

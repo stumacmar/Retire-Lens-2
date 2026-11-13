@@ -57,19 +57,20 @@ Updated every cycle. Standing: ahead · parity · behind · missing. Stop rule i
 
 | # | Dimension | Best in market (planner) | Someday | Evidence |
 |---|---|---|---|---|
-| 1 | Honest headline | Someday | ahead | MoneyHelper (nominal fixed annuity, no tax), HL (no inflation), PensionBee (gross pot income vs after-tax standards) all examined 2026-11-13 |
+| 1 | Honest headline | Someday | ahead, with a caveat | Was wrong for stops before pension age until B13 (2026-11-13): "lasts" ignored unpaid years. MoneyHelper (nominal fixed annuity, no tax), HL (no inflation), PensionBee (gross pot income vs after-tax standards) all examined 2026-11-13 |
 | 2 | Uncertainty in the primary view | Wealthfront fan; Acme-style strands | ahead | grains + strands + floor; the three UK tools show one line |
 | 3 | UK tax correctness | HL / Timeline | ahead (unverified vs Timeline) | engine `taxFor`, Scotland; none of the three UK consumer tools taxes retirement income |
 | 4 | State Pension | PensionBee (12,547, 2026/27) | parity | `spaFor`, 12,548 (12,547.60 rounded); MoneyHelper's record is a year stale |
 | 5 | Defined benefit | Timeline / Voyant | parity (unverified) | `DB_SCHEMES` |
 | 6 | Contributions and relief | MoneyHelper / HL | behind | B2; PensionBee shows relief but inconsistently |
-| 7 | Sequence risk, bad histories | Timeline / cFIREsim | ahead | `STRESS_PATHS` |
+| 7 | Sequence risk, bad histories | Timeline / cFIREsim | ahead on coverage; the 2008 path is too kind (B14) | `STRESS_PATHS`; gfc floor only 3–6% under base |
 | 8 | Dynamic spending rules | Income Lab / Timeline | parity | guardrails, levers |
 | 9 | Couples and survivor | MaxiFi / Boldin | parity; UX thin | B1 |
 | 10 | Longevity | HL (ONS cohort by sex, chance of 100) / Rich Broke or Dead | behind (display) | B3, B10: engine has Gompertz; UI shows a fixed age |
 | 11 | Care, housing, IHT | Boldin / Voyant | missing | B4 |
 | 12 | Levers, measured | Boldin | ahead | `levers`; MoneyHelper offers two unmeasured suggestions |
-| 13 | Time to first answer, defaults | PensionBee (standards alongside the target) | parity → ahead after this cycle | Living Standards chips + dial hint + corrected default (B11) |
+| 13 | Time to first answer, defaults | PensionBee (standards alongside the target) | ahead on the target; behind on discoverability (B15) and growth default (B18) | Living Standards chips + dial hint + corrected default (B11); owner could not tell what the ring is for |
+| 20b | Visual design (owner's view) | — | behind: "1900s, not crisp" (B16) | three mockups awaiting a pick |
 | 14 | Liveness | Wealthfront Path | ahead | the ring; PensionBee is live too, MoneyHelper and HL are not |
 | 15 | Accessibility | — | parity (unverified; no axe run yet) | hidden ranges |
 | 16 | Mobile fit | — | parity | 375 × 667 fits |
@@ -111,10 +112,18 @@ Updated every cycle. Standing: ahead · parity · behind · missing. Stop rule i
 | B10 | Sex-specific ONS cohort mortality for single-person plans (keep unisex for couples) | correctness | low | medium | HL uses ONS 2020-based cohort tables by sex | open |
 | B11 | Retirement Living Standards beside the target; fresh default corrected to the 2026 Moderate figure for two | coverage | medium | small | PensionBee; retirementlivingstandards.org.uk | shipped 2026-11-13 |
 | B12 | Say in Assumptions that 0.5% is a low-cost all-in charge and that 0.7–1% is common | trust | low | small | MoneyHelper 0.75%, PensionBee 0.7%, HL 1% | open |
+| B13 | "Lasts" must mean every year paid: a pension locked until 57 never "exhausts", so the map, edge, guardrails, dial and report called fifteen unpaid years a plan that lasts | correctness | high | small | Owner, 2026-11-13: "the dashboard is nonsense"; reproduced with a 41-year-old stopping at 42 on £70k | shipped 2026-11-13 (`holds`, `runsShortAgeA`) |
+| B14 | The "2008, the day you stop" path includes the 2009–2017 recovery (+86% real over ten years), so its floor sits only 3–6% under base in every plan shape; the dial shows it first | correctness | medium | small | Owner, 2026-11-13; `STRESS_PATHS.gfc` analysis | open: drop the recovery years or show the worst history first |
+| B15 | The ring is not self-evident: nothing says "tap a label, then turn the ring"; bezel labels read as captions | ux | high | small | Owner, 2026-11-13; B5 | open: first-use hint, pill behind the active label, plain slider list as an alternative |
+| B16 | Palette reads dated (cream, caramel, serif figure, dawn gradient); owner wants crisp and modern | polish | medium | small | Owner, 2026-11-13; three token-only mockups made (white/blue, near-white/teal, dark graphite) | open: awaiting the owner's pick |
+| B17 | CI takes ~10 minutes because the non-blocking legacy classic-planner E2E runs for 6 of them | performance | low | small | CI run 43399782976 step timings | open |
+| B18 | Default growth 7% nominal (4.5% real after the 0.5% fee) sits near the FCA "higher" rate; MoneyHelper and PensionBee use 5% | correctness | medium | small | FCA COBS 13 Annex 2 rates 2/5/8%; GOV.UK transparency record | open: consider 6% base or show the FCA mid rate as "Poor" |
 
 ## Cycles
 
 | Date | Planners | Improvement | PR | Outcome |
 |---|---|---|---|---|
 | — | — | Ledger seeded from the October 2026 UX research | — | — |
-| 2026-11-13 | MoneyHelper, Hargreaves Lansdown, PensionBee | Retirement Living Standards (Pensions UK 2026) beside the target: engine constant + 3 assertions, chips on the Someday page, hint under the dial figure, Assumptions row; fresh default 43,100 → 45,400 | [#34](https://github.com/stumacmar/Retire-Lens-2/pull/34) (branch scout/2026-11-13-living-standards) | green locally: build, UAT 156, e2e 165, assertions 117, root suites 13; awaiting review |
+| 2026-11-13 | MoneyHelper, Hargreaves Lansdown, PensionBee | Retirement Living Standards (Pensions UK 2026) beside the target: engine constant + 3 assertions, chips on the Someday page, hint under the dial figure, Assumptions row; fresh default 43,100 → 45,400 | [#34](https://github.com/stumacmar/Retire-Lens-2/pull/34) (branch scout/2026-11-13-living-standards) | merged and live 2026-11-13 10:18 |
+| 2026-11-13 (owner-driven) | — | CI runner pinned to Ubuntu 24.04 (GitHub moved `ubuntu-latest` to 26.04; Playwright could not install Chromium; nothing had deployed since 31 October) | [#35](https://github.com/stumacmar/Retire-Lens-2/pull/35) | merged; first green CI since 31 October; deploy restored |
+| 2026-11-13 (owner-driven) | — | B13: "holds" means every year paid. `drawdown` gains `runsShortYear/AgeA` and `holds`; insights (capacity, guardrails, decision map), the dial, the report, stress tests, levers, strategy and DB-timing comparisons all read it. 4 new assertions (121), UAT 121–123, e2e E47d–f | scout/2026-11-13-unfunded-years | see PR |

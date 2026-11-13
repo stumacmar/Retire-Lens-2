@@ -44,6 +44,10 @@ export interface Drawdown {
   rows: DrawRow[]; endWealth: number; exhaustedAgeA: number | null;
   exhaustedYear: number | null; lifetimeTax: number; lifetimeTaxReal: number;
   shortfallYear: number | null; shortfallAgeA: number | null; shortfallTotal: number; shortfallTotalReal: number;
+  /** First year the plan could not pay what was asked: pots empty, or locked until pension age. */
+  runsShortYear: number | null; runsShortAgeA: number | null;
+  /** Every year paid in full: no exhaustion and no shortfall. */
+  holds: boolean;
   inheritedTotal: number; [k: string]: any;
 }
 export interface Accum { atRetirement: any; years: any[]; [k: string]: any }

@@ -73,7 +73,7 @@ export default function Dial({ plan, update, dd, mc, mcPending, viz, plus, onUpg
   const A = plan.partnerA, B = plan.partnerB;
   const hasMoney = (A.pension + A.isa + (single ? 0 : B.pension + B.isa) + (plan.cash || 0) + A.monthlyPension) > 0;
   const month = Math.round((plan.targetNet || 0) / 12);
-  const lasts = dd.exhaustedAgeA == null;
+  const lasts = dd.holds;
   const railsKey = useMemo(() => JSON.stringify({ ...plan, targetNet: 0, codeSet: null, spendingPlanOn: false }), [plan]);
   const rails = useInsight<Rail[]>('guardrails', plan, railsKey, 400);
   const floor = hasMoney ? rails?.find(r => r.key === HISTORIES[hist].key) : undefined;
@@ -239,7 +239,7 @@ export default function Dial({ plan, update, dd, mc, mcPending, viz, plus, onUpg
   const floorV = floor ? floor.year / 12 : null;
   const floorText = floorV == null ? '' : floorV >= month ? `Even after ${HISTORIES[hist].when}, ${fmt(floorV)} a month would hold.` : `Falls to ${fmt(floorV)} a month after ${HISTORIES[hist].when}.`;
   const skyT = Math.min(1, FACES.filter(f => touched.includes(f.id)).length / 6);
-  const qual = !hasMoney ? '' : lasts ? `a month, to ${plan.horizonAge}` : `a month, to ${dd.exhaustedAgeA}`;
+  const qual = !hasMoney ? '' : lasts ? `a month, to ${plan.horizonAge}` : `a month, to ${dd.runsShortAgeA}`;
   const headSize = Math.round(d * 0.2);
 
   return (

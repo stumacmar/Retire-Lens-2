@@ -3,8 +3,9 @@
  * functions of a plan and an engine instance, so the same code runs on the
  * main thread and in the insight worker and can never disagree.
  *
- * "Lasts" means what it means everywhere else in the app: partner A's money
- * is not exhausted before the plan ends (drawdown().exhaustedAgeA == null).
+ * "Lasts" means what it means everywhere else in the app: every year to the
+ * end of the plan was paid in full (drawdown().holds) — the pots never ran
+ * out AND no year went unpaid because the pension could not be touched yet.
  */
 type Eng = any;
 
@@ -34,7 +35,7 @@ export function capacity(E: Eng, plan: any, opts: { path?: string | null; growth
   let lo = 2000, hi = Math.max(250000, (P.targetNet || 0) * 3);
   for (let i = 0; i < 16; i++) {
     const mid = (lo + hi) / 2;
-    if (runOn(E, { ...P, targetNet: mid }, opts as any).dd.exhaustedAgeA == null) lo = mid; else hi = mid;
+    if (runOn(E, { ...P, targetNet: mid }, opts as any).dd.holds) lo = mid; else hi = mid;
   }
   return Math.floor(lo / 100) * 100;
 }
@@ -94,9 +95,9 @@ export function decisionMap(E: Eng, plan: any): DecisionMap {
   const cells = years.map(yr => spends.map(sp => {
     const { dd } = runOn(E, { ...P, retireYear: yr, targetNet: sp });
     const last = end(dd);
-    return dd.exhaustedAgeA == null
+    return dd.holds
       ? { ok: true, left: real(last.wealth, last.year), age: null }
-      : { ok: false, left: 0, age: dd.exhaustedAgeA };
+      : { ok: false, left: 0, age: dd.runsShortAgeA };
   }));
   const edge = years.map(yr => capacity(E, { ...P, retireYear: yr }));
   return { years, spends, cells, edge };

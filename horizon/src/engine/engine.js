@@ -533,7 +533,7 @@ export function createEngine() {
       const dd = drawdown(q);
       const horizonYear = planEndYear(P);
       out.push({ age, year: who.birthYear + age, pension: b.pension, lump: b.lump, factor: b.factor,
-        endWealthReal: dd.endWealth / inflFactor(P, horizonYear), exhaustedAgeA: dd.exhaustedAgeA,
+        endWealthReal: dd.endWealth / inflFactor(P, horizonYear), exhaustedAgeA: dd.exhaustedAgeA, runsShortAgeA: dd.runsShortAgeA,
         lifetimeTaxReal: dd.lifetimeTaxReal != null ? dd.lifetimeTaxReal : dd.lifetimeTax });
     }
     if (!out.length) return null;
@@ -1310,10 +1310,18 @@ export function createEngine() {
     };
     const out = runPath(X, acc, ret, 'rows');
     const ageA = (y) => y == null ? null : y - P.partnerA.birthYear;
+    // "Runs short" is the first year the plan could not pay what was asked,
+    // whether because the pots were empty or because they could not be
+    // touched yet (a stop before normal minimum pension age with nothing else
+    // to live on). A pot that cannot be drawn never "exhausts", so exhaustion
+    // alone would paint fifteen unpaid years as a plan that lasts.
+    const runsShortYear = out.exhaustedYear == null ? out.shortfallYear
+      : out.shortfallYear == null ? out.exhaustedYear : Math.min(out.exhaustedYear, out.shortfallYear);
     return {
       rows: out.rows, lifetimeTax: out.lifetimeTax, lifetimeTaxReal: out.lifetimeTaxReal,
       exhaustedYear: out.exhaustedYear, exhaustedAgeA: ageA(out.exhaustedYear),
       shortfallYear: out.shortfallYear, shortfallAgeA: ageA(out.shortfallYear),
+      runsShortYear, runsShortAgeA: ageA(runsShortYear), holds: runsShortYear == null,
       shortfallTotal: out.shortfallTotal, shortfallTotalReal: out.shortfallTotalReal,
       inheritedTotal: out.inheritedTotal,
       endWealth: out.endWealth, endPots: out.endPots,
@@ -1363,7 +1371,8 @@ export function createEngine() {
         endWealthReal: real,
         delta: real - baseReal,
         exhaustedAgeA: r.exhaustedAgeA,
-        holds: r.exhaustedAgeA == null,
+        runsShortAgeA: r.runsShortAgeA,
+        holds: r.holds,
       });
     };
     // Sequence-of-returns risk made concrete: approximate historic real-return
@@ -1405,8 +1414,8 @@ export function createEngine() {
         };
       });
     const holds = tests.filter(t => t.holds).length;
-    const worst = tests.filter(t => !t.holds).sort((a, b) => (a.exhaustedAgeA || 999) - (b.exhaustedAgeA || 999))[0] || null;
-    return { base, baseReal, baseHolds: base.exhaustedAgeA == null, tests,
+    const worst = tests.filter(t => !t.holds).sort((a, b) => (a.runsShortAgeA || 999) - (b.runsShortAgeA || 999))[0] || null;
+    return { base, baseReal, baseHolds: base.holds, tests,
       summary: { total: tests.length, holds, fails: tests.length - holds, worst } };
   }
 
@@ -1425,7 +1434,7 @@ export function createEngine() {
       const dd = drawdown(Q);
       let conf = null;
       try { conf = runMonteCarlo(Q, paths, seed).successProb; } catch (e) { conf = null; }
-      return { conf, end: real(Q, dd), exhaustedAgeA: dd.exhaustedAgeA, tax: dd.lifetimeTaxReal != null ? dd.lifetimeTaxReal : dd.lifetimeTax };
+      return { conf, end: real(Q, dd), exhaustedAgeA: dd.exhaustedAgeA, runsShortAgeA: dd.runsShortAgeA, tax: dd.lifetimeTaxReal != null ? dd.lifetimeTaxReal : dd.lifetimeTax };
     };
     const base = measure(P);
     const out = [];
@@ -1436,7 +1445,7 @@ export function createEngine() {
       const m = measure(Q);
       out.push({ id, label, detail, patch: Q,
         conf: m.conf, dConf: m.conf != null && base.conf != null ? m.conf - base.conf : 0,
-        end: m.end, dEnd: m.end - base.end, dTax: m.tax - base.tax, exhaustedAgeA: m.exhaustedAgeA });
+        end: m.end, dEnd: m.end - base.end, dTax: m.tax - base.tax, exhaustedAgeA: m.exhaustedAgeA, runsShortAgeA: m.runsShortAgeA });
     };
     const yearsToGo = P.retireYear - P.startYear;
     cand('later1', 'Stop work one year later', 'One more year of growth and saving, one fewer to fund.',
@@ -1532,6 +1541,7 @@ export function createEngine() {
         endWealth: dd.endWealth,
         endWealthReal: dd.endWealth / inflFactor(Q, planEndYear(Q)),
         exhaustedAgeA: dd.exhaustedAgeA,
+        runsShortAgeA: dd.runsShortAgeA,
         lifetimeTaxReal: dd.lifetimeTaxReal,
         successProb: mc ? mc.successProb : null,
         worstSpendMult: mc ? mc.worstSpendMult : 1,
@@ -1555,8 +1565,8 @@ export function createEngine() {
         key,
         label: key === 'japan' ? 'Japan 1990 (lost decades)'
           : key === 'gfc' ? 'Global financial crisis 2008' : 'Stagflation 1972',
-        withArch: { endReal: a.endWealth / f, exhaustedAgeA: a.exhaustedAgeA, spendMult: a.architecture.spendMultFinal },
-        without: { endReal: b.endWealth / f, exhaustedAgeA: b.exhaustedAgeA },
+        withArch: { endReal: a.endWealth / f, exhaustedAgeA: a.exhaustedAgeA, runsShortAgeA: a.runsShortAgeA, spendMult: a.architecture.spendMultFinal },
+        without: { endReal: b.endWealth / f, exhaustedAgeA: b.exhaustedAgeA, runsShortAgeA: b.runsShortAgeA },
       };
     });
     return { variants, stress };
@@ -1577,6 +1587,7 @@ export function createEngine() {
         row.cells.push({
           growth: g,
           exhaustedAgeA: r.exhaustedAgeA,   // null means survives to 100
+          runsShortAgeA: r.runsShortAgeA,
         });
       }
       grid.push(row);
@@ -2279,6 +2290,15 @@ export function createEngine() {
       const dy = drawdown(young);
       check('No pension draw before normal minimum pension age (57 for a 1975 birth)', (dy.rows.find(r => r.grossA + r.grossB + r.tfcA + r.tfcB > 0) || {}).ageA, 57, 0.01);
       check('…and the gap years are reported as a shortfall, not hidden', dy.shortfallAgeA, 53, 0.01);
+      // R2b "Holds" means every year was paid: a locked pot never exhausts, so
+      // exhaustion alone would call fifteen unpaid years a plan that lasts.
+      check('A stop before pension age with nothing else to live on does not hold', dy.holds ? 1 : 0, 0, 0.1);
+      check('…it runs short at the first unpaid year, not when the pot empties', dy.runsShortAgeA, 53, 0.01);
+      check('…and the stress tests report the same', stressTests(young).baseHolds ? 1 : 0, 0, 0.1);
+      {
+        const ex = drawdown(sanitisePlan(example()));
+        check('A funded plan holds, with no year unpaid', ex.holds && ex.runsShortAgeA == null && ex.shortfallAgeA == null ? 0 : 1, 0, 0.1);
+      }
       check('NMPA is 55 for a 1970 birth and 57 for 1973', nmpaFor({ birthYear: 1970 }) + nmpaFor({ birthYear: 1973 }), 112, 0.01);
       check('State Pension age by birth year: 66 / 67 / 68', spaFor(1959) + spaFor(1965) + spaFor(1980), 201, 0.01);
       // R3 Survivor phase.

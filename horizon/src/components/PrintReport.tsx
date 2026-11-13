@@ -20,7 +20,7 @@ export default function PrintReport({ plan, acc, dd, mc, estate }: {
   const ageNow = (p: any) => plan.startYear - p.birthYear;
   const ageAtRetire = plan.retireYear - A.birthYear;
   const horizonYear = (E as any).planEndYear(plan);
-  const lasts = dd.exhaustedAgeA == null;
+  const lasts = dd.holds;
   const at = acc.atRetirement as any;
   const potsReal = real(at.pensionA + at.pensionB + at.isaA + at.isaB, plan.retireYear);
   const lifeTax = (dd as any).lifetimeTaxReal ?? dd.lifetimeTax;
@@ -99,13 +99,13 @@ export default function PrintReport({ plan, acc, dd, mc, estate }: {
         <p className="r-sub">Prepared privately on your own device · {printedOn}</p>
         <p className="r-answer">{lasts
           ? `On the central (Base) assumptions, you can spend about ${fmt(Math.round(plan.targetNet))} a year in today's money and your money is projected to last beyond age ${plan.horizonAge}.`
-          : `On the central (Base) assumptions, spending ${fmt(Math.round(plan.targetNet))} a year in today's money, the money is projected to run short around age ${dd.exhaustedAgeA}.`}</p>
+          : `On the central (Base) assumptions, spending ${fmt(Math.round(plan.targetNet))} a year in today's money, the money is projected to run short around age ${dd.runsShortAgeA}.`}</p>
         <div className="r-grid">
           <div><b>{fmt(Math.round(plan.targetNet))}</b><span>Target income a year (today's money)</span></div>
           <div><b>{plan.retireYear} · age {ageAtRetire}</b><span>Planned retirement</span></div>
           <div><b>{plan.horizonAge}</b><span>Plan runs to age ({A.name})</span></div>
           <div><b>{fmt(Math.round(potsReal))}</b><span>Investable pots at retirement (today's money)</span></div>
-          <div><b>{lasts ? `${plan.horizonAge}+` : `age ${dd.exhaustedAgeA}`}</b><span>Money projected to last to</span></div>
+          <div><b>{lasts ? `${plan.horizonAge}+` : `age ${dd.runsShortAgeA}`}</b><span>Money projected to last to</span></div>
           <div><b>{mc ? (mc.successProb >= 0.975 ? 'over 95%' : 'about ' + Math.round(mc.successProb * 20) * 5 + '%') : '—'}</b><span>Simulated futures that pay the full plan</span></div>
           <div><b>{fmt(Math.round(lifeTax))}</b><span>Lifetime income tax (today's money)</span></div>
           <div><b>{estate ? fmt(Math.round(real(estate.netToHeirs, estate.year))) : '—'}</b><span>Estate to family (today's money)</span></div>

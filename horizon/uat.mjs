@@ -17,6 +17,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright-core';
+import { Engine as E } from './src/engine/engine.js';
 
 const __dir = path.dirname(fileURLToPath(import.meta.url));
 const DIST = path.join(__dir, 'dist');
@@ -493,6 +494,25 @@ await seedPlus(); await p.reload({ waitUntil: 'networkidle' }); await wait(900);
 await check('118 plus: pill shows active', () => $('button[aria-label="Someday Plus — active"]'));
 await check('119 plus: print report rendered', async () => (await p.$('#print-summary')) != null);
 await check('120 free/plus sweep: zero page errors', () => pe.length === 0);
+
+// ── Unpaid years read as "runs short" ────────────────────────────────────
+// A 41-year-old who stops at 42 on £70,000 a year with the pension locked
+// until 57 and £72,000 of ISA and cash. The pot never "exhausts" because it
+// cannot be touched, so the home, the map and the floor must look at unpaid
+// years, not only at empty pots. (Seen on the live site, 13 November 2026.)
+{
+  const F = E.freshStart();
+  const Y = E.sanitisePlan({ ...F, retireYear: 2027, targetNet: 70000, cash: 24000, approach: 'traditional',
+    partnerA: { ...F.partnerA, birthYear: 1985, spAmount: 12548, pension: 570000, monthlyPension: 3200, isa: 48000 },
+    partnerB: { ...F.partnerB, birthYear: 1985 } });
+  await fresh();
+  await p.evaluate(v => localStorage.setItem('horizon-plan-v1', v), JSON.stringify(Y));
+  await p.reload({ waitUntil: 'networkidle' }); await wait(900); await acceptDisclaimer(); await wait(3000);
+  await check('121 unpaid years: the home says the money runs short at 43, not "to 90"', async () => /to 43\b/.test(await answerText()));
+  await tap('Every retirement'); await wait(3500);
+  await check('122 unpaid years: the map says it runs short', () => has('it runs short'));
+  await check('123 unpaid years: zero page errors', () => pe.length === 0);
+}
 
 console.log(`\n═══ Horizon UAT: ${pass}/${pass + fail} passed ═══`);
 if (fails.length) console.log('\nFAILURES:\n' + fails.map(f => '  ' + f).join('\n'));

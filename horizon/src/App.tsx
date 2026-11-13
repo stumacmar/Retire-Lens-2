@@ -550,13 +550,13 @@ function ExploreBody({ plan, dd, estate, mc, plus, onUpgrade, update }: { plan: 
                   <div className="mt-1 flex items-baseline justify-between gap-3 text-[0.8rem]">
                     <span style={{ color: 'var(--color-ink-dim)' }}>With your structure</span>
                     <span className="tnum font-semibold" style={{ color: 'var(--color-sage-strong)' }}>
-                      {t.withArch.exhaustedAgeA ? `runs short at ${t.withArch.exhaustedAgeA}` : `holds · ${fmtK(t.withArch.endReal)} left`}
+                      {t.withArch.runsShortAgeA ? `runs short at ${t.withArch.runsShortAgeA}` : `holds · ${fmtK(t.withArch.endReal)} left`}
                     </span>
                   </div>
                   <div className="flex items-baseline justify-between gap-3 text-[0.8rem]">
                     <span style={{ color: 'var(--color-ink-dim)' }}>Without it</span>
                     <span className="tnum font-semibold" style={{ color: 'var(--color-hope)' }}>
-                      {t.without.exhaustedAgeA ? `runs short at ${t.without.exhaustedAgeA}` : `holds · ${fmtK(t.without.endReal)} left`}
+                      {t.without.runsShortAgeA ? `runs short at ${t.without.runsShortAgeA}` : `holds · ${fmtK(t.without.endReal)} left`}
                     </span>
                   </div>
                 </div>
@@ -744,7 +744,7 @@ function StressTests({ plan, plus, onUpgrade }: { plan: any; plus: boolean; onUp
   const gfc = st.tests.find((t: any) => /2008/.test(t.label));
   const headline = s.fails === 0
     ? `Holds in all ${s.total} stress tests — including 2008 striking the day you stop.`
-    : `Holds in ${s.holds} of ${s.total} stress tests. ${gfc ? (gfc.holds ? 'Holds if 2008 strikes the day you stop' : `If 2008 strikes the day you stop, it runs short at ${gfc.exhaustedAgeA}`) : ''}${s.worst && (!gfc || s.worst.label !== gfc.label) ? `; the hardest is “${s.worst.label}”, short at ${s.worst.exhaustedAgeA}.` : '.'}`;
+    : `Holds in ${s.holds} of ${s.total} stress tests. ${gfc ? (gfc.holds ? 'Holds if 2008 strikes the day you stop' : `If 2008 strikes the day you stop, it runs short at ${gfc.runsShortAgeA}`) : ''}${s.worst && (!gfc || s.worst.label !== gfc.label) ? `; the hardest is “${s.worst.label}”, short at ${s.worst.runsShortAgeA}.` : '.'}`;
   return (
     <div>
       <h3 className="text-[0.72rem] font-bold uppercase tracking-widest mb-2" style={{ color: 'var(--color-ink-faint)' }}>Stress tests</h3>
@@ -762,7 +762,7 @@ function StressTests({ plan, plus, onUpgrade }: { plan: any; plus: boolean; onUp
               <div className="text-[0.74rem] leading-snug" style={{ color: 'var(--color-ink-faint)' }}>{t.note}</div>
             </div>
             <div className="tnum text-right shrink-0">
-              <span className="block text-[0.86rem] font-bold" style={{ color: t.holds ? 'var(--color-sage-strong)' : 'var(--color-hope)' }}>{t.holds ? 'holds' : `short at ${t.exhaustedAgeA}`}</span>
+              <span className="block text-[0.86rem] font-bold" style={{ color: t.holds ? 'var(--color-sage-strong)' : 'var(--color-hope)' }}>{t.holds ? 'holds' : `short at ${t.runsShortAgeA}`}</span>
               <span className="block text-[0.7rem]" style={{ color: 'var(--color-ink-faint)' }}>{t.delta >= 0 ? '+' : '−'}{fmtK(Math.abs(t.delta))} vs plan</span>
             </div>
           </div>
@@ -838,7 +838,7 @@ function DbTiming({ plan, plus, onUpgrade }: { plan: any; plus: boolean; onUpgra
                         <td className="px-1 py-1.5 tnum text-right whitespace-nowrap">{fmtK(o.pension)}</td>
                         <td className="px-1 py-1.5 tnum text-right whitespace-nowrap" style={{ color: 'var(--color-ink-dim)' }}>{o.lump > 0 ? fmtK(o.lump) : '—'}</td>
                         <td className="px-1 py-1.5 tnum text-right whitespace-nowrap font-bold" style={{ color: best && o.age === best.age ? 'var(--color-sage-strong)' : 'var(--color-ink)' }}>{fmtK(o.endWealthReal)}</td>
-                        <td className="pl-1 pr-4 py-1.5 tnum text-right whitespace-nowrap" style={{ color: o.exhaustedAgeA ? 'var(--color-hope)' : 'var(--color-ink-dim)' }}>{o.exhaustedAgeA ? `to ${o.exhaustedAgeA}` : `${plan.horizonAge}+`}</td>
+                        <td className="pl-1 pr-4 py-1.5 tnum text-right whitespace-nowrap" style={{ color: o.runsShortAgeA ? 'var(--color-hope)' : 'var(--color-ink-dim)' }}>{o.runsShortAgeA ? `to ${o.runsShortAgeA}` : `${plan.horizonAge}+`}</td>
                       </tr>
                     );
                   })}

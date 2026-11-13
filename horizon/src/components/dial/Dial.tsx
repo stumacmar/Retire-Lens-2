@@ -25,7 +25,11 @@ import { FACES, valuesFor, clampVal, type Face, type Side, type Val } from './va
 type View = 'home' | 'bands' | 'edge' | 'levers';
 const DETENT = 12;                                   // degrees per step
 const HISTORIES: { key: string; when: string }[] = [
-  { key: 'gfc', when: 'a 2008 start' }, { key: 'japan', when: 'a Japan-1990 start' }, { key: 'stagflation', when: 'a 1970s start' }];
+  // The dial's rotation leads with the hardest real history. The 2008 path
+  // includes the bull decade that followed it, so as a stress it is the
+  // mildest of the set (3–6% under base in every plan shape); it stays in
+  // the Explore stress tests but not here.
+  { key: 'japan', when: 'a Japan-1990 start' }, { key: 'crashflat', when: 'a 30% fall then five flat years' }, { key: 'stagflation', when: 'a 1970s start' }];
 const reduced = () => typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches;
 const css = (n: string) => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
 const unwrap = (a: number) => ((a + 540) % 360) - 180;
@@ -237,7 +241,11 @@ export default function Dial({ plan, update, dd, mc, mcPending, viz, plus, onUpg
   const holdsText = !hasMoney ? 'Turn the ring to set your pensions and savings. The answer appears in the middle.'
     : lit == null ? 'Working out the futures.' : `Holds in ${lit} of 100 futures.`;
   const floorV = floor ? floor.year / 12 : null;
-  const floorText = floorV == null ? '' : floorV >= month ? `Even after ${HISTORIES[hist].when}, ${fmt(floorV)} a month would hold.` : `Falls to ${fmt(floorV)} a month after ${HISTORIES[hist].when}.`;
+  // A limit, stated as a limit: "the most that would hold", never "even
+  // after X, £Y would hold", which reads as a boast when Y is large.
+  const floorText = floorV == null ? '' : floorV >= month
+    ? `After ${HISTORIES[hist].when}, the most that would hold is ${fmt(floorV)} a month.`
+    : `After ${HISTORIES[hist].when}, only ${fmt(floorV)} a month would hold.`;
   const skyT = Math.min(1, FACES.filter(f => touched.includes(f.id)).length / 6);
   const qual = !hasMoney ? '' : lasts ? `a month, to ${plan.horizonAge}` : `a month, to ${dd.runsShortAgeA}`;
   const headSize = Math.round(d * 0.2);

@@ -253,7 +253,8 @@ await tapFace('someday');
   await check('16d turning the ring by hand changes the value, landing on a whole year', () => after > before && Number.isInteger(after)); }
 await p.waitForFunction(() => /Holds in \d+ of 100 futures/.test(document.querySelector('[data-sentence]')?.textContent || ''), null, { timeout: 15000 }).catch(() => {});
 await check('17 the sentence counts the futures that hold', async () => /Holds in \d+ of 100 futures/.test(await sentence()));
-await check('17a the floor under a real bad history is named', async () => /2008 start/.test(await sentence()));
+await check('17a the floor under the hardest real history is named first', async () => /Japan-1990 start/.test(await sentence()));
+await check('17a2 the floor is stated as a limit, not a boast', async () => /the most that would hold is|only .* a month would hold/.test(await sentence()));
 await check('17e the strands are drawn under the dial', async () => (await p.locator('[data-home] canvas[role="img"]').count()) === 1);
 await p.getByRole('button', { name: 'What would help?' }).click();
 await p.waitForFunction(() => /\+\d+ of 100|Nothing measured/.test(document.querySelector('[role=dialog][aria-label="What would help most"]')?.textContent || ''), null, { timeout: 20000 }).catch(() => {});

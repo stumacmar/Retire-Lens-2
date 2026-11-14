@@ -65,6 +65,10 @@ const p = await (await b.newContext({ viewport: { width: 390, height: 844 }, dev
 const ce = [], pe = [];
 p.on('console', m => { if (m.type() === 'error' && !/404|favicon/i.test(m.text())) ce.push(m.text()); });
 p.on('pageerror', e => pe.push(e.message));
+// Every request that leaves the served app (there must be none: the app is
+// private by design, and with Plus off there is not even a licence check).
+const requests = [];
+p.on('request', r => { const u = r.url(); if (!u.startsWith(URL) && !/^(data|blob|about):/.test(u)) requests.push(u); });
 
 let pass = 0, fail = 0; const fails = [];
 const check = async (n, f) => { try { if ((await f()) === false) throw new Error('assertion false'); pass++; } catch (e) { fail++; fails.push(`✗ ${n}: ${e.message}`); } };
@@ -466,6 +470,31 @@ await check('101 free: disclaimer not asked again', async () => !/calm place to 
 await check('102 free: the answer still renders', async () => /a month, to \d+/i.test(await answerText()));
 await p.waitForFunction(() => /Holds in \d+ of 100/.test(document.querySelector('[data-sentence]')?.textContent || ''), null, { timeout: 15000 }).catch(() => {});
 await check('103 free: the count of futures still shown', async () => /Holds in \d+ of 100 futures/.test(await sentence()));
+// Plus can be switched off entirely (PRODUCT.plusOffered). Then nothing is
+// locked, nothing sells, and the word "Plus" appears nowhere.
+const plusOffered = !!(await $('button[aria-label="Get Someday Plus"]'));
+if (!plusOffered) {
+  await check('104 plus off: no pill in the header', async () => !(await $('button[aria-label="Get Someday Plus"]')) && !(await $('button[aria-label="Someday Plus — active"]')));
+  await tap('Explore'); await wait(900);
+  await check('105 plus off: Monte Carlo shown', () => has('Range of futures'));
+  await check('106 plus off: lifetime-tax card shown', () => has('Lifetime income tax'));
+  await check('107 plus off: nothing locked in Explore', async () => !(await has('See what Plus adds')));
+  await check('108 plus off: withdrawal order unlocked', () => has('lowest lifetime tax'));
+  await check('109 plus off: the word Plus appears nowhere in Explore', async () => !/\bPlus\b/.test(await bodyT()));
+  await closeSheet();
+  await tap('Details'); await wait(700); await goPage('Stuart’s pots');
+  await check('114 plus off: advanced detail unlocked', async () => (await p.locator('[role=switch]:has-text("Advanced")').count()) === 1);
+  await goPage('Structure');
+  await check('115 plus off: structure page unlocked', async () => !(await has('See what Plus adds')));
+  await closeSheet();
+  await tap('Peace'); await wait(500);
+  await check('116 plus off: no Plus card, no "· Plus" on the report button', async () => !/· Plus|Someday Plus/.test(await bodyT()));
+  await check('117 plus off: print report rendered without a licence', async () => (await p.$('#print-summary')) != null);
+  await check('118 plus off: the word Plus appears nowhere on Peace', async () => !/\bPlus\b/.test(await bodyT()));
+  await closeSheet();
+  await check('119 plus off: no request ever left the device', () => requests.length === 0);
+  await check('120 plus-off sweep: zero page errors', () => pe.length === 0);
+} else {
 await check('104 free: Get Plus pill in header', () => $('button[aria-label="Get Someday Plus"]'));
 await tap('Explore'); await wait(900);
 await check('105 free: Monte Carlo stays free', () => has('Range of futures'));
@@ -495,6 +524,7 @@ await seedPlus(); await p.reload({ waitUntil: 'networkidle' }); await wait(900);
 await check('118 plus: pill shows active', () => $('button[aria-label="Someday Plus — active"]'));
 await check('119 plus: print report rendered', async () => (await p.$('#print-summary')) != null);
 await check('120 free/plus sweep: zero page errors', () => pe.length === 0);
+}
 
 // ── Unpaid years read as "runs short" ────────────────────────────────────
 // A 41-year-old who stops at 42 on £70,000 a year with the pension locked

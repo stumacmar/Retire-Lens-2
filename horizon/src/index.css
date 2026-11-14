@@ -2,8 +2,9 @@
 
 /* ── Someday · Horizon design tokens ──────────────────────────────────────
    Crisp and modern: a white page, slate ink, one blue for everything you can
-   act on, green for confidence, amber for gentle concern. No warm tints, no
-   gradients. Every small-text colour clears 4.5:1 on the surface it sits on. */
+   act on, green for confidence, amber for gentle concern. No warm tints and
+   no gradients in the interface; the one place colour is let loose is the
+   sunrise on the home screen (--sun-1 to --sun-4). Every small-text colour clears 4.5:1 on the surface it sits on. */
 @theme {
   --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", system-ui, sans-serif;
 
@@ -34,7 +35,15 @@
   --radius-md: 16px;
 }
 
-:root { color-scheme: light dark; }
+:root {
+  color-scheme: light dark;
+  /* The sunrise: gold at the centre, through rose and violet, to blue at the
+     rim. Outside @theme so the build keeps them (they are used from script). */
+  --sun-1: #F59E0B;
+  --sun-2: #EC4868;
+  --sun-3: #7C4DDE;
+  --sun-4: #2563EB;
+}
 
 /* ── Dark mode: graphite, not brown. Same structure, inverted values. ──── */
 @media (prefers-color-scheme: dark) {
@@ -60,6 +69,10 @@
     --color-work: #1E3A5F;
     --color-map-late: #F59E0B;
     --color-map-early: #F87171;
+    --sun-1: #FBBF24;
+    --sun-2: #FB6F8E;
+    --sun-3: #A78BFA;
+    --sun-4: #60A5FA;
   }
 }
 
@@ -212,6 +225,6 @@ input[type="range"].dawn-range::-moz-range-thumb {
   .dial-home { --ring-track: rgba(241,245,249,.2); }
 }
 
-/* The years strip: bars settle to their new height when the plan changes. */
-.strip-fill { transition: height 280ms cubic-bezier(0.2, 0.7, 0.2, 1), background-color 200ms linear; }
-@media (prefers-reduced-motion: reduce) { .strip-fill { transition: none; } }
+/* The sunrise: each line sweeps out to its length, then glides when the plan changes. */
+.sun-ring { transition: stroke-dasharray 900ms cubic-bezier(0.2, 0.7, 0.2, 1); }
+@media (prefers-reduced-motion: reduce) { .sun-ring { transition: none; } }

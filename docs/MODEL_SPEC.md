@@ -136,19 +136,35 @@ weights each path by the chance the household is still here (§8).
 
 ### 3.4 The status in words, and the three numbers (`lib/status.ts`)
 The home screen leads with where the plan stands and the three numbers behind
-it. One function, `planStatus`, decides the words, so no surface can disagree:
+it. One function, `planStatus`, decides the words, and the rule starts from
+the central case (the run that gives the big figure) so the label can never
+contradict the figure beside it:
 
-| Status | Shown as | Rule |
-|---|---|---|
-| `on` | "On track under these assumptions" | the central path pays every year (`holds`) **and** at least 80 of 100 simulated futures hold |
-| `close` | "Close: a small change needed" | neither of the other two |
-| `not` | "Not yet funded" | fewer than half the futures hold, **or** the central path runs short and the supportable income is more than a tenth under what was asked |
+| Central case | Futures | Status | Shown as |
+|---|---|---|---|
+| pays the ask in full every year | at least 80 of 100 hold | `on` | "On track under these assumptions" |
+| pays the ask in full every year | fewer than 80 of 100 hold | `thin` | "Enough on average, not safe yet" |
+| lasts only because the plan's rules trim spending (structured plans) | any | `trim` | "Enough, with a trim to spending" |
+| runs short; supportable income within a tenth of the ask | any | `close` | "Nearly enough" |
+| runs short by more | any | `not` | "Not enough yet" |
 
-* **Supportable income**: `capacity` on the base lens (`insights.guardrails`,
-  rail `base`): the most a month, after tax in today's money, that is paid in
-  every year to the plan age, found by bisection to the nearest £100 a year.
-* **Gap**: supportable income less the target, a month.
-* **Tested through**: `horizonAge`.
+* **Paid in full** (`insights.paidInFull`): `drawdown().holds` and no year in
+  which a structured plan's rules cut spending below what was asked. A
+  trimmed year is not a year paid in full.
+* **Supportable income**: `insights.capacity` on the base lens (guardrail
+  `base`): the most a month, after tax in today's money, that is paid in full
+  in every year to the plan age, by bisection to the nearest £100 a year.
+* **Gap**: supportable income less the target, a month. **Tested through**:
+  `horizonAge`.
+* **Futures**: for a plain plan, the share of simulated futures paid in full
+  every year (`successProb`). A structured plan is designed to trim in bad
+  years, so its status uses the share that last with the rules
+  (`successProbWithCuts`) and the paid-in-full share is stated beside it.
+
+History: until 14 November 2026 the rule put the futures first, so a plan
+supporting exactly the ask, or more, could read "Not yet funded"; and a
+structured plan kept solvent by cutting spending to 75% was credited with
+supporting the uncut figure. Both are covered by `e2e150.mjs`.
 
 The share of futures and the caveat ("an estimate, not a guarantee") sit in the
 same sentence. "What could go wrong?" lists the supportable income under the

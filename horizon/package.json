@@ -9,7 +9,8 @@
     "preview": "vite preview --host",
     "uat": "npm run build && node uat.mjs",
     "e2e": "npm run build && node e2e.mjs",
-    "verify": "node verify.mjs"
+    "verify": "node verify.mjs",
+    "e2e150": "node e2e150.mjs"
   },
   "dependencies": {
     "framer-motion": "^11.18.2",

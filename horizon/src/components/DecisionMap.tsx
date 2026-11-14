@@ -36,7 +36,7 @@ export default function DecisionMap({ plan, update }: { plan: any; update: (p: a
   // prefers words to colour: one row per stop year, the spending levels
   // across, each cell its own sentence (WCAG 1.1.1, 1.4.1; audit F-05).
   const [asTable, setAsTable] = useState(false);
-  const cellText = (c: { ok: boolean; left: number; age: number | null }) => c.ok ? (c.left > 900000 ? `lasts, ${fmtK(c.left)} left` : 'lasts') : `short at ${c.age}`;
+  const cellText = (c: { ok: boolean; left: number; age: number | null; trim?: boolean }) => c.ok ? (c.left > 900000 ? `lasts, ${fmtK(c.left)} left` : 'lasts') : c.trim ? `trimmed at ${c.age}` : `short at ${c.age}`;
   // Every fourth spending level keeps the table to a phone's width; the plan's own level is always shown.
   const tableSpends = useMemo(() => {
     if (!map) return [] as number[];
@@ -59,7 +59,7 @@ export default function DecisionMap({ plan, update }: { plan: any; update: (p: a
       const fy = (v: number) => T + ih - ((v - lo + step / 2) / (hi - lo + step)) * ih;
       const sage = css('--color-sage'), deep = css('--color-sage-strong'), amber = css('--color-map-late'), rose = css('--color-map-early');
       map.cells.forEach((col, i) => col.forEach((c, j) => {
-        g.fillStyle = c.ok ? (c.left > 900000 ? deep : sage) : ((c.age ?? 0) >= 80 ? amber : rose);
+        g.fillStyle = c.ok ? (c.left > 900000 ? deep : sage) : (c.trim || (c.age ?? 0) >= 80 ? amber : rose);
         g.globalAlpha = c.ok ? 0.4 + Math.min(0.5, c.left / 2.5e6) : 0.5 + Math.min(0.4, (88 - (c.age ?? 60)) / 40);
         g.beginPath(); (g as any).roundRect(L + i * cw + 1, T + ih - (j + 1) * ch + 1, cw - 2, ch - 2, 3); g.fill();
       }));

@@ -13,6 +13,12 @@
 export const PRODUCT = Object.freeze({
   name: 'Someday',
   plusName: 'Someday Plus',
+
+  // ── Is Plus offered at all? ──────────────────────────────────────────
+  // false (owner's call, November 2026: "a distraction for the moment"):
+  // nothing is locked, no pill, no sheet, no prices, no licence check or
+  // network call. Everything below stays in place; flip to true to sell again.
+  plusOffered: false,
   supportEmail: 'hello@someday.money',
   legalUrl: 'legal.html',
 

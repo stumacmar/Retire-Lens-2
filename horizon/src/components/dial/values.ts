@@ -30,6 +30,7 @@ export interface Val {
   text: (v: number) => string;         // spoken and shown at the needle
   short: (v: number) => string;        // on the bezel
   sub?: (v: number) => string;         // one quiet line of context under the needle
+  typed?: boolean;                     // a fact you type, never dial: the ring and ± leave it alone
   options?: string[];                  // discrete values, by index
 }
 
@@ -47,8 +48,12 @@ export function valuesFor(plan: any, side: Side): Record<Face, Val[]> {
 
   const v: Record<Face, Val[]> = {
     who: [
-      { key: `${side}.age`, label: side === 'A' ? 'Your age' : 'Their age', min: thisYear - 2000, max: thisYear - 1935, step: 1, detent: () => 1,
-        get: () => age, set: n => patch({ birthYear: thisYear - n }), text: n => `Age ${n}`, short: n => `${n}` },
+      // An age is a fact, not a setting: the ring must never change it by
+      // accident (a 56-year-old was turned into a 26-year-old this way and
+      // every number on the screen became nonsense). Tap the figure to type it.
+      { key: `${side}.age`, label: side === 'A' ? 'Your age' : 'Their age', min: thisYear - 2000, max: thisYear - 1935, step: 1, detent: () => 1, typed: true,
+        get: () => age, set: n => patch({ birthYear: thisYear - n }), text: n => `Age ${n}`, short: n => `${n}`,
+        sub: n => `Born ${thisYear - n} · tap the age to change it` },
     ],
     someday: [],
     pensions: [

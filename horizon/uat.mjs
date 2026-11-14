@@ -534,6 +534,28 @@ await check('120 free/plus sweep: zero page errors', () => pe.length === 0);
   await tap('Every retirement'); await wait(4000);
   await check('130 young planner: the map runs to age 75 (2075)', () => has('2075'));
   await check('131 young planner: zero page errors', () => pe.length === 0);
+
+  // ── Age is typed, never dialled ──────────────────────────────────────
+  // The owner, 56, was turned into a 26-year-old by the ring while the WHO
+  // label was selected, and every figure on the screen became nonsense.
+  await p.locator('[role=dialog] button[aria-label="Close"]').first().click({ timeout: 3000 }).catch(() => {}); await wait(700);   // close the Every-retirement tray left open above
+  await p.locator('[data-home] input[type=range][aria-label="Your age"]').focus(); await wait(400);
+  await p.getByRole('button', { name: 'Your age: more' }).click({ timeout: 3000 }).catch(() => {}); await wait(400);
+  await check('132 the ± buttons leave the age alone', async () => (await planOf()).partnerA.birthYear === 2000);
+  await turnRing(80, 200); await wait(600);   // between the bezel labels, so the drag cannot land on one
+  await check('133 turning the ring leaves the age alone', async () => (await planOf()).partnerA.birthYear === 2000);
+  // Focusing the hidden "Your age" range selects the age on the dial exactly
+  // (face, value and side), whatever the drag above left selected.
+  await p.locator('[data-home] input[type=range][aria-label="Your age"]').focus(); await wait(400);
+  await check('134 the age says how to change it', () => has('tap the age to change it'));
+  // The figure sits under the ring's animation frame; force the tap so a
+  // redraw mid-click cannot stall it.
+  await p.locator('[data-home] button[aria-label^="Age 26"]').first().click({ force: true, timeout: 5000 }).catch(() => {}); await wait(400);
+  const ageBox = p.locator('[data-home] input[aria-label="Your age, type a figure"]');
+  if (await ageBox.count()) { await ageBox.fill('56'); await wait(200); await ageBox.press('Enter'); await wait(800); }
+  await check('135 typing the age writes the birth year (56 → 1970)', async () => (await planOf()).partnerA.birthYear === 1970);
+  await check('136 and the stop age ring still works at 56', async () => (await setSlider('Retire at age', 62)) && (await planOf()).retireYear === 2032);
+  await check('137 typed age: zero page errors', () => pe.length === 0);
 }
 
 console.log(`\n═══ Horizon UAT: ${pass}/${pass + fail} passed ═══`);

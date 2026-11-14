@@ -69,7 +69,9 @@ export default function Dial({ plan, update, dd, mc, mcPending, viz, plus, onUpg
       return { ...p, ...patch, codeSet };
     });
   }, [update]);
-  const step = (dir: number) => write(face, sub, side, (val, cur) => cur + dir * val.detent(cur));
+  // Turning the ring, the ± buttons and the flick all come through here; a
+  // typed value (an age) ignores them and changes only through the keypad.
+  const step = (dir: number) => write(face, sub, side, (val, cur) => (val.typed ? cur : cur + dir * val.detent(cur)));
   const setAbs = (n: number) => write(face, sub, side, () => n);
   const stepRef = useRef(step); stepRef.current = step;
 
@@ -301,7 +303,7 @@ export default function Dial({ plan, update, dd, mc, mcPending, viz, plus, onUpg
       {/* ── The reticle: the active value, with the ways round dragging ── */}
       {view !== 'bands' && active && (
         <div className="flex items-center justify-center gap-2 w-full max-w-[420px]" style={{ minHeight: compact ? 42 : 48, marginTop: compact ? 0 : 4 }}>
-          <button type="button" onClick={() => step(-1)} aria-label={`${active.label}: less`} className="w-11 h-11 rounded-full flex items-center justify-center" style={{ border: '1px solid var(--color-hairline)', color: 'var(--color-ink-dim)' }}><Minus size={16} /></button>
+          <button type="button" onClick={() => step(-1)} aria-label={`${active.label}: less`} aria-disabled={!!active.typed} className="w-11 h-11 rounded-full flex items-center justify-center" style={{ border: '1px solid var(--color-hairline)', color: 'var(--color-ink-dim)', opacity: active.typed ? 0.3 : 1 }}><Minus size={16} /></button>
           <div className="flex-1 text-center min-w-0">
             {active.options ? (
               <div className="flex justify-center gap-1">
@@ -329,7 +331,7 @@ export default function Dial({ plan, update, dd, mc, mcPending, viz, plus, onUpg
                   style={{ color: side === s ? 'var(--color-calm-strong)' : 'var(--color-ink-faint)' }}>{s === 'A' ? (A.name || 'You') : (B.name || 'Them')}</button>)}
               </div>)}
           </div>
-          <button type="button" onClick={() => step(1)} aria-label={`${active.label}: more`} className="w-11 h-11 rounded-full flex items-center justify-center" style={{ border: '1px solid var(--color-hairline)', color: 'var(--color-ink-dim)' }}><Plus size={16} /></button>
+          <button type="button" onClick={() => step(1)} aria-label={`${active.label}: more`} aria-disabled={!!active.typed} className="w-11 h-11 rounded-full flex items-center justify-center" style={{ border: '1px solid var(--color-hairline)', color: 'var(--color-ink-dim)', opacity: active.typed ? 0.3 : 1 }}><Plus size={16} /></button>
         </div>)}
 
       {/* ── Your money over time ──────────────────────────────────────── */}

@@ -264,13 +264,13 @@ await check('17 the sentence counts the futures that hold', async () => /Holds i
 // three numbers behind it (audit §5B): what the plan can support a month,
 // the gap to what was asked, the age it is tested through.
 await p.waitForFunction(() => /would last to \d+/.test(document.querySelector('[data-sentence]')?.textContent || ''), null, { timeout: 20000 }).catch(() => {});
-await check('17a the home states where the plan stands in words, not a colour', async () => /^(On track under these assumptions|Close: a small change needed|Not yet funded)\./.test(await sentence()));
+await check('17a the home states where the plan stands in words, not a colour', async () => /^(On track under these assumptions|Enough on average, not safe yet|Enough, with a trim to spending|Nearly enough|Not enough yet)\./.test(await sentence()));
 await check('17a2 the home says what the plan can support, the gap to the ask and the age tested to', async () => /About £[\d,]+ a month would last to \d+: (just what you ask|£[\d,]+ (more|less) than you ask)\./.test(await sentence()));
 await check('17a3 the caveat sits beside the headline figure', async () => /an estimate, not a guarantee|not a guarantee/.test(await sentence()));
-await check('17a4 the status agrees with the engine', async () => {
+await check('17a4 the status never contradicts the central case', async () => {
   const q = await planOf(); const dd = E.drawdown({ ...q, growth: q.growthBase }); const key = await p.$eval('[data-status]', e => e.getAttribute('data-status'));
-  // A plan whose central path runs short can never read "On track".
-  return ['on', 'close', 'not'].includes(key) && (dd.holds || key !== 'on'); });
+  // "On track" or "Enough on average" only when the central case pays in full; "Nearly" or "Not enough" only when it runs short.
+  return dd.holds ? !['close', 'not'].includes(key) : ['close', 'not'].includes(key); });
 // "What could go wrong": the layered risk panel (audit §5C), one tap from home.
 await p.getByRole('button', { name: 'What could go wrong?' }).click(); await wait(600);
 await p.waitForFunction(() => document.querySelectorAll('[role=dialog][aria-label="What could go wrong"] [data-risk]').length >= 6, null, { timeout: 20000 }).catch(() => {});
@@ -714,10 +714,10 @@ await check('120 free/plus sweep: zero page errors', () => pe.length === 0);
     for (let i = 0; i < 16; i++) { const mid = (lo + hi) / 2; const Q = { ...q, spendingPlanOn: false, targetNet: mid, growth: q.growthBase }; const acc = E.accumulate(Q, Q.growth); if (E.drawdown(Q, { growth: Q.growth, startPots: acc.atRetirement }).holds) lo = mid; else hi = mid; }
     return Math.round(Math.floor(lo / 100) * 100 / 12 / 10) * 10; };
   await check('142 the default home is the simple one (no ring to learn)', async () => (await p.$('[data-simple-home]')) != null && (await p.$('[data-home]')) == null);
-  await check('143 it leads with where the plan stands, in words', async () => /^(On track under these assumptions|Close: a small change needed|Not yet funded) £/.test(await answer()));
+  await check('143 it leads with where the plan stands, in words', async () => /^(On track under these assumptions|Enough on average, not safe yet|Enough, with a trim to spending|Nearly enough|Not enough yet) £/.test(await answer()));
   await check('144 the big figure is what the plan can support a month, and agrees with the engine', async () => {
     const shown = Number((await p.$eval('[data-supports]', e => e.textContent)).replace(/[£,]/g, '')); return Math.abs(shown - cap(await planOf())) <= 10; });
-  await check('145 the gap to what you ask is one plain sentence', async () => /You ask for £5,000: £[\d,]+ a month (more|to spare)\./.test(await answer()));
+  await check('145 the gap to what you ask is one plain sentence', async () => /You ask for £5,000: £[\d,]+ a month (more than that|to spare)\./.test(await answer()));
   await check('146 the futures count carries its caveat', async () => /holds in \d+ of 100 simulated futures\. An estimate in today's money, not a guarantee\./.test(await answer()));
   await check('147 exactly three things to change', async () => (await p.locator('[data-simple-home] [data-driver]').count()) === 3);
   // The answer says what it is counting, so nobody has to wonder whether a partner is in.

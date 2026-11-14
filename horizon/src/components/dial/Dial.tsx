@@ -6,7 +6,8 @@ import { E } from '../../lib/usePlan';
 import { deflate, fmt, fmtK } from '../../lib/format';
 import { useInsight } from '../../lib/useInsight';
 import type { Rail } from '../../lib/insights';
-import { planStatus } from '../../lib/status';
+import { planStatus, futuresSentence } from '../../lib/status';
+import { deepestTrim } from '../../lib/insights';
 import DecisionMap from '../DecisionMap';
 import RiskPanel from '../RiskPanel';
 import { FACES, valuesFor, clampVal, type Face, type Side, type Val } from './values';
@@ -81,7 +82,8 @@ export default function Dial({ plan, update, dd, mc, mcPending, viz, plus, onUpg
   // Where the plan stands, in words, with the three numbers behind it: what
   // it can support a month, the gap to what you ask, the age it is tested to.
   const baseRail = hasMoney ? rails?.find(r => r.key === 'base') : undefined;
-  const status = planStatus({ holds: dd.holds, successProb: mc ? mc.successProb : null, sustainableYear: baseRail ? baseRail.year : null,
+  const status = planStatus({ holds: dd.holds, deepestTrim: deepestTrim(dd), structured: !!plan.architecture?.on,
+    successProb: mc ? mc.successProb : null, successWithCuts: mc ? mc.successProbWithCuts : null, sustainableYear: baseRail ? baseRail.year : null,
     targetYear: plan.targetNet || 0, horizonAge: plan.horizonAge, runsShortAge: dd.runsShortAgeA });
   const lit = mc ? Math.round(mc.successProb * 100) : null;
 
@@ -244,7 +246,7 @@ export default function Dial({ plan, update, dd, mc, mcPending, viz, plus, onUpg
 
   const topLevers: any[] = levers?.levers ? levers.levers.filter((l: any) => l.dConf > 0.004) : [];
   const holdsText = !hasMoney ? 'Turn the ring to set your pensions and savings. The answer appears in the middle.'
-    : lit == null ? 'Working out the futures.' : `Holds in ${lit} of 100 futures; not a guarantee.`;
+    : futuresSentence(status, true);
   const floorV = floor ? floor.year / 12 : null;
   const skyT = Math.min(1, FACES.filter(f => touched.includes(f.id)).length / 6);
   const qual = !hasMoney ? '' : lasts ? `a month, to ${plan.horizonAge}` : `a month, to ${dd.runsShortAgeA}`;

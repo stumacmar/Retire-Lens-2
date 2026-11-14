@@ -5,7 +5,8 @@ import { E } from '../lib/usePlan';
 import { fmt } from '../lib/format';
 import { useInsight } from '../lib/useInsight';
 import type { Rail } from '../lib/insights';
-import { planStatus } from '../lib/status';
+import { planStatus, futuresSentence } from '../lib/status';
+import { deepestTrim } from '../lib/insights';
 import { planCounts } from '../lib/counts';
 import { valuesFor, clampVal, type Val } from './dial/values';
 import Sheet from './Sheet';
@@ -42,7 +43,8 @@ export default function SimpleHome({ plan, update, dd, mc, onDetails, header }: 
   const railsKey = useMemo(() => JSON.stringify({ ...plan, targetNet: 0, codeSet: null, spendingPlanOn: false }), [plan]);
   const rails = useInsight<Rail[]>('guardrails', plan, railsKey, 400);
   const baseRail = hasMoney ? rails?.find(r => r.key === 'base') : undefined;
-  const status = planStatus({ holds: dd.holds, successProb: mc ? mc.successProb : null, sustainableYear: baseRail ? baseRail.year : null,
+  const status = planStatus({ holds: dd.holds, deepestTrim: deepestTrim(dd), structured: !!plan.architecture?.on,
+    successProb: mc ? mc.successProb : null, successWithCuts: mc ? mc.successProbWithCuts : null, sustainableYear: baseRail ? baseRail.year : null,
     targetYear: plan.targetNet || 0, horizonAge: plan.horizonAge, runsShortAge: dd.runsShortAgeA });
 
   // The three drivers, read and written through the same definitions the
@@ -62,7 +64,6 @@ export default function SimpleHome({ plan, update, dd, mc, onDetails, header }: 
   const commit = () => { if (!typing) return; const n = parseFloat(typing.text.replace(/[,£\s]/g, '')); if (Number.isFinite(n)) write(typing.id, () => n); setTyping(null); };
 
   const [panel, setPanel] = useState<null | 'help' | 'risk'>(null);
-  const lit = mc ? Math.round(mc.successProb * 100) : null;
   const figure = status.sustainable ?? month;
   const gap = status.gap;
 
@@ -81,24 +82,24 @@ export default function SimpleHome({ plan, update, dd, mc, onDetails, header }: 
             <button type="button" onClick={onDetails} className="mt-5 rounded-2xl px-5 py-3 font-bold text-[var(--color-on-calm)]" style={{ background: 'var(--color-calm)' }}>Add my details</button>
           </section>
         ) : (
-          <section className="mt-4 text-center" aria-live="polite" data-answer>
+          <section className="mt-4 text-center" aria-live="polite" data-answer data-ready={rails && mc ? '1' : '0'}>
             <p data-status={status.key} className="text-[1.02rem] font-bold" style={{ color: status.colour }}>{status.label}</p>
             <h1 className="serif tnum leading-none mt-1.5" style={{ fontSize: 'clamp(3rem, min(17vw, 10vh), 4.4rem)', color: 'var(--color-ink)' }} data-supports>{fmt(figure)}</h1>
             <p className="mt-1.5 text-[0.95rem] leading-snug text-balance" style={{ color: 'var(--color-ink-dim)' }}>
               {status.sustainable != null
                 ? <>a month after tax is what your plan can support to age {plan.horizonAge}.</>
-                : dd.holds ? <>a month, paid every year to age {plan.horizonAge} on the central path.</>
-                  : <>a month is what you ask; on the central path the money runs short at {dd.runsShortAgeA}.</>}
+                : status.key === 'on' || status.key === 'thin' ? <>a month, paid every year to age {plan.horizonAge} on the central case.</>
+                  : dd.holds ? <>a month is what you ask; on the central case it lasts to {plan.horizonAge} with spending trimmed.</>
+                    : <>a month is what you ask; on the central case the money runs short at {dd.runsShortAgeA}.</>}
             </p>
             {gap != null && (
               <p data-gap className="mt-1.5 text-[1rem] font-semibold leading-snug text-balance" style={{ color: 'var(--color-ink)' }}>
                 {Math.abs(gap) < 25 ? <>That is just what you ask for.</>
-                  : gap < 0 ? <>You ask for {fmt(month)}: <span style={{ color: 'var(--color-hope)' }}>{fmt(-gap)} a month more</span>.</>
+                  : gap < 0 ? <>You ask for {fmt(month)}: <span style={{ color: 'var(--color-hope)' }}>{fmt(-gap)} a month more than that</span>.</>
                     : <>You ask for {fmt(month)}: <span style={{ color: 'var(--color-sage-strong)' }}>{fmt(gap)} a month to spare</span>.</>}
               </p>)}
-            <p data-futures className="mt-1.5 text-[0.84rem] leading-snug text-balance" style={{ color: 'var(--color-ink-dim)' }}>
-              {lit == null ? 'Working out the futures.' : <>What you ask holds in <b className="tnum" style={{ color: 'var(--color-ink)' }}>{lit} of 100</b> simulated futures. An estimate in today's money, not a guarantee.</>}
-            </p>
+{status.note && <p data-note className="mt-1.5 text-[0.84rem] leading-snug text-balance" style={{ color: 'var(--color-ink-dim)' }}>{status.note}</p>}
+            <p data-futures className="mt-1.5 text-[0.84rem] leading-snug text-balance" style={{ color: 'var(--color-ink-dim)' }}>{futuresSentence(status)}</p>
           </section>
         )}
 

@@ -29,13 +29,28 @@ export function runOn(E: Eng, P: any, { path = null as string | null, growth = n
   return { acc, dd: E.drawdown(Q, opts) };
 }
 
-/** The most a year the plan can pay and still last, to the nearest £100. */
+/**
+ * Paid in full: every year to the end of the plan received what was asked.
+ * `holds` covers a plain plan. A structured plan's written rules can keep it
+ * solvent by trimming spending (to as little as 75%), and a trimmed year is
+ * not a year paid in full: without this test a plan asking £7,200 a month
+ * and delivering £5,400 was reported as "supporting £7,200".
+ */
+export function trimmedAt(dd: any): number | null {
+  const r = (dd.rows as any[]).find(x => x.spendMult != null && x.spendMult < 0.999);
+  return r ? r.ageA : null;
+}
+export const paidInFull = (dd: any): boolean => !!dd.holds && trimmedAt(dd) == null;
+/** The deepest the rules cut spending on this path (1 = never cut). */
+export const deepestTrim = (dd: any): number => (dd.rows as any[]).reduce((m, x) => (x.spendMult != null && x.spendMult < m ? x.spendMult : m), 1);
+
+/** The most a year the plan can pay IN FULL every year, to the nearest £100. */
 export function capacity(E: Eng, plan: any, opts: { path?: string | null; growth?: number | null } = {}) {
   const P = prep(plan);
   let lo = 2000, hi = Math.max(250000, (P.targetNet || 0) * 3);
   for (let i = 0; i < 16; i++) {
     const mid = (lo + hi) / 2;
-    if (runOn(E, { ...P, targetNet: mid }, opts as any).dd.holds) lo = mid; else hi = mid;
+    if (paidInFull(runOn(E, { ...P, targetNet: mid }, opts as any).dd)) lo = mid; else hi = mid;
   }
   return Math.floor(lo / 100) * 100;
 }
@@ -81,7 +96,7 @@ export function monthRows(plan: any, dd: any, deflate: (v: number, y: number) =>
   return out;
 }
 
-export interface MapCell { ok: boolean; left: number; age: number | null }
+export interface MapCell { ok: boolean; left: number; age: number | null; trim?: boolean }
 export interface DecisionMap { years: number[]; spends: number[]; cells: MapCell[][]; edge: number[] }
 /** Every (stop year × spending) retirement, plus the edge: the most you can spend for each stop year. */
 export function decisionMap(E: Eng, plan: any): DecisionMap {
@@ -99,9 +114,12 @@ export function decisionMap(E: Eng, plan: any): DecisionMap {
   const cells = years.map(yr => spends.map(sp => {
     const { dd } = runOn(E, { ...P, retireYear: yr, targetNet: sp });
     const last = end(dd);
-    return dd.holds
-      ? { ok: true, left: real(last.wealth, last.year), age: null }
-      : { ok: false, left: 0, age: dd.runsShortAgeA };
+    // A structured plan that stays solvent only by trimming spending is not
+    // a retirement that "lasts" as asked: it is marked with the age of the
+    // first trim, so the edge (paid in full) and the squares agree.
+    return paidInFull(dd) ? { ok: true, left: real(last.wealth, last.year), age: null }
+      : dd.holds ? { ok: false, left: 0, age: trimmedAt(dd), trim: true }
+        : { ok: false, left: 0, age: dd.runsShortAgeA };
   }));
   const edge = years.map(yr => capacity(E, { ...P, retireYear: yr }));
   return { years, spends, cells, edge };

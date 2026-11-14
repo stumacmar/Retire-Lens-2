@@ -59,6 +59,11 @@ jobs:
       - name: Horizon end-to-end (engine ↔ UI data flow)
         run: cd horizon && node e2e.mjs
 
+      # 150 households through the real app: what the home says against what
+      # it should say, with independent arithmetic for double counting.
+      - name: Horizon 150 end-to-end scenarios
+        run: cd horizon && node e2e150.mjs
+
       - name: Run legacy E2E tests (classic planner)
         # Non-blocking: the Horizon sweeps above are the gates for the live app.
         # These specs cover the classic planner and are being realigned; capped

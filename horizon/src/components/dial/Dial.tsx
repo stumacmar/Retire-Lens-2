@@ -93,7 +93,10 @@ export default function Dial({ plan, update, dd, mc, mcPending, viz, plus, onUpg
   }, []);
   const compact = vp.h < 720;
   const d = Math.max(236, Math.min(320, vp.w - 70, vp.h - (compact ? 425 : 440)));
-  const R = d / 2, stripH = compact ? 72 : vp.h >= 820 ? 128 : 104;
+  // The home is one fixed screen, so the strip gives up what the reticle
+  // needs: a couple's side pills are a 28px row (a real tap target).
+  const reticleExtra = single ? 0 : 26;
+  const R = d / 2, stripH = Math.max(compact ? 44 : 48, (compact ? 72 : vp.h >= 820 ? 128 : 104) - reticleExtra);
   const boxPad = compact ? 36 : 40, boxW = Math.min(vp.w - 20, d + 150), boxL = (boxW - d) / 2;
 
   // ── The ring: a tick scale that turns under a fixed needle ───────────
@@ -286,14 +289,16 @@ export default function Dial({ plan, update, dd, mc, mcPending, viz, plus, onUpg
                 <button key={f.id} type="button" disabled={empty} aria-pressed={on} data-face={f.id}
                   onClick={() => { if (on) setSub(s => (fv[1 - s] ? 1 - s : s)); else { setFace(f.id); setSub(0); } kick(); }}
                   className="absolute px-2 py-1 min-h-[40px] min-w-[44px] leading-tight rounded-xl transition-colors"
-                  style={{ ...pos(f.angle), opacity: empty ? 0.25 : set || on ? 1 : 0.7, maxWidth: f.angle % 180 === 0 ? boxW * 0.34 : boxW * 0.33,
+                  // Untouched faces are quieter through the pill, never through
+                  // opacity on the text: small type must keep 4.5:1 (WCAG AA).
+                  style={{ ...pos(f.angle), opacity: empty ? 0.25 : 1, maxWidth: f.angle % 180 === 0 ? boxW * 0.34 : boxW * 0.33,
                     // Each label is a button: a faint pill says so, and the one
                     // the ring is turning is picked out in the action colour.
-                    background: on ? 'color-mix(in srgb, var(--color-calm) 12%, transparent)' : 'color-mix(in srgb, var(--color-ink) 4%, transparent)',
+                    background: on ? 'color-mix(in srgb, var(--color-calm) 12%, transparent)' : set ? 'color-mix(in srgb, var(--color-ink) 4%, transparent)' : 'transparent',
                     border: `1px solid ${on ? 'color-mix(in srgb, var(--color-calm) 45%, transparent)' : 'var(--color-hairline)'}` }}>
                   <span className={`block ${compact ? 'text-[0.62rem]' : 'text-[0.68rem]'} font-semibold uppercase tracking-[0.08em]`} style={{ color: on ? 'var(--color-calm-strong)' : 'var(--color-ink-dim)' }}>{f.name}</span>
                   <span className={`block ${compact ? 'text-[0.72rem]' : 'text-[0.78rem]'} tnum font-medium whitespace-nowrap`} style={{ color: 'var(--color-ink)' }}>
-                    {fv.map((v, i) => <span key={v.key} style={{ opacity: on && i !== sub ? 0.5 : 1 }}>{i ? ' · ' : ''}{v.short(v.get())}</span>)}
+                    {fv.map((v, i) => <span key={v.key} style={{ color: on && i !== sub ? 'var(--color-ink-dim)' : undefined }}>{i ? ' · ' : ''}{v.short(v.get())}</span>)}
                   </span>
                 </button>);
             })}
@@ -302,7 +307,9 @@ export default function Dial({ plan, update, dd, mc, mcPending, viz, plus, onUpg
 
       {/* ── The reticle: the active value, with the ways round dragging ── */}
       {view !== 'bands' && active && (
-        <div className="flex items-center justify-center gap-2 w-full max-w-[420px]" style={{ minHeight: compact ? 42 : 48, marginTop: compact ? 0 : 4 }}>
+        // shrink-0: the reticle keeps the height of its contents (figure, hint,
+        // side pills), so nothing below can overlap and swallow a tap.
+        <div className="flex items-center justify-center gap-2 w-full max-w-[420px] shrink-0 relative z-[1]" style={{ minHeight: compact ? 42 : 48, marginTop: compact ? 0 : 4 }}>
           <button type="button" onClick={() => step(-1)} aria-label={`${active.label}: less`} aria-disabled={!!active.typed} className="w-11 h-11 rounded-full flex items-center justify-center" style={{ border: '1px solid var(--color-hairline)', color: 'var(--color-ink-dim)', opacity: active.typed ? 0.3 : 1 }}><Minus size={16} /></button>
           <div className="flex-1 text-center min-w-0">
             {active.options ? (
@@ -317,17 +324,18 @@ export default function Dial({ plan, update, dd, mc, mcPending, viz, plus, onUpg
                 onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); if (e.key === 'Escape') setTyping(null); }}
                 className="tnum text-center text-[1.1rem] font-bold rounded-xl px-2 py-1 w-40 outline-none" style={{ background: 'var(--color-canvas)', color: 'var(--color-ink)', border: '1px solid var(--color-calm)' }} />
             ) : (
-              <button type="button" onClick={() => setTyping(String(active.get()))} className="text-[0.95rem] leading-tight px-2 py-1 rounded-xl" aria-label={`${active.text(active.get())}. Tap to type a figure`}
+              <button type="button" onClick={() => setTyping(String(active.get()))} className="text-[0.95rem] leading-tight px-2 py-1 min-h-[28px] rounded-xl relative z-[1]" aria-label={`${active.text(active.get())}. Tap to type a figure`}
                 style={{ color: 'var(--color-ink)' }}>
                 <b className="tnum">{active.text(active.get())}</b>
               </button>)}
             {active.sub && typing == null && (
               <div data-sub className="text-[0.7rem] leading-tight mt-0.5 truncate" style={{ color: 'var(--color-ink-faint)' }}>{active.sub(active.get())}</div>)}
             {touched.length === 0 && typing == null && (
-              <div data-hint className="text-[0.72rem] leading-tight mt-0.5" style={{ color: 'var(--color-calm-strong)' }}>Tap a label round the ring, then turn the ring.</div>)}
+              <div data-hint className="text-[0.72rem] leading-tight mt-0.5" style={{ color: 'var(--color-calm-strong)' }}>Tap a label, then turn the ring.</div>)}
             {!single && (
-              <div className="flex justify-center gap-1 mt-0.5 text-[0.7rem]">
-                {(['A', 'B'] as Side[]).map(s => <button key={s} type="button" aria-pressed={side === s} onClick={() => flip(s)} className="px-2 py-0.5 rounded-full font-semibold"
+              <div className="flex justify-center gap-2 mt-0.5 text-[0.7rem]">
+                {/* 24px tall with a gap between them: the WCAG 2.5.8 minimum, on one fixed screen. */}
+                {(['A', 'B'] as Side[]).map(s => <button key={s} type="button" aria-pressed={side === s} onClick={() => flip(s)} className="px-2.5 py-0.5 min-h-[24px] rounded-full font-semibold"
                   style={{ color: side === s ? 'var(--color-calm-strong)' : 'var(--color-ink-faint)' }}>{s === 'A' ? (A.name || 'You') : (B.name || 'Them')}</button>)}
               </div>)}
           </div>
@@ -347,12 +355,13 @@ export default function Dial({ plan, update, dd, mc, mcPending, viz, plus, onUpg
       {/* ── One sentence, said once ───────────────────────────────────── */}
       <p data-sentence aria-live="polite" className={`${compact ? 'mt-1 text-[0.82rem]' : 'mt-2 text-[0.9rem]'} leading-snug text-center max-w-[38ch]`} style={{ color: 'var(--color-ink-dim)' }}>
         {holdsText}
-        {floorText && <> <button type="button" onClick={() => setHist(h => (h + 1) % HISTORIES.length)} aria-label={`${floorText} Next bad history`} className="text-left" style={{ color: 'inherit' }}>{floorText}</button></>}
-        {hasMoney && <> <button type="button" onClick={() => setView(v => (v === 'levers' ? 'home' : 'levers'))} style={{ color: 'var(--color-calm-strong)' }}>What would help?</button></>}
+        {/* Inline buttons keep a 24px target (WCAG 2.5.8) through padding, not a bigger font. */}
+        {floorText && <> <button type="button" onClick={() => setHist(h => (h + 1) % HISTORIES.length)} aria-label={`${floorText} Next bad history`} className="text-left inline-block min-h-[24px] py-0.5" style={{ color: 'inherit' }}>{floorText}</button></>}
+        {hasMoney && <> <button type="button" onClick={() => setView(v => (v === 'levers' ? 'home' : 'levers'))} className="inline-block min-h-[24px] py-0.5 px-0.5" style={{ color: 'var(--color-calm-strong)' }}>What would help?</button></>}
       </p>
       <div className={`flex gap-4 ${compact ? 'mt-0.5 text-[0.72rem]' : 'mt-1 text-[0.76rem]'}`} style={{ color: 'var(--color-ink-faint)' }}>
-        <button type="button" onClick={() => setView('edge')}>Every retirement</button>
-        <button type="button" onClick={onDetails}>Everything else, in Details</button>
+        <button type="button" className="min-h-[24px] py-0.5" onClick={() => setView('edge')}>Every retirement</button>
+        <button type="button" className="min-h-[24px] py-0.5" onClick={onDetails}>Everything else, in Details</button>
       </div>
       <div className="sr-only">{ranges('A')}{!single && ranges('B')}</div>
 

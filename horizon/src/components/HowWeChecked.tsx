@@ -57,7 +57,7 @@ export default function HowWeChecked() {
             ))}
           </ul>
         </div>
-        <button type="button" onClick={() => setShowAll(s => !s)} className="underline text-[0.78rem]" style={{ color: 'var(--color-calm-strong)' }} aria-expanded={showAll}>
+        <button type="button" onClick={() => setShowAll(s => !s)} className="underline text-[0.78rem] inline-block min-h-[28px] py-1" style={{ color: 'var(--color-calm-strong)' }} aria-expanded={showAll}>
           {showAll ? 'Hide the full list of checks' : `Show all ${res.length} checks`}
         </button>
         {showAll && (

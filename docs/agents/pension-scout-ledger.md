@@ -106,7 +106,7 @@ Updated every cycle. Standing: ahead · parity · behind · missing. Stop rule i
 | 13 | Time to first answer, defaults | PensionBee (standards alongside the target) | ahead on the target; behind on discoverability (B15) and growth default (B18) | Living Standards chips + dial hint + corrected default (B11); owner could not tell what the ring is for |
 | 20b | Visual design (owner's view) | — | reset 2026-11-13 (B16 shipped); awaiting the owner's reaction | white / slate / blue, bold sans figure |
 | 14 | Liveness | Wealthfront Path | ahead | the ring; PensionBee is live too, MoneyHelper and HL are not |
-| 15 | Accessibility | — | parity (unverified; no axe run yet) | hidden ranges |
+| 15 | Accessibility | — | ahead (2026-11-14): axe-core WCAG 2.2 AA gate in CI, zero critical/serious on all four surfaces; decision map as a table | B8 shipped; the first run found zoom disabled, bezel contrast 3.4:1, ink-on-blue buttons 3.45:1, unfocusable scroll regions; all fixed |
 | 16 | Mobile fit | — | parity | 375 × 667 fits |
 | 17 | Trust signals | MoneyHelper (GOV.UK transparency record, GAD scenarios) | parity → ahead (2026-11-14) | "How we checked" runs the engine's 134 checks live in the app with sources; `verify.mjs` differential and property evidence in CI; versions printed in the report; B6 (one tap from the dial) still open |
 | 18 | Performance | — | unknown (not measured on a real phone) | B7 |
@@ -142,7 +142,7 @@ Updated every cycle. Standing: ahead · parity · behind · missing. Stop rule i
 | B5 | Hallway test the dial's bezel words (findability within 10 s) | ux-evidence | high | small | Research report §D | open |
 | B6 | One-tap "assumptions and sources" from the dial (trust) | trust | medium | small | Scorecard 17 | open |
 | B7 | Measure performance on a mid-range Android (engine call, MC latency) | performance | medium | small | Scorecard 18 | open |
-| B8 | Run axe-core in the UAT and fix what it finds | accessibility | medium | small | Scorecard 15 | open |
+| B8 | Run axe-core in the UAT and fix what it finds | accessibility | medium | small | Scorecard 15 | shipped 2026-11-14: UAT 100a–e gate (zero critical/serious, WCAG 2.2 AA tags) on Home, Details, Explore, Peace; six classes of defect found and fixed |
 | B9 | Publish the engine's provenance: a "How we checked" page listing the load-time assertions and the hand-checked tax cases | trust | medium | small | MoneyHelper's GOV.UK transparency record (GAD scenarios) | shipped 2026-11-14: Peace → "How we checked these numbers" runs the 134 assertions live and lists every rule with its source; `docs/VALIDATION.md` is the dated record |
 | B10 | Sex-specific ONS cohort mortality for single-person plans (keep unisex for couples) | correctness | low | medium | HL uses ONS 2020-based cohort tables by sex | open |
 | B11 | Retirement Living Standards beside the target; fresh default corrected to the 2026 Moderate figure for two | coverage | medium | small | PensionBee; retirementlivingstandards.org.uk | shipped 2026-11-13 |

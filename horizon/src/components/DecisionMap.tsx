@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { fmt, fmtK } from '../lib/format';
 import { useInsight } from '../lib/useInsight';
 import type { DecisionMap as Map } from '../lib/insights';
@@ -32,6 +32,19 @@ export default function DecisionMap({ plan, update }: { plan: any; update: (p: a
   const ix = map ? nearest(map.years, plan.retireYear) : 0;
   const here = map?.edge[ix] ?? null, next = map?.edge[ix + 1] ?? null;
   const ok = here != null && plan.targetNet <= here;
+  // The same map as a table, for a keyboard, a screen reader or anyone who
+  // prefers words to colour: one row per stop year, the spending levels
+  // across, each cell its own sentence (WCAG 1.1.1, 1.4.1; audit F-05).
+  const [asTable, setAsTable] = useState(false);
+  const cellText = (c: { ok: boolean; left: number; age: number | null }) => c.ok ? (c.left > 900000 ? `lasts, ${fmtK(c.left)} left` : 'lasts') : `short at ${c.age}`;
+  // Every fourth spending level keeps the table to a phone's width; the plan's own level is always shown.
+  const tableSpends = useMemo(() => {
+    if (!map) return [] as number[];
+    const everyN = Math.max(1, Math.ceil(map.spends.length / 6));
+    const picks = map.spends.filter((_, j) => j % everyN === 0);
+    const mine = map.spends.reduce((b, s) => (Math.abs(s - plan.targetNet) < Math.abs(b - plan.targetNet) ? s : b), map.spends[0]);
+    return picks.includes(mine) ? picks : [...picks, mine].sort((a, b) => a - b);
+  }, [map, plan.targetNet]);
 
   // Draw. Colours come from the theme tokens, so it repaints for dark mode.
   useEffect(() => {
@@ -120,16 +133,46 @@ export default function DecisionMap({ plan, update }: { plan: any; update: (p: a
           ? <b style={{ color: 'var(--color-sage-strong)' }}>it lasts.</b>
           : <b style={{ color: 'var(--color-hope)' }}>it runs short.</b>}
       </p>
-      <div className="relative">
+      <div className="relative" style={{ display: asTable ? 'none' : undefined }}>
         {!map && <p className="absolute inset-0 flex items-center justify-center text-[0.85rem]" style={{ color: 'var(--color-ink-faint)' }}>Working out every retirement…</p>}
         <canvas ref={canvas} tabIndex={0} className="block w-full rounded-xl" style={{ touchAction: 'none', cursor: 'crosshair', minHeight: 200 }}
-          aria-label="Map of retirements. Arrow keys move your plan: left and right change the year you stop, up and down change what you spend." />
+          aria-label="Map of retirements. Arrow keys move your plan: left and right change the year you stop, up and down change what you spend. The same map is available as a table below." />
       </div>
-      <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-[0.72rem]" style={{ color: 'var(--color-ink-dim)' }}>
-        {[['lasts, with plenty left', 'var(--color-sage-strong)'], ['lasts, just', 'var(--color-sage)'],
+      {asTable && map && (
+        <div className="overflow-x-auto rounded-xl" tabIndex={0} role="region" aria-label="Every retirement as a table, scrolls sideways" data-map-table style={{ background: 'var(--color-surface)' }}>
+          <table className="w-full text-[0.72rem]" style={{ borderCollapse: 'collapse', minWidth: 340 }}>
+            <caption className="sr-only">Whether the money lasts, for each year you might stop (rows) and each yearly spend (columns). Your plan's row and column are marked.</caption>
+            <thead>
+              <tr style={{ color: 'var(--color-ink-faint)' }}>
+                <th scope="col" className="text-left font-semibold pl-2.5 pr-1 py-2">Stop in</th>
+                {tableSpends.map(s => <th key={s} scope="col" className="text-right font-semibold px-1.5 py-2 tnum" aria-current={Math.abs(s - plan.targetNet) < 2500 ? 'true' : undefined}>{fmtK(s)}</th>)}
+              </tr>
+            </thead>
+            <tbody>
+              {map.years.map((y, i) => {
+                const mine = i === ix;
+                return (
+                  <tr key={y} style={{ borderTop: '1px solid var(--color-hairline)', background: mine ? 'color-mix(in srgb, var(--color-calm) 10%, transparent)' : undefined }} aria-current={mine ? 'true' : undefined}>
+                    <th scope="row" className="text-left font-semibold pl-2.5 pr-1 py-1.5 tnum" style={{ color: 'var(--color-ink)' }}>{y}{mine ? ' (you)' : ''}</th>
+                    {tableSpends.map(s => {
+                      const j = map.spends.indexOf(s); const c = map.cells[i][j];
+                      return <td key={s} className="text-right px-1.5 py-1.5 tnum" style={{ color: c.ok ? 'var(--color-sage-strong)' : 'var(--color-hope)' }}>{cellText(c)}</td>;
+                    })}
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+      <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-[0.72rem]" style={{ color: 'var(--color-ink-dim)' }}>
+        {!asTable && [['lasts, with plenty left', 'var(--color-sage-strong)'], ['lasts, just', 'var(--color-sage)'],
           ['runs out in your 80s', 'var(--color-map-late)'], ['runs out sooner', 'var(--color-map-early)']].map(([l, c]) => (
-          <span key={l} className="flex items-center gap-1.5"><span className="inline-block w-[10px] h-[10px] rounded-[3px]" style={{ background: c }} />{l}</span>
+          <span key={l} className="flex items-center gap-1.5"><span className="inline-block w-[10px] h-[10px] rounded-[3px]" style={{ background: c }} aria-hidden="true" />{l}</span>
         ))}
+        <button type="button" onClick={() => setAsTable(t => !t)} aria-pressed={asTable} className="ml-auto underline min-h-[32px]" style={{ color: 'var(--color-calm-strong)' }}>
+          {asTable ? 'Show as a map' : 'Show as a table'}
+        </button>
       </div>
       {here != null && (
         <p className="mt-3 text-[0.86rem] leading-relaxed" style={{ color: 'var(--color-ink-dim)' }}>

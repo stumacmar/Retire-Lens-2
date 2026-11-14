@@ -151,11 +151,12 @@ function Promised({ plan, who, set, adv }: { plan: any; who: any; set: (patch: a
   );
 }
 
-export default function PlanForm({ plan, update, reset, plus, onUpgrade, issues = [], mode = 'all', index, onIndex, footer, railBg }: {
+export default function PlanForm({ plan, update, reset, plus, onUpgrade, issues = [], mode = 'all', index, onIndex, footer, railBg, saved }: {
   plan: any; update: (p: any) => void; reset?: () => void; plus: boolean; onUpgrade: () => void;
   issues?: { path: string; message: string; level: string }[];
   mode?: 'all' | 'setup'; index: number; onIndex: (i: number) => void; footer?: React.ReactNode;
   railBg?: string;
+  saved?: { at: number | null; error: string | null };
 }) {
   const setA = (patch: any) => update((p: any) => ({ ...p, partnerA: { ...p.partnerA, ...patch } }));
   const setB = (patch: any) => update((p: any) => ({ ...p, partnerB: { ...p.partnerB, ...patch } }));
@@ -396,7 +397,16 @@ export default function PlanForm({ plan, update, reset, plus, onUpgrade, issues 
           </div>
           <p style={{ color: 'var(--color-ink-faint)' }}>
             A plain JSON file, for your own backup or to move between devices. Nothing is uploaded anywhere.
+            The file records the engine version and tax year it was made with.
           </p>
+          {saved && (
+            <p data-save-status role={saved.error ? 'alert' : undefined} className="pt-2" style={{ color: saved.error ? 'var(--color-hope)' : 'var(--color-ink-faint)', borderTop: '1px solid var(--color-hairline)' }}>
+              {saved.error ? saved.error
+                : saved.at ? `Saved on this device at ${new Date(saved.at).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}. Only this browser holds it: clearing site data, or a different browser or device, starts blank. Export a file to keep a copy.`
+                : saved.at === 0 ? 'Saved on this device. Only this browser holds it: clearing site data, or a different browser or device, starts blank. Export a file to keep a copy.'
+                : 'Not saved yet: change a figure and it is kept on this device.'}
+            </p>
+          )}
         </Card>
         {reset && (
           <div>

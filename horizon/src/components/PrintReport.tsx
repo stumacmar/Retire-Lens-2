@@ -292,6 +292,15 @@ export default function PrintReport({ plan, acc, dd, mc, estate }: {
             <Row k="Number of paths" v={mc?.nPaths ?? plan.mcPaths} />
             <Row k="Return distribution" v="Normal (Box–Muller)" />
             <Row k="Random seed (reproducible)" v={plan.mcSeed} />
+            {mc && <Row k="Unluckiest 1 in 10 futures run short by age" v={mc.shortAgeP10 != null ? String(mc.shortAgeP10) : `never (all pay in full to ${plan.horizonAge})`} />}
+            <Row k="What the sampling range covers" v="Simulation randomness only, not whether the assumptions are right" />
+          </div>
+          <div className="r-card"><h3>Versions and sources</h3>
+            <Row k="Engine version" v={(E as any).ENGINE_VERSION} />
+            <Row k="Plan schema" v={(E as any).SCHEMA_VERSION} />
+            <Row k="Tax rules" v={`${(E as any).TAX_RULES.taxYear}, in force from ${(E as any).TAX_RULES.effectiveFrom}, read ${(E as any).TAX_RULES.retrieved}`} />
+            <Row k="Engine self-checks at print time" v={(() => { try { const a = (E as any).runAssertions(); return `${a.filter((x: any) => x.pass).length} of ${a.length} pass`; } catch { return 'not run'; } })()} />
+            <Row k="Rule sources" v="GOV.UK income tax, Scottish income tax, lump sum allowance, State Pension; FCA COBS 13 Annex 2; ONS national life tables; Pensions UK Retirement Living Standards" />
           </div>
         </div>
 
@@ -352,8 +361,11 @@ export default function PrintReport({ plan, acc, dd, mc, estate }: {
           <li><b>Guaranteed income first.</b> Each year, State and defined-benefit pensions are counted first; the
             shortfall to your target is met from pots in the chosen order.</li>
           <li><b>Defined-benefit pensions</b> are held level unless you mark them as rising with inflation.</li>
-          <li><b>Longevity.</b> The plan runs to your chosen horizon age ({plan.horizonAge}); it does not model early death,
-            care costs, or one partner outliving the other beyond the shared plan.</li>
+          <li><b>Longevity.</b> The plan always runs to your chosen horizon age ({plan.horizonAge}). A partner's own age to plan to,
+            if set, starts the survivor phase (one State Pension, the scheme survivor pension, inherited pots, reduced spending);
+            otherwise both run to the horizon. A mortality curve weights the futures and informs the choice of age; it never ends the plan.</li>
+          <li><b>Success.</b> A future "holds" only if the full planned spending was paid in every year. A year paid in part is a failure
+            even when money remains; "the pots never emptied" and "the plan was funded" are different statements and the report uses the second.</li>
         </ul>
       </section>
 

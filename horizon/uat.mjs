@@ -401,6 +401,9 @@ await check('62 IHT card', () => has('Inheritance tax'));
 await check('63 year-by-year rows', async () => /age \d+/.test(await bodyT()));
 await check('64 fan caption', async () => /market histories/i.test(await bodyT()));
 await check('65 income percentages', async () => /%/.test(await bodyT()));
+// The bad tail in plain words, and what the sampling range does not cover (audit F-04).
+await check('65b futures: the unluckiest 1 in 10 is stated in pounds-and-age terms', async () => /unluckiest 1 in 10 futures/.test(await p.$eval('[data-tail]', e => e.innerText).catch(() => '')));
+await check('65c futures: the range is named as sampling error only, not assumption risk', async () => /sampling error on [\d,]+ paths only/.test(await p.$eval('[data-tail]', e => e.innerText).catch(() => '')));
 await closeSheet();
 
 await tap('Peace'); await wait(600);
@@ -409,6 +412,10 @@ await check('67 one-possible-future card', () => has('One possible future'));
 await check('68 not-advice card', () => has('Not financial advice'));
 await check('69 UK-aware card', () => has('UK-aware'));
 await check('69b assumptions list generated', async () => { await tap('Every assumption behind your numbers'); await wait(400); return (await has('Range of futures')) && (await has('Couples')); });
+await check('69c assumptions: the four layers of uncertainty and the versions are stated', async () => (await has('What the confidence covers')) && /Engine \d{4}\.\d{2}\.\d{2} · plan schema \d+ · tax rules 20\d\d\/\d\d/.test(await bodyT()));
+await check('69d how we checked: the engine checks itself live and reports the count', async () => { await tap('How we checked these numbers'); await wait(600); return /(\d+) of \1 engine checks pass on this device/.test(await p.$eval('[data-how-we-checked]', e => e.innerText).catch(() => '')); });
+await check('69e how we checked: every rule names a source', async () => (await p.locator('[data-how-we-checked] a:has-text("Source")').count()) >= 10);
+await check('69f how we checked: no link leaves except to the published sources and the repository', async () => (await p.$$eval('[data-how-we-checked] a', as => as.every(a => /^https:\/\/(www\.gov\.uk|www\.gov\.scot|www\.handbook\.fca\.org\.uk|www\.ons\.gov\.uk|www\.retirementlivingstandards\.org\.uk|github\.com\/stumacmar)\//.test(a.href)))));
 await check('70 Save-report PDF button', () => has('Save the full report'));
 await check('71 story link → story.html', async () => (await p.$eval('a[href="story.html"]', e => e.getAttribute('href'))) === 'story.html');
 await check('72 no classic-planner link (one product, one app)', async () => (await p.$('a[href="app.html"]')) == null);
@@ -455,6 +462,7 @@ await check('92 sheet opens (dialog role)', () => sheetOpen());
 await check('93 £ prefix in fields', async () => /£/.test(await bodyT()));
 await goPage('Drawing'); await check('94 drawing page reachable from the rail', () => onPage('Which pot first'));
 await goPage('Spending'); await check('95 spending page reachable from the rail', () => onPage('Ease spending from'));
+await goPage('Plan file'); await check('95b plan file: says where the plan is kept and when it was saved (audit F-06)', async () => /Saved on this device/.test(await p.$eval('[data-save-status]', e => e.innerText).catch(() => '')));
 await closeSheet();
 await tap('Peace'); await wait(500); await p.mouse.click(195, 25); await wait(500);
 await check('96 sheet closes on backdrop tap', async () => !(await sheetOpen()));

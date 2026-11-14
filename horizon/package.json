@@ -8,7 +8,8 @@
     "build": "tsc -b && vite build",
     "preview": "vite preview --host",
     "uat": "npm run build && node uat.mjs",
-    "e2e": "npm run build && node e2e.mjs"
+    "e2e": "npm run build && node e2e.mjs",
+    "verify": "node verify.mjs"
   },
   "dependencies": {
     "framer-motion": "^11.18.2",

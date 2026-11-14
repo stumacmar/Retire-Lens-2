@@ -47,6 +47,12 @@ jobs:
       - name: Install Chromium for the Horizon sweeps
         run: cd horizon && npx --no-install playwright-core install chromium
 
+      # The model against independent evidence: golden tax cases, a second
+      # tax implementation, invariants, metamorphic relations, path-count
+      # stability, migration and the classic engine's success definition.
+      - name: Horizon verify (model evidence, node only)
+        run: cd horizon && npm run verify
+
       - name: Horizon UAT sweep (builds, then 120+ checks)
         run: cd horizon && npm run uat
 

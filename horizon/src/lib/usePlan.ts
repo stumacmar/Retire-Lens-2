@@ -28,7 +28,7 @@ function loadPlan(): Plan {
 }
 
 export function exportPlanJson(plan: Plan): string {
-  return JSON.stringify({ app: 'Someday', schemaVersion: (E as any).SCHEMA_VERSION, exported: new Date().toISOString(), plan }, null, 2);
+  return JSON.stringify({ app: 'Someday', schemaVersion: (E as any).SCHEMA_VERSION, engineVersion: (E as any).ENGINE_VERSION, taxYear: (E as any).TAX_YEAR, exported: new Date().toISOString(), plan }, null, 2);
 }
 export function importPlanJson(text: string): Plan {
   const raw = JSON.parse(text);
@@ -47,6 +47,8 @@ export interface PlanResult {
   estate: any;
   potsAtRet: number;
   issues: { path: string; message: string; level: 'error' | 'warn' }[];
+  /** When the plan was last written to this device, and why it could not be. */
+  saved: { at: number | null; error: string | null };
   update: (patch: Partial<Plan> | ((p: Plan) => Plan)) => void;
   setLens: (l: Lens) => void;
 }
@@ -63,11 +65,19 @@ function makeWorker(): Worker | null {
 export function usePlan(): PlanResult {
   const [plan, setPlan] = useState<Plan>(loadPlan);
   const [lens, setLens] = useState<Lens>('base');
+  // Saving is silent when it works and said plainly when it cannot (private
+  // browsing, a full or blocked store): the figures then last the session only.
+  const [saved, setSaved] = useState<{ at: number | null; error: string | null }>({ at: hasSavedPlan() ? 0 : null, error: null });
 
   const update = useCallback((patch: Partial<Plan> | ((p: Plan) => Plan)) => {
     setPlan(prev => {
       const next = typeof patch === 'function' ? patch(prev) : { ...prev, ...patch };
-      try { localStorage.setItem(KEY, JSON.stringify(next)); } catch { /* private mode */ }
+      try {
+        localStorage.setItem(KEY, JSON.stringify(next));
+        setSaved({ at: Date.now(), error: null });
+      } catch {
+        setSaved({ at: null, error: 'This browser would not keep your figures (private browsing, or storage is full or blocked). They last until you close the tab. Export a plan file to keep them.' });
+      }
       return next;
     });
   }, []);
@@ -121,7 +131,7 @@ export function usePlan(): PlanResult {
     return () => clearTimeout(t);
   }, [plan, growth]);
 
-  return { plan, lens, growth, update, setLens, mc, mcPending, ...derived };
+  return { plan, lens, growth, update, setLens, mc, mcPending, saved, ...derived };
 }
 
 export { E };

@@ -6,6 +6,7 @@ import { fmt } from '../lib/format';
 import { useInsight } from '../lib/useInsight';
 import type { Rail } from '../lib/insights';
 import { planStatus } from '../lib/status';
+import { planCounts } from '../lib/counts';
 import { valuesFor, clampVal, type Val } from './dial/values';
 import Sheet from './Sheet';
 import RiskPanel from './RiskPanel';
@@ -69,7 +70,7 @@ export default function SimpleHome({ plan, update, dd, mc, onDetails, header }: 
     <div data-simple-home className="fixed inset-0 overflow-y-auto"
       style={{ background: 'var(--color-canvas)', paddingTop: 'calc(env(safe-area-inset-top) + 0.6rem)', paddingBottom: 'calc(env(safe-area-inset-bottom) + 5.4rem)',
         paddingLeft: 'max(16px, env(safe-area-inset-left))', paddingRight: 'max(16px, env(safe-area-inset-right))' }}>
-      <div className="mx-auto w-full max-w-[560px]">
+      <div className="mx-auto w-full max-w-[560px] flex flex-col">
         {header}
 
         {/* ── The answer ─────────────────────────────────────────────── */}
@@ -99,6 +100,16 @@ export default function SimpleHome({ plan, update, dd, mc, onDetails, header }: 
               {lit == null ? 'Working out the futures.' : <>What you ask holds in <b className="tnum" style={{ color: 'var(--color-ink)' }}>{lit} of 100</b> simulated futures. An estimate in today's money, not a guarantee.</>}
             </p>
           </section>
+        )}
+
+        {/* What the answer is counting, so nobody has to wonder whether a
+            partner's pots or annuity are in. Read straight from the plan. On a
+            short screen it drops below the two questions, so they stay in view. */}
+        {hasMoney && (
+          <p data-counts className="mt-2 text-center text-[0.8rem] leading-snug text-balance [@media(max-height:720px)]:order-last [@media(max-height:720px)]:mt-3" style={{ color: 'var(--color-ink-faint)' }}>
+            {planCounts(plan).line}{' '}
+            <button type="button" onClick={onDetails} className="underline inline-block min-h-[24px]" style={{ color: 'var(--color-ink-dim)' }}>Check or change in Details</button>
+          </p>
         )}
 
         {/* ── The three things most people change ────────────────────── */}
@@ -135,11 +146,6 @@ export default function SimpleHome({ plan, update, dd, mc, onDetails, header }: 
             <button type="button" onClick={() => setPanel('help')} className="rounded-2xl py-3 px-1 min-h-[48px] text-[0.86rem] font-semibold" style={{ background: 'var(--color-canvas)', border: '1px solid var(--color-calm)', color: 'var(--color-calm-strong)' }}>What would help?</button>
             <button type="button" onClick={() => setPanel('risk')} className="rounded-2xl py-3 px-1 min-h-[48px] text-[0.86rem] font-semibold" style={{ background: 'var(--color-canvas)', border: '1px solid var(--color-calm)', color: 'var(--color-calm-strong)' }}>What could go wrong?</button>
           </div>
-        )}
-        {hasMoney && (
-          <p className="mt-3 text-center text-[0.8rem]" style={{ color: 'var(--color-ink-faint)' }}>
-            Everything else you have told us is in <button type="button" onClick={onDetails} className="underline min-h-[24px]" style={{ color: 'var(--color-ink-dim)' }}>Details</button>.
-          </p>
         )}
       </div>
     </div>

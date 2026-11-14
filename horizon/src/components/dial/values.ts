@@ -72,7 +72,7 @@ export function valuesFor(plan: any, side: Side): Record<Face, Val[]> {
         get: () => who.spAmount, set: n => patch({ spAmount: n }), text: n => `State Pension ${fmt(n)} a year`, short: n => `${fmtK(n)}/yr` },
       { key: `${side}.db`, label: `${them} company pension a year`, min: 0, max: 60000, step: 250, detent: () => 250,
         get: () => who.db, set: n => patch({ db: n, dbStartYear: n > 0 && !(who.db > 0) ? plan.retireYear : who.dbStartYear }),
-        text: n => `Company pension ${fmt(n)} a year`, short: n => `${fmtK(n)}/yr` },
+        text: n => `Pension or annuity ${fmt(n)} a year`, short: n => `${fmtK(n)}/yr` },
     ],
     later: [],
   };

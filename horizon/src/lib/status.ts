@@ -109,7 +109,7 @@ export function futuresSentence(s: PlanStatus, short = false): string {
   const caveat = short ? 'not a guarantee' : 'An estimate in today\'s money, not a guarantee';
   if (s.structured && s.futuresInFull != null && s.futuresInFull !== s.futures) {
     return short ? `Lasts in ${s.futures} of 100 futures with your rules (paid in full in ${s.futuresInFull}); ${caveat}.`
-      : `With your spending rules the money lasts in ${s.futures} of 100 simulated futures, and is paid in full every year in ${s.futuresInFull}. ${caveat}.`;
+      : `With your rules the money lasts in ${s.futures} of 100 simulated futures, paid in full every year in ${s.futuresInFull}. ${caveat}.`;
   }
   return short ? `Holds in ${s.futures} of 100 futures; ${caveat}.`
     : `What you ask holds in ${s.futures} of 100 simulated futures. ${caveat}.`;

@@ -11,15 +11,22 @@ import { planCounts } from '../lib/counts';
 import { valuesFor, clampVal, type Val } from './dial/values';
 import Sheet from './Sheet';
 import RiskPanel from './RiskPanel';
+import YearsStrip from './YearsStrip';
 
 /**
- * The simple home: the answer first, in words and one figure, then the three
- * things most people change, each one tap away. Nothing to learn.
+ * The simple home: the answer first, in words, one figure and one picture,
+ * then the three things most people change, each one tap away. Nothing to
+ * learn.
  *
- *   Not yet funded
- *   £4,600 a month is what your plan can support to age 90.
- *   You ask for £5,000, which is £400 a month more.
- *   Holds in 31 of 100 simulated futures. An estimate, not a guarantee.
+ *   ● Enough on average, not safe yet
+ *   £5,600
+ *   a month after tax, every year to age 90.
+ *   You ask for £5,000: £600 a month to spare.
+ *
+ *   Futures still paying in full            69 of 100 at 90
+ *   ▮▮▮▮▮▮▮▮▮▮▮▮▮▮▮▮▮▮▮▮▮▮▮▯▯▯▯▯▯▯▯      (the years strip)
+ *   60          First shortfalls at 71                  90
+ *   What you ask holds in 69 of 100 simulated futures. An estimate…
  *
  *   Stop work at      −  60  +
  *   Take home a month −  £5,000  +
@@ -82,24 +89,28 @@ export default function SimpleHome({ plan, update, dd, mc, onDetails, header }: 
             <button type="button" onClick={onDetails} className="mt-5 rounded-2xl px-5 py-3 font-bold text-[var(--color-on-calm)]" style={{ background: 'var(--color-calm)' }}>Add my details</button>
           </section>
         ) : (
-          <section className="mt-4 text-center" aria-live="polite" data-answer data-ready={rails && mc ? '1' : '0'}>
-            <p data-status={status.key} className="text-[1.02rem] font-bold" style={{ color: status.colour }}>{status.label}</p>
-            <h1 className="serif tnum leading-none mt-1.5" style={{ fontSize: 'clamp(3rem, min(17vw, 10vh), 4.4rem)', color: 'var(--color-ink)' }} data-supports>{fmt(figure)}</h1>
-            <p className="mt-1.5 text-[0.95rem] leading-snug text-balance" style={{ color: 'var(--color-ink-dim)' }}>
+          <section className="mt-5 [@media(max-height:700px)]:mt-2.5" aria-live="polite" data-answer data-ready={rails && mc ? '1' : '0'}>
+            <p data-status={status.key} className="flex items-center gap-2 text-[0.98rem] font-bold leading-tight" style={{ color: status.colour }}>
+              <span aria-hidden className="inline-block w-2 h-2 rounded-full shrink-0" style={{ background: status.colour }} />{status.label}
+            </p>
+            <h1 className="serif tnum leading-[0.95] mt-2 [@media(max-height:700px)]:mt-1" style={{ fontSize: 'clamp(3.1rem, min(19vw, 9.4vh), 4.8rem)', letterSpacing: '-0.045em', color: 'var(--color-ink)' }} data-supports>{fmt(figure)}</h1>
+            <p className="mt-2 text-[0.95rem] leading-snug" style={{ color: 'var(--color-ink-dim)' }}>
               {status.sustainable != null
-                ? <>a month after tax is what your plan can support to age {plan.horizonAge}.</>
+                ? <>a month after tax, every year to age {plan.horizonAge}.</>
                 : status.key === 'on' || status.key === 'thin' ? <>a month, paid every year to age {plan.horizonAge} on the central case.</>
                   : dd.holds ? <>a month is what you ask; on the central case it lasts to {plan.horizonAge} with spending trimmed.</>
                     : <>a month is what you ask; on the central case the money runs short at {dd.runsShortAgeA}.</>}
+              {gap != null && (
+                <span data-gap className="block mt-0.5 font-semibold" style={{ color: 'var(--color-ink)' }}>
+                  {Math.abs(gap) < 25 ? <>That is just what you ask for.</>
+                    : gap < 0 ? <>You ask for {fmt(month)}: <span style={{ color: 'var(--color-hope)' }}>{fmt(-gap)} a month more than that</span>.</>
+                      : <>You ask for {fmt(month)}: <span style={{ color: 'var(--color-sage-strong)' }}>{fmt(gap)} a month to spare</span>.</>}
+                </span>)}
             </p>
-            {gap != null && (
-              <p data-gap className="mt-1.5 text-[1rem] font-semibold leading-snug text-balance" style={{ color: 'var(--color-ink)' }}>
-                {Math.abs(gap) < 25 ? <>That is just what you ask for.</>
-                  : gap < 0 ? <>You ask for {fmt(month)}: <span style={{ color: 'var(--color-hope)' }}>{fmt(-gap)} a month more than that</span>.</>
-                    : <>You ask for {fmt(month)}: <span style={{ color: 'var(--color-sage-strong)' }}>{fmt(gap)} a month to spare</span>.</>}
-              </p>)}
-{status.note && <p data-note className="mt-1.5 text-[0.84rem] leading-snug text-balance" style={{ color: 'var(--color-ink-dim)' }}>{status.note}</p>}
-            <p data-futures className="mt-1.5 text-[0.84rem] leading-snug text-balance" style={{ color: 'var(--color-ink-dim)' }}>{futuresSentence(status)}</p>
+            {status.key === 'trim' && status.note && <p data-note className="mt-1.5 text-[0.84rem] leading-snug [@media(max-height:700px)]:hidden" style={{ color: 'var(--color-ink-dim)' }}>{status.note}</p>}
+            {/* How sure, and from when: one bar a year, as tall as the futures still paying. */}
+            <YearsStrip mc={mc} structured={!!plan.architecture?.on} fromAge={plan.retireYear - A.birthYear} toAge={plan.horizonAge} accent={status.colour} />
+            <p data-futures className="mt-2 text-[0.84rem] leading-snug" style={{ color: 'var(--color-ink-dim)' }}>{futuresSentence(status)}</p>
           </section>
         )}
 
@@ -107,7 +118,7 @@ export default function SimpleHome({ plan, update, dd, mc, onDetails, header }: 
             partner's pots or annuity are in. Read straight from the plan. On a
             short screen it drops below the two questions, so they stay in view. */}
         {hasMoney && (
-          <p data-counts className="mt-2 text-center text-[0.8rem] leading-snug text-balance [@media(max-height:720px)]:order-last [@media(max-height:720px)]:mt-3" style={{ color: 'var(--color-ink-faint)' }}>
+          <p data-counts className="mt-2 text-[0.8rem] leading-snug [@media(max-height:720px)]:order-last [@media(max-height:720px)]:mt-3" style={{ color: 'var(--color-ink-faint)' }}>
             {planCounts(plan).line}{' '}
             <button type="button" onClick={onDetails} className="underline inline-block min-h-[24px]" style={{ color: 'var(--color-ink-dim)' }}>Check or change in Details</button>
           </p>
@@ -115,27 +126,27 @@ export default function SimpleHome({ plan, update, dd, mc, onDetails, header }: 
 
         {/* ── The three things most people change ────────────────────── */}
         {hasMoney && (
-          <section className="mt-4 rounded-3xl px-4" style={{ background: 'var(--color-surface)', border: '1px solid var(--color-hairline)' }} aria-label="Change your plan">
+          <section className="mt-4 [@media(max-height:700px)]:mt-2.5 rounded-3xl px-4" style={{ background: 'var(--color-surface)', border: '1px solid var(--color-hairline)' }} aria-label="Change your plan">
             {drivers.map((d, i) => {
               const n = d.val.get();
               return (
-                <div key={d.id} data-driver={d.id} className="flex items-center gap-2 py-2" style={{ borderTop: i ? '1px solid var(--color-hairline)' : 'none' }}>
+                <div key={d.id} data-driver={d.id} className="flex items-center gap-2 py-2 [@media(max-height:700px)]:py-1" style={{ borderTop: i ? '1px solid var(--color-hairline)' : 'none' }}>
                   <div className="min-w-0 flex-1">
                     <div className="text-[0.95rem] font-semibold leading-tight" style={{ color: 'var(--color-ink)' }}>{d.label}</div>
                     <div className="text-[0.74rem] leading-tight mt-0.5 truncate" style={{ color: 'var(--color-ink-faint)' }}>{d.sub}</div>
                   </div>
                   <button type="button" aria-label={`${d.label}: ${d.less}`} disabled={n <= d.val.min} onClick={() => write(d.id, (_v, cur) => cur - d.step)}
-                    className="w-11 h-11 shrink-0 rounded-full flex items-center justify-center disabled:opacity-30" style={{ background: 'var(--color-canvas)', border: '1px solid var(--color-hairline)', color: 'var(--color-ink)' }}><Minus size={18} /></button>
+                    className="w-11 h-11 [@media(max-height:700px)]:w-10 [@media(max-height:700px)]:h-10 shrink-0 rounded-full flex items-center justify-center disabled:opacity-30" style={{ background: 'var(--color-canvas)', border: '1px solid var(--color-hairline)', color: 'var(--color-ink)' }}><Minus size={18} /></button>
                   {typing?.id === d.id ? (
                     <input autoFocus inputMode="decimal" aria-label={`${d.label}, type a figure`} value={typing.text} onChange={e => setTyping({ id: d.id, text: e.target.value })}
                       onBlur={commit} onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); if (e.key === 'Escape') setTyping(null); }}
                       className="tnum text-center text-[1.05rem] font-bold rounded-xl py-1.5 w-[5.6rem] outline-none" style={{ background: 'var(--color-canvas)', color: 'var(--color-ink)', border: '1px solid var(--color-calm)' }} />
                   ) : (
                     <button type="button" onClick={() => setTyping({ id: d.id, text: String(n) })} aria-label={`${d.label}: ${d.show(n)}. Tap to type a figure`}
-                      className="tnum text-center text-[1.1rem] font-bold rounded-xl py-1.5 w-[5.6rem] min-h-[44px]" style={{ color: 'var(--color-ink)' }}>{d.show(n)}</button>
+                      className="tnum text-center text-[1.1rem] font-bold rounded-xl py-1.5 w-[5.6rem] min-h-[44px] [@media(max-height:700px)]:min-h-[40px]" style={{ color: 'var(--color-ink)' }}>{d.show(n)}</button>
                   )}
                   <button type="button" aria-label={`${d.label}: ${d.more}`} disabled={n >= d.val.max} onClick={() => write(d.id, (_v, cur) => cur + d.step)}
-                    className="w-11 h-11 shrink-0 rounded-full flex items-center justify-center disabled:opacity-30" style={{ background: 'var(--color-canvas)', border: '1px solid var(--color-hairline)', color: 'var(--color-ink)' }}><Plus size={18} /></button>
+                    className="w-11 h-11 [@media(max-height:700px)]:w-10 [@media(max-height:700px)]:h-10 shrink-0 rounded-full flex items-center justify-center disabled:opacity-30" style={{ background: 'var(--color-canvas)', border: '1px solid var(--color-hairline)', color: 'var(--color-ink)' }}><Plus size={18} /></button>
                 </div>);
             })}
           </section>
@@ -143,7 +154,7 @@ export default function SimpleHome({ plan, update, dd, mc, onDetails, header }: 
 
         {/* ── Two questions, one tap each ────────────────────────────── */}
         {hasMoney && (
-          <div className="mt-3 grid grid-cols-2 gap-3">
+          <div className="mt-3 [@media(max-height:700px)]:mt-2 grid grid-cols-2 gap-3">
             <button type="button" onClick={() => setPanel('help')} className="rounded-2xl py-3 px-1 min-h-[48px] text-[0.86rem] font-semibold" style={{ background: 'var(--color-canvas)', border: '1px solid var(--color-calm)', color: 'var(--color-calm-strong)' }}>What would help?</button>
             <button type="button" onClick={() => setPanel('risk')} className="rounded-2xl py-3 px-1 min-h-[48px] text-[0.86rem] font-semibold" style={{ background: 'var(--color-canvas)', border: '1px solid var(--color-calm)', color: 'var(--color-calm-strong)' }}>What could go wrong?</button>
           </div>

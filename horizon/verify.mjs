@@ -162,6 +162,22 @@ for (const [name, P0] of Object.entries(shapes)) {
 const owner = shapes['owner 56, stop 60'];
 const held = { ...owner, targetNet: 40000 };
 const mcOf = (P, n = 800, seed = 42) => E.runMonteCarlo(P, n, seed);
+// The year-by-year picture on the home screen ("futures still paying") is
+// drawn from perAgeHeld. It must never rise, must end exactly on the headline
+// share, and can never claim more futures than were solvent that year.
+// ("In full" allows a shortfall under 1% of the year's spending, as
+// successProb always has, so it is not compared with the rules count.)
+for (const [name, P0] of Object.entries(shapes)) {
+  const m = mcOf(P0, 400), h = m.perAgeHeld, last = h[h.length - 1];
+  let falls = true, within = true;
+  for (let i = 0; i < h.length; i++) {
+    if (i && (h[i].full > h[i - 1].full + 1e-12 || h[i].rules > h[i - 1].rules + 1e-12)) falls = false;
+    if (h[i].rules > m.perAgeSolvency[i].p + 1e-12 || h[i].age !== m.perAgeSolvency[i].age || h[i].full < 0 || h[i].full > 1) within = false;
+  }
+  check(`P ${name}: futures still paying never rises from one year to the next`, falls);
+  check(`P ${name}: the last year equals the headline share (full ${last.full}, rules ${last.rules})`, last.full === m.successProb && last.rules === m.successProbWithCuts);
+  check(`P ${name}: paid every year so far (with the rules) never exceeds the futures solvent that year; ages line up`, within);
+}
 {
   const base = E.drawdown(owner), baseMc = mcOf(owner), baseHeld = E.drawdown(held);
   check('M the yardstick plan holds and the owner\'s does not', baseHeld.holds && !base.holds);

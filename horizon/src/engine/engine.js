@@ -1012,7 +1012,7 @@ export function createEngine() {
     let parachuteUsed = false, parachuteYear = null, lastRatio = null;
     let goneA = false, goneB = !couple, inheritedTotal = 0;
     const st = { spend: 0, years: 0, worstRatio: 1, leanYears: 0, utilSum: 0, utilN: 0,
-      solvent: [], okFull: true, okRules: true, minCoverage: 1, failIndex: null };
+      solvent: [], okFull: true, okRules: true, minCoverage: 1, failIndex: null, leanIndex: null };
     const gamma = X.gamma, SPEND_FLOOR = 2000;
 
     for (let year = P.retireYear, i = 0; year <= endYear; year++, i++) {
@@ -1183,7 +1183,7 @@ export function createEngine() {
       const ratio = planReal > 1 ? deliveredReal / planReal : 1;
       st.spend += deliveredReal; st.years++;
       if (ratio < st.worstRatio) st.worstRatio = ratio;
-      if (ratio < 0.99) { st.leanYears++; st.okFull = false; }
+      if (ratio < 0.99) { st.leanYears++; st.okFull = false; if (st.leanIndex == null) st.leanIndex = i; }
       const cu = Math.max(SPEND_FLOOR, deliveredReal);
       st.utilSum += gamma === 1 ? Math.log(cu) : Math.pow(cu, 1 - gamma) / (1 - gamma);
       st.utilN++;
@@ -1827,6 +1827,10 @@ export function createEngine() {
     };
 
     const solventAt = new Array(nYears).fill(0);
+    // First year each future fell short: of the full ask (lean) and of the
+    // ask after the written rules (fail). Counted here, summed below into
+    // "still paid every year so far", which ends exactly on successProb.
+    const firstLean = new Array(nYears + 1).fill(0), firstFail = new Array(nYears + 1).fill(0);
     const tracks = [], finals = [], trims = [], spendMults = [];
     const avgSpends = [], worstRatios = [], leanShares = [], potsAtRet = [];
     let okFull = 0, okRules = 0, utilSum = 0, utilN = 0;
@@ -1856,6 +1860,8 @@ export function createEngine() {
       const st = out.st;
       for (let i = 0; i < nYears; i++) if (st.solvent[i]) solventAt[i]++;
       if (st.okFull) okFull++;
+      firstLean[st.leanIndex == null ? nYears : Math.min(nYears, st.leanIndex)]++;
+      firstFail[st.failIndex == null ? nYears : Math.min(nYears, st.failIndex)]++;
       if (st.okRules) okRules++;
       else trims.push(1 - st.minCoverage);
       // Mortality-weighted: the plan succeeds if the household's last year
@@ -1918,6 +1924,16 @@ export function createEngine() {
       perAgeSolvency: solventAt.map((c, i) => ({
         age: P.retireYear + i - P.partnerA.birthYear, p: c / nPaths,
       })),
+      // Share of futures paid every year up to and including this one: in
+      // full (`full`), and once the written rules have trimmed (`rules`).
+      // Never rises; the last entry is successProb and successProbWithCuts.
+      perAgeHeld: (() => {
+        let lean = 0, fail = 0;
+        return solventAt.map((_c, i) => {
+          lean += firstLean[i]; fail += firstFail[i];
+          return { age: P.retireYear + i - P.partnerA.birthYear, full: (nPaths - lean) / nPaths, rules: (nPaths - fail) / nPaths };
+        });
+      })(),
       finalP10: pctile(0.10), finalP50: pctile(0.50), finalP90: pctile(0.90),
       potsAtRetirementP10: pct10(potsAtRet, 0.1), potsAtRetirementP50: pct10(potsAtRet, 0.5), potsAtRetirementP90: pct10(potsAtRet, 0.9),
       medianTrim: trims.length ? trims[Math.floor(trims.length / 2)] : 0,

@@ -11,21 +11,22 @@ import { planCounts } from '../lib/counts';
 import { valuesFor, clampVal, type Val } from './dial/values';
 import Sheet from './Sheet';
 import RiskPanel from './RiskPanel';
-import YearsStrip from './YearsStrip';
+import Sunrise from './Sunrise';
 
 /**
  * The simple home: the answer first, in words, one figure and one picture,
  * then the three things most people change, each one tap away. Nothing to
  * learn.
  *
+ *        ⌒⌒⌒  the sunrise: 100 lines, one per future  ⌒⌒⌒
+ *   ─────────────────────────────────────────────────────
+ *   60          First shortfalls at 71                  90
+ *
  *   ● Enough on average, not safe yet
  *   £5,600
  *   a month after tax, every year to age 90.
  *   You ask for £5,000: £600 a month to spare.
  *
- *   Futures still paying in full            69 of 100 at 90
- *   ▮▮▮▮▮▮▮▮▮▮▮▮▮▮▮▮▮▮▮▮▮▮▮▯▯▯▯▯▯▯▯      (the years strip)
- *   60          First shortfalls at 71                  90
  *   What you ask holds in 69 of 100 simulated futures. An estimate…
  *
  *   Stop work at      −  60  +
@@ -81,6 +82,9 @@ export default function SimpleHome({ plan, update, dd, mc, onDetails, header }: 
       <div className="mx-auto w-full max-w-[560px] flex flex-col">
         {header}
 
+        {/* ── The sunrise: 100 futures, one line each ─────────────────── */}
+        {hasMoney && <Sunrise mc={mc} structured={!!plan.architecture?.on} fromAge={plan.retireYear - A.birthYear} toAge={plan.horizonAge} accent={status.colour} />}
+
         {/* ── The answer ─────────────────────────────────────────────── */}
         {!hasMoney ? (
           <section className="mt-10 text-center">
@@ -89,7 +93,7 @@ export default function SimpleHome({ plan, update, dd, mc, onDetails, header }: 
             <button type="button" onClick={onDetails} className="mt-5 rounded-2xl px-5 py-3 font-bold text-[var(--color-on-calm)]" style={{ background: 'var(--color-calm)' }}>Add my details</button>
           </section>
         ) : (
-          <section className="mt-5 [@media(max-height:700px)]:mt-2.5" aria-live="polite" data-answer data-ready={rails && mc ? '1' : '0'}>
+          <section className="mt-4 [@media(max-height:700px)]:mt-2" aria-live="polite" data-answer data-ready={rails && mc ? '1' : '0'}>
             <p data-status={status.key} className="flex items-center gap-2 text-[0.98rem] font-bold leading-tight" style={{ color: status.colour }}>
               <span aria-hidden className="inline-block w-2 h-2 rounded-full shrink-0" style={{ background: status.colour }} />{status.label}
             </p>
@@ -107,21 +111,9 @@ export default function SimpleHome({ plan, update, dd, mc, onDetails, header }: 
                       : <>You ask for {fmt(month)}: <span style={{ color: 'var(--color-sage-strong)' }}>{fmt(gap)} a month to spare</span>.</>}
                 </span>)}
             </p>
-            {status.key === 'trim' && status.note && <p data-note className="mt-1.5 text-[0.84rem] leading-snug [@media(max-height:700px)]:hidden" style={{ color: 'var(--color-ink-dim)' }}>{status.note}</p>}
-            {/* How sure, and from when: one bar a year, as tall as the futures still paying. */}
-            <YearsStrip mc={mc} structured={!!plan.architecture?.on} fromAge={plan.retireYear - A.birthYear} toAge={plan.horizonAge} accent={status.colour} />
+            {status.key === 'trim' && status.note && <p data-note className="mt-1.5 text-[0.84rem] leading-snug [@media(max-height:799px)]:hidden" style={{ color: 'var(--color-ink-dim)' }}>{status.note}</p>}
             <p data-futures className="mt-2 text-[0.84rem] leading-snug" style={{ color: 'var(--color-ink-dim)' }}>{futuresSentence(status)}</p>
           </section>
-        )}
-
-        {/* What the answer is counting, so nobody has to wonder whether a
-            partner's pots or annuity are in. Read straight from the plan. On a
-            short screen it drops below the two questions, so they stay in view. */}
-        {hasMoney && (
-          <p data-counts className="mt-2 text-[0.8rem] leading-snug [@media(max-height:720px)]:order-last [@media(max-height:720px)]:mt-3" style={{ color: 'var(--color-ink-faint)' }}>
-            {planCounts(plan).line}{' '}
-            <button type="button" onClick={onDetails} className="underline inline-block min-h-[24px]" style={{ color: 'var(--color-ink-dim)' }}>Check or change in Details</button>
-          </p>
         )}
 
         {/* ── The three things most people change ────────────────────── */}
@@ -155,10 +147,20 @@ export default function SimpleHome({ plan, update, dd, mc, onDetails, header }: 
         {/* ── Two questions, one tap each ────────────────────────────── */}
         {hasMoney && (
           <div className="mt-3 [@media(max-height:700px)]:mt-2 grid grid-cols-2 gap-3">
-            <button type="button" onClick={() => setPanel('help')} className="rounded-2xl py-3 px-1 min-h-[48px] text-[0.86rem] font-semibold" style={{ background: 'var(--color-canvas)', border: '1px solid var(--color-calm)', color: 'var(--color-calm-strong)' }}>What would help?</button>
-            <button type="button" onClick={() => setPanel('risk')} className="rounded-2xl py-3 px-1 min-h-[48px] text-[0.86rem] font-semibold" style={{ background: 'var(--color-canvas)', border: '1px solid var(--color-calm)', color: 'var(--color-calm-strong)' }}>What could go wrong?</button>
+            <button type="button" onClick={() => setPanel('help')} className="rounded-2xl py-3 px-1 min-h-[48px] text-[0.86rem] [@media(max-width:379px)]:text-[0.8rem] font-semibold" style={{ background: 'var(--color-canvas)', border: '1px solid var(--color-calm)', color: 'var(--color-calm-strong)' }}>What would help?</button>
+            <button type="button" onClick={() => setPanel('risk')} className="rounded-2xl py-3 px-1 min-h-[48px] text-[0.86rem] [@media(max-width:379px)]:text-[0.8rem] font-semibold" style={{ background: 'var(--color-canvas)', border: '1px solid var(--color-calm)', color: 'var(--color-calm-strong)' }}>What could go wrong?</button>
           </div>
         )}
+        {/* What the answer is counting, so nobody has to wonder whether a
+            partner's pots or annuity are in. Read straight from the plan. It sits
+            below the two questions, so they stay in view on a small screen. */}
+        {hasMoney && (
+          <p data-counts className="mt-3 text-[0.8rem] leading-snug" style={{ color: 'var(--color-ink-faint)' }}>
+            {planCounts(plan).line}{' '}
+            <button type="button" onClick={onDetails} className="underline inline-block min-h-[24px]" style={{ color: 'var(--color-ink-dim)' }}>Check or change in Details</button>
+          </p>
+        )}
+
       </div>
     </div>
 

@@ -166,11 +166,15 @@ supporting exactly the ask, or more, could read "Not yet funded"; and a
 structured plan kept solvent by cutting spending to 75% was credited with
 supporting the uncut figure. Both are covered by `e2e150.mjs`.
 
-Above that sentence the simple home draws the **years strip**: one bar for
-every year from stopping to the plan's end, as tall as the number of simulated
-futures still paying that year (`perAgeHeld`, §9). A plain plan shows futures
-paid in full; a structured plan shows two layers, paid in full and still paying
-once its rules have trimmed. The last bar is the count in the sentence.
+Above the answer the simple home draws the **sunrise**: 100 lines rising over
+a horizon line, one for each simulated future. A line starts on the left, the
+year work stops, and crosses the sky for as long as that future keeps paying;
+one that pays every year to the plan's end reaches the horizon on the right.
+The lengths are `perAgeHeld` (§9) turned on its side: line k runs for as many
+years as at least k of 100 futures are still paid. A plain plan counts futures
+paid in full; a structured plan draws each line bright while paid in full and
+faint while still paying once its rules have trimmed. The number of lines that
+reach the horizon is the count in the sentence.
 
 The share of futures and the caveat ("an estimate, not a guarantee") sit in the
 same sentence. "What could go wrong?" lists the supportable income under the
@@ -270,7 +274,7 @@ own quote takes precedence.
   every year up to and including that one, in full (`full`, the same test as
   `successProb`) and once the written rules have trimmed (`rules`, the same
   test as `successProbWithCuts`). It never rises and its last entry equals
-  those two shares exactly. The home screen's years strip draws it.
+  those two shares exactly. The home screen's sunrise draws it.
 * **What the range covers**: the sampling range shown in the app
   (±2 standard errors) covers the randomness of the simulation **only**. It
   does not cover parameter uncertainty (are the growth, inflation and charge

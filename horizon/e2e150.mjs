@@ -25,9 +25,10 @@
  *   I  no error in the page or the console
  *   J  the same plan run in a second JavaScript engine (Node) supports the
  *      same figure to within 1%
- *   K  the years strip (one bar a year, as tall as the futures still paying)
- *      starts the year work stops, never rises, and its last bar is the
- *      futures count in the sentence
+ *   K  the sunrise (100 lines, one for each future, each crossing the sky for
+ *      as long as that future pays) starts the year work stops, an outer line
+ *      never runs further than an inner one, and the number of lines that
+ *      reach the horizon is the futures count in the sentence
  *
  * Every fifth scenario is also opened on the dial, which must give the same
  * status. The first fourteen scenarios are the owner's own plan and its near
@@ -205,7 +206,8 @@ async function readHome(page, plan, home) {
   return page.evaluate(() => { const t = (s) => (document.querySelector(s)?.innerText || '').replace(/\s+/g, ' ').trim();
     return { key: document.querySelector('[data-simple-home] [data-status]')?.getAttribute('data-status'), label: t('[data-simple-home] [data-status]'),
       figure: Number(t('[data-supports]').replace(/[£,]/g, '')), gap: t('[data-gap]'), futures: t('[data-futures]'), counts: t('[data-counts]'), note: t('[data-note]'),
-      strip: [...document.querySelectorAll('[data-years-strip] [data-bar]')].map(b => [+b.getAttribute('data-age'), +b.getAttribute('data-share'), +b.getAttribute('data-full')]), stripEnd: t('[data-strip-end]') }; });
+      sun: (() => { const el = document.querySelector('[data-sunrise]'); return !el ? null : { first: +el.getAttribute('data-first'), last: +el.getAttribute('data-last'), n: +el.getAttribute('data-years'),
+        rings: [...el.querySelectorAll('[data-ring]')].map(r => [+r.getAttribute('data-years'), +r.getAttribute('data-full-years')]), end: t('[data-sun-end]') }; })() }; });
 }
 
 const results = new Array(N);
@@ -243,17 +245,18 @@ async function worker() {
       if (shownF !== x.futures) fails.push(`E futures: shows ${shownF} of 100, engine gives ${x.futures}`);
       if (x.structured && x.futuresFull !== x.futures && !ui.futures.includes(`paid in full every year in ${x.futuresFull}`)) fails.push(`E structured plan does not state the paid-in-full share ${x.futuresFull}: ${ui.futures}`);
       if (!/not a guarantee/.test(ui.futures)) fails.push('E the caveat is missing');
-      // K the years strip: the picture and the number are the same thing
+      // K the sunrise: the picture and the number are the same thing
       {
-        const bars = ui.strip, lastBar = bars[bars.length - 1] || [];
-        if (!bars.length) fails.push('K the years strip is missing');
+        const sun = ui.sun;
+        if (!sun || sun.rings.length !== 100) fails.push(`K the sunrise is missing or does not have 100 lines (${sun ? sun.rings.length : 'none'})`);
         else {
-          if (bars[0][0] !== plan.retireYear - plan.partnerA.birthYear) fails.push(`K the strip starts at ${bars[0][0]}, work stops at ${plan.retireYear - plan.partnerA.birthYear}`);
-          if (!bars.every((b, i) => i === 0 || b[0] === bars[i - 1][0] + 1)) fails.push('K the strip skips a year');
-          if (!bars.every((b, i) => b[1] >= 0 && b[1] <= 100 && (i === 0 || b[1] <= bars[i - 1][1]))) fails.push(`K futures still paying rises somewhere: ${bars.map(b => b[1]).join(' ')}`);
-          if (lastBar[1] !== x.futures) fails.push(`K the last bar is ${lastBar[1]} of 100, the sentence says ${x.futures}`);
-          if (!ui.stripEnd.startsWith(`${x.futures} of 100 at ${lastBar[0]}`)) fails.push(`K the label beside the strip reads "${ui.stripEnd}"`);
-          if (x.structured && lastBar[2] !== Math.min(x.futuresFull, x.futures)) fails.push(`K structured: the dark layer ends on ${lastBar[2]}, paid in full is ${x.futuresFull}`);
+          const yrs = sun.rings.map(r => r[0]), reach = yrs.filter(y => y === sun.n).length;
+          if (sun.first !== plan.retireYear - plan.partnerA.birthYear) fails.push(`K the sunrise starts at ${sun.first}, work stops at ${plan.retireYear - plan.partnerA.birthYear}`);
+          if (sun.last !== sun.first + sun.n - 1) fails.push(`K the sunrise ends at ${sun.last} after ${sun.n} years from ${sun.first}`);
+          if (!yrs.every((y, i) => y >= 0 && y <= sun.n && (i === 0 || y <= yrs[i - 1]))) fails.push(`K an outer line runs further than an inner one: ${yrs.join(' ')}`);
+          if (reach !== x.futures) fails.push(`K ${reach} lines reach the horizon, the sentence says ${x.futures}`);
+          if (!sun.end.startsWith(`${x.futures} of 100 reach ${sun.last}`)) fails.push(`K the label beside the sunrise reads "${sun.end}"`);
+          if (x.structured && sun.rings.filter(r => r[1] === sun.n).length !== Math.min(x.futuresFull, x.futures)) fails.push(`K structured: ${sun.rings.filter(r => r[1] === sun.n).length} bright lines reach the horizon, paid in full is ${x.futuresFull}`);
         }
       }
       // F the counts line

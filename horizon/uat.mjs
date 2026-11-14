@@ -759,21 +759,23 @@ await check('120 free/plus sweep: zero page errors', () => pe.length === 0);
   await check('158 the two questions sit above the tab bar without scrolling', async () => p.evaluate(() => {
     const nav = document.querySelector('nav').getBoundingClientRect(); const b = [...document.querySelectorAll('[data-simple-home] button')].find(x => /What could go wrong/.test(x.textContent)).getBoundingClientRect();
     return b.bottom <= nav.top; }));
-  // The years strip: one bar a year, as tall as the futures still paying. It is
-  // drawn from the same run as the count in the sentence, so they cannot differ.
-  await p.waitForFunction(() => document.querySelector('[data-years-strip]')?.getAttribute('data-ready') === '1' && /of 100/.test(document.querySelector('[data-futures]')?.textContent || ''), null, { timeout: 20000 }).catch(() => {}); await wait(600);
-  const strip = async () => p.evaluate(() => { const bars = [...document.querySelectorAll('[data-years-strip] [data-bar]')];
-    return { ages: bars.map(b => +b.getAttribute('data-age')), shares: bars.map(b => +b.getAttribute('data-share')), px: bars.map(b => Math.round(b.lastElementChild.getBoundingClientRect().height)), track: Math.round(bars[0]?.getBoundingClientRect().height || 0),
-      end: document.querySelector('[data-strip-end]')?.textContent || '', name: document.querySelector('[data-years-strip]')?.getAttribute('aria-label') || '', futures: document.querySelector('[data-futures]')?.textContent || '' }; });
-  await check('158d the years strip has one bar for every year from stopping to the plan age', async () => { const q = await planOf(), st = await strip();
-    return st.ages.length === E.planEndYear(q) - q.retireYear + 1 && st.ages[0] === q.retireYear - q.partnerA.birthYear && st.ages.every((a, i) => i === 0 || a === st.ages[i - 1] + 1); });
-  await check('158e the last bar is the futures count in the sentence, and the label beside it says so', async () => { const st = await strip(); const n = Number((st.futures.match(/in (\d+) of 100/) || [])[1]);
-    return st.shares[st.shares.length - 1] === n && st.end.startsWith(`${n} of 100 at ${st.ages[st.ages.length - 1]}`); });
-  await check('158f futures still paying never rises from one year to the next', async () => { const st = await strip(); return st.shares.every((v, i) => v >= 0 && v <= 100 && (i === 0 || v <= st.shares[i - 1])); });
-  await check('158g each bar is drawn to its share of the full height', async () => { const st = await strip(); return st.track > 20 && st.px.every((h, i) => Math.abs(h - st.track * st.shares[i] / 100) <= 2.5); });
-  await check('158h the strip agrees with the engine for the same seed', async () => { const q = await planOf(), st = await strip(); const m = E.runMonteCarlo(q, 2000, q.mcSeed || 42);
-    return m.perAgeHeld.every((h, i) => Math.abs(Math.round(h.full * 100) - st.shares[i]) <= 1); });
-  await check('158i the strip says in words what it shows (screen readers)', async () => { const st = await strip(); return /of 100 simulated futures/.test(st.name) && new RegExp(`${st.shares[st.shares.length - 1]} of 100 at age ${st.ages[st.ages.length - 1]}`).test(st.name); });
+  // The sunrise: 100 lines, one for each simulated future, each crossing the
+  // sky for as long as that future keeps paying. It is drawn from the same run
+  // as the count in the sentence, so the picture and the number cannot differ.
+  await p.waitForFunction(() => document.querySelector('[data-sunrise]')?.getAttribute('data-ready') === '1' && /of 100/.test(document.querySelector('[data-futures]')?.textContent || ''), null, { timeout: 20000 }).catch(() => {}); await wait(2600);
+  const sun = async () => p.evaluate(() => { const el = document.querySelector('[data-sunrise]'); const rings = [...el.querySelectorAll('[data-ring]')];
+    return { first: +el.getAttribute('data-first'), last: +el.getAttribute('data-last'), n: +el.getAttribute('data-years'), k: rings.map(r => +r.getAttribute('data-ring')), years: rings.map(r => +r.getAttribute('data-years')), f: rings.map(r => +r.getAttribute('data-f')),
+      drawn: rings.map(r => parseFloat(getComputedStyle(r).strokeDasharray)), len: rings.map(r => r.getTotalLength()),
+      end: (document.querySelector('[data-sun-end]')?.innerText || '').replace(/\s+/g, ' '), name: el.getAttribute('aria-label') || '', futures: document.querySelector('[data-futures]')?.textContent || '' }; });
+  await check('158d the sunrise has 100 lines and runs from the year work stops to the plan age', async () => { const q = await planOf(), st = await sun();
+    return st.k.length === 100 && st.k.every((k, i) => k === i + 1) && st.first === q.retireYear - q.partnerA.birthYear && st.n === E.planEndYear(q) - q.retireYear + 1 && st.last === st.first + st.n - 1; });
+  await check('158e the lines that reach the horizon are the futures count in the sentence, and the label says so', async () => { const st = await sun(); const n = Number((st.futures.match(/in (\d+) of 100/) || [])[1]);
+    return st.years.filter(y => y === st.n).length === n && st.end.startsWith(`${n} of 100 reach ${st.last}`); });
+  await check('158f an outer line never runs further than an inner one', async () => { const st = await sun(); return st.years.every((y, i) => y >= 0 && y <= st.n && (i === 0 || y <= st.years[i - 1])); });
+  await check('158g each line is drawn to its share of the sky', async () => { const st = await sun(); return st.len.every(l => l > 20) && st.f.every((f, i) => Math.abs(f - st.years[i] / st.n) < 1e-3 && Math.abs(st.drawn[i] - f) < 0.02); });
+  await check('158h the sunrise agrees with the engine for the same seed, year by year', async () => { const q = await planOf(), st = await sun(); const m = E.runMonteCarlo(q, 2000, q.mcSeed || 42);
+    return m.perAgeHeld.every((h, i) => Math.abs(Math.round(h.full * 100) - st.years.filter(y => y > i).length) <= 1); });
+  await check('158i the sunrise says in words what it shows (screen readers)', async () => { const st = await sun(); const n = st.years.filter(y => y === st.n).length; return /one for each simulated future/.test(st.name) && st.name.includes(`${n} of 100 reach age ${st.last}`); });
   await p.locator('[data-counts] button').click(); await wait(700);
   await check('158b "Check or change in Details" opens Details', () => sheetOpen());
   await goPage('Your guaranteed income');

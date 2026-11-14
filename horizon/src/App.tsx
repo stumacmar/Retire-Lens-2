@@ -8,6 +8,7 @@ import Sheet from './components/Sheet';
 import Onboarding from './components/Onboarding';
 import PlanForm from './components/PlanForm';
 import Dial from './components/dial/Dial';
+import SimpleHome from './components/SimpleHome';
 import { useInsight } from './lib/useInsight';
 import type { Rail } from './lib/insights';
 import DecisionMap from './components/DecisionMap';
@@ -48,6 +49,7 @@ export function confText(mc: any): { main: string; range: string; pctRounded: nu
 const isSingle = (plan: any) => plan.household === 'single';
 
 type Tab = 'horizon' | 'details' | 'explore' | 'peace' | 'plus';
+const HOME_KEY = 'someday-home-v1';
 
 // Free + Plus: one entitlement state for the whole app, read anywhere via context.
 export default function App() {
@@ -69,6 +71,11 @@ function Horizon() {
   const [onboarded, setOnboarded] = useState(hasSavedPlan());
   const [disclaimerOk, setDisclaimerOk] = useState(disclaimerAccepted());
   const openPlus = () => setSheet('plus');
+  // Two homes, one plan. The simple home (the answer, three steppers, two
+  // questions) is the default; the dial is for people who like it. The
+  // choice is remembered on this device.
+  const [homeView, setHomeView] = useState<'simple' | 'dial'>(() => { try { return localStorage.getItem(HOME_KEY) === 'dial' ? 'dial' : 'simple'; } catch { return 'simple'; } });
+  const switchHome = () => setHomeView(v => { const n = v === 'dial' ? 'simple' : 'dial'; try { localStorage.setItem(HOME_KEY, n); } catch { /* private mode */ } return n; });
 
 
   const resetAll = () => {
@@ -117,9 +124,10 @@ function Horizon() {
   return (
     <main className="min-h-full">
 
-      {/* The home: the Horizon Dial — one ring, six groups, the answer in the middle. */}
-      <Dial plan={plan} update={update} dd={dd} mc={mc} mcPending={S.mcPending} viz={viz} plus={plus} onUpgrade={openPlus} onDetails={() => setSheet('details')}
-        header={
+      {/* The home. Simple by default: the answer, three steppers, two questions.
+          The Horizon Dial (one ring, six groups) is one tap away in the header. */}
+      {(() => {
+        const header = (
           <div className="flex items-center gap-2.5">
             <svg width="22" height="22" viewBox="0 0 42 42" fill="none" aria-hidden="true">
               <path d="M9 27a12 12 0 0 1 24 0" stroke="var(--color-calm)" strokeWidth="3.2" strokeLinecap="round" />
@@ -127,9 +135,18 @@ function Horizon() {
               <path d="M5 33.5h32" stroke="var(--color-calm)" strokeWidth="3.2" strokeLinecap="round" opacity=".5" />
             </svg>
             <span className="flex-1 serif text-[1.35rem] leading-none" style={{ color: 'var(--color-ink)' }}>Someday</span>
+            <button type="button" onClick={switchHome} data-home-switch
+              // 24px tall: a legal tap target that leaves the header's height alone
+              // (the dial's fixed screen has only a few pixels to spare).
+              className="rounded-full px-2.5 h-6 text-[0.7rem] font-semibold leading-none" style={{ background: 'var(--color-surface)', border: '1px solid var(--color-hairline)', color: 'var(--color-ink-dim)' }}>
+              {homeView === 'dial' ? 'Simple view' : 'Dial view'}
+            </button>
             {PRODUCT.plusOffered && <PlusPill plus={plus} onClick={openPlus} />}
-          </div>
-        } />
+          </div>);
+        return homeView === 'dial'
+          ? <Dial plan={plan} update={update} dd={dd} mc={mc} mcPending={S.mcPending} viz={viz} plus={plus} onUpgrade={openPlus} onDetails={() => setSheet('details')} header={header} />
+          : <SimpleHome plan={plan} update={update} dd={dd} mc={mc} onDetails={() => setSheet('details')} header={header} />;
+      })()}
 
       <nav className="fixed bottom-0 left-0 right-0 z-40"
            style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 0.3rem)', paddingTop: '0.5rem',

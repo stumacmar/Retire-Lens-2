@@ -8,6 +8,7 @@ import { useInsight } from '../../lib/useInsight';
 import type { Rail } from '../../lib/insights';
 import { planStatus } from '../../lib/status';
 import DecisionMap from '../DecisionMap';
+import RiskPanel from '../RiskPanel';
 import { FACES, valuesFor, clampVal, type Face, type Side, type Val } from './values';
 
 /**
@@ -25,17 +26,6 @@ import { FACES, valuesFor, clampVal, type Face, type Side, type Val } from './va
  */
 type View = 'home' | 'bands' | 'edge' | 'levers' | 'risk';
 const DETENT = 12;                                   // degrees per step
-// "What could go wrong": the central case, a poor run, and three real bad
-// histories replayed from the day you stop, hardest first. The 2008 path
-// includes the bull decade that followed it, so as a stress it is the mildest
-// of the set (3–6% under base in every plan shape); it stays in the Explore
-// stress tests but not here. One sentence says what each one means.
-const RISKS: { key: string; name: string; means: (plan: any) => string }[] = [
-  { key: 'base', name: 'The central case', means: p => `Returns of ${Math.round(p.growthBase * 100)}% a year, every year.` },
-  { key: 'poor', name: 'A poor run', means: p => `Returns of ${Math.round(p.growthBear * 100)}% a year, every year.` },
-  { key: 'japan', name: 'Japan from 1990', means: () => 'Two lost decades in the markets, starting the day you stop.' },
-  { key: 'stagflation', name: 'The 1970s', means: () => 'High inflation and falling markets, from the day you stop.' },
-  { key: 'crashflat', name: 'A 30% fall, then flat', means: () => 'A crash the day you stop and five flat years after it.' }];
 const reduced = () => typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches;
 const css = (n: string) => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
 const unwrap = (a: number) => ((a + 540) % 360) - 180;
@@ -106,7 +96,7 @@ export default function Dial({ plan, update, dd, mc, mcPending, viz, plus, onUpg
   // The home is one fixed screen, so the strip gives up what the reticle
   // needs: a couple's side pills are a 28px row (a real tap target).
   const reticleExtra = single ? 0 : 26;
-  const R = d / 2, stripH = Math.max(compact ? 44 : 48, (compact ? 72 : vp.h >= 820 ? 128 : 104) - reticleExtra);
+  const R = d / 2, stripH = Math.max(compact ? 44 : 48, (compact ? 64 : vp.h >= 820 ? 116 : 100) - reticleExtra);
   const boxPad = compact ? 36 : 40, boxW = Math.min(vp.w - 20, d + 150), boxL = (boxW - d) / 2;
 
   // ── The ring: a tick scale that turns under a fixed needle ───────────
@@ -254,7 +244,7 @@ export default function Dial({ plan, update, dd, mc, mcPending, viz, plus, onUpg
 
   const topLevers: any[] = levers?.levers ? levers.levers.filter((l: any) => l.dConf > 0.004) : [];
   const holdsText = !hasMoney ? 'Turn the ring to set your pensions and savings. The answer appears in the middle.'
-    : lit == null ? 'Working out the futures.' : `Holds in ${lit} of 100 futures; ${compact ? 'not a guarantee' : 'an estimate, not a guarantee'}.`;
+    : lit == null ? 'Working out the futures.' : `Holds in ${lit} of 100 futures; not a guarantee.`;
   const floorV = floor ? floor.year / 12 : null;
   const skyT = Math.min(1, FACES.filter(f => touched.includes(f.id)).length / 6);
   const qual = !hasMoney ? '' : lasts ? `a month, to ${plan.horizonAge}` : `a month, to ${dd.runsShortAgeA}`;
@@ -395,38 +385,7 @@ export default function Dial({ plan, update, dd, mc, mcPending, viz, plus, onUpg
           </Tray>)}
         {view === 'risk' && (
           <Tray key="risk" title="What could go wrong" onClose={() => setView('home')} tall>
-            <p className="text-[0.8rem] leading-relaxed px-1 mb-1" style={{ color: 'var(--color-ink-dim)' }}>
-              The most you could spend a month, after tax in today's money, and still be paid every year to {plan.horizonAge} in each case. You ask for <b className="tnum" style={{ color: 'var(--color-ink)' }}>{fmt(month)}</b>.
-            </p>
-            {!rails ? <p className="text-[0.84rem] px-1 py-2" style={{ color: 'var(--color-ink-dim)' }}>Running your plan through each history…</p>
-              : RISKS.map((k, i) => {
-                const r = rails.find(x => x.key === k.key); if (!r) return null;
-                const v = Math.round(r.year / 12 / 10) * 10, short = v < month;
-                return (
-                  <div key={k.key} data-risk={k.key} className="flex items-start gap-3 py-2.5 px-1" style={{ borderTop: i ? '1px solid var(--color-hairline)' : 'none' }}>
-                    <span className="min-w-0 flex-1">
-                      <span className="block text-[0.9rem] font-semibold">{k.name}</span>
-                      <span className="block text-[0.76rem] mt-0.5" style={{ color: 'var(--color-ink-dim)' }}>{k.means(plan)} {short
-                        ? `Spending ${fmt(month - v)} a month less would see it through.`
-                        : 'What you ask would still be paid.'}</span>
-                    </span>
-                    <span className="tnum shrink-0 text-right">
-                      <span className="block text-[0.95rem] font-extrabold" style={{ color: short ? 'var(--color-hope)' : 'var(--color-sage-strong)' }}>{fmt(v)}</span>
-                      <span className="block text-[0.68rem]" style={{ color: 'var(--color-ink-faint)' }}>{short ? 'short of your ask' : 'covers your ask'}</span>
-                    </span>
-                  </div>);
-              })}
-            <div data-risk="futures" className="py-2.5 px-1" style={{ borderTop: '1px solid var(--color-hairline)' }}>
-              <span className="block text-[0.9rem] font-semibold">{(mc?.nPaths || 2000).toLocaleString()} simulated futures</span>
-              <span className="block text-[0.76rem] mt-0.5" style={{ color: 'var(--color-ink-dim)' }}>
-                {mc ? <>Random markets from today, through the saving years too. What you ask is paid every year in <b className="tnum">{Math.round(mc.successProb * 100)} of 100</b>.{' '}
-                  {mc.shortAgeP10 != null ? <>In the unluckiest 1 in 10 the money has run short by <b className="tnum">{mc.shortAgeP10}</b>.</> : <>Even the unluckiest 1 in 10 are paid in full to {plan.horizonAge}.</>}</>
-                  : 'Working out the futures.'}
-              </span>
-            </div>
-            <p className="text-[0.7rem] mt-2 px-1" style={{ color: 'var(--color-ink-faint)' }}>
-              Scenarios, not predictions. The histories are real sequences of returns replayed on your plan; the future will not repeat any of them. Tax rules, inflation and your own life will differ too.
-            </p>
+            <RiskPanel plan={plan} mc={mc} rails={rails} />
           </Tray>)}
         {view === 'edge' && (
           <Tray key="edge" title="Every retirement you could choose" onClose={() => setView('home')} tall>

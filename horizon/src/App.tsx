@@ -436,7 +436,7 @@ function ExploreBody({ plan, dd, estate, mc, plus, onUpgrade, update }: { plan: 
       )}
 
       {/* ── What moves the needle: the levers, ranked (decision support) ── */}
-      <div id="explore-levers"><Levers plan={plan} plus={plus} onUpgrade={onUpgrade} /></div>
+      <div id="explore-levers"><Levers plan={plan} plus={plus} onUpgrade={onUpgrade} mc={mc} /></div>
 
       {/* ── Dates that matter (free: personal from the first screen) ── */}
       <div id="explore-dates"><Dates plan={plan} /></div>
@@ -676,7 +676,7 @@ function Guardrails({ plan }: { plan: any }) {
   );
 }
 
-function Levers({ plan, plus, onUpgrade }: { plan: any; plus: boolean; onUpgrade: () => void }) {
+function Levers({ plan, plus, onUpgrade, mc }: { plan: any; plus: boolean; onUpgrade: () => void; mc?: MC | null }) {
   // Same 500 futures and seed as the confidence figure, so the base here is
   // the number the person has already seen. Computed after the sheet has
   // opened, so the eight simulations never block the animation.
@@ -720,8 +720,10 @@ function Levers({ plan, plus, onUpgrade }: { plan: any; plus: boolean; onUpgrade
       <h3 className="text-[0.72rem] font-bold uppercase tracking-widest mb-2" style={{ color: 'var(--color-ink-faint)' }}>What moves the needle</h3>
       <div className="rounded-3xl overflow-hidden" style={{ background: 'var(--color-surface)', border: '1px solid var(--color-hairline)' }}>
         <div className="px-4 pt-3 pb-1 text-[0.8rem] leading-relaxed" style={{ color: 'var(--color-ink-dim)' }}>
-          Today the plan holds in about <b className="tnum" style={{ color: 'var(--color-ink)' }}>{Math.round((res.base.conf || 0) * 20) * 5}%</b> of simulated futures.
-          Each action below is run through the whole plan and the same {res.paths} futures; the first figure is how many more points of confidence it buys, give or take two.
+          {/* The headline figure is the one already on the home screen (2,000
+              futures); the levers are ranked on a smaller, faster sample. */}
+          Today the plan holds in <b className="tnum" style={{ color: 'var(--color-ink)' }}>{mc ? `${Math.round(mc.successProb * 100)} of 100` : `about ${Math.round((res.base.conf || 0) * 20) * 5} of 100`}</b> simulated futures.
+          Each action below is run through the whole plan and the same {res.paths} of those futures; the first figure is how many more points of confidence it buys, give or take two.
         </div>
         <Row l={top} i={0} />
         {plus

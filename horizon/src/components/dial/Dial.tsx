@@ -6,6 +6,7 @@ import { E } from '../../lib/usePlan';
 import { deflate, fmt, fmtK } from '../../lib/format';
 import { useInsight } from '../../lib/useInsight';
 import type { Rail } from '../../lib/insights';
+import { planStatus } from '../../lib/status';
 import DecisionMap from '../DecisionMap';
 import { FACES, valuesFor, clampVal, type Face, type Side, type Val } from './values';
 
@@ -22,14 +23,19 @@ import { FACES, valuesFor, clampVal, type Face, type Side, type Val } from './va
  * Six hidden range inputs (twelve for a couple) are the source of truth for
  * keyboards and screen readers; the drawing is a presentation of them.
  */
-type View = 'home' | 'bands' | 'edge' | 'levers';
+type View = 'home' | 'bands' | 'edge' | 'levers' | 'risk';
 const DETENT = 12;                                   // degrees per step
-const HISTORIES: { key: string; when: string }[] = [
-  // The dial's rotation leads with the hardest real history. The 2008 path
-  // includes the bull decade that followed it, so as a stress it is the
-  // mildest of the set (3–6% under base in every plan shape); it stays in
-  // the Explore stress tests but not here.
-  { key: 'japan', when: 'a Japan-1990 start' }, { key: 'crashflat', when: 'a 30% fall then five flat years' }, { key: 'stagflation', when: 'a 1970s start' }];
+// "What could go wrong": the central case, a poor run, and three real bad
+// histories replayed from the day you stop, hardest first. The 2008 path
+// includes the bull decade that followed it, so as a stress it is the mildest
+// of the set (3–6% under base in every plan shape); it stays in the Explore
+// stress tests but not here. One sentence says what each one means.
+const RISKS: { key: string; name: string; means: (plan: any) => string }[] = [
+  { key: 'base', name: 'The central case', means: p => `Returns of ${Math.round(p.growthBase * 100)}% a year, every year.` },
+  { key: 'poor', name: 'A poor run', means: p => `Returns of ${Math.round(p.growthBear * 100)}% a year, every year.` },
+  { key: 'japan', name: 'Japan from 1990', means: () => 'Two lost decades in the markets, starting the day you stop.' },
+  { key: 'stagflation', name: 'The 1970s', means: () => 'High inflation and falling markets, from the day you stop.' },
+  { key: 'crashflat', name: 'A 30% fall, then flat', means: () => 'A crash the day you stop and five flat years after it.' }];
 const reduced = () => typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches;
 const css = (n: string) => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
 const unwrap = (a: number) => ((a + 540) % 360) - 180;
@@ -45,7 +51,6 @@ export default function Dial({ plan, update, dd, mc, mcPending, viz, plus, onUpg
   const [sub, setSub] = useState(0);
   const [side, setSide] = useState<Side>('A');
   const [view, setView] = useState<View>('home');
-  const [hist, setHist] = useState(0);
   const [typing, setTyping] = useState<string | null>(null);
   useEffect(() => { if (single && side === 'B') setSide('A'); }, [single, side]);
 
@@ -82,7 +87,12 @@ export default function Dial({ plan, update, dd, mc, mcPending, viz, plus, onUpg
   const lasts = dd.holds;
   const railsKey = useMemo(() => JSON.stringify({ ...plan, targetNet: 0, codeSet: null, spendingPlanOn: false }), [plan]);
   const rails = useInsight<Rail[]>('guardrails', plan, railsKey, 400);
-  const floor = hasMoney ? rails?.find(r => r.key === HISTORIES[hist].key) : undefined;
+  const floor = hasMoney ? rails?.find(r => r.key === 'japan') : undefined;
+  // Where the plan stands, in words, with the three numbers behind it: what
+  // it can support a month, the gap to what you ask, the age it is tested to.
+  const baseRail = hasMoney ? rails?.find(r => r.key === 'base') : undefined;
+  const status = planStatus({ holds: dd.holds, successProb: mc ? mc.successProb : null, sustainableYear: baseRail ? baseRail.year : null,
+    targetYear: plan.targetNet || 0, horizonAge: plan.horizonAge, runsShortAge: dd.runsShortAgeA });
   const lit = mc ? Math.round(mc.successProb * 100) : null;
 
   // ── Geometry: everything sized from the height we actually have ──────
@@ -244,13 +254,8 @@ export default function Dial({ plan, update, dd, mc, mcPending, viz, plus, onUpg
 
   const topLevers: any[] = levers?.levers ? levers.levers.filter((l: any) => l.dConf > 0.004) : [];
   const holdsText = !hasMoney ? 'Turn the ring to set your pensions and savings. The answer appears in the middle.'
-    : lit == null ? 'Working out the futures.' : `Holds in ${lit} of 100 futures.`;
+    : lit == null ? 'Working out the futures.' : `Holds in ${lit} of 100 futures; ${compact ? 'not a guarantee' : 'an estimate, not a guarantee'}.`;
   const floorV = floor ? floor.year / 12 : null;
-  // A limit, stated as a limit: "the most that would hold", never "even
-  // after X, £Y would hold", which reads as a boast when Y is large.
-  const floorText = floorV == null ? '' : floorV >= month
-    ? `After ${HISTORIES[hist].when}, the most that would hold is ${fmt(floorV)} a month.`
-    : `After ${HISTORIES[hist].when}, only ${fmt(floorV)} a month would hold.`;
   const skyT = Math.min(1, FACES.filter(f => touched.includes(f.id)).length / 6);
   const qual = !hasMoney ? '' : lasts ? `a month, to ${plan.horizonAge}` : `a month, to ${dd.runsShortAgeA}`;
   const headSize = Math.round(d * 0.2);
@@ -353,11 +358,14 @@ export default function Dial({ plan, update, dd, mc, mcPending, viz, plus, onUpg
         </div>)}
 
       {/* ── One sentence, said once ───────────────────────────────────── */}
-      <p data-sentence aria-live="polite" className={`${compact ? 'mt-1 text-[0.82rem]' : 'mt-2 text-[0.9rem]'} leading-snug text-center max-w-[38ch]`} style={{ color: 'var(--color-ink-dim)' }}>
+      {/* Where the plan stands, in words; the income it can support and the
+          gap to what you ask; the share of futures, with its caveat beside it. */}
+      <p data-sentence aria-live="polite" className={`${compact ? 'mt-1 text-[0.82rem]' : 'mt-2 text-[0.9rem]'} leading-snug text-center max-w-[52ch]`} style={{ color: 'var(--color-ink-dim)' }}>
+        {hasMoney && <><b data-status={status.key} style={{ color: status.colour }}>{status.label}.</b>{' '}<span data-supports>{status.line}</span>{' '}</>}
         {holdsText}
         {/* Inline buttons keep a 24px target (WCAG 2.5.8) through padding, not a bigger font. */}
-        {floorText && <> <button type="button" onClick={() => setHist(h => (h + 1) % HISTORIES.length)} aria-label={`${floorText} Next bad history`} className="text-left inline-block min-h-[24px] py-0.5" style={{ color: 'inherit' }}>{floorText}</button></>}
-        {hasMoney && <> <button type="button" onClick={() => setView(v => (v === 'levers' ? 'home' : 'levers'))} className="inline-block min-h-[24px] py-0.5 px-0.5" style={{ color: 'var(--color-calm-strong)' }}>What would help?</button></>}
+        {hasMoney && <> <button type="button" onClick={() => setView(v => (v === 'levers' ? 'home' : 'levers'))} className="inline-block min-h-[24px] py-0.5 px-0.5" style={{ color: 'var(--color-calm-strong)' }}>What would help?</button>
+          {' '}<button type="button" onClick={() => setView(v => (v === 'risk' ? 'home' : 'risk'))} className="inline-block min-h-[24px] py-0.5 px-0.5" style={{ color: 'var(--color-calm-strong)' }}>What could go wrong?</button></>}
       </p>
       <div className={`flex gap-4 ${compact ? 'mt-0.5 text-[0.72rem]' : 'mt-1 text-[0.76rem]'}`} style={{ color: 'var(--color-ink-faint)' }}>
         <button type="button" className="min-h-[24px] py-0.5" onClick={() => setView('edge')}>Every retirement</button>
@@ -384,6 +392,41 @@ export default function Dial({ plan, update, dd, mc, mcPending, viz, plus, onUpg
               <button type="button" onClick={onUpgrade} className="w-full text-left text-[0.78rem] py-2 px-1" style={{ borderTop: '1px solid var(--color-hairline)', color: 'var(--color-ink-dim)' }}>
                 Every lever, with its detail, is in <b style={{ color: 'var(--color-calm-strong)' }}>Plus</b>.</button>)}
             <p className="text-[0.7rem] mt-2 px-1" style={{ color: 'var(--color-ink-faint)' }}>Tap one and the dial turns to it. Each is the plan run again through the same simulated futures; prompts, not advice.</p>
+          </Tray>)}
+        {view === 'risk' && (
+          <Tray key="risk" title="What could go wrong" onClose={() => setView('home')} tall>
+            <p className="text-[0.8rem] leading-relaxed px-1 mb-1" style={{ color: 'var(--color-ink-dim)' }}>
+              The most you could spend a month, after tax in today's money, and still be paid every year to {plan.horizonAge} in each case. You ask for <b className="tnum" style={{ color: 'var(--color-ink)' }}>{fmt(month)}</b>.
+            </p>
+            {!rails ? <p className="text-[0.84rem] px-1 py-2" style={{ color: 'var(--color-ink-dim)' }}>Running your plan through each history…</p>
+              : RISKS.map((k, i) => {
+                const r = rails.find(x => x.key === k.key); if (!r) return null;
+                const v = Math.round(r.year / 12 / 10) * 10, short = v < month;
+                return (
+                  <div key={k.key} data-risk={k.key} className="flex items-start gap-3 py-2.5 px-1" style={{ borderTop: i ? '1px solid var(--color-hairline)' : 'none' }}>
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-[0.9rem] font-semibold">{k.name}</span>
+                      <span className="block text-[0.76rem] mt-0.5" style={{ color: 'var(--color-ink-dim)' }}>{k.means(plan)} {short
+                        ? `Spending ${fmt(month - v)} a month less would see it through.`
+                        : 'What you ask would still be paid.'}</span>
+                    </span>
+                    <span className="tnum shrink-0 text-right">
+                      <span className="block text-[0.95rem] font-extrabold" style={{ color: short ? 'var(--color-hope)' : 'var(--color-sage-strong)' }}>{fmt(v)}</span>
+                      <span className="block text-[0.68rem]" style={{ color: 'var(--color-ink-faint)' }}>{short ? 'short of your ask' : 'covers your ask'}</span>
+                    </span>
+                  </div>);
+              })}
+            <div data-risk="futures" className="py-2.5 px-1" style={{ borderTop: '1px solid var(--color-hairline)' }}>
+              <span className="block text-[0.9rem] font-semibold">{(mc?.nPaths || 2000).toLocaleString()} simulated futures</span>
+              <span className="block text-[0.76rem] mt-0.5" style={{ color: 'var(--color-ink-dim)' }}>
+                {mc ? <>Random markets from today, through the saving years too. What you ask is paid every year in <b className="tnum">{Math.round(mc.successProb * 100)} of 100</b>.{' '}
+                  {mc.shortAgeP10 != null ? <>In the unluckiest 1 in 10 the money has run short by <b className="tnum">{mc.shortAgeP10}</b>.</> : <>Even the unluckiest 1 in 10 are paid in full to {plan.horizonAge}.</>}</>
+                  : 'Working out the futures.'}
+              </span>
+            </div>
+            <p className="text-[0.7rem] mt-2 px-1" style={{ color: 'var(--color-ink-faint)' }}>
+              Scenarios, not predictions. The histories are real sequences of returns replayed on your plan; the future will not repeat any of them. Tax rules, inflation and your own life will differ too.
+            </p>
           </Tray>)}
         {view === 'edge' && (
           <Tray key="edge" title="Every retirement you could choose" onClose={() => setView('home')} tall>
@@ -452,12 +495,20 @@ function Strands({ plan, dd, mc, viz, width, height, bands, floor, onTap }: {
     g.setLineDash([2, 3]); g.beginPath(); g.moveTo(X(plan.retireYear), 2); g.lineTo(X(plan.retireYear), H - 16); g.strokeStyle = faint; g.lineWidth = 1; g.stroke(); g.setLineDash([]);
     g.font = '500 11px system-ui, sans-serif'; g.fillStyle = dim; g.textBaseline = 'alphabetic';
     g.textAlign = 'left'; g.fillText(`today ${new Date().getFullYear() - plan.partnerA.birthYear}`, 4, H - 4);
-    g.textAlign = 'center'; g.fillText(`stop ${retireAge}`, Math.min(W - 40, Math.max(40, X(plan.retireYear))), 11);
     g.textAlign = 'right'; g.fillText(`to ${plan.horizonAge}`, W - 4, H - 4);
     // The scale, so the strip means something: the top of the chart and what
     // the central path says you have on the day you stop, in today's money.
+    // It shares the top line with "stop N", so each is placed clear of the
+    // other: the scale on the left, or on the right when you stop soon.
+    const stopX = X(plan.retireYear), stopLabel = `stop ${retireAge}`, stopW = g.measureText(stopLabel).width;
+    const scaleLabel = `${fmtK(max / 1.05)} today's money`;
+    g.font = '500 10px system-ui, sans-serif'; const scaleW = g.measureText(scaleLabel).width;
+    const clash = stopX - stopW / 2 < 4 + scaleW + 8;
+    g.font = '500 11px system-ui, sans-serif'; g.fillStyle = dim;
+    g.textAlign = 'center'; g.fillText(stopLabel, Math.min(W - 40, Math.max(4 + stopW / 2, stopX)), 11);
     g.fillStyle = faint; g.font = '500 10px system-ui, sans-serif';
-    g.textAlign = 'left'; g.fillText(`${fmtK(max / 1.05)} today's money`, 4, 11);
+    if (clash) { g.textAlign = 'right'; g.fillText(scaleLabel, W - 4, 11); }
+    else { g.textAlign = 'left'; g.fillText(scaleLabel, 4, 11); }
     const atStop = viz.atRetire;
     if (atStop > 0) {
       const sx = X(plan.retireYear), sy = Y(atStop);

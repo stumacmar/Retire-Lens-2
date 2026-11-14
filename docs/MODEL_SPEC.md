@@ -134,6 +134,28 @@ a failure, however much is left). `successProbWithCuts` is the share that
 stayed solvent after the written rules trimmed spending. `successLifetime`
 weights each path by the chance the household is still here (§8).
 
+### 3.4 The status in words, and the three numbers (`lib/status.ts`)
+The home screen leads with where the plan stands and the three numbers behind
+it. One function, `planStatus`, decides the words, so no surface can disagree:
+
+| Status | Shown as | Rule |
+|---|---|---|
+| `on` | "On track under these assumptions" | the central path pays every year (`holds`) **and** at least 80 of 100 simulated futures hold |
+| `close` | "Close: a small change needed" | neither of the other two |
+| `not` | "Not yet funded" | fewer than half the futures hold, **or** the central path runs short and the supportable income is more than a tenth under what was asked |
+
+* **Supportable income**: `capacity` on the base lens (`insights.guardrails`,
+  rail `base`): the most a month, after tax in today's money, that is paid in
+  every year to the plan age, found by bisection to the nearest £100 a year.
+* **Gap**: supportable income less the target, a month.
+* **Tested through**: `horizonAge`.
+
+The share of futures and the caveat ("an estimate, not a guarantee") sit in the
+same sentence. "What could go wrong?" lists the supportable income under the
+central case, a poor run (the Poor lens), three real histories replayed from
+the day work stops, and the simulated futures with the age by which the
+unluckiest one in ten has run short.
+
 ## 4. Income tax (`taxOn`, `taxFor`)
 
 * Computed **per person** on non-savings income: State Pension, scheme

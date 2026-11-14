@@ -1,5 +1,6 @@
-import type { ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { E } from '../lib/usePlan';
+import { selfCheck, selfCheckCached, type Check } from '../lib/selfCheck';
 import type { Accum, Drawdown, MC } from '../engine/engine';
 import { fmt, pct, deflate } from '../lib/format';
 
@@ -16,6 +17,17 @@ export default function PrintReport({ plan, acc, dd, mc, estate }: {
   plan: any; acc: Accum; dd: Drawdown; mc: MC | null; estate: any;
 }) {
   const A = plan.partnerA, B = plan.partnerB;
+  // The engine's self-checks take a few hundred milliseconds, and this report
+  // re-renders with every turn of the ring: run them once, in idle time a
+  // few seconds after load, and remember the result for the session.
+  const [checks, setChecks] = useState<Check[] | null>(selfCheckCached);
+  useEffect(() => {
+    if (checks) return;
+    const run = () => setChecks(selfCheck());
+    const ric = (window as any).requestIdleCallback as undefined | ((cb: () => void, o?: any) => number);
+    const id = ric ? ric(run, { timeout: 6000 }) : window.setTimeout(run, 3000);
+    return () => { if (ric && (window as any).cancelIdleCallback) (window as any).cancelIdleCallback(id); else window.clearTimeout(id); };
+  }, [checks]);
   const real = (v: number, year: number) => deflate(v, year, plan.startYear, plan.inflation);
   const ageNow = (p: any) => plan.startYear - p.birthYear;
   const ageAtRetire = plan.retireYear - A.birthYear;
@@ -299,7 +311,7 @@ export default function PrintReport({ plan, acc, dd, mc, estate }: {
             <Row k="Engine version" v={(E as any).ENGINE_VERSION} />
             <Row k="Plan schema" v={(E as any).SCHEMA_VERSION} />
             <Row k="Tax rules" v={`${(E as any).TAX_RULES.taxYear}, in force from ${(E as any).TAX_RULES.effectiveFrom}, read ${(E as any).TAX_RULES.retrieved}`} />
-            <Row k="Engine self-checks at print time" v={(() => { try { const a = (E as any).runAssertions(); return `${a.filter((x: any) => x.pass).length} of ${a.length} pass`; } catch { return 'not run'; } })()} />
+            <Row k="Engine self-checks this session" v={checks ? `${checks.filter(x => x.pass).length} of ${checks.length} pass` : 'not yet run'} />
             <Row k="Rule sources" v="GOV.UK income tax, Scottish income tax, lump sum allowance, State Pension; FCA COBS 13 Annex 2; ONS national life tables; Pensions UK Retirement Living Standards" />
           </div>
         </div>

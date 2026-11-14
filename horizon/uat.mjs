@@ -257,8 +257,35 @@ await tapFace('someday');
   await check('16d turning the ring by hand changes the value, landing on a whole year', () => after > before && Number.isInteger(after)); }
 await p.waitForFunction(() => /Holds in \d+ of 100 futures/.test(document.querySelector('[data-sentence]')?.textContent || ''), null, { timeout: 15000 }).catch(() => {});
 await check('17 the sentence counts the futures that hold', async () => /Holds in \d+ of 100 futures/.test(await sentence()));
-await check('17a the floor under the hardest real history is named first', async () => /Japan-1990 start/.test(await sentence()));
-await check('17a2 the floor is stated as a limit, not a boast', async () => /the most that would hold is|only .* a month would hold/.test(await sentence()));
+// The results screen leads with where the plan stands, in words, and the
+// three numbers behind it (audit §5B): what the plan can support a month,
+// the gap to what was asked, the age it is tested through.
+await p.waitForFunction(() => /would last to \d+/.test(document.querySelector('[data-sentence]')?.textContent || ''), null, { timeout: 20000 }).catch(() => {});
+await check('17a the home states where the plan stands in words, not a colour', async () => /^(On track under these assumptions|Close: a small change needed|Not yet funded)\./.test(await sentence()));
+await check('17a2 the home says what the plan can support, the gap to the ask and the age tested to', async () => /About £[\d,]+ a month would last to \d+: (just what you ask|£[\d,]+ (more|less) than you ask)\./.test(await sentence()));
+await check('17a3 the caveat sits beside the headline figure', async () => /an estimate, not a guarantee|not a guarantee/.test(await sentence()));
+await check('17a4 the status agrees with the engine', async () => {
+  const q = await planOf(); const dd = E.drawdown({ ...q, growth: q.growthBase }); const key = await p.$eval('[data-status]', e => e.getAttribute('data-status'));
+  // A plan whose central path runs short can never read "On track".
+  return ['on', 'close', 'not'].includes(key) && (dd.holds || key !== 'on'); });
+// "What could go wrong": the layered risk panel (audit §5C), one tap from home.
+await p.getByRole('button', { name: 'What could go wrong?' }).click(); await wait(600);
+await p.waitForFunction(() => document.querySelectorAll('[role=dialog][aria-label="What could go wrong"] [data-risk]').length >= 6, null, { timeout: 20000 }).catch(() => {});
+{
+  const risk = p.locator('[role=dialog][aria-label="What could go wrong"]');
+  await check('17b what could go wrong: central case, a poor run, three real histories and the futures', async () => (await risk.locator('[data-risk]').count()) === 6);
+  await check('17b2 the hardest real history is named and explained in one sentence', async () => /Japan from 1990/.test(await risk.innerText()) && /Two lost decades/.test(await risk.innerText()));
+  await check('17b3 each case is a limit in pounds a month, with what it would take to see it through', async () => /£[\d,]+/.test(await risk.locator('[data-risk="japan"]').innerText()) && /would see it through|would still be paid/.test(await risk.locator('[data-risk="japan"]').innerText()));
+  await check('17b4 the unluckiest 1 in 10 is stated as an age', async () => /unluckiest 1 in 10/.test(await risk.locator('[data-risk="futures"]').innerText()));
+  await check('17b5 scenarios, not predictions', async () => /Scenarios, not predictions/.test(await risk.innerText()));
+  await check('17b6 the central case agrees with the engine to the nearest ten pounds', async () => {
+    const q = await planOf(); const txt = await risk.locator('[data-risk="base"]').innerText(); const shown = Number((txt.match(/£([\d,]+)/) || [])[1]?.replace(/,/g, ''));
+    // The most a year that still holds, by bisection, as the insight does.
+    let lo = 2000, hi = Math.max(250000, q.targetNet * 3);
+    for (let i = 0; i < 16; i++) { const mid = (lo + hi) / 2; const Q = { ...q, spendingPlanOn: false, targetNet: mid, growth: q.growthBase }; const acc = E.accumulate(Q, Q.growth); if (E.drawdown(Q, { growth: Q.growth, startPots: acc.atRetirement }).holds) lo = mid; else hi = mid; }
+    return Math.abs(shown - Math.round(Math.floor(lo / 100) * 100 / 12 / 10) * 10) <= 10; });
+}
+await p.getByRole('button', { name: 'Close' }).click(); await wait(400);
 await check('17e the strands are drawn under the dial', async () => (await p.locator('[data-home] canvas[role="img"]').count()) === 1);
 await p.getByRole('button', { name: 'What would help?' }).click();
 await p.waitForFunction(() => /\+\d+ of 100|Nothing measured/.test(document.querySelector('[role=dialog][aria-label="What would help most"]')?.textContent || ''), null, { timeout: 20000 }).catch(() => {});
@@ -450,6 +477,20 @@ for (let i = 0; i < 12; i++) await p.evaluate(v => { const el = [...document.que
   if (el) { Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(el, String(v)); el.dispatchEvent(new Event('input', { bubbles: true })); } }, 2000 + i * 900);
 await wait(700);
 await check('83 rapid slider hammer, no crash', () => pe.length === 0);
+// Turning the ring re-renders the whole app; nothing slow may sit on that
+// path. (The report once ran the engine's 134 self-checks on every render,
+// a quarter of a second each: ten detents took three seconds.)
+{
+  const ms = await p.evaluate(async () => {
+    const el = [...document.querySelectorAll('[data-home] input[type=range]')].find(x => x.getAttribute('aria-label') === 'Take home a month');
+    if (!el) return 99999;
+    const set = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set;
+    const t0 = performance.now();
+    for (let i = 0; i < 10; i++) { set.call(el, String(3000 + i * 50)); el.dispatchEvent(new Event('input', { bubbles: true })); await new Promise(r => requestAnimationFrame(() => r())); }
+    return performance.now() - t0;
+  });
+  await check(`83b ten detents of the ring render in under 1.5 seconds (took ${Math.round(ms)} ms)`, () => ms < 1500);
+}
 for (let i = 0; i < 8; i++) { const q = await planOf(); await setSlider('Retire at age', q.startYear + 2 + i - q.partnerA.birthYear); }
 await wait(900);
 await check('84 rapid retire-age changes, no crash', () => pe.length === 0);

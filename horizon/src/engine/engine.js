@@ -228,8 +228,9 @@ export function createEngine() {
     P.pclsMode = 'phased';
     P.fee = 0.005;
     P.equityShare = 0.7;
-    P.riskPreset = 'balanced';
-    return P;
+    // The Balanced preset's lenses and spread (FCA 2 / 5 / 8%), not the
+    // workbook's 4 / 7 / 10, so a new plan is not flattered by its growth.
+    return applyRiskPreset(P, 'balanced');
   }
 
   // A plausible, generic example couple for the opt-in "see an example" peek.
@@ -1885,9 +1886,13 @@ export function createEngine() {
   // plain-English portfolios. Applying one sets the lens trio and the
   // simulation's spread together, so the two never disagree.
   const RISK_PRESETS = Object.freeze({
-    cautious:    { label: 'Cautious',    detail: 'About 40% shares',  growthBear: 0.025, growthBase: 0.045, growthBull: 0.065, mcSd: 0.07, equityShare: 0.4 },
-    balanced:    { label: 'Balanced',    detail: 'About 70% shares',  growthBear: 0.04,  growthBase: 0.07,  growthBull: 0.10,  mcSd: 0.12, equityShare: 0.7 },
-    adventurous: { label: 'Adventurous', detail: 'All shares',        growthBear: 0.045, growthBase: 0.08,  growthBull: 0.11,  mcSd: 0.16, equityShare: 1.0 },
+    // Balanced is anchored to the FCA's standardised projection rates for
+    // illustrations (COBS 13 Annex 2: lower 2%, intermediate 5%, higher 8%,
+    // nominal). The old 4 / 7 / 10 compounded a 26-year-old's pot to five
+    // million in today's money by 60 and told them nothing could go wrong.
+    cautious:    { label: 'Cautious',    detail: 'About 40% shares',  growthBear: 0.015, growthBase: 0.035, growthBull: 0.055, mcSd: 0.07, equityShare: 0.4 },
+    balanced:    { label: 'Balanced',    detail: 'About 70% shares',  growthBear: 0.02,  growthBase: 0.05,  growthBull: 0.08,  mcSd: 0.12, equityShare: 0.7 },
+    adventurous: { label: 'Adventurous', detail: 'All shares',        growthBear: 0.025, growthBase: 0.06,  growthBull: 0.09,  mcSd: 0.16, equityShare: 1.0 },
   });
   function applyRiskPreset(P, key) {
     const r = RISK_PRESETS[key];
@@ -2349,6 +2354,11 @@ export function createEngine() {
       // R11 Charges come off every return.
       check('A 0.5% fee lowers wealth at the horizon', drawdown({ ...D, fee: 0.005 }).endWealth < drawdown(D).endWealth ? 0 : 1, 0, 0.1);
       check('Risk preset sets the lens trio and volatility together', applyRiskPreset(D, 'cautious').mcSd, RISK_PRESETS.cautious.mcSd, 0.001);
+      {
+        const Fp = freshStart();
+        check('Fresh plans use the FCA projection rates: Poor 2%, Base 5%, Positive 8%', Fp.growthBear * 100 + Fp.growthBase * 1000 + Fp.growthBull * 10000, 2 + 50 + 800, 0.01);
+        check('…and the Balanced preset says the same', RISK_PRESETS.balanced.growthBase, 0.05, 0.0001);
+      }
       // R12 Stress paths: real returns scaled by the equity share, and a crash-then-flat path.
       const st = stressTests(D);
       check('Crash-then-flat stress path is in the table', st.tests.some(t => /flat/.test(t.label)) ? 0 : 1, 0, 0.1);

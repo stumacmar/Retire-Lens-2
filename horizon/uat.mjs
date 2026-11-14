@@ -253,7 +253,8 @@ await tapFace('someday');
   await check('16d turning the ring by hand changes the value, landing on a whole year', () => after > before && Number.isInteger(after)); }
 await p.waitForFunction(() => /Holds in \d+ of 100 futures/.test(document.querySelector('[data-sentence]')?.textContent || ''), null, { timeout: 15000 }).catch(() => {});
 await check('17 the sentence counts the futures that hold', async () => /Holds in \d+ of 100 futures/.test(await sentence()));
-await check('17a the floor under a real bad history is named', async () => /2008 start/.test(await sentence()));
+await check('17a the floor under the hardest real history is named first', async () => /Japan-1990 start/.test(await sentence()));
+await check('17a2 the floor is stated as a limit, not a boast', async () => /the most that would hold is|only .* a month would hold/.test(await sentence()));
 await check('17e the strands are drawn under the dial', async () => (await p.locator('[data-home] canvas[role="img"]').count()) === 1);
 await p.getByRole('button', { name: 'What would help?' }).click();
 await p.waitForFunction(() => /\+\d+ of 100|Nothing measured/.test(document.querySelector('[role=dialog][aria-label="What would help most"]')?.textContent || ''), null, { timeout: 20000 }).catch(() => {});
@@ -524,7 +525,7 @@ await check('120 free/plus sweep: zero page errors', () => pe.length === 0);
   await p.evaluate(v => localStorage.setItem('horizon-plan-v1', v), JSON.stringify(Y));
   await p.reload({ waitUntil: 'networkidle' }); await wait(900); await acceptDisclaimer(); await wait(3500);
   await check('124 young planner: the stop-age ring reaches 75, not 46', async () => (await p.$eval('[data-home] input[type=range][aria-label="Retire at age"]', e => e.getAttribute('max'))) === '75');
-  await check('125 young planner: stopping at 46 reads as running short at 48', async () => /to 48\b/.test(await answerText()));
+  await check('125 young planner: stopping at 46 reads as running short before 50', async () => /to 4[7-9]\b/.test(await answerText()));
   await check('126 young planner: the futures agree (fewer than 5 in 100 hold)', async () => /Holds in [0-4] of 100/.test(await sentence()));
   await check('127 first use: the ring hint is shown until the ring is turned', async () => (await p.$('[data-home] [data-hint]')) != null);
   await setSlider('Retire at age', 60); await wait(1500);

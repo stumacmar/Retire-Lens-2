@@ -7,6 +7,7 @@ import ArchitectureSection from './Architecture';
 import SchemePensions from './SchemePensions';
 import LivingStandards from './LivingStandards';
 import { standardLine } from '../lib/livingStandards';
+import { longevityLine } from '../lib/longevity';
 import { Locked } from './Plus';
 import { Card, MoneyField, NumField, PctField, TextField, Toggle, Segmented } from './Field';
 import { E, exportPlanJson, importPlanJson } from '../lib/usePlan';
@@ -203,7 +204,7 @@ export default function PlanForm({ plan, update, reset, plus, onUpgrade, issues 
         <NumField label="Retire in year" value={plan.retireYear} min={plan.startYear} max={plan.startYear + 50} onChange={v => update({ retireYear: v })} />
         <MoneyField label="Income you want each year (today's money)" value={plan.targetNet} hint={`Today's money · ${standardLine(plan, plan.targetNet)}`} onChange={v => update({ targetNet: v, spendingPlanOn: false })} />
         <LivingStandards plan={plan} onPick={v => update({ targetNet: v, spendingPlanOn: false })} />
-        <NumField label="Plan through to age" value={plan.horizonAge} min={plan.retireYear - A.birthYear + 1} max={110} onChange={v => update({ horizonAge: v })} />
+        <NumField label="Plan through to age" value={plan.horizonAge} min={plan.retireYear - A.birthYear + 1} max={110} hint={longevityLine(plan)} onChange={v => update({ horizonAge: v })} />
       </Group>,
     });
 

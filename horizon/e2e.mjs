@@ -148,6 +148,15 @@ check('E47b a fresh start spends the Moderate living standard for two (Pensions 
   const d26 = E.drawdown(Y26), m26 = E.runMonteCarlo(Y26, 200, 7);
   check('E47g a 26-year-old stopping at 46 runs short before 50 and the futures agree', d26.holds === false && d26.runsShortAgeA >= 47 && d26.runsShortAgeA <= 49 && m26.successProb < 0.05);
   check('E47h fresh plans grow at the FCA intermediate rate (5%), not 7%', E.freshStart().growthBase === 0.05 && E.freshStart().growthBear === 0.02 && E.freshStart().growthBull === 0.08);
+  // The odds behind the age to plan for: a 41-year-old today has roughly a
+  // one-in-seven chance of seeing 95 and half of them live past the mid-80s;
+  // a couple's chance that one of them is still here is higher than either's.
+  const o95 = E.lifeOdds({ ...Y, horizonAge: 95 }), o85 = E.lifeOdds({ ...Y, horizonAge: 85 });
+  check('E47i life odds: 95 is less likely than 85, and the median is in the 80s', o95.a.reach > 0.05 && o95.a.reach < 0.3 && o85.a.reach > o95.a.reach && o95.a.median >= 80 && o95.a.median <= 89);
+  check('E47j life odds: the couple beats either partner; a single plan has no partner', o95.either > o95.a.reach && o95.either > o95.b.reach && E.lifeOdds({ ...Y, household: 'single' }).b === null);
+  // The futures are weighted by survival from the stop year (conditional on
+  // getting there), so the odds from today can only be lower, never higher.
+  check('E47k life odds: from today, never above the survival the futures are weighted by', (() => { const X = E.prepare(Y); const H = E.householdSurvival(X); const o = E.lifeOdds(Y); return o.endYear === X.endYear && o.either <= H.alive[X.endYear - Y.retireYear] + 1e-9 && o.either > 0.3; })());
 }
 check('E47c living standard of a spend: single Minimum, couple Comfortable', E.livingStandardOf({ ...E.freshStart(), household: 'single' }, 13900) === 'minimum' && E.livingStandardOf(E.freshStart(), 70000) === 'comfortable');
 mono('E48 both partners DB together → bigger guaranteed than one', P => { setA(P, 'db', 10000); setB(P, 'db', 10000); }, 'guarTotal', 1);
@@ -478,6 +487,7 @@ await setField('Income you want each year', 55000);
 await acheck('U74c Details: the typed target wins again', async () => (await plan()).targetNet === 55000);
 await setField('Plan through to age', 92);
 await acheck('U75 Details: horizon age → plan', async () => (await plan()).horizonAge === 92);
+await acheck('U75b Details: the plan age says what it means (half live past …, chance at 92)', async () => /Half of people aged \d+ today live past \d+\. The chance at least one of you is still here at 92 is about \d+%/.test(await p.locator('[data-active]').innerText()));
 
 // ── Drawing and tax ─────────────────────────────────────────────────────
 await goPage('Drawing');

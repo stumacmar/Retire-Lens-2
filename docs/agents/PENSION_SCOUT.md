@@ -31,7 +31,7 @@ in `horizon/src/engine/engine.js`:
   birth year, State Pension age by birth year, defined-benefit schemes with
   public-sector presets, couples taxed as two individuals with a survivor
   phase, thresholds frozen to April 2031 then indexed.
-- `runAssertions` (117 checks) includes "Monte Carlo equals deterministic at
+- `runAssertions` (126 checks) includes "Monte Carlo equals deterministic at
   zero volatility" across thirteen plan shapes. **That invariant is sacred.**
 - The home is the Horizon Dial (`horizon/src/components/dial/`): one ring,
   six groups of inputs, the answer in the middle. Depth lives in the Details,

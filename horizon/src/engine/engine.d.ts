@@ -96,6 +96,7 @@ export interface Engine {
   LIVING_STANDARDS: LivingStandards;
   livingStandards(P: Plan): LivingStandardSet;
   livingStandardOf(P: Plan, net: number): LivingTier | null;
+  lifeOdds(P: Plan, horizonAge?: number): LifeOdds;
   trancheBenefits(P: Plan, who: Partner, t: DbTranche): TrancheBenefits;
   trancheNpa(who: Partner, t: DbTranche): number;
   trancheMinAge(who: Partner, t: DbTranche): number;
@@ -114,6 +115,21 @@ export interface LivingStandards {
   tiers: readonly LivingTier[];
   labels: Record<LivingTier, string>;
   single: LivingStandardSet; couple: LivingStandardSet;
+}
+
+// ── Longevity behind the age to plan for ─────────────────────────────
+export interface PersonOdds {
+  name: string; ageNow: number;
+  reach: number;                 // chance of being here at the start of the horizon-age year
+  median: number;                // the age half of people this age today live past
+  expectedAge: number;           // mean age at death from today
+  at(age: number): number;       // chance of being here at any age
+}
+export interface LifeOdds {
+  horizonAge: number; endYear: number;
+  a: PersonOdds; b: PersonOdds | null;
+  either: number;                // chance at least one partner is here at the plan's end
+  source: string;
 }
 
 // ── Defined-benefit scheme tranches (public sector) ──────────────────

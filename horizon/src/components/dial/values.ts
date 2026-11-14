@@ -1,5 +1,6 @@
 import { fmt, fmtK } from '../../lib/format';
 import { standardLine } from '../../lib/livingStandards';
+import { longevityLine } from '../../lib/longevity';
 
 /**
  * What the ring can drive. Six faces round the bezel, each with up to two
@@ -91,7 +92,9 @@ export function valuesFor(plan: any, side: Side): Record<Face, Val[]> {
       get: () => plan.cash || 0, set: n => ({ cash: n }), text: n => `Cash ${fmt(n)}`, short: fmtK });
     v.later.push(
       { key: 'horizonAge', label: 'Plan to age', min: Math.max(70, retireAge + 1), max: 105, step: 1, detent: () => 1,
-        get: () => plan.horizonAge, set: n => ({ horizonAge: n }), text: n => `Plan to age ${n}`, short: n => `to ${n}` },
+        get: () => plan.horizonAge, set: n => ({ horizonAge: n }), text: n => `Plan to age ${n}`, short: n => `to ${n}`,
+        // The age to plan for is a choice; this is what the choice means.
+        sub: n => longevityLine(plan, n, true) },
       { key: 'shape', label: 'How spending changes', min: 0, max: 2, step: 1, detent: () => 1, options: ['Steady', 'Slow-go', 'Go-go'],
         get: () => (plan.phase2On ? 2 : plan.phase1On ? 1 : 0),
         set: n => (n === 2 ? { phase1On: true, phase2On: true } : n === 1 ? { phase1On: true, phase2On: false } : { phase1On: false, phase2On: false }),

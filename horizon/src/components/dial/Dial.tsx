@@ -460,7 +460,10 @@ function Strands({ plan, dd, mc, viz, width, height, bands, floor, onTap }: {
     // It shares the top line with "stop N", so each is placed clear of the
     // other: the scale on the left, or on the right when you stop soon.
     const stopX = X(plan.retireYear), stopLabel = `stop ${retireAge}`, stopW = g.measureText(stopLabel).width;
-    const scaleLabel = `${fmtK(max / 1.05)} today's money`;
+    // The top of the chart is where the luckiest tenth of simulated futures
+    // peak, not what you have. A bare "£2.27m today's money" up there read
+    // as the size of the pot (the owner, twice), so the label says what it is.
+    const scaleLabel = `lucky futures reach ${fmtK(max / 1.05)}`;
     g.font = '500 10px system-ui, sans-serif'; const scaleW = g.measureText(scaleLabel).width;
     const clash = stopX - stopW / 2 < 4 + scaleW + 8;
     g.font = '500 11px system-ui, sans-serif'; g.fillStyle = dim;
@@ -472,13 +475,14 @@ function Strands({ plan, dd, mc, viz, width, height, bands, floor, onTap }: {
     if (atStop > 0) {
       const sx = X(plan.retireYear), sy = Y(atStop);
       g.textAlign = sx > W * 0.6 ? 'right' : 'left';
-      g.fillText(`${fmtK(atStop)} at ${retireAge}`, sx + (sx > W * 0.6 ? -5 : 5), Math.max(22, sy - 5));
+      g.fillStyle = dim; g.font = '600 11px system-ui, sans-serif';
+      g.fillText(`you have ${fmtK(atStop)} at ${retireAge}`, sx + (sx > W * 0.6 ? -5 : 5), Math.max(22, sy - 5));
     }
   }, [plan, dd, mc, viz, width, height, bands, retireAge]);
   return (
     <div className="relative mt-1.5 shrink-0" style={{ width, height }}>
       <canvas ref={cv} className="block" style={{ width, height }} role="img"
-        aria-label={`What you have from today to ${plan.horizonAge}, in today's money; stopping at ${retireAge}; simulated futures as faint strands${floor != null ? `; the floor under the worst real history is ${fmt(floor)} a month` : ''}`} />
+        aria-label={`What you have from today to ${plan.horizonAge}, in today's money: ${fmtK(viz.atRetire)} on the day you stop at ${retireAge}; simulated futures as faint strands, the luckiest reaching the top of the chart${floor != null ? `; the floor under the worst real history is ${fmt(floor)} a month` : ''}`} />
       <button type="button" onClick={onTap} aria-label={bands ? 'Back to the dial' : 'See the range of futures'} className="absolute inset-0" />
     </div>
   );

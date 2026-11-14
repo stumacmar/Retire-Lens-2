@@ -92,7 +92,11 @@ function Horizon() {
     const base = series(plan, acc, dd);
     const low = series(plan, acc, ddBear);
     const high = series(plan, acc, ddBull);
-    const atRetire = base.find(([y]) => y === plan.retireYear)?.[1] ?? 0;
+    // What you have on the day you stop, in today's money: the pots as the
+    // saving years leave them. (The chart's point for that year is the end
+    // of the first year of retirement, after a year's spending.)
+    const r0: any = acc.atRetirement || {};
+    const atRetire = deflate((r0.pensionA || 0) + (r0.pensionB || 0) + (r0.isaA || 0) + (r0.isaB || 0) + (r0.cash || 0) + (r0.gia || 0), plan.retireYear, plan.startYear, plan.inflation);
     return { base, low, high, atRetire };
   }, [plan, acc, dd, ddBear, ddBull]);
 

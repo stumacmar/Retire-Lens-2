@@ -9,10 +9,12 @@
 
 ## Product / going live
 
-Someday is **free, with an optional paid tier — Someday Plus** — sold through
-Lemon Squeezy (merchant of record) and unlocked with a licence key. No account,
-no backend, no tracking; the only network request the app ever makes is the
-licence check, and only if you buy Plus.
+Someday is **free**. A paid tier, **Someday Plus**, is built in but switched
+off for now (`plusOffered: false` in `product.ts`): everyone has everything and
+the app makes no network request at all. When it is switched on it is sold
+through Lemon Squeezy (merchant of record) and unlocked with a licence key; the
+licence check is then the only request the app ever makes. No account, no
+backend, no tracking.
 
 - `horizon/` — the live app (Vite + React + TypeScript), built by CI into the site root
 - `horizon/src/config/product.ts` — prices, checkout links, licence policy (the one file to edit)
@@ -21,7 +23,7 @@ licence check, and only if you buy Plus.
 - `legal.html` — disclaimer, terms & privacy (fill in the bracketed trader details before charging)
 - **`LAUNCH.md`** — step-by-step go-live checklist (Lemon Squeezy, legal, domain, deploy)
 
-| Free | Plus (£49/yr or £129 lifetime) |
+| Free | Plus (£49/yr or £129 lifetime; not offered while `plusOffered` is false) |
 |---|---|
 | The answer, the Horizon, confidence, what-ifs, spending styles, dates that matter | Adviser-ready PDF report, year-by-year + tax analysis, withdrawal-order comparison, full Coach, advanced pension detail, plan-structure controls, estate & IHT view, each April's tax-year refresh |
 

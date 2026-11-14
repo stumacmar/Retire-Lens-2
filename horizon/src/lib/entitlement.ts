@@ -206,6 +206,7 @@ export function useEntitlementState(): Entitlement {
   // Quiet background re-check when due; also whenever the device comes online.
   // Skipped on a visit that carries a new key to activate.
   useEffect(() => {
+    if (!PRODUCT.plusOffered) return;
     const pendingLink = (() => { try { const u = new URL(window.location.href); return !!(u.searchParams.get('licence') || u.searchParams.get('license')); } catch { return false; } })();
     const check = () => { if (!pendingLink && needsRevalidation(loadLicence())) void refresh(); };
     check();
@@ -215,6 +216,7 @@ export function useEntitlementState(): Entitlement {
 
   // A `?licence=KEY` link (e.g. from the receipt) activates on arrival.
   useEffect(() => {
+    if (!PRODUCT.plusOffered) return;
     try {
       const u = new URL(window.location.href);
       const k = u.searchParams.get('licence') || u.searchParams.get('license');
@@ -244,12 +246,13 @@ export function useEntitlementState(): Entitlement {
     setLicence(null);
   }, []);
 
-  const plus = useMemo(() => isPlus(licence), [licence]);
+  // While Plus is not offered, every device has everything.
+  const plus = useMemo(() => !PRODUCT.plusOffered || isPlus(licence), [licence]);
   return { plus, licence, busy, error, activate, remove, refresh, clearError: () => setError(null) };
 }
 
 export const EntitlementContext = createContext<Entitlement>({
-  plus: false, licence: null, busy: false, error: null,
+  plus: !PRODUCT.plusOffered, licence: null, busy: false, error: null,
   activate: async () => false, remove: async () => {}, refresh: async () => {}, clearError: () => {},
 });
 

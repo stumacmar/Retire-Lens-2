@@ -126,7 +126,7 @@ function Horizon() {
               <path d="M5 33.5h32" stroke="var(--color-calm)" strokeWidth="3.2" strokeLinecap="round" opacity=".5" />
             </svg>
             <span className="flex-1 serif text-[1.35rem] leading-none" style={{ color: 'var(--color-ink)' }}>Someday</span>
-            <PlusPill plus={plus} onClick={openPlus} />
+            {PRODUCT.plusOffered && <PlusPill plus={plus} onClick={openPlus} />}
           </div>
         } />
 
@@ -153,9 +153,11 @@ function Horizon() {
       <Sheet open={sheet === 'peace'} onClose={() => setSheet(null)} title="Peace of mind">
         <PeaceBody plus={plus} onUpgrade={openPlus} plan={plan} mc={mc} />
       </Sheet>
-      <Sheet open={sheet === 'plus'} onClose={() => setSheet(null)} title={PRODUCT.plusName}>
-        <PlusSheetBody />
-      </Sheet>
+      {PRODUCT.plusOffered && (
+        <Sheet open={sheet === 'plus'} onClose={() => setSheet(null)} title={PRODUCT.plusName}>
+          <PlusSheetBody />
+        </Sheet>
+      )}
       <Sheet open={yearSel != null} onClose={() => setYearSel(null)}
              title={yearSel != null ? `${yearSel} · a closer look` : undefined}>
         {yearSel != null && <YearDetail plan={plan} acc={acc} dd={dd} year={yearSel} />}
@@ -889,7 +891,9 @@ function YearTable({ rows }: { rows: YearRow[] }) {
 
 function PeaceBody({ plus, onUpgrade, plan, mc }: { plus: boolean; onUpgrade: () => void; plan: any; mc: MC | null }) {
   const rows = [
-    ['Private by design', 'Every figure stays on this device. Nothing is uploaded, tracked, or shared. The only thing that ever leaves is a Plus licence key, if you buy one.'],
+    ['Private by design', PRODUCT.plusOffered
+      ? 'Every figure stays on this device. Nothing is uploaded, tracked, or shared. The only thing that ever leaves is a Plus licence key, if you buy one.'
+      : 'Every figure stays on this device. Nothing is uploaded, tracked, or shared. Someday makes no network requests at all.'],
     ['One possible future', 'A projection on stated assumptions, tested across 2,000 simulated market histories and shown with its sampling range — a way to think, not a promise.'],
     ['Not financial advice', 'A calm place to explore your own numbers. For decisions, a good adviser is worth their fee.'],
     ['UK-aware', 'State Pension age and minimum pension age from your birth year, ISAs, pensions, tax-free cash, Scottish bands, the survivor’s position after a first death and inheritance tax. UK tax year 2026/27, thresholds frozen to April 2031 then indexed.'],
@@ -913,12 +917,14 @@ function PeaceBody({ plus, onUpgrade, plan, mc }: { plus: boolean; onUpgrade: ()
         </div>
       ))}
       <Assumptions plan={plan} mc={mc} />
-      <button onClick={onUpgrade} className="w-full rounded-2xl p-4 text-left" style={{ background: 'var(--color-canvas)' }}>
-        <div className="font-bold mb-0.5">{plus ? 'Someday Plus is on' : 'Someday Plus'}</div>
-        <div className="text-[0.88rem] leading-relaxed" style={{ color: 'var(--color-ink-dim)' }}>
-          {plus ? 'Manage your licence, or move it to another device.' : 'The adviser-ready report, every year in full, tax compared, advanced detail and the estate picture.'}
-        </div>
-      </button>
+      {PRODUCT.plusOffered && (
+        <button onClick={onUpgrade} className="w-full rounded-2xl p-4 text-left" style={{ background: 'var(--color-canvas)' }}>
+          <div className="font-bold mb-0.5">{plus ? 'Someday Plus is on' : 'Someday Plus'}</div>
+          <div className="text-[0.88rem] leading-relaxed" style={{ color: 'var(--color-ink-dim)' }}>
+            {plus ? 'Manage your licence, or move it to another device.' : 'The adviser-ready report, every year in full, tax compared, advanced detail and the estate picture.'}
+          </div>
+        </button>
+      )}
       <div className="flex flex-col gap-1 pt-1 text-center">
         <a href="story.html" className="py-1.5 text-[0.9rem] font-semibold" style={{ color: 'var(--color-calm-strong)' }}>Why I built this →</a>
         <a href={PRODUCT.legalUrl} className="py-1.5 text-[0.85rem]" style={{ color: 'var(--color-ink-faint)' }}>Terms, disclaimer &amp; privacy →</a>

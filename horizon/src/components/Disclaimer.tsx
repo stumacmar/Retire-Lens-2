@@ -19,7 +19,9 @@ export default function Disclaimer({ onAccept }: { onAccept: () => void }) {
   const rows: [string, string][] = [
     ['Guidance, not advice', 'Someday is an educational planning tool. It is not regulated financial advice and not a personal recommendation.'],
     ['Estimates, not promises', 'Projections rest on assumptions you can change. Real markets, tax rules and your own life will differ.'],
-    ['Private by design', 'Your figures stay on this device. The only thing Someday ever sends anywhere is a Plus licence key, if you buy one.'],
+    ['Private by design', PRODUCT.plusOffered
+      ? 'Your figures stay on this device. The only thing Someday ever sends anywhere is a Plus licence key, if you buy one.'
+      : 'Your figures stay on this device. Someday sends nothing anywhere.'],
     ['For decisions, a person', 'Before acting, talk to an adviser authorised by the Financial Conduct Authority. Bring the report — that is what it is for.'],
   ];
   return (

@@ -1723,6 +1723,38 @@ export function createEngine() {
     return { alive: H, endsIn, beyond: H[nYears], expectedYears: expected };
   }
 
+  // What the same curve says about the age to plan for. For each person
+  // alive today: the chance of still being here at the start of the year
+  // they turn `horizonAge`, and the age half of people their age live past
+  // (the median). For a couple, the chance at least one of them is still
+  // here at the plan's end. This informs the choice of plan age; it never
+  // ends the plan. A chosen death age makes a person's odds 0 or 1.
+  function lifeOdds(P, horizonAge) {
+    const Q = normalisePlan(P);
+    const H = Math.max(1, Math.round(horizonAge != null ? horizonAge : Q.horizonAge));
+    const TO = 120;
+    const one = (who) => {
+      if (!who || who.absent) return null;
+      const ageNow = Q.startYear - who.birthYear;
+      const n = Math.max(1, TO - ageNow);
+      const S = survivalCurve(who, Q.startYear, n);
+      const at = (age) => (age <= ageNow ? 1 : age - ageNow > n ? 0 : S[age - ageNow]);
+      const d = deathAgeOf(who);
+      let median = d != null ? d : null;
+      if (median == null) { for (let i = 0; i <= n; i++) if (S[i] < 0.5) { median = ageNow + i; break; } }
+      let expected = 0;
+      for (let i = 1; i <= n; i++) expected += S[i];
+      return { name: who.name, ageNow, reach: at(H), median, expectedAge: Math.round(ageNow + expected + 0.5), at };
+    };
+    const a = one(Q.partnerA);
+    const b = isSingle(Q) ? null : one(Q.partnerB);
+    // The plan's end: the younger partner's horizon age, or a later death year.
+    const endYear = planEndYear({ ...Q, horizonAge: H });
+    const aliveAtEnd = (o) => (o ? o.at(endYear - (Q.startYear - o.ageNow)) : 0);
+    const either = 1 - (1 - aliveAtEnd(a)) * (1 - (b ? aliveAtEnd(b) : 0));
+    return { horizonAge: H, endYear, a, b, either, source: 'A unisex Gompertz curve fitted to ONS 2020 to 2022 life tables with a modest improvement allowance' };
+  }
+
   // ── Monte Carlo on the whole plan ────────────────────────────────────
   // Every path runs the same year-by-year routine as the plan (runPath),
   // from today: returns are random through the saving years as well as the
@@ -2335,6 +2367,11 @@ export function createEngine() {
       check('MC median end wealth within 20% of the deterministic plan (sequence risk only)', Math.abs(mc.finalP50 / drawdown(D).endWealth - 1) < 0.2 ? 0 : 1, 0, 0.1);
       check('successProb has a standard error', mc.successSe > 0 && mc.successSe < 0.05 ? 0 : 1, 0, 0.1);
       check('Mortality-weighted success is at least the horizon success', mc.successLifetime >= mc.successProb - 1e-9 ? 0 : 1, 0, 0.1);
+      // R7b The odds behind the age to plan for come from the same curve.
+      const lo = lifeOdds({ ...D, horizonAge: 95 }), lo85 = lifeOdds({ ...D, horizonAge: 85 });
+      check('Life odds: the chance of reaching 95 is below the chance of reaching 85, both strictly between 0 and 1', lo.a.reach > 0 && lo.a.reach < lo85.a.reach && lo85.a.reach < 1 ? 0 : 1, 0, 0.1);
+      check('Life odds: the median age a person lives past is between 80 and 92', lo.a.median >= 80 && lo.a.median <= 92 ? 0 : 1, 0, 0.1);
+      check('Life odds: a couple has at least one partner\'s chance of being here at the end; a set death age makes it certain', lo.either >= lo.a.reach - 1e-12 && lifeOdds({ ...D, horizonAge: 90, partnerA: { ...D.partnerA, deathAge: 80 } }).a.reach === 0 ? 0 : 1, 0, 0.1);
       check('Pre-retirement risk: pots at retirement spread P10 < P50 < P90', mc.potsAtRetirementP10 < mc.potsAtRetirementP50 && mc.potsAtRetirementP50 < mc.potsAtRetirementP90 ? 0 : 1, 0, 0.1);
       const archMc = runMonteCarlo({ ...D, architecture: { ...D.architecture, on: true } }, 200, 3);
       check('Structure overlay: success at full spending is below success after cuts', archMc.successProb <= archMc.successProbWithCuts ? 0 : 1, 0, 0.1);
@@ -2411,7 +2448,7 @@ export function createEngine() {
     LIVING_STANDARDS, livingStandards, livingStandardOf,
     levers, STRESS_PATHS, SCOT_BANDS, planEndYear, lumpAfterLsa, fundYear,
     taxFor, spaFor, nmpaFor, spAgeOf, isSingle, normalisePlan, validatePlan, sanitisePlan, migratePlan,
-    RISK_PRESETS, applyRiskPreset, shiftRetirement, mcMeanFor, householdSurvival, prepare, SCHEMA_VERSION,
+    RISK_PRESETS, applyRiskPreset, shiftRetirement, mcMeanFor, householdSurvival, lifeOdds, prepare, SCHEMA_VERSION,
     TAX_YEAR,
   };
 }

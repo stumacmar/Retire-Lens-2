@@ -556,6 +556,15 @@ await check('120 free/plus sweep: zero page errors', () => pe.length === 0);
   await check('135 typing the age writes the birth year (56 → 1970)', async () => (await planOf()).partnerA.birthYear === 1970);
   await check('136 and the stop age ring still works at 56', async () => (await setSlider('Retire at age', 62)) && (await planOf()).retireYear === 2032);
   await check('137 typed age: zero page errors', () => pe.length === 0);
+
+  // ── The age to plan for says what it means ───────────────────────────
+  // A 56-year-old couple planning to 90: the dial shows the odds under the
+  // needle, read from the same mortality curve that weights the futures.
+  await p.locator('[data-home] input[type=range][aria-label="Plan to age"]').focus(); await wait(500);
+  await check('138 plan-to-age shows the odds (half live past …)', () => has('Half live past'));
+  await check('139 … and the chance one of the couple is here at the plan age', async () => /\d+% one of you at 90/.test(await p.$eval('body', e => e.innerText)));
+  await check('140 the odds agree with the engine', async () => { const o = E.lifeOdds(await planOf()); return has(`Half live past ${o.a.median}`) && has(`${Math.round(o.either * 100)}% one of you at 90`); });
+  await check('141 longevity: zero page errors', () => pe.length === 0);
 }
 
 console.log(`\n═══ Horizon UAT: ${pass}/${pass + fail} passed ═══`);

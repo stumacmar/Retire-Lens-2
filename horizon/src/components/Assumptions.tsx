@@ -2,6 +2,7 @@ import { E } from '../lib/usePlan';
 import { fmt, pct } from '../lib/format';
 import Accordion from './Accordion';
 import { LS, standardsFor, standardLine, whoText } from '../lib/livingStandards';
+import { lifeOdds, longevityLine } from '../lib/longevity';
 
 /**
  * Every assumption behind the numbers, generated from the plan and the engine
@@ -33,6 +34,7 @@ export default function Assumptions({ plan, mc }: { plan: any; mc: any }) {
   add('Inflation', `${pct(plan.inflation, 1)} a year, applied to spending, State Pensions and indexed pensions.`);
   add('Range of futures', `${(mc?.nPaths || 2000).toLocaleString()} simulated market histories from today, through the saving years as well as the spending years. Returns are drawn each year from a normal distribution with standard deviation ${pct(plan.mcSd, 1)} and an arithmetic mean set so the median path compounds at the chosen lens rate (${pct(plan.growthBase, 1)} under Base: mean ${pct((mc && mc.mcMean) != null ? mc.mcMean : plan.growthBase + plan.mcSd * plan.mcSd / 2, 2)} before charges); seed ${plan.mcSeed || 42} so the result repeats. Every path funds each year exactly as the central plan does. Confidence is the share of paths that paid the full planned spending every year, shown with its sampling range; a second figure weights each path by the chance the household is still here (a unisex Gompertz mortality curve fitted to ONS tables), which is the chance the money outlives you. No fat tails, no return-to-mean.`);
   add('Spending', `${fmt(plan.targetNet)} a year net${plan.phase1On ? `, easing ${pct(plan.phase1Cut, 0)} from ${plan.phase1Age}` : ''}${plan.phase2On ? `, ${pct(plan.phase2Cut, 0)} in total from ${plan.phase2Age}` : ''}. Planned to age ${plan.horizonAge} of the younger partner (${(E as any).planEndYear(plan)}), with both partners’ incomes and spending running to the end.`);
+  add('Longevity', `${longevityLine(plan)} ${lifeOdds(plan).source}; unisex, so it sits between the ONS figures for men and women. The plan always runs to the age you chose: these odds inform the choice and never end the plan.`);
   {
     const S = standardsFor(plan);
     add('Living standards', `${standardLine(plan, plan.targetNet)}. Pensions UK Retirement Living Standards, ${LS.asOf} edition, for ${whoText(plan)}: Minimum ${fmt(S.minimum)}, Moderate ${fmt(S.moderate)}, Comfortable ${fmt(S.comfortable)} a year after tax, with the home owned outright (renters and those still paying a mortgage need more). A reference, not a recommendation.`);

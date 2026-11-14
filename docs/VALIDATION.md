@@ -89,5 +89,6 @@ assertions live and lists every rule with its source.
 
 | Date | Engine | Change |
 |---|---|---|
+| 2026-11-14 | 2026.11.14 | Release 3 of the audit work (results screen, audit §5B–C): the home states the plan's status in words with the income it can support, the gap to the ask and the age tested to, with the caveat beside it (`lib/status.ts`, spec §3.4); "What could go wrong?" layered risk panel; the levers quote the same headline figure as the home; chart labels no longer overlap. **Defect fixed**: release 1 put the engine's self-checks on the report's render path (a quarter of a second on every turn of the ring); they now run once per session in idle time (`lib/selfCheck.ts`), with a UAT timing check (83b) so it cannot return |
 | 2026-11-14 | 2026.11.14 | Release 2 of the audit work: the decision map as a table (F-05), axe-core WCAG 2.2 AA gate in the UAT, the contrast, zoom, focus and landmark fixes it found (`--color-on-calm` token) |
 | 2026-11-14 | 2026.11.14 | Record created. F-01, F-04, F-06, F-07 fixed; F-02, F-03 confirmed historical; `verify.mjs` added to CI; `ENGINE_VERSION`, `TAX_RULES`, `shortAgeP10/P5`, golden boundary assertions (134 total); "How we checked" in Peace; versions in the report; save status in Details |

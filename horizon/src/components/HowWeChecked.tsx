@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { E } from '../lib/usePlan';
+import { selfCheck } from '../lib/selfCheck';
 import Accordion from './Accordion';
 
 /**
@@ -10,9 +11,8 @@ import Accordion from './Accordion';
  * record a user can read, not a badge.
  */
 export default function HowWeChecked() {
-  const res = useMemo(() => {
-    try { return (E as any).runAssertions() as { name: string; pass: boolean; got: number; want: number }[]; } catch { return []; }
-  }, []);
+  // Run once per session and remembered (lib/selfCheck): never on a render path.
+  const res = useMemo(() => selfCheck(), []);
   const [showAll, setShowAll] = useState(false);
   const passed = res.filter(r => r.pass).length;
   const failed = res.filter(r => !r.pass);

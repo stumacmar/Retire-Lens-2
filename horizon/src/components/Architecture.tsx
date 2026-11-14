@@ -29,7 +29,7 @@ export default function ArchitectureSection({ plan, update }: { plan: any; updat
         </p>
         {!on && (
           <button onClick={() => set(ARCH_PRESET)}
-            className="w-full rounded-2xl py-3 font-bold text-[0.95rem] text-[var(--color-ink)] active:scale-[0.98] transition-transform"
+            className="w-full rounded-2xl py-3 font-bold text-[0.95rem] text-[var(--color-on-calm)] active:scale-[0.98] transition-transform"
             style={{ background: 'var(--color-calm)' }}>
             Set up the standard architecture
           </button>

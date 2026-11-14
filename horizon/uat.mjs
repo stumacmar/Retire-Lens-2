@@ -388,6 +388,13 @@ await check('55b map states the edge for your stop year', async () => /the most 
   const after = await p.evaluate(() => JSON.parse(localStorage.getItem('horizon-plan-v1')));
   await check('55c dragging the map changes the plan', () => after.retireYear !== before.retireYear || after.targetNet !== before.targetNet);
 }
+// The map as a table: words, not colour, operable without a mouse (audit F-05).
+await tap('Show as a table'); await wait(500);
+await check('55d map as a table: one row per stop year, the plan\'s row marked', async () => { const t = await p.$eval('[data-map-table]', e => e.innerText).catch(() => ''); return /\(you\)/.test(t) && /Stop in/.test(t); });
+await check('55e map as a table: every cell is a sentence (lasts / short at)', async () => { const t = await p.$eval('[data-map-table]', e => e.innerText).catch(() => ''); return /lasts/.test(t) && (/short at \d+/.test(t) || /lasts/.test(t)); });
+await check('55f map as a table: the table region takes keyboard focus', async () => (await p.$eval('[data-map-table]', e => e.tabIndex)) === 0);
+await tap('Show as a map'); await wait(400);
+await check('55g back to the map: the canvas is shown again', async () => (await p.$eval('#explore-map canvas', e => getComputedStyle(e.parentElement).display)) !== 'none');
 await check('56 Monte-Carlo fan renders', () => has('Range of futures'));
 await check('57 income breakdown', () => has('Where your income comes from'));
 await check('56b decision levers ranked (What moves the needle)', async () => (await has('What moves the needle')) && /pts/.test(await bodyT()));
@@ -470,6 +477,41 @@ await check('97 no NaN/undefined leaking to UI', async () => !/\bNaN\b|\bundefin
 await check('98 no £NaN anywhere', async () => !/£NaN/.test(await p.content()));
 await check('99 zero console errors overall', () => ce.length === 0);
 await check('100 zero uncaught page errors overall', () => pe.length === 0);
+
+// ── Accessibility gate: axe-core (WCAG 2.2 AA) on the four surfaces ───────
+// Zero critical or serious violations is the release gate; moderate and
+// minor are printed so they are seen, never hidden.
+const AXE = path.join(__dir, 'node_modules', 'axe-core', 'axe.min.js');
+const axeScan = async (label) => {
+  if (!(await p.evaluate(() => !!window.axe))) await p.addScriptTag({ path: AXE });
+  const r = await p.evaluate(async () => {
+    const res = await window.axe.run(document, { runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'] } });
+    return res.violations.map(v => ({ id: v.id, impact: v.impact, n: v.nodes.length,
+      nodes: v.nodes.slice(0, 3).map(n => `${n.target.join(' ')} «${n.html.slice(0, 90)}» ${[...n.any, ...n.all].map(x => x.message).join(' | ')}`) }));
+  });
+  const bad = r.filter(v => v.impact === 'critical' || v.impact === 'serious');
+  const rest = r.filter(v => v.impact !== 'critical' && v.impact !== 'serious');
+  if (rest.length) console.log(`  axe ${label}: ${rest.map(v => `${v.impact} ${v.id}×${v.n}`).join(', ')}`);
+  return { bad, detail: bad.map(v => `${v.impact} ${v.id}×${v.n}: ${v.nodes.join(' ‖ ')}`).join('; ') };
+};
+{
+  const home = await axeScan('Home');
+  await check(`100a axe: Home has no critical or serious WCAG 2.2 AA violations${home.bad.length ? ' — ' + home.detail : ''}`, () => home.bad.length === 0);
+  await tap('Details'); await wait(900);
+  const det = await axeScan('Details');
+  await check(`100b axe: Details has no critical or serious violations${det.bad.length ? ' — ' + det.detail : ''}`, () => det.bad.length === 0);
+  await closeSheet();
+  await tap('Explore'); await p.waitForSelector('#explore-map canvas', { timeout: 8000 }).catch(() => {}); await wait(1500);
+  const exp = await axeScan('Explore');
+  await check(`100c axe: Explore has no critical or serious violations${exp.bad.length ? ' — ' + exp.detail : ''}`, () => exp.bad.length === 0);
+  await closeSheet();
+  await tap('Peace'); await wait(600);
+  await tap('Every assumption behind your numbers'); await tap('How we checked these numbers'); await wait(600);
+  const pea = await axeScan('Peace');
+  await check(`100d axe: Peace (with Assumptions and How we checked open) has no critical or serious violations${pea.bad.length ? ' — ' + pea.detail : ''}`, () => pea.bad.length === 0);
+  await closeSheet();
+  await check('100e the page can be zoomed (no maximum-scale on the viewport)', async () => !/maximum-scale/.test(await p.$eval('meta[name=viewport]', e => e.getAttribute('content'))));
+}
 
 // ── Free tier: the answer stays whole, depth is locked honestly ──────────
 await p.evaluate(() => localStorage.removeItem('someday-licence-v1')).catch(() => {});

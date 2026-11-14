@@ -42,7 +42,7 @@ export function Locked({ title, line, onUpgrade, preview, compact }: {
         </div>
         <p className="mt-1 text-[0.82rem] leading-relaxed" style={{ color: 'var(--color-ink-dim)' }}>{line}</p>
         <button onClick={onUpgrade}
-          className="mt-3 rounded-2xl px-4 py-2.5 text-[0.86rem] font-bold text-white active:scale-[0.98] transition-transform"
+          className="mt-3 rounded-2xl px-4 py-2.5 text-[0.86rem] font-bold text-[var(--color-on-calm)] active:scale-[0.98] transition-transform"
           style={{ background: 'var(--color-calm)' }}>
           See what Plus adds
         </button>
@@ -76,7 +76,7 @@ function PlanCard({ id, onPick }: { id: PlanId; onPick: (url: string) => void })
       </div>
       <p className="mt-1 text-[0.78rem] leading-relaxed flex-1" style={{ color: 'var(--color-ink-dim)' }}>{p.blurb}</p>
       <button disabled={!url} onClick={() => url && onPick(url)}
-        className="mt-3 w-full rounded-2xl py-2.5 text-[0.86rem] font-bold text-white active:scale-[0.98] transition-transform disabled:opacity-50"
+        className="mt-3 w-full rounded-2xl py-2.5 text-[0.86rem] font-bold text-[var(--color-on-calm)] active:scale-[0.98] transition-transform disabled:opacity-50"
         style={{ background: featured ? 'var(--color-calm)' : 'var(--color-ink-dim)' }}>
         {url ? `Get ${p.label.toLowerCase()}` : 'Coming soon'}
       </button>
@@ -165,7 +165,7 @@ export function PlusSheetBody() {
               className="w-full rounded-2xl px-4 h-[52px] text-[0.98rem] font-semibold outline-none tnum"
               style={{ background: 'var(--color-canvas)', border: '1px solid var(--color-hairline)' }} />
             <button onClick={() => void submit()} disabled={ent.busy || !key.trim()}
-              className="mt-2 w-full rounded-2xl py-3 font-bold text-white disabled:opacity-50 active:scale-[0.98] transition-transform"
+              className="mt-2 w-full rounded-2xl py-3 font-bold text-[var(--color-on-calm)] disabled:opacity-50 active:scale-[0.98] transition-transform"
               style={{ background: 'var(--color-calm)' }}>
               {ent.busy ? 'Checking…' : 'Activate on this device'}
             </button>

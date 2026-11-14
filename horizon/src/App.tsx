@@ -115,7 +115,7 @@ function Horizon() {
 
 
   return (
-    <div className="min-h-full">
+    <main className="min-h-full">
 
       {/* The home: the Horizon Dial — one ring, six groups, the answer in the middle. */}
       <Dial plan={plan} update={update} dd={dd} mc={mc} mcPending={S.mcPending} viz={viz} plus={plus} onUpgrade={openPlus} onDetails={() => setSheet('details')}
@@ -166,7 +166,7 @@ function Horizon() {
 
       {/* Print-only report — a fuller, adviser-ready PDF via the browser's Save as PDF. Plus. */}
       {plus && <PrintReport plan={plan} acc={acc} dd={dd} mc={mc} estate={estate} />}
-    </div>
+    </main>
   );
 }
 
@@ -663,7 +663,7 @@ function Guardrails({ plan }: { plan: any }) {
           {list.map(r => { const v = r.year / 12, ok = month <= v + 0.5; return (
             <div key={r.key}>
               <div className="flex justify-between text-[0.76rem]" style={{ color: 'var(--color-ink-dim)' }}>
-                <span>{r.label}</span><b className="tnum" style={{ color: ok ? 'var(--color-calm-strong)' : 'var(--color-dusk)' }}>{fmt(v)}</b>
+                <span>{r.label}</span><b className="tnum" style={{ color: ok ? 'var(--color-calm-strong)' : 'var(--color-ink-faint)' }}>{fmt(v)}</b>
               </div>
               <div className="h-[5px] rounded mt-[3px]" style={{ background: 'var(--color-hairline)' }}>
                 <div className="h-full rounded" style={{ width: `${(v / max * 100).toFixed(1)}%`, background: ok ? 'var(--color-calm-strong)' : 'var(--color-dusk)', opacity: 0.75 }} />
@@ -831,7 +831,7 @@ function DbTiming({ plan, plus, onUpgrade }: { plan: any; plus: boolean; onUpgra
                 {best && best.age !== c.tranche.takeAge && <> On these figures, taking it at <b>{best.age}</b> leaves the most behind at {plan.horizonAge}.</>}
               </p>
             </div>
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto" tabIndex={0} role="region" aria-label="Scheme pension timing table, scrolls sideways">
               <table className="w-full text-[0.74rem]" style={{ borderCollapse: 'collapse', minWidth: 360 }}>
                 <thead><tr style={{ color: 'var(--color-ink-faint)' }}>
                   <th className="text-left font-semibold pl-4 pr-1 py-1.5">Age</th>
@@ -869,7 +869,7 @@ function DbTiming({ plan, plus, onUpgrade }: { plan: any; plus: boolean; onUpgra
 type YearRow = { year: number; age: string | number; start: number; drawn: number; ret: number; tax: number; closing: number };
 function YearTable({ rows }: { rows: YearRow[] }) {
   return (
-    <div className="mt-2 overflow-x-auto rounded-2xl" style={{ background: 'var(--color-canvas)' }}>
+    <div className="mt-2 overflow-x-auto rounded-2xl" tabIndex={0} role="region" aria-label="Year by year table, scrolls sideways" style={{ background: 'var(--color-canvas)' }}>
       <table className="w-full text-[0.72rem]" style={{ borderCollapse: 'collapse', minWidth: 348 }}>
         <thead>
           <tr style={{ color: 'var(--color-ink-faint)' }}>
@@ -911,7 +911,7 @@ function PeaceBody({ plus, onUpgrade, plan, mc }: { plus: boolean; onUpgrade: ()
   return (
     <div className="space-y-3 pb-2">
       <button onClick={() => plus ? window.print() : onUpgrade()}
-        className="flex items-center justify-center gap-2 w-full rounded-2xl py-3.5 font-bold text-[var(--color-ink)] active:scale-[0.98] transition-transform"
+        className="flex items-center justify-center gap-2 w-full rounded-2xl py-3.5 font-bold text-[var(--color-on-calm)] active:scale-[0.98] transition-transform"
         style={{ background: 'var(--color-calm)' }}>
         {plus ? <Download size={18} /> : <Sparkles size={18} />} Save the full report (PDF){plus ? '' : ' · Plus'}
       </button>

@@ -16,6 +16,7 @@
 
   --color-calm: #2563EB;        /* blue — primary / interactive */
   --color-calm-strong: #1D4ED8;   /* 6.3:1 on white */
+  --color-on-calm: #FFFFFF;     /* text on a solid calm button: 5.2:1 */
   --color-hope: #B45309;        /* amber — gentle concern, never alarm (4.6:1) */
   --color-sage: #16A34A;        /* green — confidence, positive states */
   --color-sage-strong: #15803D;   /* 4.6:1 on the card surface */
@@ -47,6 +48,7 @@
 
     --color-calm: #38BDF8;
     --color-calm-strong: #7DD3FC;   /* lighter for contrast on dark */
+    --color-on-calm: #0B0F14;       /* dark ink on the light-blue button: 10:1 */
     --color-hope: #FB923C;
     --color-sage: #34D399;
     --color-sage-strong: #6EE7B7;

@@ -116,7 +116,7 @@ export default function Carousel({ pages, index, onIndex, footer, railBg = 'var(
               className="shrink-0 rounded-full px-3 py-1.5 text-[0.76rem] font-semibold whitespace-nowrap transition-colors"
               style={{
                 background: n === i ? 'var(--color-calm)' : 'var(--color-canvas)',
-                color: n === i ? 'var(--color-ink)' : 'var(--color-ink-dim)',
+                color: n === i ? 'var(--color-on-calm)' : 'var(--color-ink-dim)',
                 border: '1px solid ' + (n === i ? 'var(--color-calm)' : 'var(--color-hairline)'),
               }}>
               {p.title}

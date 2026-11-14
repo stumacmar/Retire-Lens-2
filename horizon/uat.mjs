@@ -712,6 +712,13 @@ await check('120 free/plus sweep: zero page errors', () => pe.length === 0);
   await check('145 the gap to what you ask is one plain sentence', async () => /You ask for £5,000: £[\d,]+ a month (more|to spare)\./.test(await answer()));
   await check('146 the futures count carries its caveat', async () => /holds in \d+ of 100 simulated futures\. An estimate in today's money, not a guarantee\./.test(await answer()));
   await check('147 exactly three things to change', async () => (await p.locator('[data-simple-home] [data-driver]').count()) === 3);
+  // The answer says what it is counting, so nobody has to wonder whether a partner is in.
+  await check('147b the answer says who and what it counts, straight from the plan', async () => {
+    const q = await planOf(); const t = (await p.$eval('[data-counts]', e => e.innerText)).replace(/\s+/g, ' ');
+    const k = v => v >= 1e6 ? '£' + (v / 1e6).toFixed(2).replace(/\.?0+$/, '') + 'm' : '£' + Math.round(v / 1e3) + 'k';
+    return t.startsWith('Counts you and your partner: ') && t.includes(`${k(q.partnerA.pension + q.partnerB.pension)} in pensions`)
+      && t.includes(`${k(q.partnerA.isa + q.partnerB.isa + (q.cash || 0))} in ISAs and cash`)
+      && t.includes(`${k(q.partnerA.spAmount + q.partnerB.spAmount + q.partnerA.db + q.partnerB.db)} a year guaranteed`); });
   await p.getByRole('button', { name: 'Stop work at: a year later' }).click(); await wait(500);
   await check('148 one tap: stop a year later', async () => (await planOf()).retireYear === 2031);
   await p.getByRole('button', { name: 'Take home: £100 a month less' }).click(); await wait(500);
@@ -744,6 +751,11 @@ await check('120 free/plus sweep: zero page errors', () => pe.length === 0);
   await check('158 the two questions sit above the tab bar without scrolling', async () => p.evaluate(() => {
     const nav = document.querySelector('nav').getBoundingClientRect(); const b = [...document.querySelectorAll('[data-simple-home] button')].find(x => /What could go wrong/.test(x.textContent)).getBoundingClientRect();
     return b.bottom <= nav.top; }));
+  await p.locator('[data-counts] button').click(); await wait(700);
+  await check('158b "Check or change in Details" opens Details', () => sheetOpen());
+  await goPage('Your guaranteed income');
+  await check('158c the guaranteed-income field says annuity', async () => /Annuity, company or final-salary pension a year/.test(await bodyT()));
+  await closeSheet();
   await p.locator('[data-home-switch]').click(); await wait(700);
   await check('159 the dial is one tap away', async () => (await p.$('[data-home]')) != null && (await p.$('[data-simple-home]')) == null);
   await p.reload({ waitUntil: 'networkidle' }); await wait(900);

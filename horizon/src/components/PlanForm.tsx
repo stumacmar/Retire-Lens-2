@@ -125,7 +125,8 @@ function Promised({ plan, who, set, adv }: { plan: any; who: any; set: (patch: a
         <NumField label={`State Pension age (${(E as any).spaFor(who.birthYear)} for a ${who.birthYear} birth; change only if you know otherwise)`}
           value={(E as any).spAgeOf(who)} min={60} max={75} onChange={v => set({ spAge: v === (E as any).spaFor(who.birthYear) ? 0 : v })} />
         <MoneyField label="State Pension a year (today's money; full new rate £12,548)" value={who.spAmount} onChange={v => set({ spAmount: v })} />
-        <MoneyField label="Company or final-salary pension a year (defined benefit)" value={who.db}
+        {/* An annuity belongs here too: a fixed income for life, whoever pays it. */}
+        <MoneyField label="Annuity, company or final-salary pension a year (guaranteed for life)" value={who.db}
           onChange={v => set({ db: v, dbStartYear: v > 0 && !(who.db > 0) ? plan.retireYear : who.dbStartYear })} />
         {who.db > 0 && <>
           <NumField label="…starts in (year)" value={who.dbStartYear} min={plan.startYear} max={plan.startYear + 60} onChange={v => set({ dbStartYear: v })} />

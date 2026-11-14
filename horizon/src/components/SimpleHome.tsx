@@ -14,13 +14,19 @@ import RiskPanel from './RiskPanel';
 import YearsStrip from './YearsStrip';
 
 /**
- * The simple home: the answer first, in words and one figure, then the three
- * things most people change, each one tap away. Nothing to learn.
+ * The simple home: the answer first, in words, one figure and one picture,
+ * then the three things most people change, each one tap away. Nothing to
+ * learn.
  *
- *   Not yet funded
- *   £4,600 a month is what your plan can support to age 90.
- *   You ask for £5,000, which is £400 a month more.
- *   Holds in 31 of 100 simulated futures. An estimate, not a guarantee.
+ *   ● Enough on average, not safe yet
+ *   £5,600
+ *   a month after tax, every year to age 90.
+ *   You ask for £5,000: £600 a month to spare.
+ *
+ *   Futures still paying in full            69 of 100 at 90
+ *   ▮▮▮▮▮▮▮▮▮▮▮▮▮▮▮▮▮▮▮▮▮▮▮▯▯▯▯▯▯▯▯      (the years strip)
+ *   60          First shortfalls at 71                  90
+ *   What you ask holds in 69 of 100 simulated futures. An estimate…
  *
  *   Stop work at      −  60  +
  *   Take home a month −  £5,000  +

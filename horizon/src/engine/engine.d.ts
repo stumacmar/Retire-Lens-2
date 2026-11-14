@@ -67,6 +67,8 @@ export interface MC {
   nPaths: number; medianTrim: number;
   tracks: number[][];
   perAgeSolvency: { age: number; p: number }[];
+  /** Share of futures paid every year up to and including this age: in full, and with the written rules. Ends on successProb / successProbWithCuts. */
+  perAgeHeld: { age: number; full: number; rules: number }[];
   [k: string]: any;
 }
 export interface Engine {

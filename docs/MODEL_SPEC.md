@@ -166,6 +166,12 @@ supporting exactly the ask, or more, could read "Not yet funded"; and a
 structured plan kept solvent by cutting spending to 75% was credited with
 supporting the uncut figure. Both are covered by `e2e150.mjs`.
 
+Above that sentence the simple home draws the **years strip**: one bar for
+every year from stopping to the plan's end, as tall as the number of simulated
+futures still paying that year (`perAgeHeld`, §9). A plain plan shows futures
+paid in full; a structured plan shows two layers, paid in full and still paying
+once its rules have trimmed. The last bar is the count in the sentence.
+
 The share of futures and the caveat ("an estimate, not a guarantee") sit in the
 same sentence. "What could go wrong?" lists the supportable income under the
 central case, a poor run (the Poor lens), three real histories replayed from
@@ -259,7 +265,12 @@ own quote takes precedence.
   `successProbWithCuts`, `successLifetime`, `confidenceAge` (first age at
   which fewer than 85% of paths are still solvent), `shortAgeP10` /
   `shortAgeP5` (the age by which one future in ten / twenty has run short),
-  `finalP10/50/90`, per-age solvency, sixty charted tracks.
+  `finalP10/50/90`, per-age solvency, sixty charted tracks, and
+  `perAgeHeld`: for each year after work stops, the share of futures paid
+  every year up to and including that one, in full (`full`, the same test as
+  `successProb`) and once the written rules have trimmed (`rules`, the same
+  test as `successProbWithCuts`). It never rises and its last entry equals
+  those two shares exactly. The home screen's years strip draws it.
 * **What the range covers**: the sampling range shown in the app
   (±2 standard errors) covers the randomness of the simulation **only**. It
   does not cover parameter uncertainty (are the growth, inflation and charge

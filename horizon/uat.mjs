@@ -290,6 +290,14 @@ await p.waitForFunction(() => document.querySelectorAll('[role=dialog][aria-labe
 }
 await p.getByRole('button', { name: 'Close' }).click(); await wait(400);
 await check('17e the strands are drawn under the dial', async () => (await p.locator('[data-home] canvas[role="img"]').count()) === 1);
+// The chart says what you have on the day you stop, and never presents the
+// top of its scale (where lucky futures peak) as the size of the pot.
+await check('17e2 the chart states the pot on the day you stop, and it agrees with the engine', async () => {
+  const q = await planOf(); const lab = await p.locator('[data-home] canvas[role="img"]').getAttribute('aria-label');
+  const acc = E.accumulate({ ...q, growth: q.growthBase }, q.growthBase).atRetirement;
+  const v = (acc.pensionA + acc.pensionB + acc.isaA + acc.isaB + (acc.cash || 0) + (acc.gia || 0)) / Math.pow(1 + q.inflation, q.retireYear - q.startYear);
+  const k = v >= 1e6 ? '£' + (v / 1e6).toFixed(2).replace(/\.?0+$/, '') + 'm' : '£' + Math.round(v / 1e3) + 'k';
+  return lab.includes(`${k} on the day you stop`) && /the luckiest reaching the top of the chart/.test(lab); });
 await p.getByRole('button', { name: 'What would help?' }).click();
 await p.waitForFunction(() => /\+\d+ of 100|Nothing measured/.test(document.querySelector('[role=dialog][aria-label="What would help most"]')?.textContent || ''), null, { timeout: 20000 }).catch(() => {});
 await check('17f the levers tray measures what would help', async () => /\+\d+ of 100|Nothing measured/.test(await p.locator('[role=dialog][aria-label="What would help most"]').innerText()));

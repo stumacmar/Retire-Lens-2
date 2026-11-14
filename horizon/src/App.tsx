@@ -17,6 +17,7 @@ import { Segmented } from './components/Field';
 import Disclaimer, { disclaimerAccepted } from './components/Disclaimer';
 import Dates from './components/Dates';
 import Assumptions from './components/Assumptions';
+import HowWeChecked from './components/HowWeChecked';
 import { PlusPill, Locked, PlusSheetBody } from './components/Plus';
 import { EntitlementContext, useEntitlement, useEntitlementState } from './lib/entitlement';
 import { PRODUCT } from './config/product';
@@ -145,7 +146,7 @@ function Horizon() {
 
       <Sheet open={sheet === 'details'} onClose={() => setSheet(null)} title="Your details">
         <DetailsBody plan={plan} update={update} reset={resetAll} plus={plus} onUpgrade={openPlus} issues={S.issues}
-          index={detailsPage} onIndex={setDetailsPage} />
+          index={detailsPage} onIndex={setDetailsPage} saved={S.saved} />
       </Sheet>
       <Sheet open={sheet === 'explore'} onClose={() => setSheet(null)} title="Explore">
         <ExploreBody plan={planL} dd={dd} estate={estate} mc={mc} plus={plus} onUpgrade={openPlus} update={update} />
@@ -186,16 +187,17 @@ function TabButton({ icon, label, active, onClick }: { icon: React.ReactNode; la
 
 // Your details — every figure the plan can hold, page by page. The home
 // carries the six pieces most people need; this is where everything else lives.
-function DetailsBody({ plan, update, reset, plus, onUpgrade, issues = [], index, onIndex }: {
+function DetailsBody({ plan, update, reset, plus, onUpgrade, issues = [], index, onIndex, saved }: {
   plan: any; update: (p: any) => void; reset: () => void; plus: boolean; onUpgrade: () => void;
   issues?: { path: string; message: string; level: string }[];
   index: number; onIndex: (i: number) => void;
+  saved?: { at: number | null; error: string | null };
 }) {
   // A new page starts at its top, not wherever the last one was scrolled to.
   useEffect(() => { document.querySelector('[data-sheet-scroll]')?.scrollTo({ top: 0 }); }, [index]);
   return (
     <PlanForm plan={plan} update={update} reset={reset} plus={plus} onUpgrade={onUpgrade}
-      issues={issues} index={index} onIndex={onIndex} />
+      issues={issues} index={index} onIndex={onIndex} saved={saved} />
   );
 }
 // One year, up close — the bottom-sheet drill-down behind a tap on the horizon.
@@ -420,8 +422,15 @@ function ExploreBody({ plan, dd, estate, mc, plus, onUpgrade, update }: { plan: 
           </div>
           <p className="text-[0.72rem] mt-2 text-center" style={{ color: 'var(--color-ink-dim)' }}>
             Wealth left at {plan.horizonAge} (today's money). Confidence stays above {pct(mc.threshold ?? 0.85, 0)} until age <b className="tnum">{mc.confidenceAge}</b>.
-            {' '}Sampling range {confText(mc).range}. Weighted by how long you are likely to be here, the money outlives you in about <b className="tnum">{Math.round(mc.successLifetime * 100)}%</b> of futures.
+            {' '}Weighted by how long you are likely to be here, the money outlives you in about <b className="tnum">{Math.round(mc.successLifetime * 100)}%</b> of futures.
             {mc.successProbWithCuts > mc.successProb + 0.005 && <> With the written rules trimming spending, {Math.round(mc.successProbWithCuts * 100)}% stay solvent.</>}
+          </p>
+          {/* The bad tail in plain words, and what the range does and does not cover. */}
+          <p data-tail className="text-[0.8rem] mt-2 leading-relaxed rounded-xl px-3 py-2" style={{ background: 'var(--color-surface)', color: 'var(--color-ink)' }}>
+            {mc.shortAgeP10 != null
+              ? <>In the unluckiest <b>1 in 10</b> futures the money has run short by age <b className="tnum">{mc.shortAgeP10}</b>{mc.shortAgeP5 != null && mc.shortAgeP5 !== mc.shortAgeP10 ? <>; in the unluckiest 1 in 20, by <b className="tnum">{mc.shortAgeP5}</b></> : null}. "Runs short" means a year not paid in full, not merely a smaller pot.</>
+              : <>Even the unluckiest <b>1 in 10</b> futures pay every year in full to {plan.horizonAge}{mc.shortAgeP5 != null ? <>; the unluckiest 1 in 20 run short by <b className="tnum">{mc.shortAgeP5}</b></> : null}.</>}
+            {' '}<span style={{ color: 'var(--color-ink-dim)' }}>The {confText(mc).range} range is sampling error on {mc.nPaths.toLocaleString()} paths only. It says nothing about whether the growth, inflation, charge or tax assumptions are right, and those matter more.</span>
           </p>
         </div>
       )}
@@ -917,6 +926,7 @@ function PeaceBody({ plus, onUpgrade, plan, mc }: { plus: boolean; onUpgrade: ()
         </div>
       ))}
       <Assumptions plan={plan} mc={mc} />
+      <HowWeChecked />
       {PRODUCT.plusOffered && (
         <button onClick={onUpgrade} className="w-full rounded-2xl p-4 text-left" style={{ background: 'var(--color-canvas)' }}>
           <div className="font-bold mb-0.5">{plus ? 'Someday Plus is on' : 'Someday Plus'}</div>

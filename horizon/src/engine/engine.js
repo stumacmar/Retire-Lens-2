@@ -20,6 +20,31 @@ export function createEngine() {
   // to April 2031 (Autumn Budget 2025). Review every April: TAX_YEAR below
   // is what the app and the report display.
   const TAX_YEAR = '2026/27';
+  // The engine's own version: bumped on any change to the maths, a rule or a
+  // default. Shown in Assumptions and the report and saved with every plan,
+  // so a figure can always be traced to the engine that produced it.
+  const ENGINE_VERSION = '2026.11.14';
+  // The rule pack behind the constants below: what each rests on, where it
+  // came from, when it was read and when it takes effect. Reviewed every
+  // April and on any fiscal event; see docs/MODEL_SPEC.md.
+  const TAX_RULES = Object.freeze({
+    taxYear: TAX_YEAR, effectiveFrom: '2026-04-06', effectiveTo: '2027-04-05', retrieved: '2026-11-14',
+    rules: Object.freeze([
+      { id: 'pa', what: 'Personal allowance £12,570, tapered £1 per £2 of income over £100,000', source: 'https://www.gov.uk/income-tax-rates', note: 'Frozen to April 2031 (Autumn Budget 2025); indexed with inflation after that unless the plan says frozen' },
+      { id: 'ruk-bands', what: 'England, Wales and NI: basic 20% to £50,270, higher 40% to £125,140, additional 45% above (gross, with a full allowance)', source: 'https://www.gov.uk/income-tax-rates', note: 'Band edges are measured in taxable income (£37,700 and £125,140); the taper moves the allowance, not the edges' },
+      { id: 'scot-bands', what: 'Scotland: starter 19%, basic 20%, intermediate 21%, higher 42%, advanced 45%, top 48% (non-savings income)', source: 'https://www.gov.scot/publications/scottish-income-tax-2026-2027/', note: 'Scottish Budget 2026-27: starter and basic thresholds up 7.4%; higher, advanced and top frozen' },
+      { id: 'lsa', what: 'Lump sum allowance £268,275 per person: tax-free cash across all schemes, in payment order, less anything already taken', source: 'https://www.gov.uk/tax-on-your-private-pension/lump-sum-allowance', note: 'Protected or enhanced allowances: enter under Advanced detail' },
+      { id: 'nmpa', what: 'Normal minimum pension age 55, rising to 57 on 6 April 2028 for those born on or after 6 April 1973; protected ages honoured', source: 'https://www.gov.uk/government/publications/increasing-normal-minimum-pension-age', note: '' },
+      { id: 'spa', what: 'State Pension age by date of birth: 66, rising to 67 between 2026 and 2028, 68 from 2044 to 2046 under current law', source: 'https://www.gov.uk/state-pension-age', note: 'Override per person under People' },
+      { id: 'sp', what: 'Full new State Pension £241.30 a week (£12,547.60 a year) in 2026/27, rising with the triple lock; held in today\'s money', source: 'https://www.gov.uk/new-state-pension/what-youll-get', note: '' },
+      { id: 'isa', what: 'ISA allowance £20,000 a year per person', source: 'https://www.gov.uk/individual-savings-accounts', note: 'Held fixed over the plan' },
+      { id: 'aa', what: 'Annual allowance £60,000 (a warning only; contributions are not capped by the engine)', source: 'https://www.gov.uk/tax-on-your-private-pension/annual-allowance', note: 'Money purchase annual allowance and the taper are not modelled' },
+      { id: 'iht', what: 'Inheritance tax: nil-rate band £325,000, residence band £175,000, 40% above; unused pensions in scope from April 2027', source: 'https://www.gov.uk/inheritance-tax', note: 'Residence band only against a home passing to direct descendants; tapers above £2m' },
+      { id: 'mortality', what: 'A unisex Gompertz hazard fitted to the ONS 2020 to 2022 national life tables with a modest improvement allowance', source: 'https://www.ons.gov.uk/peoplepopulationandcommunity/birthsdeathsandmarriages/lifeexpectancies/bulletins/nationallifetablesunitedkingdom/2020to2022', note: 'Weights the futures and informs the plan age; never ends the plan' },
+      { id: 'fca', what: 'Balanced growth preset 2% / 5% / 8% nominal: the FCA\'s standardised projection rates', source: 'https://www.handbook.fca.org.uk/handbook/COBS/13/Annex2.html', note: 'Cautious 1.5 / 3.5 / 5.5, Adventurous 2.5 / 6 / 9' },
+      { id: 'rls', what: 'Retirement Living Standards 2026 edition (Pensions UK)', source: 'https://www.retirementlivingstandards.org.uk/', note: 'After tax, home owned outright' },
+    ]),
+  });
   const TAX_DEFAULTS = {
     taxYear: TAX_YEAR,
     region: 'ruk',              // 'ruk' (England/Wales/NI) | 'scotland'
@@ -1855,6 +1880,13 @@ export function createEngine() {
         break;
       }
     }
+    // The bad tail in plain words: the age by which one future in ten (and
+    // one in twenty) has already run short. Null when fewer than that ever do.
+    const shortAgeAt = (q) => {
+      for (let i = 0; i < nYears; i++) if (1 - solventAt[i] / nPaths >= q) return P.retireYear + i - P.partnerA.birthYear;
+      return null;
+    };
+    const shortAgeP10 = shortAgeAt(0.10), shortAgeP5 = shortAgeAt(0.05);
     finals.sort((x, y) => x - y);
     const pctile = (q) => finals[Math.min(finals.length - 1, Math.floor(q * finals.length))];
     const pct10 = (arr, q) => {
@@ -1881,6 +1913,8 @@ export function createEngine() {
       expectedLastAge: P.retireYear + H.expectedYears - P.partnerA.birthYear,
       confidenceAge,
       threshold,
+      shortAgeP10, shortAgeP5,
+      engineVersion: ENGINE_VERSION, seed,
       perAgeSolvency: solventAt.map((c, i) => ({
         age: P.retireYear + i - P.partnerA.birthYear, p: c / nPaths,
       })),
@@ -2086,6 +2120,17 @@ export function createEngine() {
     check('Scotland region flag does not disturb rUK maths', taxOn(57548, { ...T, region: 'ruk' }), taxOn(57548, T), 0.001);
     check('PA intact at 100000', personalAllowanceFor(100000, T), 12570, 0.01);
     check('PA zero at 125140', personalAllowanceFor(125140, T), 0, 0.01);
+    // Golden boundary cases, worked by hand from the GOV.UK rates (TAX_RULES):
+    // 12,570 → nil; 50,270 → 37,700 × 20% = 7,540; 100,000 → 7,540 + 49,730 × 40%
+    // = 27,432; 125,140 → PA gone, 7,540 + 87,440 × 40% = 42,516; 150,000 →
+    // 42,516 + 24,860 × 45% = 53,703. One pound over 100,000 costs 60p.
+    check('rUK golden: 12,570 gross pays nothing', taxOn(12570, T), 0, 0.01);
+    check('rUK golden: 50,270 gross pays 7,540', taxOn(50270, T), 7540, 0.01);
+    check('rUK golden: 100,000 gross pays 27,432', taxOn(100000, T), 27432, 0.01);
+    check('rUK golden: 125,140 gross pays 42,516 (allowance fully tapered)', taxOn(125140, T), 42516, 0.01);
+    check('rUK golden: 150,000 gross pays 53,703', taxOn(150000, T), 53703, 0.01);
+    check('rUK golden: the marginal rate between 100,000 and 125,140 is 60%', marginalRate(110000, T), 0.6, 0.005);
+    check('Scotland golden: 125,140 gross pays 45,195 (top rate from there)', taxOn(125140, S), 3967 * 0.19 + 12989 * 0.20 + 14136 * 0.21 + 31338 * 0.42 + 62710 * 0.45, 0.01);
     check('60% marginal inside taper', marginalRate(110000, T), 0.60, 0.005);
     // The allocator must use a free personal allowance before paying tax:
     // with only Carol having base income, a small draw must come from
@@ -2371,6 +2416,7 @@ export function createEngine() {
       const lo = lifeOdds({ ...D, horizonAge: 95 }), lo85 = lifeOdds({ ...D, horizonAge: 85 });
       check('Life odds: the chance of reaching 95 is below the chance of reaching 85, both strictly between 0 and 1', lo.a.reach > 0 && lo.a.reach < lo85.a.reach && lo85.a.reach < 1 ? 0 : 1, 0, 0.1);
       check('Life odds: the median age a person lives past is between 80 and 92', lo.a.median >= 80 && lo.a.median <= 92 ? 0 : 1, 0, 0.1);
+      check('MC: the age one future in ten has run short by is consistent with the success rate', mc.shortAgeP10 == null ? (mc.successProb >= 0.88 ? 0 : 1) : (mc.shortAgeP10 >= D.retireYear - D.partnerA.birthYear && mc.shortAgeP10 <= D.horizonAge ? 0 : 1), 0, 0.1);
       check('Life odds: a couple has at least one partner\'s chance of being here at the end; a set death age makes it certain', lo.either >= lo.a.reach - 1e-12 && lifeOdds({ ...D, horizonAge: 90, partnerA: { ...D.partnerA, deathAge: 80 } }).a.reach === 0 ? 0 : 1, 0, 0.1);
       check('Pre-retirement risk: pots at retirement spread P10 < P50 < P90', mc.potsAtRetirementP10 < mc.potsAtRetirementP50 && mc.potsAtRetirementP50 < mc.potsAtRetirementP90 ? 0 : 1, 0, 0.1);
       const archMc = runMonteCarlo({ ...D, architecture: { ...D.architecture, on: true } }, 200, 3);
@@ -2449,7 +2495,7 @@ export function createEngine() {
     levers, STRESS_PATHS, SCOT_BANDS, planEndYear, lumpAfterLsa, fundYear,
     taxFor, spaFor, nmpaFor, spAgeOf, isSingle, normalisePlan, validatePlan, sanitisePlan, migratePlan,
     RISK_PRESETS, applyRiskPreset, shiftRetirement, mcMeanFor, householdSurvival, lifeOdds, prepare, SCHEMA_VERSION,
-    TAX_YEAR,
+    TAX_YEAR, ENGINE_VERSION, TAX_RULES,
   };
 }
 

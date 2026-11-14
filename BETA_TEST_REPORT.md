@@ -1,3 +1,10 @@
+> **Historical document.** This report covers the legacy "classic" planner and an earlier
+> generation of the engine. The PCLS net-income defect it records was fixed in the classic
+> engine and does not exist in Horizon, where tax-free cash is a balance-sheet transfer
+> asserted on every load. The current, dated validation record for the live app is
+> [`docs/VALIDATION.md`](docs/VALIDATION.md); the model contract is
+> [`docs/MODEL_SPEC.md`](docs/MODEL_SPEC.md).
+
 # RetireLens — Beta Test Report
 
 A team of virtual beta testers put RetireLens through its paces two ways:

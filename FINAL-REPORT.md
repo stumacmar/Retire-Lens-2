@@ -3,7 +3,8 @@
 > whose engine taxes each partner separately on their own allowance and bands and allocates
 > pension draws by marginal rate (see `runAssertions()` in `horizon/src/engine/engine.js`,
 > "Couples are taxed as two individuals"). The "doubled-threshold shortcut" noted under
-> *Residual Disagreements* below no longer applies to the live app.
+> *Residual Disagreements* below no longer applies to the live app. The current, dated
+> validation record is [`docs/VALIDATION.md`](docs/VALIDATION.md).
 
 # RetireLens 2 Design Competition: Final Report
 

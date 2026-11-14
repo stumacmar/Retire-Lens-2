@@ -27,6 +27,15 @@ backend, no tracking.
 |---|---|
 | The answer, the Horizon, confidence, what-ifs, spending styles, dates that matter | Adviser-ready PDF report, year-by-year + tax analysis, withdrawal-order comparison, full Coach, advanced pension detail, plan-structure controls, estate & IHT view, each April's tax-year refresh |
 
+## Evidence
+
+The model is specified in [`docs/MODEL_SPEC.md`](docs/MODEL_SPEC.md) (versioned with
+`ENGINE_VERSION`) and its validation record is [`docs/VALIDATION.md`](docs/VALIDATION.md):
+134 load-time assertions the app runs on every visit (Peace → "How we checked these
+numbers"), golden tax cases, a second independent tax implementation, property and
+metamorphic tests, path-count stability and migration tests (`cd horizon && npm run verify`),
+plus the browser UAT and end-to-end sweeps. All are CI gates.
+
 ## Quick Start
 
 ```bash

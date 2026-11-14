@@ -60,6 +60,9 @@ export interface MC {
   mcMean: number; mcSd: number;
   potsAtRetirementP10: number; potsAtRetirementP50: number; potsAtRetirementP90: number;
   confidenceAge: number;
+  /** Age by which one future in ten / one in twenty has already run short; null when fewer ever do. */
+  shortAgeP10: number | null; shortAgeP5: number | null;
+  engineVersion: string; seed: number;
   finalP10: number; finalP50: number; finalP90: number;
   nPaths: number; medianTrim: number;
   tracks: number[][];
@@ -83,6 +86,9 @@ export interface Engine {
   shiftRetirement(Q: Plan, dy: number): void;
   RISK_PRESETS: Record<string, { label: string; detail: string; growthBear: number; growthBase: number; growthBull: number; mcSd: number; equityShare: number }>;
   SCHEMA_VERSION: number;
+  ENGINE_VERSION: string;
+  TAX_YEAR: string;
+  TAX_RULES: { taxYear: string; effectiveFrom: string; effectiveTo: string; retrieved: string; rules: readonly { id: string; what: string; source: string; note: string }[] };
   drawdown(P: Plan, opts?: { growth?: number; startPots?: any; returnPath?: number[] }): Drawdown;
   planEndYear(P: Plan): number;
   levers(P: Plan, opts?: { paths?: number }): { base: any; paths: number; levers: { id: string; label: string; detail: string; conf: number | null; dConf: number; end: number; dEnd: number; dTax: number; exhaustedAgeA: number | null }[] };

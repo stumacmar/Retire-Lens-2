@@ -301,9 +301,13 @@ export function runMonteCarlo(plan, options = {}) {
   
   // Calculate statistics
   const finalBalances = results.map(r => r.finalBalance).sort((a, b) => a - b);
-  const successRates = results.map(r => r.fundsDepleted ? 0 : 1);
+  // One definition of success everywhere: the target income met every year
+  // AND the funds never depleted (runSingleSimulation's isSuccess). A path
+  // that merely avoided depletion while missing the target is not a success.
+  const successRates = results.map(r => r.isSuccess ? 1 : 0);
+  const notDepleted = results.map(r => r.fundsDepleted ? 0 : 1);
   const depletionAges = results.filter(r => r.fundsDepleted).map(r => r.depletionAge);
-  
+
   return {
     iterations,
     mean,
@@ -311,7 +315,9 @@ export function runMonteCarlo(plan, options = {}) {
     endAge,
     statistics: {
       successRate: successRates.reduce((a, b) => a + b, 0) / iterations,
-      
+      // The older, looser measure, kept for comparison: never depleted.
+      notDepletedRate: notDepleted.reduce((a, b) => a + b, 0) / iterations,
+
       finalBalance: {
         p5: percentile(finalBalances, 5),
         p10: percentile(finalBalances, 10),

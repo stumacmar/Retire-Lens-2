@@ -108,7 +108,7 @@ Updated every cycle. Standing: ahead · parity · behind · missing. Stop rule i
 | 14 | Liveness | Wealthfront Path | ahead | the ring; PensionBee is live too, MoneyHelper and HL are not |
 | 15 | Accessibility | — | parity (unverified; no axe run yet) | hidden ranges |
 | 16 | Mobile fit | — | parity | 375 × 667 fits |
-| 17 | Trust signals | MoneyHelper (GOV.UK transparency record, GAD scenarios) | behind (no public provenance) | Assumptions sheet exists; B6, B9 |
+| 17 | Trust signals | MoneyHelper (GOV.UK transparency record, GAD scenarios) | parity → ahead (2026-11-14) | "How we checked" runs the engine's 134 checks live in the app with sources; `verify.mjs` differential and property evidence in CI; versions printed in the report; B6 (one tap from the dial) still open |
 | 18 | Performance | — | unknown (not measured on a real phone) | B7 |
 | 19 | Data safety | Someday (MoneyHelper also keeps inputs in the browser) | ahead | no server |
 | 20 | Copy | PensionBee (friendly) / MoneyHelper (plain) | parity | — |
@@ -143,7 +143,7 @@ Updated every cycle. Standing: ahead · parity · behind · missing. Stop rule i
 | B6 | One-tap "assumptions and sources" from the dial (trust) | trust | medium | small | Scorecard 17 | open |
 | B7 | Measure performance on a mid-range Android (engine call, MC latency) | performance | medium | small | Scorecard 18 | open |
 | B8 | Run axe-core in the UAT and fix what it finds | accessibility | medium | small | Scorecard 15 | open |
-| B9 | Publish the engine's provenance: a "How we checked" page listing the 126 load-time assertions and the hand-checked tax cases | trust | medium | small | MoneyHelper's GOV.UK transparency record (GAD scenarios) | open |
+| B9 | Publish the engine's provenance: a "How we checked" page listing the load-time assertions and the hand-checked tax cases | trust | medium | small | MoneyHelper's GOV.UK transparency record (GAD scenarios) | shipped 2026-11-14: Peace → "How we checked these numbers" runs the 134 assertions live and lists every rule with its source; `docs/VALIDATION.md` is the dated record |
 | B10 | Sex-specific ONS cohort mortality for single-person plans (keep unisex for couples) | correctness | low | medium | HL uses ONS 2020-based cohort tables by sex | open |
 | B11 | Retirement Living Standards beside the target; fresh default corrected to the 2026 Moderate figure for two | coverage | medium | small | PensionBee; retirementlivingstandards.org.uk | shipped 2026-11-13 |
 | B12 | Say in Assumptions that 0.5% is a low-cost all-in charge and that 0.7–1% is common | trust | low | small | MoneyHelper 0.75%, PensionBee 0.7%, HL 1% | open |
@@ -165,6 +165,7 @@ Updated every cycle. Standing: ahead · parity · behind · missing. Stop rule i
 | — | — | Ledger seeded from the October 2026 UX research | — | — |
 | 2026-11-13 | MoneyHelper, Hargreaves Lansdown, PensionBee | Retirement Living Standards (Pensions UK 2026) beside the target: engine constant + 3 assertions, chips on the Someday page, hint under the dial figure, Assumptions row; fresh default 43,100 → 45,400 | [#34](https://github.com/stumacmar/Retire-Lens-2/pull/34) (branch scout/2026-11-13-living-standards) | merged and live 2026-11-13 10:18 |
 | 2026-11-13 (owner-driven) | — | CI runner pinned to Ubuntu 24.04 (GitHub moved `ubuntu-latest` to 26.04; Playwright could not install Chromium; nothing had deployed since 31 October) | [#35](https://github.com/stumacmar/Retire-Lens-2/pull/35) | merged; first green CI since 31 October; deploy restored |
+| 2026-11-14 (owner-driven: the 10/10 audit) | — | Assurance layer from the independent audit: `ENGINE_VERSION`, `TAX_RULES` rule pack with sources, `verify.mjs` (golden, differential, property, metamorphic, stability, migration, cross-engine; 133 checks) as a CI gate, classic-engine success definition fixed (F-01), four-layer uncertainty copy and the bad 1-in-10 age (F-04), save status (F-06), `docs/MODEL_SPEC.md` + `docs/VALIDATION.md` (F-07), "How we checked" in Peace (closes B9), Plus switched off at the owner's request | audit/2026-11-14-prove-the-model; owner/2026-11-14-hide-plus [#41](https://github.com/stumacmar/Retire-Lens-2/pull/41) | see PR |
 | 2026-11-14 | Standard Life, Vanguard UK, Fidelity UK (Nutmeg/J.P. Morgan and AJ Bell pages 404) | B3: the odds behind the age to plan for. `lifeOdds` in the engine (3 assertions, 126); "Half live past 86 · 56% one of you at 90" under the plan-age needle, the long form under "Plan through to age" and a Longevity row in Assumptions. UAT 138–141, e2e E47i–k, U75b | scout/2026-11-14-life-expectancy | see PR |
 | 2026-11-14 (owner-driven) | — | B21: age is typed, never dialled. Root cause of the day's "nonsense": the ring had changed the owner's age from 56 to 26. UAT 132–137 | [#39](https://github.com/stumacmar/Retire-Lens-2/pull/39) (scout/2026-11-14-typed-age) | merged 2026-11-14; deployed |
 | 2026-11-13 (owner-driven) | — | B18, B20: FCA projection rates as the Balanced preset and the fresh-plan default; strands chart scaled to the ninth decile with the top and the pot-at-stop labelled. 2 new assertions (123), e2e E47h | scout/2026-11-13-fca-rates | see PR |

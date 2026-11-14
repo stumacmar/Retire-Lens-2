@@ -170,6 +170,9 @@ const fresh = async () => {
   await p.evaluate(() => localStorage.clear()).catch(() => {});
   await passGate();
   await seedPlus();
+  // The sweep below drives the dial; the simple home (the default) has its
+  // own section at the end, which removes this key.
+  await p.evaluate(() => localStorage.setItem('someday-home-v1', 'dial')).catch(() => {});
   await p.reload({ waitUntil: 'networkidle' }); await wait(700);
 };
 const planOf = async () => p.evaluate(() => { try { return JSON.parse(localStorage.getItem('horizon-plan-v1') || '{}'); } catch { return {}; } });
@@ -686,6 +689,68 @@ await check('120 free/plus sweep: zero page errors', () => pe.length === 0);
   await check('139 … and the chance one of the couple is here at the plan age', async () => /\d+% one of you at 90/.test(await p.$eval('body', e => e.innerText)));
   await check('140 the odds agree with the engine', async () => { const o = E.lifeOdds(await planOf()); return has(`Half live past ${o.a.median}`) && has(`${Math.round(o.either * 100)}% one of you at 90`); });
   await check('141 longevity: zero page errors', () => pe.length === 0);
+}
+
+// ── The simple home: the default. The answer first, three steppers, two questions ──
+{
+  const F = E.freshStart();
+  const Y = E.sanitisePlan({ ...F, approach: 'traditional', retireYear: 2030, targetNet: 60000,
+    partnerA: { ...F.partnerA, birthYear: 1970, spAmount: 12548, pension: 570000, monthlyPension: 3200, isa: 48000 },
+    partnerB: { ...F.partnerB, birthYear: 1970 } });
+  await fresh();
+  await p.evaluate(v => { localStorage.setItem('horizon-plan-v1', v); localStorage.removeItem('someday-home-v1'); }, JSON.stringify(Y));
+  await p.reload({ waitUntil: 'networkidle' }); await wait(900); await acceptDisclaimer();
+  await p.waitForFunction(() => document.querySelector('[data-gap]') && /of 100/.test(document.querySelector('[data-futures]')?.textContent || ''), null, { timeout: 25000 }).catch(() => {});
+  const answer = async () => (await p.$eval('[data-simple-home] [data-answer]', e => e.innerText).catch(() => '')).replace(/\s+/g, ' ');
+  const cap = (q) => { let lo = 2000, hi = Math.max(250000, q.targetNet * 3);
+    for (let i = 0; i < 16; i++) { const mid = (lo + hi) / 2; const Q = { ...q, spendingPlanOn: false, targetNet: mid, growth: q.growthBase }; const acc = E.accumulate(Q, Q.growth); if (E.drawdown(Q, { growth: Q.growth, startPots: acc.atRetirement }).holds) lo = mid; else hi = mid; }
+    return Math.round(Math.floor(lo / 100) * 100 / 12 / 10) * 10; };
+  await check('142 the default home is the simple one (no ring to learn)', async () => (await p.$('[data-simple-home]')) != null && (await p.$('[data-home]')) == null);
+  await check('143 it leads with where the plan stands, in words', async () => /^(On track under these assumptions|Close: a small change needed|Not yet funded) £/.test(await answer()));
+  await check('144 the big figure is what the plan can support a month, and agrees with the engine', async () => {
+    const shown = Number((await p.$eval('[data-supports]', e => e.textContent)).replace(/[£,]/g, '')); return Math.abs(shown - cap(await planOf())) <= 10; });
+  await check('145 the gap to what you ask is one plain sentence', async () => /You ask for £5,000: £[\d,]+ a month (more|to spare)\./.test(await answer()));
+  await check('146 the futures count carries its caveat', async () => /holds in \d+ of 100 simulated futures\. An estimate in today's money, not a guarantee\./.test(await answer()));
+  await check('147 exactly three things to change', async () => (await p.locator('[data-simple-home] [data-driver]').count()) === 3);
+  await p.getByRole('button', { name: 'Stop work at: a year later' }).click(); await wait(500);
+  await check('148 one tap: stop a year later', async () => (await planOf()).retireYear === 2031);
+  await p.getByRole('button', { name: 'Take home: £100 a month less' }).click(); await wait(500);
+  await check('149 one tap: take home £100 a month less', async () => (await planOf()).targetNet === 4900 * 12);
+  await p.getByRole('button', { name: /^Take home: £4,900\. Tap to type/ }).click(); await wait(300);
+  await p.fill('input[aria-label="Take home, type a figure"]', '4500'); await p.keyboard.press('Enter'); await wait(500);
+  await check('150 or type the figure', async () => (await planOf()).targetNet === 54000);
+  await p.getByRole('button', { name: 'You pay in: £50 a month more' }).click(); await wait(500);
+  await check('151 one tap: pay in £50 a month more', async () => (await planOf()).partnerA.monthlyPension === 3250);
+  await p.waitForFunction(() => /of 100/.test(document.querySelector('[data-futures]')?.textContent || ''), null, { timeout: 20000 }).catch(() => {}); await wait(1500);
+  await check('152 the answer follows the change (figure still agrees with the engine)', async () => {
+    const shown = Number((await p.$eval('[data-supports]', e => e.textContent)).replace(/[£,]/g, '')); return Math.abs(shown - cap(await planOf())) <= 10; });
+  await p.getByRole('button', { name: 'What could go wrong?' }).click(); await wait(700);
+  await p.waitForFunction(() => document.querySelectorAll('[data-risk-panel] [data-risk]').length >= 6, null, { timeout: 20000 }).catch(() => {});
+  await check('153 what could go wrong: six cases, one tap from home', async () => (await p.locator('[data-risk-panel] [data-risk]').count()) === 6);
+  await check('154 the sheet covers the tab bar, not the other way round', async () => p.evaluate(() => {
+    const nav = document.querySelector('nav').getBoundingClientRect(); const el = document.elementFromPoint(nav.left + nav.width / 2, nav.top + nav.height / 2);
+    return !!el && !el.closest('nav'); }));
+  await closeSheet();
+  const beforeHelp = JSON.stringify(await planOf());
+  await p.getByRole('button', { name: 'What would help?' }).click();
+  await p.waitForFunction(() => /\+\d+ of 100|Nothing measured/.test(document.querySelector('[data-help-panel]')?.textContent || ''), null, { timeout: 25000 }).catch(() => {});
+  await check('155 what would help: each action measured', async () => /\+\d+ of 100|Nothing measured/.test(await p.$eval('[data-help-panel]', e => e.innerText)));
+  if (await p.locator('[data-help-panel] button').count()) { await p.locator('[data-help-panel] button').first().click(); await wait(800); }
+  await check('156 tapping an action applies it and returns home', async () => !(await sheetOpen()) && JSON.stringify(await planOf()) !== beforeHelp);
+  {
+    const ax = await axeScan('Simple home');
+    await check(`157 axe: the simple home has no critical or serious WCAG 2.2 AA violations${ax.bad.length ? ' — ' + ax.detail : ''}`, () => ax.bad.length === 0);
+  }
+  await check('158 the two questions sit above the tab bar without scrolling', async () => p.evaluate(() => {
+    const nav = document.querySelector('nav').getBoundingClientRect(); const b = [...document.querySelectorAll('[data-simple-home] button')].find(x => /What could go wrong/.test(x.textContent)).getBoundingClientRect();
+    return b.bottom <= nav.top; }));
+  await p.locator('[data-home-switch]').click(); await wait(700);
+  await check('159 the dial is one tap away', async () => (await p.$('[data-home]')) != null && (await p.$('[data-simple-home]')) == null);
+  await p.reload({ waitUntil: 'networkidle' }); await wait(900);
+  await check('160 and the choice is remembered', async () => (await p.$('[data-home]')) != null);
+  await p.locator('[data-home-switch]').click(); await wait(700);
+  await check('161 back to the simple home', async () => (await p.$('[data-simple-home]')) != null);
+  await check('162 simple home: zero page errors', () => pe.length === 0);
 }
 
 console.log(`\n═══ Horizon UAT: ${pass}/${pass + fail} passed ═══`);

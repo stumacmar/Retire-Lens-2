@@ -92,7 +92,7 @@ const tap = async t => {
   catch { try { await p.locator(`text=${t}`).first().click({ timeout: 2000 }); return true; } catch { return false; } }
 };
 const sheetOpen = async () => (await p.locator('[role=dialog]').count()) > 0;
-// The home: one screen. The canvas, the answer, three steppers (each also
+// The home: one screen. The orbit, the answer, three steppers (each also
 // typeable) and two questions. (The Horizon Dial was retired in November 2026.)
 const answerText = async () => (await p.$eval('[data-answer]', e => e.innerText).catch(() => '')).replace(/\s+/g, ' ');
 const futuresText = async () => p.$eval('[data-futures]', e => e.textContent).catch(() => '');
@@ -104,10 +104,12 @@ const homeType = async (label, value) => {
   await p.getByRole('button', { name: new RegExp(`^${label}: .*Tap to type`) }).click({ timeout: 4000 });
   await p.fill(`input[aria-label="${label}, type a figure"]`, String(value)); await p.keyboard.press('Enter'); await wait(400);
 };
-// What the canvas is showing: the needle's age and reading, and each stripe's length in years.
-const sunState = async () => p.evaluate(() => { const el = document.querySelector('[data-canvas]'); if (!el) return null;
+// What the orbit is showing: the slider's age and reading, and each seed's life in years.
+const sunState = async () => p.evaluate(() => { const el = document.querySelector('[data-orbit]'); if (!el) return null; const r = el.querySelector('[data-orbit-range]');
   return { ready: el.getAttribute('data-ready') === '1', age: +el.getAttribute('data-age'), first: +el.getAttribute('data-first'), last: +el.getAttribute('data-last'), n: +el.getAttribute('data-years'),
-    valuetext: el.getAttribute('aria-valuetext') || '', label: (document.querySelector('[data-canvas-drop]')?.textContent || ''), years: [...el.querySelectorAll('[data-stripe]')].map(r => +r.getAttribute('data-years')) }; });
+    firstShort: el.getAttribute('data-first-short') === '' ? null : +el.getAttribute('data-first-short'),
+    valuetext: r?.getAttribute('aria-valuetext') || '', label: (el.querySelector('[data-orbit-reading] b')?.textContent || ''),
+    years: [...el.querySelectorAll('[data-seed]')].map(x => +x.getAttribute('data-years')), states: [...el.querySelectorAll('[data-seed]')].map(x => x.getAttribute('data-state')) }; });
 // Controls that exist both on the Horizon and inside a sheet must be tapped
 // where they are meant, never on the card behind.
 const tapInSheet = async t => {
@@ -301,26 +303,28 @@ await p.waitForFunction(() => /Japan, 1990 on/.test(document.getElementById('exp
 await check('29d guardrails from real bad histories, in Explore', async () => /Japan, 1990 on/.test(await p.locator('#explore-fall').innerText()));
 await check('29e the edge: every retirement, in Explore', () => has('Every retirement you could choose'));
 await closeSheet();
-// The canvas: 100 stripes, and a needle you drag (or step with the keys) to
-// read any age. It rests where the first futures fall short.
-await p.waitForFunction(() => document.querySelector('[data-canvas]')?.getAttribute('data-ready') === '1', null, { timeout: 20000 }).catch(() => {}); await wait(2400);
+// The orbit: 100 seeds around the figure, and a slider through the years.
+// It sweeps to the plan's last age on first sight and rests there.
+await p.waitForFunction(() => document.querySelector('[data-orbit]')?.getAttribute('data-ready') === '1', null, { timeout: 20000 }).catch(() => {}); await wait(3200);
 {
   const st = await sunState(); const q = await planOf(); const m = E.runMonteCarlo(q, 2000, q.mcSeed || 42);
   const still = (i) => Math.round(m.perAgeHeld[i].full * 100);
   const firstShort = m.perAgeHeld.find(h => Math.round(h.full * 100) < 100)?.age;
-  await check('30 the needle rests where the first futures fall short, and says so', () => st && st.age === (firstShort ?? st.last) && (firstShort == null || st.label === `First shortfalls at ${firstShort}`));
-  const box = await p.locator('[data-paint]').boundingBox();
-  await p.mouse.move(box.x + box.width * 0.12, box.y + box.height * 0.55); await p.mouse.down();
-  for (let i = 1; i <= 10; i++) { await p.mouse.move(box.x + box.width * (0.12 + 0.76 * i / 10), box.y + box.height * 0.5); await wait(20); }
-  await p.mouse.up(); await wait(300);
+  await check('30 the orbit rests at the plan\'s last age, reads the engine\'s count, and marks the first shortfall', () => st && st.age === st.last
+    && st.label === `At ${st.last}: ${still(st.n - 1)} of 100 still paying` && st.firstShort === (firstShort ?? null));
+  const box = await p.locator('[data-orbit-range]').boundingBox();
+  await p.mouse.move(box.x + box.width - 8, box.y + box.height / 2); await p.mouse.down();
+  for (let i = 1; i <= 10; i++) { await p.mouse.move(box.x + box.width - 8 - (box.width * 0.6) * i / 10, box.y + box.height / 2); await wait(20); }
+  await p.mouse.up(); await wait(400);
   const dragged = await sunState();
-  await check('31 dragging across the canvas moves the needle later, and the reading follows', () => dragged.age > st.first + (st.n * 0.6) && dragged.label === `At ${dragged.age}: ${still(dragged.age - st.first)} of 100 still paying`);
-  await p.locator('[data-canvas]').focus(); await p.keyboard.press('Home'); await wait(150);
+  await check('31 dragging the slider back goes back through the years, the seeds and the reading follow', () => dragged.age < st.last - st.n * 0.4 && dragged.label.startsWith(`At ${dragged.age}: ${still(dragged.age - st.first)} of 100 still paying`)
+    && dragged.states.filter(x => x === 'full').length === still(dragged.age - st.first));
+  await p.locator('[data-orbit-range]').focus(); await p.keyboard.press('Home'); await wait(150);
   const home = await sunState(); await p.keyboard.press('ArrowRight'); await p.keyboard.press('ArrowRight'); await wait(150);
   const two = await sunState();
   await check('31b the keys work it too: Home is the year work stops, each arrow is one year', () => home.age === home.first && two.age === home.first + 2 && two.valuetext === `Age ${two.age}: ${still(2)} of 100 futures still paying in full`);
-  await p.keyboard.press('Escape'); await wait(150);
-  await check('31c Escape puts the needle back where it rests', async () => (await sunState()).age === st.age);
+  await p.keyboard.press('End'); await wait(150);
+  await check('31c End returns to the plan\'s last age', async () => (await sunState()).age === st.last);
 }
 await check('32 exactly one visible h1', async () => (await visH1()) === 1);
 const before = await answerText(); await homeType('Take home', 9000); await waitAnswer();
@@ -618,7 +622,7 @@ await check('119 plus: print report rendered', async () => (await p.$('#print-su
 await check('120 free/plus sweep: zero page errors', () => pe.length === 0);
 }
 
-// The age the canvas's needle rests on: the first at which fewer than 100 of
+// The age the orbit marks on its slider: the first at which fewer than 100 of
 // 100 futures are still paid in full, read from the engine for the same seed.
 const firstShortAge = (q) => E.runMonteCarlo(q, 2000, q.mcSeed || 42).perAgeHeld.find(h => Math.round(h.full * 100) < 100)?.age;
 const openMap = async () => { await closeSheet(); await tap('Explore'); await wait(900); await p.waitForSelector('#explore-map canvas', { timeout: 8000 }).catch(() => {}); await wait(2500); };
@@ -638,9 +642,9 @@ const openMap = async () => { await closeSheet(); await tap('Explore'); await wa
   await p.reload({ waitUntil: 'networkidle' }); await wait(900); await acceptDisclaimer(); await waitAnswer(); await wait(2400);
   // The central case runs short at 43; in a fifth of futures a bad first
   // year empties the ISA and cash at 42. No future reaches 90.
-  await check('121 unpaid years: "not enough", the canvas is bare from 42 and no stripe reaches 90', async () => { const st = await sunState(); const q = await planOf();
+  await check('121 unpaid years: "not enough", the first shortfalls at 42, and no seed lit at 90', async () => { const st = await sunState(); const q = await planOf();
     return ['not', 'close'].includes(await statusKey()) && E.drawdown({ ...q, growth: q.growthBase }).runsShortAgeA === 43 && firstShortAge(q) === 42
-      && st.age === 42 && st.label === 'First shortfalls at 42' && st.years.every(y => y < st.n) && /^0 of 100 reach 90/.test(await p.$eval('[data-canvas-end]', e => e.innerText.replace(/\s+/g, ' '))); });
+      && st.firstShort === 42 && st.age === st.last && st.states.every(x => x === 'out') && st.label === `At ${st.last}: 0 of 100 still paying`; });
   await openMap();
   await check('122 unpaid years: the map says it runs short', () => has('it runs short'));
   await check('123 unpaid years: zero page errors', () => pe.length === 0);
@@ -658,8 +662,8 @@ const openMap = async () => { await closeSheet(); await tap('Explore'); await wa
   await homeType('Stop work at', 90); await wait(600);
   await check('124 young planner: the stop age goes as far as 75, and no further', async () => (await planOf()).retireYear === 2075);
   await homeType('Stop work at', 46); await waitAnswer(); await wait(2400);
-  await check('125 young planner: stopping at 46 goes bare at once, and almost nothing is left by 50', async () => { const q = await planOf(); const a = firstShortAge(q); const st = await sunState();
-    return a === 46 && st.label === 'First shortfalls at 46' && st.years.filter(y => y > 4).length <= 2 && E.drawdown({ ...q, growth: q.growthBase }).runsShortAgeA <= 49; });
+  await check('125 young planner: stopping at 46, the first shortfalls come at once, and almost nothing is left by 50', async () => { const q = await planOf(); const a = firstShortAge(q); const st = await sunState();
+    return a === 46 && st.firstShort === 46 && st.years.filter(y => y > 4).length <= 2 && E.drawdown({ ...q, growth: q.growthBase }).runsShortAgeA <= 49; });
   await check('126 young planner: the futures agree (fewer than 5 in 100 hold)', async () => /holds in [0-4] of 100/i.test(await futuresText()));
   await homeType('Stop work at', 60); await wait(1500);
   await check('128 young planner: typing 60 moves the stop age to 60', async () => (await planOf()).retireYear === 2060);
@@ -680,7 +684,7 @@ const openMap = async () => { await closeSheet(); await tap('Explore'); await wa
   await closeSheet();
 }
 
-// ── The home: the canvas, the answer, three steppers, two questions ──
+// ── The home: the orbit, the answer, three steppers, two questions ──
 {
   const F = E.freshStart();
   const Y = E.sanitisePlan({ ...F, approach: 'traditional', retireYear: 2030, targetNet: 60000,
@@ -740,24 +744,25 @@ const openMap = async () => { await closeSheet(); await tap('Explore'); await wa
   await check('158 the two questions sit above the tab bar without scrolling', async () => p.evaluate(() => {
     const nav = document.querySelector('nav').getBoundingClientRect(); const b = [...document.querySelectorAll('[data-simple-home] button')].find(x => /What could go wrong/.test(x.textContent)).getBoundingClientRect();
     return b.bottom <= nav.top; }));
-  // The canvas: 100 stripes, one for each simulated future, each painted
-  // sky for as long as that future keeps paying. It is drawn from the same run
-  // as the count in the sentence, so the picture and the number cannot differ.
-  await p.waitForFunction(() => document.querySelector('[data-canvas]')?.getAttribute('data-ready') === '1' && /of 100/.test(document.querySelector('[data-futures]')?.textContent || ''), null, { timeout: 20000 }).catch(() => {}); await wait(2600);
-  const sun = async () => p.evaluate(() => { const el = document.querySelector('[data-canvas]'); const rings = [...el.querySelectorAll('[data-stripe]')];
-    return { first: +el.getAttribute('data-first'), last: +el.getAttribute('data-last'), n: +el.getAttribute('data-years'), k: rings.map(r => +r.getAttribute('data-stripe')), years: rings.map(r => +r.getAttribute('data-years')), f: rings.map(r => +r.getAttribute('data-f')),
-      drawn: (() => { const w = document.querySelector('[data-paint]').getBoundingClientRect().width; return rings.map(r => r.getBoundingClientRect().width / w); })(), len: rings.map(r => r.getBoundingClientRect().height),
-      end: (document.querySelector('[data-canvas-end]')?.innerText || '').replace(/\s+/g, ' '), name: document.getElementById(el.getAttribute('aria-describedby') || '')?.textContent || '', role: el.getAttribute('role'), label: el.getAttribute('aria-label') || '', futures: document.querySelector('[data-futures]')?.textContent || '' }; });
-  await check('158d the canvas has 100 stripes and runs from the year work stops to the plan age', async () => { const q = await planOf(), st = await sun();
+  // The orbit: 100 seeds, one for each simulated future, lit while that
+  // future keeps paying. It is drawn from the same run as the count in the
+  // sentence, so the picture and the number cannot differ.
+  await p.waitForFunction(() => document.querySelector('[data-orbit]')?.getAttribute('data-ready') === '1' && /of 100/.test(document.querySelector('[data-futures]')?.textContent || ''), null, { timeout: 20000 }).catch(() => {}); await wait(3200);
+  const sun = async () => p.evaluate(() => { const el = document.querySelector('[data-orbit]'); const seeds = [...el.querySelectorAll('[data-seed]')]; const r = el.querySelector('[data-orbit-range]');
+    return { first: +el.getAttribute('data-first'), last: +el.getAttribute('data-last'), n: +el.getAttribute('data-years'), age: +el.getAttribute('data-age'), k: seeds.map(x => +x.getAttribute('data-seed')), years: seeds.map(x => +x.getAttribute('data-years')), states: seeds.map(x => x.getAttribute('data-state')),
+      sizes: seeds.map(x => Math.round(x.getBoundingClientRect().width)), reading: el.querySelector('[data-orbit-reading] b')?.textContent || '',
+      name: document.getElementById(r.getAttribute('aria-describedby') || '')?.textContent || '', type: r.getAttribute('type'), label: r.getAttribute('aria-label') || '', futures: document.querySelector('[data-futures]')?.textContent || '' }; });
+  await check('158d the orbit has 100 seeds and runs from the year work stops to the plan age', async () => { const q = await planOf(), st = await sun();
     return st.k.length === 100 && st.k.every((k, i) => k === i + 1) && st.first === q.retireYear - q.partnerA.birthYear && st.n === E.planEndYear(q) - q.retireYear + 1 && st.last === st.first + st.n - 1; });
-  await check('158e the lines that reach the horizon are the futures count in the sentence, and the label says so', async () => { const st = await sun(); const n = Number((st.futures.match(/in (\d+) of 100/) || [])[1]);
-    return st.years.filter(y => y === st.n).length === n && st.end.startsWith(`${n} of 100 reach ${st.last}`); });
-  await check('158f an outer line never runs further than an inner one', async () => { const st = await sun(); return st.years.every((y, i) => y >= 0 && y <= st.n && (i === 0 || y <= st.years[i - 1])); });
-  await check('158g each stripe is painted to its share of the width', async () => { const st = await sun(); return st.len.every(l => l > 0.3) && st.f.every((f, i) => Math.abs(f - st.years[i] / st.n) < 1e-3 && Math.abs(st.drawn[i] - f) < 0.02); });
-  await check('158h the canvas agrees with the engine for the same seed, year by year', async () => { const q = await planOf(), st = await sun(); const m = E.runMonteCarlo(q, 2000, q.mcSeed || 42);
+  await check('158e the seeds lit at the last age are the futures count in the sentence, and the reading says so', async () => { const st = await sun(); const n = Number((st.futures.match(/in (\d+) of 100/) || [])[1]);
+    return st.years.filter(y => y === st.n).length === n && st.states.filter(x => x === 'full').length === n && st.reading === `At ${st.last}: ${n} of 100 still paying`; });
+  await check('158f an outer seed never lasts longer than an inner one', async () => { const st = await sun(); return st.years.every((y, i) => y >= 0 && y <= st.n && (i === 0 || y <= st.years[i - 1])); });
+  await check('158g a seed is lit only while its future pays, and drawn small once it has run short', async () => { const st = await sun(); const big = Math.max(...st.sizes);
+    return st.states.every((x, i) => (st.years[i] > st.age - st.first) === (x === 'full')) && st.sizes.every((w, i) => st.states[i] === 'out' ? w < big * 0.6 : w >= big - 1); });
+  await check('158h the orbit agrees with the engine for the same seed, year by year', async () => { const q = await planOf(), st = await sun(); const m = E.runMonteCarlo(q, 2000, q.mcSeed || 42);
     return m.perAgeHeld.every((h, i) => Math.abs(Math.round(h.full * 100) - st.years.filter(y => y > i).length) <= 1); });
-  await check('158i the canvas says in words what it shows (screen readers): a named slider, described in full', async () => { const st = await sun(); const n = st.years.filter(y => y === st.n).length;
-    return st.role === 'slider' && st.label === 'Futures still paying, by age' && /one for each simulated future/.test(st.name) && /canvas is bare/.test(st.name) && st.name.includes(`${n} of 100 reach age ${st.last}`) && /arrow keys/.test(st.name); });
+  await check('158i the orbit says in words what it shows (screen readers): a named slider, described in full', async () => { const st = await sun(); const n = st.years.filter(y => y === st.n).length;
+    return st.type === 'range' && st.label === 'Futures still paying, by age' && /one for each simulated future/.test(st.name) && st.name.includes(`At age ${st.last}, ${n} of 100 are still paying`) && /Move the slider/.test(st.name); });
   await p.locator('[data-counts] button').click(); await wait(700);
   await check('158b "Check or change in Details" opens Details', () => sheetOpen());
   await goPage('Your guaranteed income');

@@ -11,16 +11,16 @@ import { planCounts } from '../lib/counts';
 import { valuesFor, clampVal, type Val } from '../lib/planValues';
 import Sheet from './Sheet';
 import RiskPanel from './RiskPanel';
-import FuturesCanvas from './FuturesCanvas';
+import Orbit from './Orbit';
 
 /**
  * The simple home: the answer first, in words, one figure and one picture,
  * then the three things most people change, each one tap away. Nothing to
  * learn.
  *
- *   ▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇  the canvas:
- *   ▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇          100 futures,
- *   ▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇                   one stripe each
+ *            ·  ●  ●  ○  ·         the orbit: 100 futures,
+ *         ●   ●  £5,720  ●  ·      one seed each, around
+ *            ●  ●  ●  ·  ·         the figure
  *   60          First shortfalls at 71                  90
  *
  *   ● Enough on average, not safe yet
@@ -81,14 +81,11 @@ export default function SimpleHome({ plan, update, dd, mc, onDetails, header }: 
     <div data-simple-home className="fixed inset-0 overflow-y-auto"
       style={{ background: 'var(--color-canvas)', paddingTop: 'calc(env(safe-area-inset-top) + 0.6rem)', paddingBottom: 'calc(env(safe-area-inset-bottom) + 5.4rem)',
         paddingLeft: 'max(16px, env(safe-area-inset-left))', paddingRight: 'max(16px, env(safe-area-inset-right))' }}>
-      {/* At least a screen tall, so the canvas can take whatever height is
+      {/* At least a screen tall, so the orbit can take whatever height is
           left once the answer and the controls are laid out: the two
           questions always sit just above the tab bar. */}
       <div className="mx-auto w-full max-w-[560px] min-h-full flex flex-col">
         {header}
-
-        {/* ── The canvas: 100 futures, one stripe each ─────────────────── */}
-        {hasMoney && <FuturesCanvas mc={mc} structured={!!plan.architecture?.on} fromAge={plan.retireYear - A.birthYear} toAge={plan.horizonAge} accent={status.colour} />}
 
         {/* ── The answer ─────────────────────────────────────────────── */}
         {!hasMoney ? (
@@ -98,17 +95,23 @@ export default function SimpleHome({ plan, update, dd, mc, onDetails, header }: 
             <button type="button" onClick={onDetails} className="mt-5 rounded-2xl px-5 py-3 font-bold text-[var(--color-on-calm)]" style={{ background: 'var(--color-calm)' }}>Add my details</button>
           </section>
         ) : (
-          <section className="mt-4 [@media(max-height:760px)]:mt-2" aria-live="polite" data-answer data-ready={rails && mc ? '1' : '0'}>
-            <p data-status={status.key} className="flex items-center gap-2 text-[0.98rem] font-bold leading-tight" style={{ color: status.colour }}>
+          <section className="flex-1 flex flex-col mt-1" data-answer data-ready={rails && mc ? '1' : '0'}>
+            <p data-status={status.key} className="flex items-center justify-center gap-2 text-[0.98rem] font-bold leading-tight" style={{ color: status.colour }} aria-live="polite">
               <span aria-hidden className="inline-block w-2 h-2 rounded-full shrink-0" style={{ background: status.colour }} />{status.label}
             </p>
-            <h1 className="serif tnum leading-[0.95] mt-2 [@media(max-height:760px)]:mt-1" style={{ fontSize: 'clamp(2.9rem, min(19vw, 9vh), 4.8rem)', letterSpacing: '-0.045em', color: 'var(--color-ink)' }} data-supports>{fmt(figure)}</h1>
-            <p className="mt-2 text-[0.95rem] leading-snug" style={{ color: 'var(--color-ink-dim)' }}>
+            {/* ── The orbit: 100 futures around the figure ────────────── */}
+            <Orbit mc={mc} structured={!!plan.architecture?.on} fromAge={plan.retireYear - A.birthYear} toAge={plan.horizonAge}>
+              {(side: number) => (<>
+                <h1 className="serif tnum leading-none" style={{ fontSize: Math.max(28, Math.min(60, side * 0.165)), letterSpacing: '-0.045em', color: 'var(--color-ink)' }} data-supports>{fmt(figure)}</h1>
+                <span className="mt-1 text-[0.8rem] leading-tight whitespace-nowrap" style={{ color: 'var(--color-ink-dim)' }}>a month after tax</span>
+              </>)}
+            </Orbit>
+            <p className="mt-2 text-[0.95rem] leading-snug text-center" style={{ color: 'var(--color-ink-dim)' }} aria-live="polite">
               {status.sustainable != null
-                ? <>a month after tax, every year to age {plan.horizonAge}.</>
-                : status.key === 'on' || status.key === 'thin' ? <>a month, paid every year to age {plan.horizonAge} on the central case.</>
-                  : dd.holds ? <>a month is what you ask; on the central case it lasts to {plan.horizonAge} with spending trimmed.</>
-                    : <>a month is what you ask; on the central case the money runs short at {dd.runsShortAgeA}.</>}
+                ? <>The most the plan can pay every year to age {plan.horizonAge}.</>
+                : status.key === 'on' || status.key === 'thin' ? <>Paid every year to age {plan.horizonAge} on the central case.</>
+                  : dd.holds ? <>What you ask; on the central case it lasts to {plan.horizonAge} with spending trimmed.</>
+                    : <>What you ask; on the central case the money runs short at {dd.runsShortAgeA}.</>}
               {gap != null && (
                 <span data-gap className="block mt-0.5 font-semibold" style={{ color: 'var(--color-ink)' }}>
                   {Math.abs(gap) < 25 ? <>That is just what you ask for.</>
@@ -116,8 +119,9 @@ export default function SimpleHome({ plan, update, dd, mc, onDetails, header }: 
                       : <>You ask for {fmt(month)}: <span style={{ color: 'var(--color-sage-strong)' }}>{fmt(gap)} a month to spare</span>.</>}
                 </span>)}
             </p>
-            {status.key === 'trim' && status.note && <p data-note className="mt-1.5 text-[0.84rem] leading-snug [@media(max-height:799px)]:hidden" style={{ color: 'var(--color-ink-dim)' }}>{status.note}</p>}
-            <p data-futures className="mt-2 text-[0.84rem] leading-snug" style={{ color: 'var(--color-ink-dim)' }}>{futuresSentence(status)}</p>
+            {status.key === 'trim' && status.note && <p data-note className="mt-1.5 text-[0.84rem] leading-snug text-center [@media(max-height:799px)]:hidden" style={{ color: 'var(--color-ink-dim)' }}>{status.note}</p>}
+            {/* On a short screen the orbit's reading carries the count; the sentence stays for screen readers. */}
+            <p data-futures className="mt-1.5 text-[0.84rem] leading-snug text-center [@media(max-height:760px)]:sr-only" style={{ color: 'var(--color-ink-dim)' }}>{futuresSentence(status)}</p>
           </section>
         )}
 

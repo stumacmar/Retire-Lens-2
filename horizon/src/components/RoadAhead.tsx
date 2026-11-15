@@ -103,7 +103,10 @@ export default function RoadAhead({ mc, structured, fromAge, toAge, ask, summary
   const firstShort = ready ? held!.find((_h, i) => (structured ? rules : full)[i] < 100)?.age : undefined;
   const firstTrim = ready && structured ? held!.find((_h, i) => full[i] < rules[i])?.age : undefined;
   const eased = useEased(ready ? [...full, ...(structured ? rules : full)] : [], reduced);
-  const shownFull = ready ? eased.slice(0, n) : [], shownRules = ready ? eased.slice(n, 2 * n) : [];
+  // Until the easing catches up with a change in the number of years, draw the new counts as they are.
+  const settledLen = eased.length === 2 * n && eased.every(Number.isFinite);
+  const shownFull = !ready ? [] : settledLen ? eased.slice(0, n) : full;
+  const shownRules = !ready ? [] : settledLen ? eased.slice(n, 2 * n) : (structured ? rules : full);
 
   // ── The scene, in px from the measured box ─────────────────────────────
   const fontSize = Math.round(Math.max(30, Math.min(50, h * 0.15)));

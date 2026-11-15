@@ -11,15 +11,16 @@ import { planCounts } from '../lib/counts';
 import { valuesFor, clampVal, type Val } from '../lib/planValues';
 import Sheet from './Sheet';
 import RiskPanel from './RiskPanel';
-import Sunrise from './Sunrise';
+import FuturesCanvas from './FuturesCanvas';
 
 /**
  * The simple home: the answer first, in words, one figure and one picture,
  * then the three things most people change, each one tap away. Nothing to
  * learn.
  *
- *        ⌒⌒⌒  the sunrise: 100 lines, one per future  ⌒⌒⌒
- *   ─────────────────────────────────────────────────────
+ *   ▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇  the canvas:
+ *   ▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇          100 futures,
+ *   ▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇                   one stripe each
  *   60          First shortfalls at 71                  90
  *
  *   ● Enough on average, not safe yet
@@ -80,11 +81,14 @@ export default function SimpleHome({ plan, update, dd, mc, onDetails, header }: 
     <div data-simple-home className="fixed inset-0 overflow-y-auto"
       style={{ background: 'var(--color-canvas)', paddingTop: 'calc(env(safe-area-inset-top) + 0.6rem)', paddingBottom: 'calc(env(safe-area-inset-bottom) + 5.4rem)',
         paddingLeft: 'max(16px, env(safe-area-inset-left))', paddingRight: 'max(16px, env(safe-area-inset-right))' }}>
-      <div className="mx-auto w-full max-w-[560px] flex flex-col">
+      {/* At least a screen tall, so the canvas can take whatever height is
+          left once the answer and the controls are laid out: the two
+          questions always sit just above the tab bar. */}
+      <div className="mx-auto w-full max-w-[560px] min-h-full flex flex-col">
         {header}
 
-        {/* ── The sunrise: 100 futures, one line each ─────────────────── */}
-        {hasMoney && <Sunrise mc={mc} structured={!!plan.architecture?.on} fromAge={plan.retireYear - A.birthYear} toAge={plan.horizonAge} accent={status.colour} />}
+        {/* ── The canvas: 100 futures, one stripe each ─────────────────── */}
+        {hasMoney && <FuturesCanvas mc={mc} structured={!!plan.architecture?.on} fromAge={plan.retireYear - A.birthYear} toAge={plan.horizonAge} accent={status.colour} />}
 
         {/* ── The answer ─────────────────────────────────────────────── */}
         {!hasMoney ? (
@@ -94,11 +98,11 @@ export default function SimpleHome({ plan, update, dd, mc, onDetails, header }: 
             <button type="button" onClick={onDetails} className="mt-5 rounded-2xl px-5 py-3 font-bold text-[var(--color-on-calm)]" style={{ background: 'var(--color-calm)' }}>Add my details</button>
           </section>
         ) : (
-          <section className="mt-4 [@media(max-height:700px)]:mt-2" aria-live="polite" data-answer data-ready={rails && mc ? '1' : '0'}>
+          <section className="mt-4 [@media(max-height:760px)]:mt-2" aria-live="polite" data-answer data-ready={rails && mc ? '1' : '0'}>
             <p data-status={status.key} className="flex items-center gap-2 text-[0.98rem] font-bold leading-tight" style={{ color: status.colour }}>
               <span aria-hidden className="inline-block w-2 h-2 rounded-full shrink-0" style={{ background: status.colour }} />{status.label}
             </p>
-            <h1 className="serif tnum leading-[0.95] mt-2 [@media(max-height:700px)]:mt-1" style={{ fontSize: 'clamp(3.1rem, min(19vw, 9.4vh), 4.8rem)', letterSpacing: '-0.045em', color: 'var(--color-ink)' }} data-supports>{fmt(figure)}</h1>
+            <h1 className="serif tnum leading-[0.95] mt-2 [@media(max-height:760px)]:mt-1" style={{ fontSize: 'clamp(2.9rem, min(19vw, 9vh), 4.8rem)', letterSpacing: '-0.045em', color: 'var(--color-ink)' }} data-supports>{fmt(figure)}</h1>
             <p className="mt-2 text-[0.95rem] leading-snug" style={{ color: 'var(--color-ink-dim)' }}>
               {status.sustainable != null
                 ? <>a month after tax, every year to age {plan.horizonAge}.</>
@@ -119,27 +123,27 @@ export default function SimpleHome({ plan, update, dd, mc, onDetails, header }: 
 
         {/* ── The three things most people change ────────────────────── */}
         {hasMoney && (
-          <section className="mt-4 [@media(max-height:700px)]:mt-2.5 rounded-3xl px-4" style={{ background: 'var(--color-surface)', border: '1px solid var(--color-hairline)' }} aria-label="Change your plan">
+          <section className="mt-4 [@media(max-height:760px)]:mt-2.5 rounded-3xl px-4" style={{ background: 'var(--color-surface)', border: '1px solid var(--color-hairline)' }} aria-label="Change your plan">
             {drivers.map((d, i) => {
               const n = d.val.get();
               return (
-                <div key={d.id} data-driver={d.id} className="flex items-center gap-2 py-2 [@media(max-height:700px)]:py-1" style={{ borderTop: i ? '1px solid var(--color-hairline)' : 'none' }}>
+                <div key={d.id} data-driver={d.id} className="flex items-center gap-2 py-2 [@media(max-height:760px)]:py-1" style={{ borderTop: i ? '1px solid var(--color-hairline)' : 'none' }}>
                   <div className="min-w-0 flex-1">
                     <div className="text-[0.95rem] font-semibold leading-tight" style={{ color: 'var(--color-ink)' }}>{d.label}</div>
                     <div className="text-[0.74rem] leading-tight mt-0.5 truncate" style={{ color: 'var(--color-ink-faint)' }}>{d.sub}</div>
                   </div>
                   <button type="button" aria-label={`${d.label}: ${d.less}`} disabled={n <= d.val.min} onClick={() => write(d.id, (_v, cur) => cur - d.step)}
-                    className="w-11 h-11 [@media(max-height:700px)]:w-10 [@media(max-height:700px)]:h-10 shrink-0 rounded-full flex items-center justify-center disabled:opacity-30" style={{ background: 'var(--color-canvas)', border: '1px solid var(--color-hairline)', color: 'var(--color-ink)' }}><Minus size={18} /></button>
+                    className="w-11 h-11 [@media(max-height:760px)]:w-10 [@media(max-height:760px)]:h-10 shrink-0 rounded-full flex items-center justify-center disabled:opacity-30" style={{ background: 'var(--color-canvas)', border: '1px solid var(--color-hairline)', color: 'var(--color-ink)' }}><Minus size={18} /></button>
                   {typing?.id === d.id ? (
                     <input autoFocus inputMode="decimal" aria-label={`${d.label}, type a figure`} value={typing.text} onChange={e => setTyping({ id: d.id, text: e.target.value })}
                       onBlur={commit} onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); if (e.key === 'Escape') setTyping(null); }}
                       className="tnum text-center text-[1.05rem] font-bold rounded-xl py-1.5 w-[5.6rem] outline-none" style={{ background: 'var(--color-canvas)', color: 'var(--color-ink)', border: '1px solid var(--color-calm)' }} />
                   ) : (
                     <button type="button" onClick={() => setTyping({ id: d.id, text: String(n) })} aria-label={`${d.label}: ${d.show(n)}. Tap to type a figure`}
-                      className="tnum text-center text-[1.1rem] font-bold rounded-xl py-1.5 w-[5.6rem] min-h-[44px] [@media(max-height:700px)]:min-h-[40px]" style={{ color: 'var(--color-ink)' }}>{d.show(n)}</button>
+                      className="tnum text-center text-[1.1rem] font-bold rounded-xl py-1.5 w-[5.6rem] min-h-[44px] [@media(max-height:760px)]:min-h-[40px]" style={{ color: 'var(--color-ink)' }}>{d.show(n)}</button>
                   )}
                   <button type="button" aria-label={`${d.label}: ${d.more}`} disabled={n >= d.val.max} onClick={() => write(d.id, (_v, cur) => cur + d.step)}
-                    className="w-11 h-11 [@media(max-height:700px)]:w-10 [@media(max-height:700px)]:h-10 shrink-0 rounded-full flex items-center justify-center disabled:opacity-30" style={{ background: 'var(--color-canvas)', border: '1px solid var(--color-hairline)', color: 'var(--color-ink)' }}><Plus size={18} /></button>
+                    className="w-11 h-11 [@media(max-height:760px)]:w-10 [@media(max-height:760px)]:h-10 shrink-0 rounded-full flex items-center justify-center disabled:opacity-30" style={{ background: 'var(--color-canvas)', border: '1px solid var(--color-hairline)', color: 'var(--color-ink)' }}><Plus size={18} /></button>
                 </div>);
             })}
           </section>
@@ -147,22 +151,22 @@ export default function SimpleHome({ plan, update, dd, mc, onDetails, header }: 
 
         {/* ── Two questions, one tap each ────────────────────────────── */}
         {hasMoney && (
-          <div className="mt-3 [@media(max-height:700px)]:mt-2 grid grid-cols-2 gap-3">
+          <div className="mt-3 [@media(max-height:760px)]:mt-2 grid grid-cols-2 gap-3">
             <button type="button" onClick={() => setPanel('help')} className="rounded-2xl py-3 px-1 min-h-[48px] text-[0.86rem] [@media(max-width:379px)]:text-[0.8rem] font-semibold" style={{ background: 'var(--color-canvas)', border: '1px solid var(--color-calm)', color: 'var(--color-calm-strong)' }}>What would help?</button>
             <button type="button" onClick={() => setPanel('risk')} className="rounded-2xl py-3 px-1 min-h-[48px] text-[0.86rem] [@media(max-width:379px)]:text-[0.8rem] font-semibold" style={{ background: 'var(--color-canvas)', border: '1px solid var(--color-calm)', color: 'var(--color-calm-strong)' }}>What could go wrong?</button>
           </div>
         )}
+      </div>
         {/* What the answer is counting, so nobody has to wonder whether a
             partner's pots or annuity are in. Read straight from the plan. It sits
             below the two questions, so they stay in view on a small screen. */}
         {hasMoney && (
-          <p data-counts className="mt-3 text-[0.8rem] leading-snug" style={{ color: 'var(--color-ink-faint)' }}>
+          <p data-counts className="mx-auto w-full max-w-[560px] mt-3 text-[0.8rem] leading-snug" style={{ color: 'var(--color-ink-faint)' }}>
             {planCounts(plan).line}{' '}
             <button type="button" onClick={onDetails} className="underline inline-block min-h-[24px]" style={{ color: 'var(--color-ink-dim)' }}>Check or change in Details</button>
           </p>
         )}
 
-      </div>
     </div>
 
     {/* Outside the fixed home: a fixed element is its own stacking context,

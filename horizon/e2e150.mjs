@@ -25,14 +25,14 @@
  *   I  no error in the page or the console
  *   J  the same plan run in a second JavaScript engine (Node) supports the
  *      same figure to within 1%
- *   K  the sunrise (100 lines, one for each future, each crossing the sky for
- *      as long as that future pays) starts the year work stops, an outer line
- *      never runs further than an inner one, and the number of lines that
- *      reach the horizon is the futures count in the sentence
+ *   K  the canvas (100 stripes, one for each future, each painted for as
+ *      long as that future pays) starts the year work stops, a lower stripe
+ *      never runs further than a higher one, and the number of stripes that
+ *      reach the right-hand edge is the futures count in the sentence
  *   L  (every fifth) the needle, moved with the keys to the last age and the
  *      first, reads the same counts
  *
- * In every fifth scenario the sunrise's needle is also moved with the keys,
+ * In every fifth scenario the canvas's needle is also moved with the keys,
  * to the plan's last age and back to the year work stops, and must read the
  * same counts as the engine. The first fourteen scenarios are the owner's own plan and its near
  * neighbours; the rest are drawn from a seeded generator, so the run is the
@@ -204,8 +204,8 @@ async function readHome(page, plan) {
   return page.evaluate(() => { const t = (s) => (document.querySelector(s)?.innerText || '').replace(/\s+/g, ' ').trim();
     return { key: document.querySelector('[data-simple-home] [data-status]')?.getAttribute('data-status'), label: t('[data-simple-home] [data-status]'),
       figure: Number(t('[data-supports]').replace(/[£,]/g, '')), gap: t('[data-gap]'), futures: t('[data-futures]'), counts: t('[data-counts]'), note: t('[data-note]'),
-      sun: (() => { const el = document.querySelector('[data-sunrise]'); return !el ? null : { first: +el.getAttribute('data-first'), last: +el.getAttribute('data-last'), n: +el.getAttribute('data-years'),
-        rings: [...el.querySelectorAll('[data-ring]')].map(r => [+r.getAttribute('data-years'), +r.getAttribute('data-full-years')]), end: t('[data-sun-end]') }; })() }; });
+      sun: (() => { const el = document.querySelector('[data-canvas]'); return !el ? null : { first: +el.getAttribute('data-first'), last: +el.getAttribute('data-last'), n: +el.getAttribute('data-years'),
+        rings: [...el.querySelectorAll('[data-stripe]')].map(r => [+r.getAttribute('data-years'), +r.getAttribute('data-full-years')]), end: t('[data-canvas-end]') }; })() }; });
 }
 
 const results = new Array(N);
@@ -243,18 +243,18 @@ async function worker() {
       if (shownF !== x.futures) fails.push(`E futures: shows ${shownF} of 100, engine gives ${x.futures}`);
       if (x.structured && x.futuresFull !== x.futures && !ui.futures.includes(`paid in full every year in ${x.futuresFull}`)) fails.push(`E structured plan does not state the paid-in-full share ${x.futuresFull}: ${ui.futures}`);
       if (!/not a guarantee/.test(ui.futures)) fails.push('E the caveat is missing');
-      // K the sunrise: the picture and the number are the same thing
+      // K the canvas: the picture and the number are the same thing
       {
         const sun = ui.sun;
-        if (!sun || sun.rings.length !== 100) fails.push(`K the sunrise is missing or does not have 100 lines (${sun ? sun.rings.length : 'none'})`);
+        if (!sun || sun.rings.length !== 100) fails.push(`K the canvas is missing or does not have 100 stripes (${sun ? sun.rings.length : 'none'})`);
         else {
           const yrs = sun.rings.map(r => r[0]), reach = yrs.filter(y => y === sun.n).length;
-          if (sun.first !== plan.retireYear - plan.partnerA.birthYear) fails.push(`K the sunrise starts at ${sun.first}, work stops at ${plan.retireYear - plan.partnerA.birthYear}`);
-          if (sun.last !== sun.first + sun.n - 1) fails.push(`K the sunrise ends at ${sun.last} after ${sun.n} years from ${sun.first}`);
-          if (!yrs.every((y, i) => y >= 0 && y <= sun.n && (i === 0 || y <= yrs[i - 1]))) fails.push(`K an outer line runs further than an inner one: ${yrs.join(' ')}`);
-          if (reach !== x.futures) fails.push(`K ${reach} lines reach the horizon, the sentence says ${x.futures}`);
-          if (!sun.end.startsWith(`${x.futures} of 100 reach ${sun.last}`)) fails.push(`K the label beside the sunrise reads "${sun.end}"`);
-          if (x.structured && sun.rings.filter(r => r[1] === sun.n).length !== Math.min(x.futuresFull, x.futures)) fails.push(`K structured: ${sun.rings.filter(r => r[1] === sun.n).length} bright lines reach the horizon, paid in full is ${x.futuresFull}`);
+          if (sun.first !== plan.retireYear - plan.partnerA.birthYear) fails.push(`K the canvas starts at ${sun.first}, work stops at ${plan.retireYear - plan.partnerA.birthYear}`);
+          if (sun.last !== sun.first + sun.n - 1) fails.push(`K the canvas ends at ${sun.last} after ${sun.n} years from ${sun.first}`);
+          if (!yrs.every((y, i) => y >= 0 && y <= sun.n && (i === 0 || y <= yrs[i - 1]))) fails.push(`K a lower stripe runs further than a higher one: ${yrs.join(' ')}`);
+          if (reach !== x.futures) fails.push(`K ${reach} stripes reach the right-hand edge, the sentence says ${x.futures}`);
+          if (!sun.end.startsWith(`${x.futures} of 100 reach ${sun.last}`)) fails.push(`K the label beside the canvas reads "${sun.end}"`);
+          if (x.structured && sun.rings.filter(r => r[1] === sun.n).length !== Math.min(x.futuresFull, x.futures)) fails.push(`K structured: ${sun.rings.filter(r => r[1] === sun.n).length} full-colour stripes reach the edge, paid in full is ${x.futuresFull}`);
         }
       }
       // F the counts line
@@ -279,10 +279,10 @@ async function worker() {
       // L the needle, moved with the keys, reads the engine's counts
       if (i % 5 === 0 && ui.sun) {
         await page.waitForTimeout(1800);                              // let the sun finish rising
-        await page.focus('[data-sunrise]'); await page.keyboard.press('End'); await page.waitForTimeout(80);
-        const atEnd = await page.$eval('[data-sunrise]', e => [+e.getAttribute('data-age'), e.getAttribute('aria-valuetext')]);
+        await page.focus('[data-canvas]'); await page.keyboard.press('End'); await page.waitForTimeout(80);
+        const atEnd = await page.$eval('[data-canvas]', e => [+e.getAttribute('data-age'), e.getAttribute('aria-valuetext')]);
         await page.keyboard.press('Home'); await page.waitForTimeout(80);
-        const atStart = await page.$eval('[data-sunrise]', e => [+e.getAttribute('data-age'), e.getAttribute('aria-valuetext')]);
+        const atStart = await page.$eval('[data-canvas]', e => [+e.getAttribute('data-age'), e.getAttribute('aria-valuetext')]);
         const lastBar = ui.sun.rings.filter(r => r[0] > ui.sun.n - 1).length, firstBar = ui.sun.rings.filter(r => r[0] > 0).length;
         if (atEnd[0] !== ui.sun.last || !atEnd[1].startsWith(`Age ${ui.sun.last}: ${x.futures} of 100 futures still paying`)) fails.push(`L the needle at ${ui.sun.last} reads "${atEnd[1]}", the engine gives ${x.futures}`);
         if (atStart[0] !== ui.sun.first || !atStart[1].startsWith(`Age ${ui.sun.first}: ${firstBar} of 100`)) fails.push(`L the needle at ${ui.sun.first} reads "${atStart[1]}", the lines give ${firstBar}`);

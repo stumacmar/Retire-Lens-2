@@ -8,7 +8,7 @@ import type { Rail } from '../lib/insights';
 import { planStatus, futuresSentence } from '../lib/status';
 import { deepestTrim } from '../lib/insights';
 import { planCounts } from '../lib/counts';
-import { valuesFor, clampVal, type Val } from './dial/values';
+import { valuesFor, clampVal, type Val } from '../lib/planValues';
 import Sheet from './Sheet';
 import RiskPanel from './RiskPanel';
 import Sunrise from './Sunrise';
@@ -36,8 +36,9 @@ import Sunrise from './Sunrise';
  *   [What would help?]  [What could go wrong?]
  *
  * Everything else lives where it already did: Details for the figures,
- * Explore for the charts, Peace for the assumptions. The dial is still there
- * for people who like it (the switch is in the header).
+ * Explore for the charts, Peace for the assumptions. This is the only home:
+ * the Horizon Dial was retired in November 2026 (the owner found two homes,
+ * and the dial, more complex than they were worth).
  */
 type Driver = { id: string; label: string; val: Val; step: number; show: (n: number) => string; sub: string; less: string; more: string };
 
@@ -55,8 +56,8 @@ export default function SimpleHome({ plan, update, dd, mc, onDetails, header }: 
     successProb: mc ? mc.successProb : null, successWithCuts: mc ? mc.successProbWithCuts : null, sustainableYear: baseRail ? baseRail.year : null,
     targetYear: plan.targetNet || 0, horizonAge: plan.horizonAge, runsShortAge: dd.runsShortAgeA });
 
-  // The three drivers, read and written through the same definitions the
-  // dial uses, so the two homes can never disagree about a range or a step.
+  // The three drivers, read and written through the plan's value definitions
+  // (lib/planValues), so a range or a step is defined in one place.
   const vals = useMemo(() => valuesFor(plan, 'A'), [plan]);
   const drivers: Driver[] = [
     { id: 'retireAge', label: 'Stop work at', val: vals.someday[0], step: 1, show: n => String(n), sub: `in ${plan.retireYear}`, less: 'a year earlier', more: 'a year later' },

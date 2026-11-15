@@ -24,7 +24,7 @@ model contract"). The evidence that the engine follows it is in
 | **Currency** | Pounds sterling. Inputs are whole pounds; the engine works in floating point and rounds only for display. |
 | **Money basis of inputs** | **Today's money** for everything a person types: pots, contributions, the spending target, State Pension amounts, scheme pensions, life events, the inheritance assumption. |
 | **Money basis of the simulation** | **Nominal.** Each year's spending target, State Pension, indexed scheme pension and life event is multiplied by `inflFactor(P, year) = (1 + inflation)^(year − startYear)`. Tax thresholds are frozen to April 2031 and then also indexed (see §4). |
-| **Money basis of outputs** | **Today's money** unless labelled. Any nominal figure shown is deflated by the same `inflFactor`. The report, the dial, the decision map and Explore all deflate; the year-by-year table shows both. |
+| **Money basis of outputs** | **Today's money** unless labelled. Any nominal figure shown is deflated by the same `inflFactor`. The report, the home, the decision map and Explore all deflate; the year-by-year table shows both. |
 | **Year** | A plan year is a calendar year `y`. Ages are `y − birthYear`. The plan starts in `startYear` (the current year) and stops work in `retireYear`. |
 | **Timing within a year** | Draws, guaranteed income and tax are booked at the **start** of the year; growth is applied to what remains at the **end** of the year; contributions and invested windfalls arrive **mid-year** and earn half a year's growth (`× (1 + g/2)`). Cash earns its own fixed rate (`cashGrowth`). |
 | **Returns** | Nominal, **net of the annual charge**: every return applied to pensions, ISAs and the general account is `rate − fee`. The three "lens" rates (`growthBear`, `growthBase`, `growthBull`) are nominal, before the charge. |
@@ -292,8 +292,8 @@ work stops (Japan 1990 twenty years; 2008 ten years including the recovery;
 1970s stagflation eight years; a 30% fall then flat five years), applied to
 the `equityShare` of invested money with the rest at 1% real
 (`blendReal`), converted to nominal with the plan's inflation, less the
-charge. `stressTests(P)` runs the plan through each; the dial's floor is the
-most that would hold under the chosen history. `guardrails` gives the safe
+charge. `stressTests(P)` runs the plan through each; "What could go wrong?"
+shows the most that would hold under each history. `guardrails` gives the safe
 yearly spend under each history and lens. With the architecture on, the growth
 engine takes the stress path in full (`architecture.stressPath`).
 
@@ -335,7 +335,7 @@ delivered (certainty-equivalent), never on survival alone.
 
 | Surface | Reads |
 |---|---|
-| Dial (home) | `accumulate`, `drawdown` (`holds`, `runsShortAgeA`), `runMonteCarlo` (`successProb`), `stressTests` floor, `levers` |
+| Home | `accumulate`, `drawdown` (`holds`, `runsShortAgeA`), `runMonteCarlo` (`successProb`, `perAgeHeld` for the sunrise and its needle), `guardrails`, `stressTests`, `levers` |
 | Decision map | `drawdown` per cell |
 | Explore | `drawdown` rows, `runMonteCarlo`, `levers`, `stressTests`, `compareStrategies`, `estate` |
 | Peace | `Assumptions` (generated from the plan and engine constants), `HowWeChecked` (`runAssertions` live, `TAX_RULES`) |

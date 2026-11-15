@@ -34,7 +34,7 @@ in `horizon/src/engine/engine.js`:
 - `runAssertions` (134 checks) includes "Monte Carlo equals deterministic at
   zero volatility" across thirteen plan shapes. **That invariant is sacred.**
 - The home (`horizon/src/components/SimpleHome.tsx`) is one screen: the
-  sunrise (100 futures, one line each, with a needle that reads any age),
+  canvas (100 futures, one stripe each, with a needle that reads any age),
   the answer in words and one figure, three steppers, and two questions as
   sheets. The Horizon Dial was retired on 15 November 2026. Depth lives in
   the Details, Explore and Peace sheets (`horizon/src/App.tsx`).

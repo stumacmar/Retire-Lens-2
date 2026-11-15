@@ -34,7 +34,7 @@ in `horizon/src/engine/engine.js`:
 - `runAssertions` (134 checks) includes "Monte Carlo equals deterministic at
   zero volatility" across thirteen plan shapes. **That invariant is sacred.**
 - The home (`horizon/src/components/SimpleHome.tsx`) is one screen: the
-  time tunnel (a corridor of years from the stop age to the plan age; the bright lane's share of the floor is the futures still paying in full; signs mark life events),
+  time tunnel (a corridor of years from the stop age to the plan age; the walls are the two tranches, filled to their value each year and opening into how each performs; signs mark life events),
   the answer in words and one figure, three steppers, and two questions as
   sheets. The Horizon Dial was retired on 15 November 2026. Depth lives in
   the Details, Explore and Peace sheets (`horizon/src/App.tsx`).

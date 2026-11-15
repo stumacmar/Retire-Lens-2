@@ -168,12 +168,13 @@ supporting the uncut figure. Both are covered by `e2e150.mjs`.
 
 The home draws **the time tunnel**: a corridor in perspective from the stop
 age (at your feet) to the plan age, then into light. Across each year's
-stretch the floor stands for the 100 futures: the bright centre lane's share
-of the floor's width is the share still paying the ask in full there
-(`perAgeHeld`, §9); on a structured plan a pale lane either side adds the
-futures still paying once the rules trim; the rest is grey, short of the ask.
-A share across the floor is unchanged by perspective. At the plan age the
-count is the one in the sentence. Signs on the ceiling mark the central
+stretch the walls hold the money: two tranches (a structured plan's safe
+ladder and growth engine, otherwise pensions and ISAs with cash), each filled
+to its value that year in today's money from the central case, as a share of
+the frame on one scale. Touching a tranche replays the whole plan under the
+positive, base and poor growth rates and the 2008 path from the stop age and
+draws that tranche in each. The futures count (`perAgeHeld`, §9) is read in
+the sentence and, at any age, in the line under the tunnel. Signs on the ceiling mark the central
 case's life events (an income starting, ISAs or pots used up, a partner
 stopping work, the plan's own events), read from the deterministic
 drawdown's rows; they describe the central case, not every future. Under the

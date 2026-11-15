@@ -13,6 +13,8 @@ import Sheet from './Sheet';
 import RiskPanel from './RiskPanel';
 import TimeTunnel from './TimeTunnel';
 import { lifeEvents } from '../lib/lifeEvents';
+import { tranchesOf, type TrancheKey } from '../lib/tranches';
+import TrancheSheet from './TrancheSheet';
 
 /**
  * The simple home: the answer first, in words, one figure and one picture,
@@ -42,18 +44,6 @@ import { lifeEvents } from '../lib/lifeEvents';
  * the Horizon Dial was retired in November 2026 (the owner found two homes,
  * and the dial, more complex than they were worth).
  */
-/** The answer sentence with a small swatch before each count, matching the tunnel's floor. */
-function withSwatches(text: string, structured: boolean) {
-  const sw = (c: string) => <i aria-hidden className="inline-block w-2.5 h-2.5 rounded-sm mr-1 align-baseline" style={{ background: c, outline: '1px solid color-mix(in srgb, var(--color-ink) 12%, transparent)' }} />;
-  const lit = 'var(--color-ring)', shade = 'color-mix(in srgb, var(--color-ring) 34%, var(--color-canvas))';
-  const parts = text.split(/(^In \d+|; in \d+)/);
-  return parts.map((p, i) => {
-    const m = p.match(/^(In |; in )(\d+)$/);
-    if (!m) return p;
-    return <span key={i}>{m[1]}{sw(m[1] === 'In ' && structured ? shade : lit)}{m[2]}</span>;
-  });
-}
-
 type Driver = { id: string; label: string; val: Val; step: number; show: (n: number) => string; sub: string; less: string; more: string };
 
 export default function SimpleHome({ plan, update, dd, mc, onDetails, header }: {
@@ -112,6 +102,10 @@ export default function SimpleHome({ plan, update, dd, mc, onDetails, header }: 
 
   const [panel, setPanel] = useState<null | 'help' | 'risk'>(null);
   const events = useMemo(() => lifeEvents(plan, dd), [plan, dd]);
+  const endAge = held.length ? held[held.length - 1].age : plan.horizonAge;
+  const tranches = useMemo(() => tranchesOf(plan, dd, stopAge, endAge), [plan, dd, stopAge, endAge]);
+  const [open, setOpen] = useState<{ key: TrancheKey; at: number | null } | null>(null);
+  const openTranche = tranches.find(t => t.key === open?.key);
   const figure = status.sustainable ?? month;
   const gap = status.gap;
 
@@ -137,9 +131,8 @@ export default function SimpleHome({ plan, update, dd, mc, onDetails, header }: 
             <p data-status={status.key} className="flex items-center gap-2 text-[0.95rem] font-semibold leading-tight" style={{ color: status.colour }} aria-live="polite">
               <span aria-hidden className="inline-block w-2 h-2 rounded-full shrink-0" style={{ background: status.colour }} />{status.label}
             </p>
-            {/* The answer in words, naming the amount the futures are counted against.
-                The small swatches tie its numbers to the tunnel's floor. */}
-            <p data-futures className="mt-1 text-[1rem] leading-snug" style={{ color: 'var(--color-ink)' }}>{withSwatches(futuresSentence(status), structured)}</p>
+            {/* The answer in words, naming the amount the futures are counted against. */}
+            <p data-futures className="mt-1 text-[1rem] leading-snug" style={{ color: 'var(--color-ink)' }}>{futuresSentence(status)}</p>
             {/* The figure: what the plan can pay, and the gap to the ask. */}
             <div className="mt-2 flex items-center justify-center gap-3">
               <h1 className="serif tnum leading-none" style={{ fontSize: 'clamp(2rem, 9vw, 2.6rem)', letterSpacing: '-0.04em', color: 'var(--color-ink)' }} data-supports>{fmt(figure)}</h1>
@@ -154,7 +147,7 @@ export default function SimpleHome({ plan, update, dd, mc, onDetails, header }: 
               </span>
             </div>
             {/* ── The time tunnel ──────────────────────────────────────── */}
-            <TimeTunnel mc={mc} structured={structured} fromAge={stopAge} toAge={plan.horizonAge} ask={month} events={events}
+            <TimeTunnel mc={mc} structured={structured} fromAge={stopAge} toAge={plan.horizonAge} ask={month} events={events} tranches={tranches} onOpen={(key, at) => setOpen({ key, at })}
               summary={`${spokenAnswer(status, stopAge, typicalShort)} ${resting}`} resting={resting} />
           </section>
         )}
@@ -210,6 +203,9 @@ export default function SimpleHome({ plan, update, dd, mc, onDetails, header }: 
         and inside it a sheet would slide under the tab bar. */}
     <Sheet open={panel === 'help'} onClose={() => setPanel(null)} title="What would help most">
       {panel === 'help' && <HelpPanel plan={plan} update={update} onDone={() => setPanel(null)} />}
+    </Sheet>
+    <Sheet open={!!openTranche} onClose={() => setOpen(null)} title={openTranche?.name || ''}>
+      {openTranche && <TrancheSheet plan={plan} tranche={openTranche} first={stopAge} last={endAge} at={open?.at ?? null} />}
     </Sheet>
     <Sheet open={panel === 'risk'} onClose={() => setPanel(null)} title="What could go wrong">
       {panel === 'risk' && <RiskPanel plan={plan} mc={mc} rails={rails} />}

@@ -757,18 +757,21 @@ const openMap = async () => { await closeSheet(); await tap('Explore'); await wa
   const ring = async () => p.evaluate(() => { const el = document.querySelector('[data-tunnel]'); const sl = el.querySelector('[role=slider]');
     const pts = (k) => (el.querySelector(`[data-lane=${k}]`)?.getAttribute('points') || '').trim().split(/\s+/).filter(Boolean).map(q => q.split(',').map(Number));
     return { first: +el.getAttribute('data-first'), last: +el.getAttribute('data-last'), n: +el.getAttribute('data-years'), counts: el.getAttribute('data-full-counts').split(',').map(Number),
-      road: pts('road'), lane: pts('full'), label: sl.getAttribute('aria-label'), summary: document.getElementById('tunnel-summary')?.textContent || '', futures: document.querySelector('[data-futures]')?.textContent || '' }; });
+      road: pts('road'), wallL: (el.querySelector('[data-wall=l]')?.getAttribute('points') || '').trim().split(/\s+/).filter(Boolean).map(q => q.split(',').map(Number)), wallR: (el.querySelector('[data-wall=r]')?.getAttribute('points') || '').trim().split(/\s+/).filter(Boolean).map(q => q.split(',').map(Number)), keys: [el.querySelector('[data-wall=l]')?.getAttribute('data-tranche'), el.querySelector('[data-wall=r]')?.getAttribute('data-tranche')], vy: +el.getAttribute('data-horizon'), h: +(el.querySelector('svg')?.getAttribute('height') || 0), label: sl.getAttribute('aria-label'), summary: document.getElementById('tunnel-summary')?.textContent || '', futures: document.querySelector('[data-futures]')?.textContent || '' }; });
   await check('158d the tunnel has a count for every year from the year work stops to the plan age', async () => { const q = await planOf(), st = await ring();
     return st.counts.length === st.n && st.first === q.retireYear - q.partnerA.birthYear && st.n === E.planEndYear(q) - q.retireYear + 1 && st.last === st.first + st.n - 1; });
   await check('158e the tunnel ends on the futures count in the sentence', async () => { const st = await ring(); const n = Number((st.futures.match(/^In (\d+) of 100/) || [])[1]); return st.counts[st.n - 1] === n; });
   await check('158f the count never rises from one year to the next', async () => { const st = await ring(); return st.counts.every((c, i) => c >= 0 && c <= 100 && (i === 0 || c <= st.counts[i - 1])); });
-  await check('158g across every year the bright lane is the share of the floor its count says, and the floor narrows to the plan age', async () => { const st = await ring();
-    const [a, b, c, d] = st.road; if (!a || st.lane.length !== 2 * (st.n + 2)) return false;
-    const edge = (p0, p1, y) => p0[0] + (p1[0] - p0[0]) * (y - p0[1]) / (p1[1] - p0[1]);
-    const left = st.lane.slice(0, st.n + 2), right = st.lane.slice(st.n + 2).reverse();
-    const shares = st.counts.map((_k, i) => { const y = left[i + 1][1]; return (right[i + 1][0] - left[i + 1][0]) / (edge(d, c, y) - edge(a, b, y)); });
-    const far = (c[0] - b[0]) / (d[0] - a[0]);
-    return shares.every((x, i) => Math.abs(x - st.counts[i] / 100) < 0.012) && Math.abs(far - roadS(1)) < 0.01 && left.every((q, i) => i === 0 || q[1] < left[i - 1][1]); });
+  // The walls are the money: two tranches (a structured plan's safe ladder and growth engine, else pensions
+  // and ISAs with cash), each filled from the floor up to its value that year in today's money, on one scale.
+  const trancheVals = (q, rows, key, first, last) => { const by = new Map(rows.map(r => [r.ageA, r])); const out = [];
+    for (let a = first; a <= last; a++) { const r = by.get(a); const v = !r ? 0 : key === 'ladder' ? r.ladder : key === 'engine' ? r.engine : key === 'pensions' ? r.potA + r.potB : r.isaA + r.isaB + r.cash + r.gia;
+      out.push(r ? Math.max(0, v / Math.pow(1 + q.inflation, r.year - q.startYear)) : 0); } return out; };
+  await check('158g each wall is filled to its tranche\'s value each year (today\'s money, from the engine), as a share of the frame', async () => { const q = await planOf(), st = await ring();
+    const keys = q.architecture?.on ? ['ladder', 'engine'] : ['pensions', 'isas']; if (st.keys.join() !== keys.join()) return false;
+    const rows = E.drawdown(q).rows; const vals = keys.map(k => trancheVals(q, rows, k, st.first, st.last)); const scale = Math.max(1, ...vals[0], ...vals[1]) * 1.06;
+    return [st.wallL, st.wallR].every((pts, k) => { if (pts.length !== 2 * (st.n + 2)) return false; const base = pts.slice(0, st.n + 2), top = pts.slice(st.n + 2).reverse();
+      return vals[k].every((v, i) => { const b = base[i + 1], t = top[i + 1]; const sc = (b[1] - st.vy) / (st.h - st.vy); return Math.abs((b[1] - t[1]) / (sc * st.h) - Math.min(1, v / scale)) < 0.01; }); }); });
   await check('158h the tunnel agrees with the engine for the same seed, year by year', async () => { const q = await planOf(), st = await ring(); const m = E.runMonteCarlo(q, 2000, q.mcSeed || 42);
     return m.perAgeHeld.every((h, i) => Math.round(h.full * 100) === st.counts[i]); });
   await check('158i the tunnel says in words what it shows (screen readers)', async () => { const st = await ring(); const q = await planOf(); const f = st.counts[st.n - 1];
@@ -783,6 +786,15 @@ const openMap = async () => { await closeSheet(); await tap('Explore'); await wa
     await wait(700);
     const ok = await p.evaluate(a => [...document.querySelectorAll(`[data-tunnel] [data-event-age="${a}"]`)].some(e => /State Pension starts/.test(e.textContent)), at);
     await p.keyboard.press('Escape'); await wait(600); return ok; });
+  await p.locator('[data-tranche-open]').first().click(); await wait(1200);
+  await check('158k touching a tranche opens it: what it is, what it earns, and four markets drawn, from the engine', async () => { const q = await planOf(), st = await ring();
+    const key = q.architecture?.on ? 'ladder' : 'pensions'; const el = await p.$(`[data-tranche-sheet="${key}"]`); if (!el) return false;
+    const lines = await el.$$eval('[data-scenario]', ls => ls.map(l => l.getAttribute('data-scenario')).join());
+    const base = trancheVals(q, E.drawdown({ ...q, growth: q.growthBase }).rows, key, st.first, st.last)[0];
+    const k = v => v >= 1e6 ? '£' + (v / 1e6).toFixed(2).replace(/\.?0+$/, '') + 'm' : v >= 1e3 ? '£' + Math.round(v / 1e3) + 'k' : '£' + Math.round(v);
+    const at = await el.$eval(`[data-tranche-at="${st.first}"]`, e => e.textContent);
+    return lines === 'positive,base,poor,gfc' && at === k(base) && /a year/.test(await el.innerText()); });
+  await closeSheet();
   await p.locator('[data-counts] button').click(); await wait(700);
   await check('158b "Check or change in Details" opens Details', () => sheetOpen());
   await goPage('Your guaranteed income');

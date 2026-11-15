@@ -785,7 +785,6 @@ const openMap = async () => { await closeSheet(); await tap('Explore'); await wa
     && /The total going in, tax relief included/.test(await p.locator('[data-active]').innerText()));
   const potsBefore = E.accumulate({ ...(await planOf()), growth: (await planOf()).growthBase }, (await planOf()).growthBase).atRetirement.pensionA;
   await reliefSwitch.click(); await wait(600);
-  const gbp = v => '£' + Math.round(v).toLocaleString('en-GB');
   await check('158c3 switching it on adds 25% basic-rate relief: the plan records it and the field says what goes in', async () => { const q = await planOf();
     return q.partnerA.contribGrossUp === true && (await p.locator('[data-active]').innerText()).includes(`with basic-rate tax relief added, ${gbp(q.partnerA.monthlyPension * 1.25)} a month goes in`); });
   await check('158c4 and the pot on the day work stops is larger', async () => { const q = await planOf(); return E.accumulate({ ...q, growth: q.growthBase }, q.growthBase).atRetirement.pensionA > potsBefore; });

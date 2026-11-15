@@ -4,7 +4,7 @@
    Crisp and modern: a white page, slate ink, one blue for everything you can
    act on, green for confidence, amber for gentle concern. No warm tints and
    no gradients in the interface; the one place colour is let loose is the
-   sunrise on the home screen (--sun-1 to --sun-4). Every small-text colour clears 4.5:1 on the surface it sits on. */
+   canvas on the home screen (--paint-0 to --paint-9). Every small-text colour clears 4.5:1 on the surface it sits on. */
 @theme {
   --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", system-ui, sans-serif;
 
@@ -37,12 +37,19 @@
 
 :root {
   color-scheme: light dark;
-  /* The sunrise: gold at the centre, through rose and violet, to blue at the
-     rim. Outside @theme so the build keeps them (they are used from script). */
-  --sun-1: #F59E0B;
-  --sun-2: #EC4868;
-  --sun-3: #7C4DDE;
-  --sun-4: #2563EB;
+  /* The canvas palette: warm at the top (the steadiest futures), cool at the
+     bottom; never a warning red or a go green. Outside @theme so the build
+     keeps them (they are used from script). */
+  --paint-0: #E8B04A;
+  --paint-1: #EE9A55;
+  --paint-2: #E47C5E;
+  --paint-3: #D8687A;
+  --paint-4: #BF5F98;
+  --paint-5: #9563B4;
+  --paint-6: #6C6CC6;
+  --paint-7: #4C80C4;
+  --paint-8: #3D95A8;
+  --paint-9: #2E5E88;
 }
 
 /* ── Dark mode: graphite, not brown. Same structure, inverted values. ──── */
@@ -69,10 +76,16 @@
     --color-work: #1E3A5F;
     --color-map-late: #F59E0B;
     --color-map-early: #F87171;
-    --sun-1: #FBBF24;
-    --sun-2: #FB6F8E;
-    --sun-3: #A78BFA;
-    --sun-4: #60A5FA;
+    --paint-0: #F2C063;
+    --paint-1: #F5A867;
+    --paint-2: #EE8C6E;
+    --paint-3: #E57A8D;
+    --paint-4: #D274AC;
+    --paint-5: #AB7DD0;
+    --paint-6: #8486DE;
+    --paint-7: #649BDC;
+    --paint-8: #55B3C2;
+    --paint-9: #4A7FB0;
   }
 }
 
@@ -225,7 +238,12 @@ input[type="range"].dawn-range::-moz-range-thumb {
   .dial-home { --ring-track: rgba(241,245,249,.2); }
 }
 
-/* The sunrise: each line sweeps out to its length, then glides when the plan changes. */
-.sun-ring { transition: stroke-dasharray 900ms cubic-bezier(0.2, 0.7, 0.2, 1); }
-.sun-needle { transition: opacity 400ms ease; }
-@media (prefers-reduced-motion: reduce) { .sun-ring, .sun-needle { transition: none; } }
+/* The canvas: each stripe is painted out to its length, then glides when the plan changes. */
+.canvas-stripe { transform-box: fill-box; transform-origin: 0 50%; transition: transform 1000ms cubic-bezier(0.2, 0.7, 0.2, 1); }
+.canvas-needle { transition: opacity 400ms ease; }
+@media (prefers-reduced-motion: reduce) { .canvas-stripe, .canvas-needle { transition: none; } }
+/* Canvas grain: fractal noise drawn once as an image and laid over the paint. */
+.canvas-grain {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.5  0 0 0 0 0.5  0 0 0 0 0.5  0 0 0 0.55 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  mix-blend-mode: soft-light; opacity: 0.5;
+}

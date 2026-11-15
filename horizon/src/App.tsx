@@ -97,7 +97,7 @@ function Horizon() {
   return (
     <main className="min-h-full">
 
-      {/* The home: the sunrise, the answer, three steppers, two questions. One
+      {/* The home: the canvas, the answer, three steppers, two questions. One
           home since November 2026 (the Horizon Dial was retired). */}
       {(() => {
         const header = (

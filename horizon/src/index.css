@@ -37,6 +37,10 @@
 
 :root {
   color-scheme: light dark;
+  /* The home's two meaning colours: warm for "paying", cool slate for
+     "short"; never red or green. Outside @theme so the build keeps them. */
+  --color-ring: #A35F00;
+  --color-slate: #475569;
   /* The canvas palette: warm at the top (the steadiest futures), cool at the
      bottom; never a warning red or a go green. Outside @theme so the build
      keeps them (they are used from script). */
@@ -76,6 +80,8 @@
     --color-work: #1E3A5F;
     --color-map-late: #F59E0B;
     --color-map-early: #F87171;
+    --color-ring: #F2B54A;
+    --color-slate: #A3B1C4;
     --paint-0: #F2C063;
     --paint-1: #F5A867;
     --paint-2: #EE8C6E;

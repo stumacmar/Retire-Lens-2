@@ -8,7 +8,9 @@
  *
  *   The central case pays what you ask, in full, every year
  *     on    "On track under these assumptions"   and at least 80 of 100 futures hold
- *     thin  "Enough on average, not safe yet"    but fewer than 80 of 100 futures hold
+ *     thin  "Enough in most futures, not all"    but fewer than 80 of 100 futures hold
+ *           (was "Enough on average, not safe yet": "on average" read as
+ *           "fine", per the November 2026 design research)
  *   The central case lasts only because the plan's own rules trim spending
  *     trim  "Enough, with a trim to spending"    (structured plans only)
  *   The central case runs short
@@ -48,7 +50,7 @@ export interface PlanStatus {
 const money = (n: number) => '£' + Math.round(n).toLocaleString('en-GB');
 export const STATUS_LABELS: Record<StatusKey, string> = {
   on: 'On track under these assumptions',
-  thin: 'Enough on average, not safe yet',
+  thin: 'Enough in most futures, not all',
   trim: 'Enough, with a trim to spending',
   close: 'Nearly enough',
   not: 'Not enough yet',
@@ -85,7 +87,9 @@ export function planStatus(o: {
   else if (o.holds) key = 'trim';
   else key = ratio != null && ratio >= 0.9 ? 'close' : 'not';
 
-  const colour = key === 'on' ? 'var(--color-sage-strong)' : key === 'not' ? 'var(--color-map-early)' : 'var(--color-hope)';
+  // One warm colour for "paying", one cool slate for "short"; never red or
+  // green (colour-blind and older eyes, and they read as a verdict).
+  const colour = key === 'close' || key === 'not' ? 'var(--color-slate)' : 'var(--color-ring)';
   let line: string;
   if (sustainable == null) {
     line = full ? `Your ${money(target)} a month is paid every year to ${o.horizonAge} on the central case.`
@@ -103,14 +107,55 @@ export function planStatus(o: {
     futures: pc(pUse), futuresInFull: pc(pFull), structured };
 }
 
-/** The one sentence about the futures, with its caveat, for either home. */
-export function futuresSentence(s: PlanStatus, short = false): string {
+/**
+ * The answer sentence. It always names the amount the futures are counted
+ * against (the amount asked for), because the big figure is a different
+ * amount (what the plan can pay) and the two must never be confused. It says
+ * "x of 100 futures", never a bare percentage: a percentage with no
+ * reference class is misread (Gigerenzer et al. 2005).
+ *
+ *   In 72 of 100 futures, £5,000 a month lasts to 90. An estimate, not a guarantee.
+ */
+export function futuresSentence(s: PlanStatus, _short = false): string {
   if (s.futures == null) return 'Working out the futures.';
-  const caveat = short ? 'not a guarantee' : 'An estimate in today\'s money, not a guarantee';
+  const ask = money(s.target), caveat = 'An estimate, not a guarantee.';
   if (s.structured && s.futuresInFull != null && s.futuresInFull !== s.futures) {
-    return short ? `Lasts in ${s.futures} of 100 futures with your rules (paid in full in ${s.futuresInFull}); ${caveat}.`
-      : `With your rules the money lasts in ${s.futures} of 100 simulated futures, paid in full every year in ${s.futuresInFull}. ${caveat}.`;
+    return `In ${s.futures} of 100 futures the money lasts to ${s.toAge} with your spending rules; in ${s.futuresInFull} it pays ${ask} a month in full. ${caveat}`;
   }
-  return short ? `Holds in ${s.futures} of 100 futures; ${caveat}.`
-    : `What you ask holds in ${s.futures} of 100 simulated futures. ${caveat}.`;
+  return `In ${s.futures} of 100 futures, ${ask} a month lasts to ${s.toAge}. ${caveat}`;
+}
+
+/**
+ * The spoken equivalent of the picture, for screen readers:
+ *   "Stop at 60 and take £5,000 a month. In 95 of 100 futures it lasts to 90.
+ *    In the other 5, money first runs short at about 86."
+ * `typicalShortAge` is the age by which half of the futures that do run
+ * short have done so.
+ */
+export function spokenAnswer(s: PlanStatus, stopAge: number, typicalShortAge: number | null): string {
+  if (s.futures == null) return 'Working out the futures.';
+  const f = s.futures, rest = 100 - f;
+  return `Stop at ${stopAge} and take ${money(s.target)} a month. In ${f} of 100 futures it lasts to ${s.toAge}${s.structured ? ' with your spending rules' : ''}.`
+    + (rest > 0 && typicalShortAge != null ? ` In the other ${rest}, money first runs short at about ${typicalShortAge}.` : '');
+}
+
+/**
+ * A dead zone at the two boundaries a number decides (the Torino lesson:
+ * words that flip back and forth while you drag lose their meaning). The
+ * word changes only when the result clearly crosses: "on track" and "enough
+ * in most futures" swap at 80 of 100 only beyond 78 or 82; "nearly enough"
+ * and "not enough yet" swap at nine tenths of the ask only beyond 0.88 or
+ * 0.92. Boundaries set by the central case (paid in full or not) are facts
+ * and never held. A fresh screen has no previous word and shows the rule.
+ */
+export function withDeadZone(prev: StatusKey | null, s: PlanStatus): PlanStatus {
+  if (!prev || prev === s.key) return s;
+  const f = s.futures, ratio = s.sustainable != null && s.target > 0 ? s.sustainable / s.target : null;
+  let key = s.key;
+  if (prev === 'on' && s.key === 'thin' && f != null && f >= 78) key = 'on';
+  if (prev === 'thin' && s.key === 'on' && f != null && f < 82) key = 'thin';
+  if (prev === 'close' && s.key === 'not' && ratio != null && ratio >= 0.88) key = 'close';
+  if (prev === 'not' && s.key === 'close' && ratio != null && ratio < 0.92) key = 'not';
+  if (key === s.key) return s;
+  return { ...s, key, label: STATUS_LABELS[key], colour: key === 'close' || key === 'not' ? 'var(--color-slate)' : 'var(--color-ring)' };
 }

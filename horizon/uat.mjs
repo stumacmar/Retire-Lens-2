@@ -92,7 +92,7 @@ const tap = async t => {
   catch { try { await p.locator(`text=${t}`).first().click({ timeout: 2000 }); return true; } catch { return false; } }
 };
 const sheetOpen = async () => (await p.locator('[role=dialog]').count()) > 0;
-// The home: one screen. The canvas, the answer, three steppers (each also
+// The home: one screen. The answer, the closing ring, three steppers (each also
 // typeable) and two questions. (The Horizon Dial was retired in November 2026.)
 const answerText = async () => (await p.$eval('[data-answer]', e => e.innerText).catch(() => '')).replace(/\s+/g, ' ');
 const futuresText = async () => p.$eval('[data-futures]', e => e.textContent).catch(() => '');
@@ -104,10 +104,17 @@ const homeType = async (label, value) => {
   await p.getByRole('button', { name: new RegExp(`^${label}: .*Tap to type`) }).click({ timeout: 4000 });
   await p.fill(`input[aria-label="${label}, type a figure"]`, String(value)); await p.keyboard.press('Enter'); await wait(400);
 };
-// What the canvas is showing: the needle's age and reading, and each stripe's length in years.
-const sunState = async () => p.evaluate(() => { const el = document.querySelector('[data-canvas]'); if (!el) return null;
-  return { ready: el.getAttribute('data-ready') === '1', age: +el.getAttribute('data-age'), first: +el.getAttribute('data-first'), last: +el.getAttribute('data-last'), n: +el.getAttribute('data-years'),
-    valuetext: el.getAttribute('aria-valuetext') || '', label: (document.querySelector('[data-canvas-drop]')?.textContent || ''), years: [...el.querySelectorAll('[data-stripe]')].map(r => +r.getAttribute('data-years')) }; });
+// What the ring is showing: the age read (if any), the reading under it, and the count of futures paying in full each year.
+const sunState = async () => p.evaluate(() => { const el = document.querySelector('[data-ring]'); if (!el) return null; const sl = el.querySelector('[role=slider]');
+  return { ready: el.getAttribute('data-ready') === '1', age: el.getAttribute('data-age') === '' ? null : +el.getAttribute('data-age'), first: +el.getAttribute('data-first'), last: +el.getAttribute('data-last'), n: +el.getAttribute('data-years'),
+    counts: (el.getAttribute('data-full-counts') || '').split(',').filter(Boolean).map(Number), firstShort: el.getAttribute('data-first-short') === '' ? null : +el.getAttribute('data-first-short'),
+    valuetext: sl?.getAttribute('aria-valuetext') || '', label: el.querySelector('[data-ring-text]')?.textContent || '', summary: document.getElementById('ring-summary')?.textContent || '' }; });
+// The ring's clarity rule (ClosingRing.tsx), written again here so the test does not trust the code it checks.
+const clarityOf = c => c >= 100 ? 1 : c >= 90 ? 0.7 + (c - 90) * 0.03 : c >= 70 ? 0.45 + (c - 70) * 0.0125 : c >= 40 ? 0.2 + (c - 40) * (0.25 / 30) : 0.2;
+const softnessOf = c => Math.max(0, Math.min(1, (100 - c) / 60));
+const gbp = v => '£' + Math.round(v).toLocaleString('en-GB');
+const restingLine = (q, m, firstShort) => { const month = Math.round(q.targetNet / 12); const dip = m.worstYearRatioP10 < 0.995 ? Math.round((m.worstYearRatioP10 * month) / 10) * 10 : null;
+  return firstShort == null ? `No future falls short before ${q.horizonAge}.` : `From ${firstShort}, some futures fall short.${dip != null ? ` In the worst 10 of 100, income dips to about ${gbp(dip)} a month.` : ''}`; };
 // Controls that exist both on the Horizon and inside a sheet must be tapped
 // where they are meant, never on the card behind.
 const tapInSheet = async t => {
@@ -243,13 +250,13 @@ await check('16c the plus button is one step', async () => (await planOf()).part
 { const before = (await planOf()).retireYear; await p.getByRole('button', { name: 'Stop work at: a year later' }).click(); await wait(400);
   await check('16d stop a year later moves the stop year by one', async () => (await planOf()).retireYear === before + 1); }
 await waitAnswer();
-await check('17 the home counts the futures that hold', async () => /holds in \d+ of 100 simulated futures/i.test(await futuresText()));
+await check('17 the home counts the futures, naming the amount and the age', async () => /^In \d+ of 100 futures, £[\d,]+ a month lasts to \d+\./.test(await futuresText()));
 // The home leads with where the plan stands, in words, and the numbers behind
 // it (audit §5B): what the plan can support a month, the gap to the ask, the
 // age it is tested through.
-await check('17a the home states where the plan stands in words, not a colour', async () => /^(On track under these assumptions|Enough on average, not safe yet|Enough, with a trim to spending|Nearly enough|Not enough yet) £/.test(await answerText()));
+await check('17a the home states where the plan stands in words, not a colour', async () => /^(On track under these assumptions|Enough in most futures, not all|Enough, with a trim to spending|Nearly enough|Not enough yet) In \d+ of 100 futures/.test(await answerText()));
 await check('17a2 the home says what the plan can support, the age it is tested to and the gap to the ask', async () => { const t = await answerText(); const q = await planOf();
-  return /£[\d,]+ a month/.test(t) && t.includes(`to age ${q.horizonAge}`) && (/You ask for £[\d,]+: £[\d,]+ a month (more than that|to spare)\./.test(t) || /just what you ask/.test(t) || /what you ask/.test(t)); });
+  return /£[\d,]+ a month after tax/.test(t) && t.includes(`lasts to ${q.horizonAge}`) && /£[\d,]+ (to spare|short)|Just what you ask/.test(t); });
 await check('17a3 the caveat sits beside the headline figure', async () => /not a guarantee/.test(await futuresText()));
 await check('17a4 the status never contradicts the central case', async () => {
   const q = await planOf(); const dd = E.drawdown({ ...q, growth: q.growthBase }); const key = await statusKey();
@@ -285,7 +292,7 @@ await loadEx();
 await check('21 example loads Stuart & Carol', async () => (await planOf()).partnerA?.name === 'Stuart');
 await waitAnswer();
 await check('22 example shows an answer', async () => /£[\d,]+ a month after tax/.test(await answerText()));
-await check('23 the count of futures shown', async () => /holds in \d+ of 100 simulated futures/i.test(await futuresText()));
+await check('23 the count of futures shown', async () => /^In \d+ of 100 futures/.test(await futuresText()));
 
 let k = 24;
 for (const [t, m] of [['Details', 'Your details'], ['Explore', 'Explore'], ['Peace', 'Peace of mind']]) {
@@ -301,26 +308,24 @@ await p.waitForFunction(() => /Japan, 1990 on/.test(document.getElementById('exp
 await check('29d guardrails from real bad histories, in Explore', async () => /Japan, 1990 on/.test(await p.locator('#explore-fall').innerText()));
 await check('29e the edge: every retirement, in Explore', () => has('Every retirement you could choose'));
 await closeSheet();
-// The canvas: 100 stripes, and a needle you drag (or step with the keys) to
-// read any age. It rests where the first futures fall short.
-await p.waitForFunction(() => document.querySelector('[data-canvas]')?.getAttribute('data-ready') === '1', null, { timeout: 20000 }).catch(() => {}); await wait(2400);
+// The closing ring: at rest it says how short the bad futures are; touch it,
+// or use the keys, to read any age.
+await p.waitForFunction(() => document.querySelector('[data-ring]')?.getAttribute('data-ready') === '1', null, { timeout: 20000 }).catch(() => {}); await wait(800);
 {
   const st = await sunState(); const q = await planOf(); const m = E.runMonteCarlo(q, 2000, q.mcSeed || 42);
-  const still = (i) => Math.round(m.perAgeHeld[i].full * 100);
-  const firstShort = m.perAgeHeld.find(h => Math.round(h.full * 100) < 100)?.age;
-  await check('30 the needle rests where the first futures fall short, and says so', () => st && st.age === (firstShort ?? st.last) && (firstShort == null || st.label === `First shortfalls at ${firstShort}`));
-  const box = await p.locator('[data-paint]').boundingBox();
-  await p.mouse.move(box.x + box.width * 0.12, box.y + box.height * 0.55); await p.mouse.down();
-  for (let i = 1; i <= 10; i++) { await p.mouse.move(box.x + box.width * (0.12 + 0.76 * i / 10), box.y + box.height * 0.5); await wait(20); }
-  await p.mouse.up(); await wait(300);
-  const dragged = await sunState();
-  await check('31 dragging across the canvas moves the needle later, and the reading follows', () => dragged.age > st.first + (st.n * 0.6) && dragged.label === `At ${dragged.age}: ${still(dragged.age - st.first)} of 100 still paying`);
-  await p.locator('[data-canvas]').focus(); await p.keyboard.press('Home'); await wait(150);
+  const still = (i) => Math.round(m.perAgeHeld[i].full * 100), ask = gbp(q.targetNet / 12);
+  const firstShort = m.perAgeHeld.find(h => Math.round(h.full * 100) < 100)?.age ?? null;
+  await check('30 at rest the ring reads the first shortfall and how far the worst 10 of 100 dip, from the engine', () => st && st.age === null && st.firstShort === firstShort && st.label === restingLine(q, m, firstShort));
+  const box = await p.locator('[data-ring] [role=slider]').boundingBox();
+  await p.mouse.click(box.x + box.width * 0.96, box.y + box.height / 2); await wait(300);
+  const touched = await sunState(); const i3 = Math.min(st.n - 1, Math.floor((90 / 344) * st.n));
+  await check('31 touching the ring at three o\'clock reads that age, from the engine', () => touched.age === st.first + i3 && touched.label === `At ${touched.age}: ${still(i3)} of 100 futures still pay ${ask} a month in full.`);
+  await p.locator('[data-ring] [role=slider]').focus(); await p.keyboard.press('Home'); await wait(150);
   const home = await sunState(); await p.keyboard.press('ArrowRight'); await p.keyboard.press('ArrowRight'); await wait(150);
   const two = await sunState();
-  await check('31b the keys work it too: Home is the year work stops, each arrow is one year', () => home.age === home.first && two.age === home.first + 2 && two.valuetext === `Age ${two.age}: ${still(2)} of 100 futures still paying in full`);
+  await check('31b the keys work it too: Home is the year work stops, each arrow is one year', () => home.age === home.first && two.age === home.first + 2 && two.valuetext === `Age ${two.age}: ${still(2)} of 100 futures still pay ${ask} a month in full`);
   await p.keyboard.press('Escape'); await wait(150);
-  await check('31c Escape puts the needle back where it rests', async () => (await sunState()).age === st.age);
+  await check('31c Escape puts the reading back to rest', async () => { const b = await sunState(); return b.age === null && b.label === st.label; });
 }
 await check('32 exactly one visible h1', async () => (await visH1()) === 1);
 const before = await answerText(); await homeType('Take home', 9000); await waitAnswer();
@@ -561,7 +566,7 @@ await p.reload({ waitUntil: 'networkidle' }); await wait(900);
 await check('101 free: disclaimer not asked again', async () => !/calm place to think/i.test(await h1()));
 await waitAnswer();
 await check('102 free: the answer still renders', async () => /£[\d,]+ a month/.test(await answerText()));
-await check('103 free: the count of futures still shown', async () => /holds in \d+ of 100 simulated futures/i.test(await futuresText()));
+await check('103 free: the count of futures still shown', async () => /^In \d+ of 100 futures/.test(await futuresText()));
 // Plus can be switched off entirely (PRODUCT.plusOffered). Then nothing is
 // locked, nothing sells, and the word "Plus" appears nowhere.
 const plusOffered = !!(await $('button[aria-label="Get Someday Plus"]'));
@@ -638,9 +643,9 @@ const openMap = async () => { await closeSheet(); await tap('Explore'); await wa
   await p.reload({ waitUntil: 'networkidle' }); await wait(900); await acceptDisclaimer(); await waitAnswer(); await wait(2400);
   // The central case runs short at 43; in a fifth of futures a bad first
   // year empties the ISA and cash at 42. No future reaches 90.
-  await check('121 unpaid years: "not enough", the canvas is bare from 42 and no stripe reaches 90', async () => { const st = await sunState(); const q = await planOf();
+  await check('121 unpaid years: "not enough", the first shortfalls at 42, and no future still paying at 90', async () => { const st = await sunState(); const q = await planOf();
     return ['not', 'close'].includes(await statusKey()) && E.drawdown({ ...q, growth: q.growthBase }).runsShortAgeA === 43 && firstShortAge(q) === 42
-      && st.age === 42 && st.label === 'First shortfalls at 42' && st.years.every(y => y < st.n) && /^0 of 100 reach 90/.test(await p.$eval('[data-canvas-end]', e => e.innerText.replace(/\s+/g, ' '))); });
+      && st.firstShort === 42 && st.counts[st.counts.length - 1] === 0 && st.label.startsWith('From 42, some futures fall short.'); });
   await openMap();
   await check('122 unpaid years: the map says it runs short', () => has('it runs short'));
   await check('123 unpaid years: zero page errors', () => pe.length === 0);
@@ -658,9 +663,9 @@ const openMap = async () => { await closeSheet(); await tap('Explore'); await wa
   await homeType('Stop work at', 90); await wait(600);
   await check('124 young planner: the stop age goes as far as 75, and no further', async () => (await planOf()).retireYear === 2075);
   await homeType('Stop work at', 46); await waitAnswer(); await wait(2400);
-  await check('125 young planner: stopping at 46 goes bare at once, and almost nothing is left by 50', async () => { const q = await planOf(); const a = firstShortAge(q); const st = await sunState();
-    return a === 46 && st.label === 'First shortfalls at 46' && st.years.filter(y => y > 4).length <= 2 && E.drawdown({ ...q, growth: q.growthBase }).runsShortAgeA <= 49; });
-  await check('126 young planner: the futures agree (fewer than 5 in 100 hold)', async () => /holds in [0-4] of 100/i.test(await futuresText()));
+  await check('125 young planner: stopping at 46, the first shortfalls come at once, and almost nothing is left by 50', async () => { const q = await planOf(); const a = firstShortAge(q); const st = await sunState();
+    return a === 46 && st.firstShort === 46 && st.counts[4] <= 2 && E.drawdown({ ...q, growth: q.growthBase }).runsShortAgeA <= 49; });
+  await check('126 young planner: the futures agree (fewer than 5 in 100 hold)', async () => /^In [0-4] of 100 futures/.test(await futuresText()));
   await homeType('Stop work at', 60); await wait(1500);
   await check('128 young planner: typing 60 moves the stop age to 60', async () => (await planOf()).retireYear === 2060);
   await openMap();
@@ -695,11 +700,11 @@ const openMap = async () => { await closeSheet(); await tap('Explore'); await wa
     for (let i = 0; i < 16; i++) { const mid = (lo + hi) / 2; const Q = { ...q, spendingPlanOn: false, targetNet: mid, growth: q.growthBase }; const acc = E.accumulate(Q, Q.growth); if (E.drawdown(Q, { growth: Q.growth, startPots: acc.atRetirement }).holds) lo = mid; else hi = mid; }
     return Math.round(Math.floor(lo / 100) * 100 / 12 / 10) * 10; };
   await check('142 the home is the simple one (no ring to learn)', async () => (await p.$('[data-simple-home]')) != null && (await p.$('[data-home]')) == null);
-  await check('143 it leads with where the plan stands, in words', async () => /^(On track under these assumptions|Enough on average, not safe yet|Enough, with a trim to spending|Nearly enough|Not enough yet) £/.test(await answer()));
+  await check('143 it leads with where the plan stands, in words', async () => /^(On track under these assumptions|Enough in most futures, not all|Enough, with a trim to spending|Nearly enough|Not enough yet) In \d+ of 100 futures/.test(await answer()));
   await check('144 the big figure is what the plan can support a month, and agrees with the engine', async () => {
     const shown = Number((await p.$eval('[data-supports]', e => e.textContent)).replace(/[£,]/g, '')); return Math.abs(shown - cap(await planOf())) <= 10; });
-  await check('145 the gap to what you ask is one plain sentence', async () => /You ask for £5,000: £[\d,]+ a month (more than that|to spare)\./.test(await answer()));
-  await check('146 the futures count carries its caveat', async () => /holds in \d+ of 100 simulated futures\. An estimate in today's money, not a guarantee\./.test(await answer()));
+  await check('145 the gap sits under the figure, and the sentence names what you ask', async () => /^(£[\d,]+ (to spare|short)|Just what you ask)$/.test((await p.$eval('[data-gap]', e => e.textContent)).trim()) && /£5,000 a month lasts to/.test(await answer()));
+  await check('146 the futures count carries its caveat', async () => /^In \d+ of 100 futures, £5,000 a month lasts to \d+\. An estimate, not a guarantee\.$/.test(await futuresText()));
   await check('147 exactly three things to change', async () => (await p.locator('[data-simple-home] [data-driver]').count()) === 3);
   // The answer says what it is counting, so nobody has to wonder whether a partner is in.
   await check('147b the answer says who and what it counts, straight from the plan', async () => {
@@ -740,24 +745,32 @@ const openMap = async () => { await closeSheet(); await tap('Explore'); await wa
   await check('158 the two questions sit above the tab bar without scrolling', async () => p.evaluate(() => {
     const nav = document.querySelector('nav').getBoundingClientRect(); const b = [...document.querySelectorAll('[data-simple-home] button')].find(x => /What could go wrong/.test(x.textContent)).getBoundingClientRect();
     return b.bottom <= nav.top; }));
-  // The canvas: 100 stripes, one for each simulated future, each painted
-  // sky for as long as that future keeps paying. It is drawn from the same run
-  // as the count in the sentence, so the picture and the number cannot differ.
-  await p.waitForFunction(() => document.querySelector('[data-canvas]')?.getAttribute('data-ready') === '1' && /of 100/.test(document.querySelector('[data-futures]')?.textContent || ''), null, { timeout: 20000 }).catch(() => {}); await wait(2600);
-  const sun = async () => p.evaluate(() => { const el = document.querySelector('[data-canvas]'); const rings = [...el.querySelectorAll('[data-stripe]')];
-    return { first: +el.getAttribute('data-first'), last: +el.getAttribute('data-last'), n: +el.getAttribute('data-years'), k: rings.map(r => +r.getAttribute('data-stripe')), years: rings.map(r => +r.getAttribute('data-years')), f: rings.map(r => +r.getAttribute('data-f')),
-      drawn: (() => { const w = document.querySelector('[data-paint]').getBoundingClientRect().width; return rings.map(r => r.getBoundingClientRect().width / w); })(), len: rings.map(r => r.getBoundingClientRect().height),
-      end: (document.querySelector('[data-canvas-end]')?.innerText || '').replace(/\s+/g, ' '), name: document.getElementById(el.getAttribute('aria-describedby') || '')?.textContent || '', role: el.getAttribute('role'), label: el.getAttribute('aria-label') || '', futures: document.querySelector('[data-futures]')?.textContent || '' }; });
-  await check('158d the canvas has 100 stripes and runs from the year work stops to the plan age', async () => { const q = await planOf(), st = await sun();
-    return st.k.length === 100 && st.k.every((k, i) => k === i + 1) && st.first === q.retireYear - q.partnerA.birthYear && st.n === E.planEndYear(q) - q.retireYear + 1 && st.last === st.first + st.n - 1; });
-  await check('158e the lines that reach the horizon are the futures count in the sentence, and the label says so', async () => { const st = await sun(); const n = Number((st.futures.match(/in (\d+) of 100/) || [])[1]);
-    return st.years.filter(y => y === st.n).length === n && st.end.startsWith(`${n} of 100 reach ${st.last}`); });
-  await check('158f an outer line never runs further than an inner one', async () => { const st = await sun(); return st.years.every((y, i) => y >= 0 && y <= st.n && (i === 0 || y <= st.years[i - 1])); });
-  await check('158g each stripe is painted to its share of the width', async () => { const st = await sun(); return st.len.every(l => l > 0.3) && st.f.every((f, i) => Math.abs(f - st.years[i] / st.n) < 1e-3 && Math.abs(st.drawn[i] - f) < 0.02); });
-  await check('158h the canvas agrees with the engine for the same seed, year by year', async () => { const q = await planOf(), st = await sun(); const m = E.runMonteCarlo(q, 2000, q.mcSeed || 42);
-    return m.perAgeHeld.every((h, i) => Math.abs(Math.round(h.full * 100) - st.years.filter(y => y > i).length) <= 1); });
-  await check('158i the canvas says in words what it shows (screen readers): a named slider, described in full', async () => { const st = await sun(); const n = st.years.filter(y => y === st.n).length;
-    return st.role === 'slider' && st.label === 'Futures still paying, by age' && /one for each simulated future/.test(st.name) && /canvas is bare/.test(st.name) && st.name.includes(`${n} of 100 reach age ${st.last}`) && /arrow keys/.test(st.name); });
+  // The closing ring: one stroke from the stop age round to the plan age,
+  // as clear as the futures still paying make it. It is drawn from the same
+  // run as the count in the sentence, so they cannot differ.
+  await p.waitForFunction(() => document.querySelector('[data-ring]')?.getAttribute('data-ready') === '1' && /of 100/.test(document.querySelector('[data-futures]')?.textContent || ''), null, { timeout: 20000 }).catch(() => {}); await wait(800);
+  const pcts = (bg) => [...bg.matchAll(/var\(--color-ring\) ([\d.]+)%, transparent\) ([\d.]+)deg/g)].map(m => [+m[1] / 100, +m[2]]);
+  const ring = async () => p.evaluate(() => { const el = document.querySelector('[data-ring]'); const sl = el.querySelector('[role=slider]'); const layers = [...sl.querySelectorAll('div')].filter(d => /conic-gradient/.test(d.style.background));
+    return { first: +el.getAttribute('data-first'), last: +el.getAttribute('data-last'), n: +el.getAttribute('data-years'), counts: el.getAttribute('data-full-counts').split(',').map(Number),
+      crisp: layers[0]?.style.background || '', soft: layers[1]?.style.background || '', label: sl.getAttribute('aria-label'), summary: document.getElementById('ring-summary')?.textContent || '', futures: document.querySelector('[data-futures]')?.textContent || '' }; });
+  await check('158d the ring has a count for every year from the year work stops to the plan age', async () => { const q = await planOf(), st = await ring();
+    return st.counts.length === st.n && st.first === q.retireYear - q.partnerA.birthYear && st.n === E.planEndYear(q) - q.retireYear + 1 && st.last === st.first + st.n - 1; });
+  await check('158e the ring ends on the futures count in the sentence', async () => { const st = await ring(); const n = Number((st.futures.match(/^In (\d+) of 100/) || [])[1]); return st.counts[st.n - 1] === n; });
+  await check('158f the count never rises from one year to the next', async () => { const st = await ring(); return st.counts.every((c, i) => c >= 0 && c <= 100 && (i === 0 || c <= st.counts[i - 1])); });
+  await check('158g each year is drawn as clear as its count says (solid at 100, never below 20%), crisp where sure and soft where not', async () => { const st = await ring(); const c = pcts(st.crisp), so = pcts(st.soft);
+    const years = st.counts.map((k, i) => [c[i + 1], so[i + 1], k]);
+    return c.length >= st.n + 1 && years.every(([a, b, k]) => a && b && Math.abs(a[0] + b[0] - clarityOf(k)) < 0.002 && Math.abs(b[0] - clarityOf(k) * softnessOf(k)) < 0.002) && years.every(([a, b]) => a[0] + b[0] >= 0.199)
+      && c[c.length - 2][0] === 0 && c[c.length - 2][1] < 360; });
+  await check('158h the ring agrees with the engine for the same seed, year by year', async () => { const q = await planOf(), st = await ring(); const m = E.runMonteCarlo(q, 2000, q.mcSeed || 42);
+    return m.perAgeHeld.every((h, i) => Math.round(h.full * 100) === st.counts[i]); });
+  await check('158i the ring says in words what it shows (screen readers)', async () => { const st = await ring(); const q = await planOf(); const f = st.counts[st.n - 1];
+    const typical = f < 100 ? E.runMonteCarlo(q, 2000, q.mcSeed || 42).perAgeHeld.find(h => Math.round(h.full * 100) <= (100 + f) / 2)?.age : null;
+    return st.label === 'Futures still paying, by age' && st.summary.startsWith(`Stop at ${st.first} and take ${gbp(q.targetNet / 12)} a month. In ${f} of 100 futures it lasts to ${st.last}.${f < 100 ? ` In the other ${100 - f}, money first runs short at about ${typical}.` : ''}`); });
+  await p.locator('[data-see-futures]').click(); await wait(800);
+  await check('158j "See 10 futures": a lit window for every ten futures paying in full, the boundary window partly lit', async () => p.evaluate(() => {
+    const el = document.querySelector('[data-ten-windows]'); if (!el) return false; const f = +el.getAttribute('data-full'); const st = [...el.querySelectorAll('[data-window]')].map(w => w.getAttribute('data-state'));
+    return st.length === 10 && st.filter(x => x === 'lit').length === Math.floor(f / 10) && st.filter(x => x === 'part').length === (f % 10 ? 1 : 0) && !st.includes('curtained'); }));
+  await closeSheet();
   await p.locator('[data-counts] button').click(); await wait(700);
   await check('158b "Check or change in Details" opens Details', () => sheetOpen());
   await goPage('Your guaranteed income');

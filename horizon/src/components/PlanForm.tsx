@@ -11,7 +11,7 @@ import { longevityLine } from '../lib/longevity';
 import { Locked } from './Plus';
 import { Card, MoneyField, NumField, PctField, TextField, Toggle, Segmented } from './Field';
 import { E, exportPlanJson, importPlanJson } from '../lib/usePlan';
-import { fmtK, pct } from '../lib/format';
+import { fmt, fmtK, pct } from '../lib/format';
 
 /**
  * The whole form, as a carousel.
@@ -85,7 +85,15 @@ function Pots({ plan, who, set, adv }: { plan: any; who: any; set: (patch: any) 
         <MoneyField label="Workplace pension today (defined contribution)" value={who.pension}
           onChange={v => set({ pension: v, pots: [], tfcRate: 0.25 })} />}
       {adv && <SchemeList who={who} set={set} />}
-      <MoneyField label="Paying into pension monthly" value={who.monthlyPension} onChange={v => set({ monthlyPension: v })} />
+      {/* Whether this figure includes tax relief changes the answer by a
+          fifth of every payment, so the choice sits right under it. Most UK
+          calculators count it as the total going in (MoneyHelper, Standard
+          Life); relief at source adds 25% to what leaves a bank account. */}
+      <MoneyField label="Paying into pension monthly" value={who.monthlyPension} onChange={v => set({ monthlyPension: v })}
+        hint={who.contribGrossUp
+          ? `What you pay; with basic-rate tax relief added, ${fmt((Number(who.monthlyPension) || 0) * 1.25)} a month goes in. Higher-rate relief comes back to you through your tax, not into the pot.`
+          : 'The total going in, tax relief included: the figure on a payslip for a workplace scheme (net pay or salary sacrifice), or your pension statement. If you pay a personal pension or SIPP from your bank account, switch on the line below.'} />
+      <Toggle label="Paid from my bank account (the provider adds 25% basic-rate tax relief)" checked={!!who.contribGrossUp} onChange={v => set({ contribGrossUp: v })} />
       <MoneyField label="ISAs today" value={who.isa} onChange={v => set({ isa: v })} />
       <MoneyField label="Paying into ISAs monthly" value={who.monthlyIsa} onChange={v => set({ monthlyIsa: v })} />
       <Accordion title="Still working, charges and relief">
@@ -94,7 +102,6 @@ function Pots({ plan, who, set, adv }: { plan: any; who: any; set: (patch: any) 
         <NumField label={`Stops work in (year; the household year is ${plan.retireYear})`} value={who.stopYear || plan.retireYear}
           min={plan.retireYear} max={plan.startYear + 60}
           onChange={v => set({ stopYear: v > plan.retireYear ? v : null })} />
-        <Toggle label="Pension contributions entered after basic-rate relief (grossed up by 25%)" checked={!!who.contribGrossUp} onChange={v => set({ contribGrossUp: v })} />
         <NumField label={`Earliest pension access age (${(E as any).nmpaFor({ ...who, pensionAccessAge: null })} by law for a ${who.birthYear} birth; enter a protected age if you have one)`}
           value={(E as any).nmpaFor(who)} min={50} max={75}
           onChange={v => set({ pensionAccessAge: v === (E as any).nmpaFor({ ...who, pensionAccessAge: null }) ? null : v })} />

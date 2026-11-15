@@ -162,6 +162,16 @@ for (const [name, P0] of Object.entries(shapes)) {
 const owner = shapes['owner 56, stop 60'];
 const held = { ...owner, targetNet: 40000 };
 const mcOf = (P, n = 800, seed = 42) => E.runMonteCarlo(P, n, seed);
+// Tax relief at source: a payment marked as coming from a bank account
+// (contribGrossUp) must put exactly what the same payment grossed up by 25%
+// would, no more and no less, into the pot by the day work stops.
+for (const [name, P0] of Object.entries(shapes)) {
+  if (!(P0.partnerA.monthlyPension > 0) || !(P0.retireYear > P0.startYear)) continue;
+  const on = { ...P0, partnerA: { ...P0.partnerA, contribGrossUp: true } };
+  const off = { ...P0, partnerA: { ...P0.partnerA, contribGrossUp: false, monthlyPension: P0.partnerA.monthlyPension * 1.25 } };
+  const a = E.accumulate(on, on.growthBase ?? on.growth).atRetirement.pensionA, b = E.accumulate(off, off.growthBase ?? off.growth).atRetirement.pensionA;
+  check(`R ${name}: relief at source adds exactly 25% to what goes in (pot at stopping £${Math.round(a)} vs £${Math.round(b)})`, Math.abs(a - b) <= Math.max(1, b * 1e-9));
+}
 // The year-by-year picture on the home screen ("futures still paying") is
 // drawn from perAgeHeld. It must never rise, must end exactly on the headline
 // share, and can never claim more futures than were solvent that year.

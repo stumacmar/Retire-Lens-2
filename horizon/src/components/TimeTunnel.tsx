@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import type { MC } from '../engine/engine';
 import { fmt } from '../lib/format';
 import type { LifeEvent } from '../lib/lifeEvents';
+import { fmtK } from '../lib/format';
+import type { Tranche, TrancheKey } from '../lib/tranches';
 
 /**
  * The time tunnel: the home's one picture (15 November 2026, after the road
@@ -14,21 +16,21 @@ import type { LifeEvent } from '../lib/lifeEvents';
  * vanishing point, so the frames nest like a tesseract drawn on paper.
  *
  *   ┌──────────────────────────────────────┐   signs hang where life changes:
- *   │╲ 67 · Your State Pension starts     ╱│   an income starting, an ISA or a
- *   │  ╲┌──────────────────────────────┐╱  │   pot running out, a partner
- *   │   │╲ ┌──────────────────────┐   ╱│   │   stopping work, the plan's own
- *   │   │  │      ┌────────┐      │    │   │   events, the first shortfall
- *   │   │  │      │ light  │      │    │   │
- *   │   │  │      └────────┘ 90   │    │   │   the floor is the 100 futures:
- *   │   │ ╱└──────▓▓▓▓▓▓▓▓──────┘70 ╲│   │   its bright lane is the share
- *   │  ╱└───▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓──────┘ 65╲ │   still paying the ask in full,
- *   │╱▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓╲│   pale amber with the rules, grey short
- *   └──────────────────────────────────────┘
+ *   │╲ 67 · State Pension starts          ╱│   an income starting, an ISA or a
+ *   │▓ ╲┌──────────────────────────────┐╱ ░│   pot running out, a partner
+ *   │▓▓ │╲ ┌──────────────────────┐   ╱│░░│   stopping work, the plan's own
+ *   │▓▓ │▓ │      ┌────────┐      │ ░ │░░│   events; a dashed line across the
+ *   │▓▓ │▓ │      │ light  │      │ ░ │░░│   floor marks the first shortfall
+ *   │▓▓ │▓ │      └────────┘ 90   │ ░ │░░│
+ *   │Safe ladder £327k›   Growth engine £642k›│   the walls are the money: two
+ *   │╱  └──────────────────────────────┘ 65╲│   tranches, each filled to its
+ *   └──────────────────────────────────────┘   value that year (today's money)
  *
- * Across each year's stretch of floor, the bright lane's share of the floor's
- * width is the share of futures still paying in full; perspective scales a
- * whole stretch at once, so the share reads the same near and far. Nothing
- * is measured along the corridor, and the years are spaced evenly down it.
+ * The walls: a structured plan's safe ladder and growth engine (otherwise
+ * pensions, and ISAs with cash), each filled from the floor up to its value
+ * that year as a share of the frame's height, one scale for both. A share of
+ * the frame reads the same near and far. Touch a wall or its label to open
+ * the tranche: what it is, what it earns, and how it fares in four markets.
  *
  * Travel: swipe up (or tap a depth, or use the arrow keys) and you move down
  * the corridor; the frames and signs come towards you and pass, and the
@@ -62,33 +64,11 @@ function useReducedMotion() {
   return r;
 }
 
-/** Ease the drawn counts to new values over 300 ms (resampled if the number of years changed). */
-function useEased(target: number[], reduced: boolean) {
-  const [shown, setShown] = useState(target);
-  const from = useRef(target), raf = useRef(0), key = target.join(',');
-  useEffect(() => {
-    cancelAnimationFrame(raf.current);
-    const start = from.current;
-    if (reduced || !start.length || start.join(',') === key) { from.current = target; setShown(target); return; }
-    const sample = (arr: number[], i: number, n: number) => arr[Math.min(arr.length - 1, Math.round(i * (arr.length - 1) / Math.max(1, n - 1)))];
-    const t0 = performance.now();
-    const step = (t: number) => {
-      const f = Math.min(1, (t - t0) / 300), e = 1 - Math.pow(1 - f, 3);
-      const cur = target.map((v, i) => sample(start, i, target.length) + (v - sample(start, i, target.length)) * e);
-      setShown(cur); from.current = cur;
-      if (f < 1) raf.current = requestAnimationFrame(step);
-    };
-    raf.current = requestAnimationFrame(step);
-    return () => cancelAnimationFrame(raf.current);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [key, reduced]);
-  return shown;
-}
-
 const r1 = (v: number) => Math.round(v * 10) / 10;
 
-export default function TimeTunnel({ mc, structured, fromAge, toAge, ask, events, summary, resting }: {
+export default function TimeTunnel({ mc, structured, fromAge, toAge, ask, events, tranches, onOpen, summary, resting }: {
   mc: MC | null; structured: boolean; fromAge: number; toAge: number; ask: number; events: LifeEvent[];
+  tranches: [Tranche, Tranche] | null; onOpen: (key: TrancheKey, age: number | null) => void;
   summary: string; resting: string;
 }) {
   const reduced = useReducedMotion();
@@ -101,10 +81,6 @@ export default function TimeTunnel({ mc, structured, fromAge, toAge, ask, events
   const rules = ready ? held!.map((hh, i) => Math.max(full[i], Math.round(hh.rules * 100))) : [];
   const firstShort = ready ? held!.find((_h, i) => (structured ? rules : full)[i] < 100)?.age : undefined;
   const firstTrim = ready && structured ? held!.find((_h, i) => full[i] < rules[i])?.age : undefined;
-  const eased = useEased(ready ? [...full, ...(structured ? rules : full)] : [], reduced);
-  const settledLen = eased.length === 2 * n && eased.every(Number.isFinite);
-  const shownFull = !ready ? [] : settledLen ? eased.slice(0, n) : full;
-  const shownRules = !ready ? [] : settledLen ? eased.slice(n, 2 * n) : (structured ? rules : full);
 
   // ── Where you stand: the camera, in years from the stop age ────────────
   const [picked, setPicked] = useState<number | null>(null);
@@ -139,19 +115,23 @@ export default function TimeTunnel({ mc, structured, fromAge, toAge, ask, events
   const tOfYear = (i: number) => (i + 0.5) / n;
   const tOfAge = (a: number) => (a - first) / n;           // the start of that year's stretch
   const far = fr(S_END);
-  // A lane on the floor: at every year still ahead, a band centred on the floor whose share of its width is the count.
-  const countAt = (counts: number[], t: number) => {
+  const countAt = (vals: number[], t: number) => {
     const x = t * n - 0.5, i = Math.max(0, Math.min(n - 1, Math.floor(x))), j = Math.min(n - 1, i + 1), f = Math.max(0, Math.min(1, x - i));
-    return counts[i] + (counts[j] - counts[i]) * f;
-  };
-  const lane = (counts: number[]) => {
-    if (!ready || w <= 0) return '';
-    const pts: [number, number][] = [[c, c === 0 ? counts[0] : countAt(counts, c)], ...counts.map((k, i) => [tOfYear(i), k] as [number, number]).filter(([t]) => t > c + 1e-6), [1, counts[n - 1]]];
-    const left = pts.map(([t, k]) => { const f = fr(sAt(t)); return `${r1(cx - (cx - f.l) * k / 100)},${r1(f.b)}`; });
-    const right = pts.slice().reverse().map(([t, k]) => { const f = fr(sAt(t)); return `${r1(cx + (f.r - cx) * k / 100)},${r1(f.b)}`; });
-    return [...left, ...right].join(' ');
+    return vals[i] + (vals[j] - vals[i]) * f;
   };
   const floor = `0,${h} ${r1(far.l)},${r1(far.b)} ${r1(far.r)},${r1(far.b)} ${w},${h}`;
+  // The walls are the money: each filled from the floor up to its tranche's value that year,
+  // as a share of the frame's height (one scale for both, the larger tranche's peak).
+  const scale = tranches ? Math.max(1, ...tranches[0].values, ...tranches[1].values) * 1.06 : 1;
+  const wall = (side: 'l' | 'r', values: number[]) => {
+    if (!ready || w <= 0 || values.length !== n) return '';
+    const pts: [number, number][] = [[c, c === 0 ? values[0] : countAt(values, c)], ...values.map((v, i) => [tOfYear(i), v] as [number, number]).filter(([t]) => t > c + 1e-6), [1, values[n - 1]]];
+    const xOf = (f: ReturnType<typeof fr>) => side === 'l' ? f.l : f.r;
+    const base = pts.map(([t]) => { const f = fr(sAt(t)); return `${r1(xOf(f))},${r1(f.b)}`; });
+    const top = pts.slice().reverse().map(([t, v]) => { const f = fr(sAt(t)); return `${r1(xOf(f))},${r1(f.b - (f.b - f.t) * Math.min(1, v / scale))}`; });
+    return [...base, ...top].join(' ');
+  };
+  const camIdx = Math.max(0, Math.min(n - 1, Math.round(cam)));
 
   // Frames: every fifth birthday still ahead, and the plan age.
   const every = n > 36 ? 10 : 5;   // no more than about seven frames
@@ -207,6 +187,14 @@ export default function TimeTunnel({ mc, structured, fromAge, toAge, ask, events
   const onUp = (e: React.PointerEvent) => {
     const d = drag.current; drag.current = null; if (!d || !ready) return;
     if (d.moved) { pick(first + Math.round(camRef.current)); return; }
+    // A tap on a wall opens that tranche; anywhere else travels to that depth.
+    const el = sceneRef.current, b = el?.getBoundingClientRect();
+    if (b && tranches) {
+      const x = e.clientX - b.left, y = e.clientY - b.top, xr = w - x, farR = w - far.r;
+      const onL = x < far.l && y > far.t * x / far.l && y < h + (far.b - h) * x / far.l;
+      const onR = xr < farR && y > far.t * xr / farR && y < h + (far.b - h) * xr / farR;
+      if (onL || onR) { onOpen(tranches[onL ? 0 : 1].key, picked); return; }
+    }
     setUsed(true); pick(ageAtY(e.clientY));
   };
   useEffect(() => {
@@ -228,9 +216,6 @@ export default function TimeTunnel({ mc, structured, fromAge, toAge, ask, events
     : `Age ${age}: ${full[idx]} of 100 futures still pay ${fmt(ask)} a month in full${structured ? `, ${rules[idx]} still paying with your rules` : ''}`;
 
   const ink = (pct: number) => `color-mix(in srgb, var(--color-ink) ${pct}%, transparent)`;
-  const lit = 'var(--color-ring)';
-  const shade = 'color-mix(in srgb, var(--color-ring) 34%, var(--color-canvas))';
-  const mist = 'color-mix(in srgb, var(--color-slate) 30%, var(--color-canvas))';
   const signColour = (k: string) => k === 'in' ? 'var(--color-ring)' : k === 'out' ? 'var(--color-slate)' : 'var(--color-ink-dim)';
 
   return (
@@ -281,9 +266,10 @@ export default function TimeTunnel({ mc, structured, fromAge, toAge, ask, events
               {/* Beyond the plan age: light. */}
               <rect x={far.l} y={far.t} width={far.r - far.l} height={far.b - far.t} fill="url(#tn-light)" />
               {/* The floor: the 100 futures, year by year. */}
-              <polygon data-lane="road" points={floor} style={{ fill: ready ? mist : ink(6) }} />
-              {ready && structured && <polygon data-lane="rules" points={lane(shownRules)} style={{ fill: shade }} />}
-              {ready && <polygon data-lane="full" points={lane(shownFull)} style={{ fill: lit }} />}
+              <polygon data-lane="road" points={floor} style={{ fill: 'color-mix(in srgb, var(--color-slate) 12%, var(--color-canvas))' }} />
+              {/* The walls: your two tranches, as full as their value each year. */}
+              {tranches && tranches.map((tr, k) => (
+                <polygon key={tr.key} data-wall={k ? 'r' : 'l'} data-tranche={tr.key} points={wall(k ? 'r' : 'l', tr.values)} style={{ fill: tr.colour }} />))}
               <polygon points={floor} fill="url(#tn-haze)" />
               <polygon points={floor} fill="url(#tn-near)" />
               {/* Where the first future falls short (or the rules first trim): a line across the floor. */}
@@ -319,6 +305,15 @@ export default function TimeTunnel({ mc, structured, fromAge, toAge, ask, events
             <span aria-hidden data-tunnel-hint className={`absolute ${hintSide === 'r' ? 'right-2' : 'left-2'} top-1.5 rounded-full px-2.5 py-1 text-[0.72rem] font-semibold whitespace-nowrap pointer-events-none`}
               style={{ background: 'color-mix(in srgb, var(--color-canvas) 90%, transparent)', color: 'var(--color-ink-dim)', boxShadow: `0 1px 4px ${ink(12)}` }}>Swipe up to travel ↑</span>)}
         </div>
+        {/* The tranches' names and what each holds at the age you stand at; tap to open. */}
+        {tranches && ready && w > 0 && tranches.map((tr, k) => (
+          <button key={tr.key} type="button" data-tranche-open={tr.key} onClick={() => onOpen(tr.key, picked)}
+            aria-label={`${tr.name}: ${fmtK(tr.values[camIdx])} at ${first + camIdx}, in today's money. Open to see how it performs`}
+            className={`absolute ${k ? 'right-2 text-right items-end' : 'left-2 text-left items-start'} flex flex-col rounded-xl px-2.5 py-1.5 leading-tight`}
+            style={{ top: Math.round(vy + (h - vy) * 0.18), background: 'color-mix(in srgb, var(--color-canvas) 90%, transparent)', boxShadow: `0 1px 6px ${ink(14)}`, borderTop: `3px solid ${tr.colour}`, color: 'var(--color-ink)' }}>
+            <span className="text-[0.72rem] font-semibold" style={{ color: 'var(--color-ink-dim)' }}>{tr.name}</span>
+            <span className="tnum text-[1rem] font-bold">{fmtK(tr.values[camIdx])} <span aria-hidden style={{ color: 'var(--color-calm-strong)' }}>›</span></span>
+          </button>))}
       </div>
       {/* Under it: how short the bad futures are, or the age you have reached. */}
       <p data-tunnel-reading className="mt-1.5 px-4 sm:px-0 text-center text-[0.84rem] leading-snug min-h-[2.6em]" style={{ color: picked != null ? 'var(--color-ink)' : 'var(--color-ink-dim)' }}>

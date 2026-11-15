@@ -32,7 +32,7 @@
  *   L  (every fifth) the needle, moved with the keys to the last age and the
  *      first, reads the same counts
  *
- * In every fifth scenario the canvas's needle is also moved with the keys,
+ * In every fifth scenario the ring is also moved with the keys,
  * to the plan's last age and back to the year work stops, and must read the
  * same counts as the engine. The first fourteen scenarios are the owner's own plan and its near
  * neighbours; the rest are drawn from a seeded generator, so the run is the
@@ -204,8 +204,8 @@ async function readHome(page, plan) {
   return page.evaluate(() => { const t = (s) => (document.querySelector(s)?.innerText || '').replace(/\s+/g, ' ').trim();
     return { key: document.querySelector('[data-simple-home] [data-status]')?.getAttribute('data-status'), label: t('[data-simple-home] [data-status]'),
       figure: Number(t('[data-supports]').replace(/[£,]/g, '')), gap: t('[data-gap]'), futures: t('[data-futures]'), counts: t('[data-counts]'), note: t('[data-note]'),
-      sun: (() => { const el = document.querySelector('[data-canvas]'); return !el ? null : { first: +el.getAttribute('data-first'), last: +el.getAttribute('data-last'), n: +el.getAttribute('data-years'),
-        rings: [...el.querySelectorAll('[data-stripe]')].map(r => [+r.getAttribute('data-years'), +r.getAttribute('data-full-years')]), end: t('[data-canvas-end]') }; })() }; });
+      sun: (() => { const el = document.querySelector('[data-ring]'); return !el ? null : { first: +el.getAttribute('data-first'), last: +el.getAttribute('data-last'), n: +el.getAttribute('data-years'),
+        counts: (el.getAttribute('data-counts') || '').split(',').filter(Boolean).map(Number), rules: (el.getAttribute('data-rules') || '').split(',').filter(Boolean).map(Number) }; })() }; });
 }
 
 const results = new Array(N);
@@ -228,33 +228,32 @@ async function worker() {
       const want = x.sus ?? x.target;
       if (!(Math.abs(ui.figure - want) <= 10)) fails.push(`B figure: shows £${ui.figure}, engine supports £${want}`);
       // C coherence, from the words alone
-      const spare = /to spare/.test(ui.gap), short = /more than that/.test(ui.gap);
+      const spare = /to spare/.test(ui.gap), short = /short$/.test(ui.gap);
       if ((ui.key === 'on' || ui.key === 'thin') && short) fails.push(`C "${ui.label}" beside a shortfall: ${ui.gap}`);
       if ((ui.key === 'close' || ui.key === 'not' || ui.key === 'trim') && spare) fails.push(`C "${ui.label}" beside money to spare: ${ui.gap}`);
       if (/Not (yet funded|enough yet)|Nearly enough/.test(ui.label) && ui.figure > x.target + 10 && x.sus != null) fails.push(`C "${ui.label}" while the figure £${ui.figure} exceeds the ask £${x.target}`);
       // D the gap arithmetic
       if (x.sus != null && Math.abs(x.sus - x.target) >= 25) {
-        const shown = Number((ui.gap.match(/: £([\d,]+) a month/) || [])[1]?.replace(/,/g, ''));
+        const shown = Number((ui.gap.match(/^£([\d,]+) (to spare|short)$/) || [])[1]?.replace(/,/g, ''));
         if (shown !== Math.abs(ui.figure - x.target)) fails.push(`D gap: says £${shown}, figure less ask is £${Math.abs(ui.figure - x.target)} (${ui.gap})`);
-        if (!ui.gap.includes('£' + x.target.toLocaleString('en-GB'))) fails.push(`D gap does not state the ask £${x.target}: ${ui.gap}`);
+        if (!ui.futures.includes('£' + x.target.toLocaleString('en-GB') + ' a month')) fails.push(`D the sentence does not name the ask £${x.target}: ${ui.futures}`);
       }
       // E the futures
-      const shownF = Number((ui.futures.match(/(?:holds|lasts) in (\d+) of 100/) || [])[1]);
+      const shownF = Number((ui.futures.match(/^In (\d+) of 100 futures/) || [])[1]);
       if (shownF !== x.futures) fails.push(`E futures: shows ${shownF} of 100, engine gives ${x.futures}`);
-      if (x.structured && x.futuresFull !== x.futures && !ui.futures.includes(`paid in full every year in ${x.futuresFull}`)) fails.push(`E structured plan does not state the paid-in-full share ${x.futuresFull}: ${ui.futures}`);
+      if (x.structured && x.futuresFull !== x.futures && !ui.futures.includes(`in ${x.futuresFull} it pays`)) fails.push(`E structured plan does not state the paid-in-full share ${x.futuresFull}: ${ui.futures}`);
       if (!/not a guarantee/.test(ui.futures)) fails.push('E the caveat is missing');
-      // K the canvas: the picture and the number are the same thing
+      // K the ring: the picture and the number are the same thing
       {
         const sun = ui.sun;
-        if (!sun || sun.rings.length !== 100) fails.push(`K the canvas is missing or does not have 100 stripes (${sun ? sun.rings.length : 'none'})`);
+        if (!sun || sun.counts.length !== sun.n) fails.push(`K the ring is missing or has no count for some years (${sun ? sun.counts.length : 'none'})`);
         else {
-          const yrs = sun.rings.map(r => r[0]), reach = yrs.filter(y => y === sun.n).length;
-          if (sun.first !== plan.retireYear - plan.partnerA.birthYear) fails.push(`K the canvas starts at ${sun.first}, work stops at ${plan.retireYear - plan.partnerA.birthYear}`);
-          if (sun.last !== sun.first + sun.n - 1) fails.push(`K the canvas ends at ${sun.last} after ${sun.n} years from ${sun.first}`);
-          if (!yrs.every((y, i) => y >= 0 && y <= sun.n && (i === 0 || y <= yrs[i - 1]))) fails.push(`K a lower stripe runs further than a higher one: ${yrs.join(' ')}`);
-          if (reach !== x.futures) fails.push(`K ${reach} stripes reach the right-hand edge, the sentence says ${x.futures}`);
-          if (!sun.end.startsWith(`${x.futures} of 100 reach ${sun.last}`)) fails.push(`K the label beside the canvas reads "${sun.end}"`);
-          if (x.structured && sun.rings.filter(r => r[1] === sun.n).length !== Math.min(x.futuresFull, x.futures)) fails.push(`K structured: ${sun.rings.filter(r => r[1] === sun.n).length} full-colour stripes reach the edge, paid in full is ${x.futuresFull}`);
+          const use = x.structured ? sun.rules : sun.counts;
+          if (sun.first !== plan.retireYear - plan.partnerA.birthYear) fails.push(`K the ring starts at ${sun.first}, work stops at ${plan.retireYear - plan.partnerA.birthYear}`);
+          if (sun.last !== sun.first + sun.n - 1) fails.push(`K the ring ends at ${sun.last} after ${sun.n} years from ${sun.first}`);
+          if (!use.every((c, i) => c >= 0 && c <= 100 && (i === 0 || c <= use[i - 1]))) fails.push(`K the count rises somewhere: ${use.join(' ')}`);
+          if (use[sun.n - 1] !== x.futures) fails.push(`K the ring ends on ${use[sun.n - 1]}, the sentence says ${x.futures}`);
+          if (x.structured && sun.counts[sun.n - 1] !== Math.min(x.futuresFull, x.futures)) fails.push(`K structured: the ring's paid-in-full count ends on ${sun.counts[sun.n - 1]}, paid in full is ${x.futuresFull}`);
         }
       }
       // F the counts line
@@ -278,15 +277,14 @@ async function worker() {
       if (x.drift > 0.01) fails.push(`J the figure differs by ${(x.drift * 100).toFixed(2)}% between Chromium and Node (limit 1%)`);
       // L the needle, moved with the keys, reads the engine's counts
       if (i % 5 === 0 && ui.sun) {
-        await page.waitForTimeout(1800);                              // let the sun finish rising
-        await page.focus('[data-canvas]'); await page.keyboard.press('End'); await page.waitForTimeout(80);
-        const atEnd = await page.$eval('[data-canvas]', e => [+e.getAttribute('data-age'), e.getAttribute('aria-valuetext')]);
+        await page.focus('[data-ring] [role=slider]'); await page.keyboard.press('End'); await page.waitForTimeout(80);
+        const atEnd = await page.$eval('[data-ring]', e => [+e.getAttribute('data-age'), e.querySelector('[role=slider]').getAttribute('aria-valuetext')]);
         await page.keyboard.press('Home'); await page.waitForTimeout(80);
-        const atStart = await page.$eval('[data-canvas]', e => [+e.getAttribute('data-age'), e.getAttribute('aria-valuetext')]);
-        const lastBar = ui.sun.rings.filter(r => r[0] > ui.sun.n - 1).length, firstBar = ui.sun.rings.filter(r => r[0] > 0).length;
-        if (atEnd[0] !== ui.sun.last || !atEnd[1].startsWith(`Age ${ui.sun.last}: ${x.futures} of 100 futures still paying`)) fails.push(`L the needle at ${ui.sun.last} reads "${atEnd[1]}", the engine gives ${x.futures}`);
-        if (atStart[0] !== ui.sun.first || !atStart[1].startsWith(`Age ${ui.sun.first}: ${firstBar} of 100`)) fails.push(`L the needle at ${ui.sun.first} reads "${atStart[1]}", the lines give ${firstBar}`);
-        if (lastBar !== x.futures) fails.push(`L ${lastBar} lines run to the last year, the engine gives ${x.futures}`);
+        const atStart = await page.$eval('[data-ring]', e => [+e.getAttribute('data-age'), e.querySelector('[role=slider]').getAttribute('aria-valuetext')]);
+        const lastBar = ui.sun.counts[ui.sun.n - 1], firstBar = ui.sun.counts[0];
+        if (atEnd[0] !== ui.sun.last || !atEnd[1].startsWith(`Age ${ui.sun.last}: ${lastBar} of 100 futures still pay`)) fails.push(`L the ring at ${ui.sun.last} reads "${atEnd[1]}", its own count is ${lastBar}`);
+        if (atStart[0] !== ui.sun.first || !atStart[1].startsWith(`Age ${ui.sun.first}: ${firstBar} of 100`)) fails.push(`L the ring at ${ui.sun.first} reads "${atStart[1]}", its own count is ${firstBar}`);
+        if (lastBar !== x.futuresFull) fails.push(`L the ring's paid-in-full count at the last age is ${lastBar}, the engine gives ${x.futuresFull}`);
       }
       // I errors
       if (errs.length) fails.push('I ' + [...new Set(errs)].slice(0, 2).join(' | '));
@@ -302,7 +300,7 @@ await b.close(); server.close();
 // ── Report ─────────────────────────────────────────────────────────────
 const passed = results.filter(r => !r.fails.length).length;
 const by = {}; for (const r of results) if (r.x) by[r.x.key] = (by[r.x.key] || 0) + 1;
-const LABEL = { on: 'On track', thin: 'Enough on average, not safe yet', trim: 'Enough, with a trim', close: 'Nearly enough', not: 'Not enough yet' };
+const LABEL = { on: 'On track', thin: 'Enough in most futures, not all', trim: 'Enough, with a trim', close: 'Nearly enough', not: 'Not enough yet' };
 if (process.argv.includes('-v') || process.env.E2E150_VERBOSE) {
   results.forEach((r, i) => console.log(`${String(i + 1).padStart(3, '0')} ${r.fails.length ? '✗' : '✓'} ${r.name}${r.x ? ` → ${LABEL[r.x.key]} · supports £${(r.x.sus ?? r.x.target).toLocaleString('en-GB')} · ${r.x.futures} of 100` : ''}`));
 } else {

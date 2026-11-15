@@ -143,7 +143,7 @@ contradict the figure beside it:
 | Central case | Futures | Status | Shown as |
 |---|---|---|---|
 | pays the ask in full every year | at least 80 of 100 hold | `on` | "On track under these assumptions" |
-| pays the ask in full every year | fewer than 80 of 100 hold | `thin` | "Enough on average, not safe yet" |
+| pays the ask in full every year | fewer than 80 of 100 hold | `thin` | "Enough in most futures, not all" |
 | lasts only because the plan's rules trim spending (structured plans) | any | `trim` | "Enough, with a trim to spending" |
 | runs short; supportable income within a tenth of the ask | any | `close` | "Nearly enough" |
 | runs short by more | any | `not` | "Not enough yet" |
@@ -166,15 +166,21 @@ supporting exactly the ask, or more, could read "Not yet funded"; and a
 structured plan kept solvent by cutting spending to 75% was credited with
 supporting the uncut figure. Both are covered by `e2e150.mjs`.
 
-Above the answer the home draws the **canvas**: 100 horizontal stripes, one
-for each simulated future, steadiest at the top. A stripe is painted from the
-year work stops (left) for as long as that future keeps paying; where it runs
-short the canvas is bare. The lengths are `perAgeHeld` (§9) turned on its
-side: stripe k runs for as many years as at least k of 100 futures are still
-paid. A plain plan counts futures paid in full; a structured plan paints each
-stripe in full colour while paid in full and in a dustier tone while still
-paying once its rules have trimmed. The number of stripes that reach the
-right-hand edge is the count in the sentence.
+The home draws the **closing ring**: one stroke from the stop age (12
+o'clock) clockwise to just short of the plan age, as clear at each age as the
+futures still paying in full there (`perAgeHeld`, §9): solid at 100 of 100,
+70% at 90, 45% at 70 and 20% at 40 or fewer, softer-edged as the count falls.
+On a structured plan the stroke narrows where the rules trim spending in many
+futures, and its clarity follows the futures still paying after trims. At
+the plan age the count is the one in the sentence. Under the ring: the first
+age a future falls short and, from `worstYearRatioP10` (the 10th percentile
+of each future's leanest year as a share of the ask, guaranteed income
+included), "in the worst 10 of 100, income dips to about £X a month".
+
+The status words hold within a dead zone at the two number-decided
+boundaries (78 to 82 of 100 futures; 0.88 to 0.92 of the ask), so a word
+does not flicker while a control is moved; boundaries set by the central
+case are never held.
 
 The share of futures and the caveat ("an estimate, not a guarantee") sit in the
 same sentence. "What could go wrong?" lists the supportable income under the
@@ -274,7 +280,7 @@ own quote takes precedence.
   every year up to and including that one, in full (`full`, the same test as
   `successProb`) and once the written rules have trimmed (`rules`, the same
   test as `successProbWithCuts`). It never rises and its last entry equals
-  those two shares exactly. The home screen's canvas draws it.
+  those two shares exactly. The home screen's closing ring draws it.
 * **What the range covers**: the sampling range shown in the app
   (±2 standard errors) covers the randomness of the simulation **only**. It
   does not cover parameter uncertainty (are the growth, inflation and charge
@@ -335,7 +341,7 @@ delivered (certainty-equivalent), never on survival alone.
 
 | Surface | Reads |
 |---|---|
-| Home | `accumulate`, `drawdown` (`holds`, `runsShortAgeA`), `runMonteCarlo` (`successProb`, `perAgeHeld` for the canvas and its needle), `guardrails`, `stressTests`, `levers` |
+| Home | `accumulate`, `drawdown` (`holds`, `runsShortAgeA`), `runMonteCarlo` (`successProb`, `perAgeHeld` for the closing ring, `worstYearRatioP10` for the line under it), `guardrails`, `stressTests`, `levers` |
 | Decision map | `drawdown` per cell |
 | Explore | `drawdown` rows, `runMonteCarlo`, `levers`, `stressTests`, `compareStrategies`, `estate` |
 | Peace | `Assumptions` (generated from the plan and engine constants), `HowWeChecked` (`runAssertions` live, `TAX_RULES`) |

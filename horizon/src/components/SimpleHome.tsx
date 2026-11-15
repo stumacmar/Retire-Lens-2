@@ -1,17 +1,18 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Minus, Plus } from 'lucide-react';
 import type { Drawdown, MC } from '../engine/engine';
 import { E } from '../lib/usePlan';
 import { fmt } from '../lib/format';
 import { useInsight } from '../lib/useInsight';
 import type { Rail } from '../lib/insights';
-import { planStatus, futuresSentence } from '../lib/status';
+import { planStatus, futuresSentence, spokenAnswer, withDeadZone, type StatusKey } from '../lib/status';
 import { deepestTrim } from '../lib/insights';
 import { planCounts } from '../lib/counts';
 import { valuesFor, clampVal, type Val } from '../lib/planValues';
 import Sheet from './Sheet';
 import RiskPanel from './RiskPanel';
-import FuturesCanvas from './FuturesCanvas';
+import ClosingRing from './ClosingRing';
+import TenWindows from './TenWindows';
 
 /**
  * The simple home: the answer first, in words, one figure and one picture,
@@ -53,9 +54,34 @@ export default function SimpleHome({ plan, update, dd, mc, onDetails, header }: 
   const railsKey = useMemo(() => JSON.stringify({ ...plan, targetNet: 0, codeSet: null, spendingPlanOn: false }), [plan]);
   const rails = useInsight<Rail[]>('guardrails', plan, railsKey, 400);
   const baseRail = hasMoney ? rails?.find(r => r.key === 'base') : undefined;
-  const status = planStatus({ holds: dd.holds, deepestTrim: deepestTrim(dd), structured: !!plan.architecture?.on,
+  const ruled = planStatus({ holds: dd.holds, deepestTrim: deepestTrim(dd), structured: !!plan.architecture?.on,
     successProb: mc ? mc.successProb : null, successWithCuts: mc ? mc.successProbWithCuts : null, sustainableYear: baseRail ? baseRail.year : null,
     targetYear: plan.targetNet || 0, horizonAge: plan.horizonAge, runsShortAge: dd.runsShortAgeA });
+  // The status word holds within a small dead zone at its number-decided
+  // boundaries, so it does not flicker while the figures are being changed.
+  const settled = !!(rails && mc);
+  const prevKey = useRef<StatusKey | null>(null);
+  const status = settled ? withDeadZone(prevKey.current, ruled) : ruled;
+  useEffect(() => { if (settled) prevKey.current = status.key; }, [settled, status.key]);
+
+  // What the ring cannot show: how short the bad futures are. The leanest
+  // year in the worst 10 of 100 futures, as a monthly amount (it counts the
+  // State Pension and other guaranteed income, so it is never shown as nothing).
+  const structured = !!plan.architecture?.on;
+  const stopAge = plan.retireYear - A.birthYear;
+  const held = mc?.perAgeHeld || [];
+  const countAt = (h: any) => Math.round((structured ? Math.max(h.full, h.rules) : h.full) * 100);
+  const firstShort = held.find((h: any) => countAt(h) < 100)?.age;
+  const endCount = held.length ? countAt(held[held.length - 1]) : 100;
+  const typicalShort = endCount < 100 ? held.find((h: any) => countAt(h) <= (100 + endCount) / 2)?.age ?? null : null;
+  const dip = mc && mc.worstYearRatioP10 < 0.995 ? Math.round((mc.worstYearRatioP10 * month) / 10) * 10 : null;
+  const firstTrim = structured ? held.find((h: any) => Math.round(h.full * 100) < countAt(h))?.age : undefined;
+  const dipLine = dip != null ? ` In the worst 10 of 100, income dips to about ${fmt(dip)} a month.` : '';
+  const resting = !mc ? 'Working out the futures…'
+    : firstShort != null ? `From ${firstShort}, some futures fall short.${dipLine}`
+      : firstTrim != null ? `From ${firstTrim}, your rules trim spending in some futures.${dipLine}`
+        : `No future falls short before ${plan.horizonAge}.`;
+  const [windows, setWindows] = useState(false);
 
   // The three drivers, read and written through the plan's value definitions
   // (lib/planValues), so a range or a step is defined in one place.
@@ -81,14 +107,11 @@ export default function SimpleHome({ plan, update, dd, mc, onDetails, header }: 
     <div data-simple-home className="fixed inset-0 overflow-y-auto"
       style={{ background: 'var(--color-canvas)', paddingTop: 'calc(env(safe-area-inset-top) + 0.6rem)', paddingBottom: 'calc(env(safe-area-inset-bottom) + 5.4rem)',
         paddingLeft: 'max(16px, env(safe-area-inset-left))', paddingRight: 'max(16px, env(safe-area-inset-right))' }}>
-      {/* At least a screen tall, so the canvas can take whatever height is
+      {/* At least a screen tall, so the ring can take whatever height is
           left once the answer and the controls are laid out: the two
           questions always sit just above the tab bar. */}
       <div className="mx-auto w-full max-w-[560px] min-h-full flex flex-col">
         {header}
-
-        {/* ── The canvas: 100 futures, one stripe each ─────────────────── */}
-        {hasMoney && <FuturesCanvas mc={mc} structured={!!plan.architecture?.on} fromAge={plan.retireYear - A.birthYear} toAge={plan.horizonAge} accent={status.colour} />}
 
         {/* ── The answer ─────────────────────────────────────────────── */}
         {!hasMoney ? (
@@ -98,26 +121,26 @@ export default function SimpleHome({ plan, update, dd, mc, onDetails, header }: 
             <button type="button" onClick={onDetails} className="mt-5 rounded-2xl px-5 py-3 font-bold text-[var(--color-on-calm)]" style={{ background: 'var(--color-calm)' }}>Add my details</button>
           </section>
         ) : (
-          <section className="mt-4 [@media(max-height:760px)]:mt-2" aria-live="polite" data-answer data-ready={rails && mc ? '1' : '0'}>
-            <p data-status={status.key} className="flex items-center gap-2 text-[0.98rem] font-bold leading-tight" style={{ color: status.colour }}>
+          <section className="flex-1 flex flex-col mt-1" data-answer data-ready={rails && mc ? '1' : '0'}>
+            <p data-status={status.key} className="flex items-center gap-2 text-[0.95rem] font-semibold leading-tight" style={{ color: status.colour }} aria-live="polite">
               <span aria-hidden className="inline-block w-2 h-2 rounded-full shrink-0" style={{ background: status.colour }} />{status.label}
             </p>
-            <h1 className="serif tnum leading-[0.95] mt-2 [@media(max-height:760px)]:mt-1" style={{ fontSize: 'clamp(2.9rem, min(19vw, 9vh), 4.8rem)', letterSpacing: '-0.045em', color: 'var(--color-ink)' }} data-supports>{fmt(figure)}</h1>
-            <p className="mt-2 text-[0.95rem] leading-snug" style={{ color: 'var(--color-ink-dim)' }}>
-              {status.sustainable != null
-                ? <>a month after tax, every year to age {plan.horizonAge}.</>
-                : status.key === 'on' || status.key === 'thin' ? <>a month, paid every year to age {plan.horizonAge} on the central case.</>
-                  : dd.holds ? <>a month is what you ask; on the central case it lasts to {plan.horizonAge} with spending trimmed.</>
-                    : <>a month is what you ask; on the central case the money runs short at {dd.runsShortAgeA}.</>}
-              {gap != null && (
-                <span data-gap className="block mt-0.5 font-semibold" style={{ color: 'var(--color-ink)' }}>
-                  {Math.abs(gap) < 25 ? <>That is just what you ask for.</>
-                    : gap < 0 ? <>You ask for {fmt(month)}: <span style={{ color: 'var(--color-hope)' }}>{fmt(-gap)} a month more than that</span>.</>
-                      : <>You ask for {fmt(month)}: <span style={{ color: 'var(--color-sage-strong)' }}>{fmt(gap)} a month to spare</span>.</>}
-                </span>)}
-            </p>
-            {status.key === 'trim' && status.note && <p data-note className="mt-1.5 text-[0.84rem] leading-snug [@media(max-height:799px)]:hidden" style={{ color: 'var(--color-ink-dim)' }}>{status.note}</p>}
-            <p data-futures className="mt-2 text-[0.84rem] leading-snug" style={{ color: 'var(--color-ink-dim)' }}>{futuresSentence(status)}</p>
+            {/* The answer in words, naming the amount the futures are counted against. */}
+            <p data-futures className="mt-1 text-[1.02rem] leading-snug" style={{ color: 'var(--color-ink)' }}>{futuresSentence(status)}</p>
+            {/* ── The closing ring ─────────────────────────────────────── */}
+            <ClosingRing mc={mc} structured={structured} fromAge={stopAge} toAge={plan.horizonAge} ask={month}
+              summary={`${spokenAnswer(status, stopAge, typicalShort)} ${resting}`} resting={resting} onSeeFutures={() => setWindows(true)}>
+              {(side: number) => (<>
+                <h1 className="serif tnum leading-none" style={{ fontSize: Math.max(30, Math.min(56, side * 0.19)), letterSpacing: '-0.04em', color: 'var(--color-ink)' }} data-supports>{fmt(figure)}</h1>
+                <span className="mt-1 text-[0.82rem] leading-tight whitespace-nowrap" style={{ color: 'var(--color-ink-dim)' }}>a month after tax</span>
+                {gap != null && (
+                  <span data-gap className="mt-1.5 text-[0.95rem] font-semibold leading-tight whitespace-nowrap" style={{ color: gap < 0 ? 'var(--color-slate)' : 'var(--color-ring)' }}>
+                    {Math.abs(gap) < 25 ? <>Just what you ask</>
+                      : gap < 0 ? <>{fmt(-gap)} short</>
+                        : <>{fmt(gap)} to spare</>}
+                  </span>)}
+              </>)}
+            </ClosingRing>
           </section>
         )}
 
@@ -174,6 +197,9 @@ export default function SimpleHome({ plan, update, dd, mc, onDetails, header }: 
     <Sheet open={panel === 'help'} onClose={() => setPanel(null)} title="What would help most">
       {panel === 'help' && <HelpPanel plan={plan} update={update} onDone={() => setPanel(null)} />}
     </Sheet>
+    <Sheet open={windows} onClose={() => setWindows(false)} title="Ten futures">
+      {windows && <TenWindows mc={mc} structured={structured} ask={month} />}
+    </Sheet>
     <Sheet open={panel === 'risk'} onClose={() => setPanel(null)} title="What could go wrong">
       {panel === 'risk' && <RiskPanel plan={plan} mc={mc} rails={rails} />}
     </Sheet>
@@ -200,7 +226,7 @@ function HelpPanel({ plan, update, onDone }: { plan: any; update: (p: any) => vo
                 <span className="block text-[0.95rem] font-semibold">{l.label}</span>
                 <span className="block text-[0.8rem] mt-0.5 leading-snug" style={{ color: 'var(--color-ink-dim)' }}>{l.detail}</span>
               </span>
-              <span className="tnum shrink-0 text-[0.92rem] font-extrabold" style={{ color: 'var(--color-sage-strong)' }}>+{Math.round(l.dConf * 100)} of 100</span>
+              <span className="tnum shrink-0 text-[0.92rem] font-extrabold" style={{ color: 'var(--color-ring)' }}>+{Math.round(l.dConf * 100)} of 100</span>
             </button>))}
       <p className="text-[0.74rem] mt-3" style={{ color: 'var(--color-ink-faint)' }}>Tap one to try it; you can change it back above. Each is your plan run again through the same simulated futures. Prompts, not advice.</p>
     </div>

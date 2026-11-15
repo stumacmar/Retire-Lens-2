@@ -11,7 +11,8 @@ import { planCounts } from '../lib/counts';
 import { valuesFor, clampVal, type Val } from '../lib/planValues';
 import Sheet from './Sheet';
 import RiskPanel from './RiskPanel';
-import TimeTunnel from './TimeTunnel';
+import IncomeTimeline from './IncomeTimeline';
+import { incomeTimeline } from '../lib/incomeTimeline';
 import { lifeEvents } from '../lib/lifeEvents';
 import { tranchesOf, type TrancheKey } from '../lib/tranches';
 import TrancheSheet from './TrancheSheet';
@@ -104,6 +105,7 @@ export default function SimpleHome({ plan, update, dd, mc, onDetails, header }: 
   const events = useMemo(() => lifeEvents(plan, dd), [plan, dd]);
   const endAge = held.length ? held[held.length - 1].age : plan.horizonAge;
   const tranches = useMemo(() => tranchesOf(plan, dd, stopAge, endAge), [plan, dd, stopAge, endAge]);
+  const years = useMemo(() => incomeTimeline(plan, dd, stopAge, endAge), [plan, dd, stopAge, endAge]);
   const [open, setOpen] = useState<{ key: TrancheKey; at: number | null } | null>(null);
   const openTranche = tranches.find(t => t.key === open?.key);
   const figure = status.sustainable ?? month;
@@ -146,8 +148,8 @@ export default function SimpleHome({ plan, update, dd, mc, onDetails, header }: 
                   </span>)}
               </span>
             </div>
-            {/* ── The time tunnel ──────────────────────────────────────── */}
-            <TimeTunnel mc={mc} structured={structured} fromAge={stopAge} toAge={plan.horizonAge} ask={month} events={events} tranches={tranches} onOpen={(key, at) => setOpen({ key, at })}
+            {/* ── The income timeline ──────────────────────────────────── */}
+            <IncomeTimeline years={years} mc={mc} structured={structured} ask={month} events={events} tranches={tranches} onOpen={(key, at) => setOpen({ key, at })}
               summary={`${spokenAnswer(status, stopAge, typicalShort)} ${resting}`} resting={resting} />
           </section>
         )}

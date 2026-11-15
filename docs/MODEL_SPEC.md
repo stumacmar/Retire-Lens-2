@@ -166,13 +166,14 @@ supporting exactly the ask, or more, could read "Not yet funded"; and a
 structured plan kept solvent by cutting spending to 75% was credited with
 supporting the uncut figure. Both are covered by `e2e150.mjs`.
 
-The home draws the **closing ring**: one stroke from the stop age (12
-o'clock) clockwise to just short of the plan age, as clear at each age as the
-futures still paying in full there (`perAgeHeld`, §9): solid at 100 of 100,
-70% at 90, 45% at 70 and 20% at 40 or fewer, softer-edged as the count falls.
-On a structured plan the stroke narrows where the rules trim spending in many
-futures, and its clarity follows the futures still paying after trims. At
-the plan age the count is the one in the sentence. Under the ring: the first
+The home draws **the road ahead**: a road in perspective from the stop age
+(at your feet) to the plan age, then on to the horizon. Across each year's
+stretch the road stands for the 100 futures: the bright centre lane's share
+of the road's width is the share still paying the ask in full there
+(`perAgeHeld`, §9); on a structured plan a pale lane either side adds the
+futures still paying once the rules trim; the rest is grey, short of the ask.
+A share across the road is unchanged by perspective. At the plan age the
+count is the one in the sentence. Under the road: the first
 age a future falls short and, from `worstYearRatioP10` (the 10th percentile
 of each future's leanest year as a share of the ask, guaranteed income
 included), "in the worst 10 of 100, income dips to about £X a month".
@@ -280,7 +281,7 @@ own quote takes precedence.
   every year up to and including that one, in full (`full`, the same test as
   `successProb`) and once the written rules have trimmed (`rules`, the same
   test as `successProbWithCuts`). It never rises and its last entry equals
-  those two shares exactly. The home screen's closing ring draws it.
+  those two shares exactly. The home screen's road ahead draws it.
 * **What the range covers**: the sampling range shown in the app
   (±2 standard errors) covers the randomness of the simulation **only**. It
   does not cover parameter uncertainty (are the growth, inflation and charge
@@ -341,7 +342,7 @@ delivered (certainty-equivalent), never on survival alone.
 
 | Surface | Reads |
 |---|---|
-| Home | `accumulate`, `drawdown` (`holds`, `runsShortAgeA`), `runMonteCarlo` (`successProb`, `perAgeHeld` for the closing ring, `worstYearRatioP10` for the line under it), `guardrails`, `stressTests`, `levers` |
+| Home | `accumulate`, `drawdown` (`holds`, `runsShortAgeA`), `runMonteCarlo` (`successProb`, `perAgeHeld` for the road ahead, `worstYearRatioP10` for the line under it), `guardrails`, `stressTests`, `levers` |
 | Decision map | `drawdown` per cell |
 | Explore | `drawdown` rows, `runMonteCarlo`, `levers`, `stressTests`, `compareStrategies`, `estate` |
 | Peace | `Assumptions` (generated from the plan and engine constants), `HowWeChecked` (`runAssertions` live, `TAX_RULES`) |

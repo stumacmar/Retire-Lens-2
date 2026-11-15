@@ -713,6 +713,10 @@ const openMap = async () => { await closeSheet(); await tap('Explore'); await wa
     return t.startsWith('Counts you and your partner: ') && t.includes(`${k(q.partnerA.pension + q.partnerB.pension)} in pensions`)
       && t.includes(`${k(q.partnerA.isa + q.partnerB.isa + (q.cash || 0))} in ISAs and cash`)
       && t.includes(`${k(q.partnerA.spAmount + q.partnerB.spAmount + q.partnerA.db + q.partnerB.db)} a year guaranteed`); });
+  // Whether "paying in" includes tax relief changes the answer by a fifth of
+  // every payment, so the home says which (Scout 2026-11-15).
+  await check('147c the counts line says what goes into pensions, and that tax relief is included', async () =>
+    (await p.$eval('[data-counts]', e => e.innerText.replace(/\s+/g, ' '))).includes('£3,200 a month going into pensions, tax relief included.'));
   await p.getByRole('button', { name: 'Stop work at: a year later' }).click(); await wait(500);
   await check('148 one tap: stop a year later', async () => (await planOf()).retireYear === 2031);
   await p.getByRole('button', { name: 'Take home: £100 a month less' }).click(); await wait(500);
@@ -775,6 +779,21 @@ const openMap = async () => { await closeSheet(); await tap('Explore'); await wa
   await check('158b "Check or change in Details" opens Details', () => sheetOpen());
   await goPage('Your guaranteed income');
   await check('158c the guaranteed-income field says annuity', async () => /Annuity, company or final-salary pension a year/.test(await bodyT()));
+  await goPage('Your pots');
+  const reliefSwitch = p.locator('[data-active] [role=switch]:has-text("Paid from my bank account")');
+  await check('158c2 the tax-relief choice sits right under the payment, not in a closed section', async () => (await reliefSwitch.count()) === 1 && (await reliefSwitch.isVisible())
+    && /The total going in, tax relief included/.test(await p.locator('[data-active]').innerText()));
+  const potsBefore = E.accumulate({ ...(await planOf()), growth: (await planOf()).growthBase }, (await planOf()).growthBase).atRetirement.pensionA;
+  await reliefSwitch.click(); await wait(600);
+  await check('158c3 switching it on adds 25% basic-rate relief: the plan records it and the field says what goes in', async () => { const q = await planOf();
+    return q.partnerA.contribGrossUp === true && (await p.locator('[data-active]').innerText()).includes(`with basic-rate tax relief added, ${gbp(q.partnerA.monthlyPension * 1.25)} a month goes in`); });
+  await check('158c4 and the pot on the day work stops is larger', async () => { const q = await planOf(); return E.accumulate({ ...q, growth: q.growthBase }, q.growthBase).atRetirement.pensionA > potsBefore; });
+  await closeSheet();
+  await check('158c5 the counts line says what you pay and what relief adds', async () => { const m = (await planOf()).partnerA.monthlyPension;
+    return (await p.$eval('[data-counts]', e => e.innerText.replace(/\s+/g, ' '))).includes(`${gbp(m * 1.25)} a month going into pensions: ${gbp(m)} paid plus 25% basic-rate tax relief.`); });
+  await tap('Details'); await wait(600); await goPage('Your pots');
+  await p.locator('[data-active] [role=switch]:has-text("Paid from my bank account")').click(); await wait(500);
+  await closeSheet();
   await closeSheet();
   await check('162 simple home: zero page errors', () => pe.length === 0);
 }

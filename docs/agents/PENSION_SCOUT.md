@@ -33,11 +33,14 @@ in `horizon/src/engine/engine.js`:
   phase, thresholds frozen to April 2031 then indexed.
 - `runAssertions` (134 checks) includes "Monte Carlo equals deterministic at
   zero volatility" across thirteen plan shapes. **That invariant is sacred.**
-- The home is the Horizon Dial (`horizon/src/components/dial/`): one ring,
-  six groups of inputs, the answer in the middle. Depth lives in the Details,
-  Explore and Peace sheets (`horizon/src/App.tsx`).
-- Tests: `cd horizon && npm run uat` (builds, then ~150 checks) and
-  `node e2e.mjs` (~160 checks). Both block CI. Unit suites for the legacy
+- The home (`horizon/src/components/SimpleHome.tsx`) is one screen: the
+  closing ring (one stroke from the stop age to the plan age, as clear as the futures still paying make it),
+  the answer in words and one figure, three steppers, and two questions as
+  sheets. The Horizon Dial was retired on 15 November 2026. Depth lives in
+  the Details, Explore and Peace sheets (`horizon/src/App.tsx`).
+- Tests: `cd horizon && npm run verify` (model evidence), `npm run uat`
+  (builds, then ~210 checks), `node e2e.mjs` (~175 checks) and
+  `npm run e2e150` (150 households). All block CI. Unit suites for the legacy
   engine live at the repo root (`npm run test:all`).
 
 ## 2. The cycle
@@ -126,7 +129,7 @@ plainly in the PR.
 
 ### 2.6 Verify (15 minutes)
 ```
-cd horizon && npm run build && npm run uat && node e2e.mjs
+cd horizon && npm run verify && npm run build && npm run uat && node e2e.mjs && npm run e2e150
 ```
 At the repo root, if the engine changed: `npm run test:all`. Everything must
 pass. If a check fails and the fix is not obvious, revert to the last green

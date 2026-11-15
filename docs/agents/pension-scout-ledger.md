@@ -19,9 +19,36 @@ Memory between cycles. Read it first; update it last. Format is in
 | Vanguard UK pension calculator | 2026-11-14 | 2/5/8% ("FCA rules"), 2% inflation, 0.15% + 0.20% fees, SP from 67, 25% TFC capped at the LSA, **income = 4% of the remaining pot, before tax**; three growth buttons, no probabilities. |
 | Fidelity UK retirement calculator (Wealth Wizards) | 2026-11-14 | 5%, 2% inflation, 0.41% charge; **net of a basic income-tax calculation**; SP 12,547 (×2 for couples); couples' contributions; Retirement Living Standards as the target; 4% drawdown **to age 100**; no TFC; single estimate. |
 | Nutmeg (now J.P. Morgan Personal Investing), AJ Bell | 2026-11-14 (pages 404) | Nutmeg's calculator redirects to personalinvesting.jpmorgan.com and 404s; AJ Bell's calculator URL 404s. Re-try with new URLs. |
-| Everything else in the roster | never | Next: Timeline, Aviva, Scottish Widows, Legal & General, Interactive Investor, Royal London. |
+| AJ Bell pension calculator | 2026-11-15 | 5% (2% / 8% options) before charges and inflation, 2% inflation, contributions rise 3% a year, 0.6% charge, 25% TFC capped at the LSA, **income = 4% of the remaining pot**, "subject to income tax" but not taxed in the figure; tax relief not described in the calculator (20%, "more if higher rate" on the SIPP page). |
+| Timeline (adviser) | 2026-11-15 (research article; software is adviser-only) | Bengen-style rolling 30-year historical windows from 1915 (UK), 1% fee, gross of tax; UK local 50/50 at 4% succeeds in 70% of windows; worst UK start June 1947, £29,700 from £1m (2.97%). |
+| Royal London | 2026-11-15 (published documents; calculator URL 404) | FCA 2/5/8% capped rates from its quarterly LEAF assumptions; living-standards guide uses 5% growth, 2% inflation, 0.75% fee. Calculator not reachable. |
+| Aviva, Scottish Widows, Legal & General | 2026-11-15 (blocked: 403 / error page / not found) | Not examined; try again or via app-store teardown. |
+| Everything else in the roster | never | Next: Interactive Investor, Guiide, Nest, Moneybox, Penfold, MaxiFi, TPAW Planner. |
 
 ## Examinations
+
+### AJ Bell pension calculator — 2026-11-15 — https://www.ajbell.co.uk/pensions/calculator
+UK consumer · free, no sign-up · web
+Engine: growth 5% (2/8 options) before charges and inflation · inflation 2% · charge 0.6% · contributions rise 3% a year · tax relief not stated in the calculator ("20% … more if you're a higher rate taxpayer" on the SIPP page) · TFC 25% capped at the £268,275 LSA · income = 4% of the remaining pot, "subject to income tax", figure untaxed · no horizon · no SP in the calculator · no MC
+UX: pot first, 4% income beside it · "How we calculate this" on the page · no gating
+Best thing: the assumptions are on the same page as the result.
+Worst thing: income is 4% of the pot, before tax, with no horizon; the reader cannot tell whether it lasts.
+Traps: a 4% rule presented as income, untaxed.
+Gaps for Someday: none new; confirms B2 (relief is described everywhere but rarely shown in the figure).
+
+### Timeline — 2026-11-15 — https://www.timeline.co/resources/bengens-4-rule-around-the-world
+Adviser software · paid · web
+Engine: real historical returns and inflation in rolling 30-year windows (UK monthly data from 1915); 1% fee on the outstanding portfolio; gross of tax in the research (the software adds tax); local and global 50/50 portfolios
+Results: UK local 50/50 at 4% succeeds in 70% of windows; worst UK start June 1947 (£29,700 a year from £1m, 2.97%); global 50/50 worst start May 1961 (3.05%)
+Best thing: real UK history, including 1947 and the 1970s, not a single invented crash.
+Worst thing: success means "not empty at 30 years", which hides lean years.
+Traps: calling long datasets "too pessimistic" and trimming them.
+Gaps for Someday: a UK history among the stress paths (1947 or 1972–74) would be more relevant to UK users than Japan 1990; ties to B14 (the 2008 path is too kind). New backlog B24.
+
+### Royal London — 2026-11-15 — https://adviser.royallondon.com/funds/how-we-set-our-growth-rates/
+Provider · documents only (calculator URL 404)
+Engine: FCA capped 2/5/8% from a quarterly Long-term Economic Assumptions Forum; living-standards guide uses 5% growth, 2% inflation, 0.75% fee
+Gaps for Someday: none; confirms the Balanced preset and that 0.75% is a common charge (B12).
 
 ### MoneyHelper pension calculator — 2026-11-13 — https://www.moneyhelper.org.uk/en/pensions-and-retirement/pensions-basics/pension-calculator
 Audience: UK general public, 55+ is the stated core · Access: free, no sign-up · Platform: web (server-side calculation)
@@ -96,7 +123,7 @@ Updated every cycle. Standing: ahead · parity · behind · missing. Stop rule i
 | 3 | UK tax correctness | Fidelity (basic calc, net) / Timeline | ahead (unverified vs Timeline) | engine `taxFor`, Scotland, taper, LSA; of six UK consumer tools examined only Fidelity taxes retirement income, and only with a "basic" calculation |
 | 4 | State Pension | PensionBee (12,547, 2026/27) | parity | `spaFor`, 12,548 (12,547.60 rounded); MoneyHelper's record is a year stale |
 | 5 | Defined benefit | Timeline / Voyant | parity (unverified) | `DB_SCHEMES` |
-| 6 | Contributions and relief | MoneyHelper / HL | behind | B2; PensionBee shows relief but inconsistently |
+| 6 | Contributions and relief | MoneyHelper / HL | parity (2026-11-15) | The choice is now under the payment field with what goes in stated, and the home's counts line says "tax relief included" or "£X paid plus 25% basic-rate tax relief". Most UK tools treat the figure as relief-included (MoneyHelper, Standard Life) and none of AJ Bell, Vanguard, Fidelity shows relief in the figure. Higher-rate relief and salary sacrifice savings remain (B2) |
 | 7 | Sequence risk, bad histories | Timeline / cFIREsim | ahead on coverage; the 2008 path is too kind (B14) | `STRESS_PATHS`; gfc floor only 3–6% under base |
 | 8 | Dynamic spending rules | Income Lab / Timeline | parity | guardrails, levers |
 | 9 | Couples and survivor | MaxiFi / Boldin; Fidelity (two SPs, both contribute) | parity; UX thin | B1; Fidelity starts both State Pensions on one date, Someday uses each partner's age |
@@ -126,7 +153,7 @@ Updated every cycle. Standing: ahead · parity · behind · missing. Stop rule i
 | Couples | Rare; MaxiFi and Boldin do it | Two individuals, survivor phase | Ahead; survivor UX is thin |
 | Dynamic spending rules | Timeline, Income Lab, Boldin | Guardrails and levers | At parity; no user-set rule yet |
 | Care costs / housing | Boldin, Voyant | Not modelled | Gap (coverage) |
-| Pension contributions and tax relief | MoneyHelper, HL, PensionBee | Contributions yes; relief via a gross-up toggle | Gap (correctness, small) |
+| Pension contributions and tax relief | MoneyHelper, Standard Life: "contributions include tax relief"; AJ Bell describes 20% relief but does not show it | Shipped 2026-11-15: the relief choice sits under the payment, the field says what goes in, the home's counts line says which | Parity; higher-rate relief to the person (not the pot) explained, not modelled |
 | Longevity | HL: ONS cohort life expectancy by sex, chance of 100; Rich Broke or Dead; Fidelity and PensionBee fix 100; Standard Life and Vanguard state no horizon | Shipped 2026-11-14: the chosen plan age, with the median age and the chance of reaching it (one of a couple) beside the control, on the dial and in Assumptions | Parity (sex-specific single-person table still open, B10) |
 | Decumulation model | Vanguard and Fidelity: 4% of the pot a year; Standard Life: flat drawdown or an annuity; MoneyHelper: fixed annuity | Year-by-year funding to the spend you set, tax-aware, with the money's end age | Ahead |
 | Provenance | MoneyHelper: GOV.UK transparency record, 25 GAD scenarios | 126 load-time assertions, not surfaced | Gap (trust) |
@@ -136,7 +163,7 @@ Updated every cycle. Standing: ahead · parity · behind · missing. Stop rule i
 | Id | Title | Class | Value | Cost | Evidence | Status |
 |---|---|---|---|---|---|---|
 | B1 | Show the survivor's income after a first death on the dial (not only in Explore) | coverage | medium | medium | Comparison: couples | open |
-| B2 | Explicit tax relief on contributions (basic/higher rate, salary sacrifice) | correctness | medium | small | MoneyHelper, HL, PensionBee show relief | open |
+| B2 | Explicit tax relief on contributions (basic/higher rate, salary sacrifice) | correctness | medium | small | MoneyHelper, HL, PensionBee show relief | part shipped 2026-11-15: the basic-rate choice is visible under the payment, says what goes in, and the home states it. Open: higher-rate relief returned to the person, salary-sacrifice NI saving |
 | B3 | Show cohort life expectancy and the chance of reaching the plan age beside "Plan to age" (engine `householdSurvival` already exists) | coverage | medium | small | HL drawdown calculator names ONS cohort life expectancy; Engaging Data | shipped 2026-11-14: `lifeOdds(P, age)` (median age, chance of reaching the plan age, chance one of a couple is here at the plan's end; 3 assertions, 126); dial sub line, Details hint, Assumptions "Longevity" row; UAT 138–141, e2e E47i–k, U75b |
 | B4 | Care-cost scenario as a lever | coverage | medium | large | Boldin, Voyant | open |
 | B5 | Hallway test the dial's bezel words (findability within 10 s) | ux-evidence | high | small | Research report §D | open |
@@ -155,6 +182,7 @@ Updated every cycle. Standing: ahead · parity · behind · missing. Stop rule i
 | B17 | CI takes ~10 minutes because the non-blocking legacy classic-planner E2E runs for 6 of them | performance | low | small | CI run 43399782976 step timings | open |
 | B18 | Default growth 7% nominal (4.5% real after the 0.5% fee) sat near the FCA "higher" rate; MoneyHelper and PensionBee use 5%. A 26-year-old with £570k and £3,200 a month was shown £5m in today's money at 60, 100 of 100 futures and a Japan floor of £10,750 a month | correctness | high | small | Owner, 2026-11-13 ("utter nonsense"); FCA COBS 13 Annex 2 rates 2/5/8%; GOV.UK transparency record | shipped 2026-11-13: Balanced = FCA 2 / 5 / 8, Cautious 1.5 / 3.5 / 5.5, Adventurous 2.5 / 6 / 9; fresh plans apply the preset. The workbook fixture keeps 4 / 7 / 10 for parity tests |
 | B21 | The ring could change a person's age. The owner (56) turned the ring with WHO selected and became 26; every "nonsense" report on 2026-11-13 (46 cap, £5m at 60, 100 of 100, £10,750 floor) was computed for a 26-year-old. The age was on screen in small print and nobody noticed | ux / correctness | high | small | Owner, 2026-11-14 | shipped 2026-11-14: ages are typed, never dialled (`typed` values ignore the ring, the ± and the flick; the keypad still works); "Born 1970 · tap the age to change it" under the figure |
+| B24 | A UK history among the stress paths (June 1947 start, or 1972–74), from Timeline's UK data: worst UK 30-year start 2.97% on a 50/50 portfolio with a 1% fee | correctness | medium | medium | Timeline, 2026-11-15 | open; needs a sourced annual UK real-returns series |
 | B23 | The same plan supports a figure up to 0.4% different in different browsers: the withdrawal allocator makes exact comparisons at band edges and `Math.pow` differs in its last bit between JavaScript engines | correctness | medium | medium | `e2e150.mjs` check J, 2026-11-14 (141 of 150 identical, largest 0.38%) | open |
 | B22 | A lifestyle quiz (holidays, car, kitchen) as a way into the Living Standards target for people who cannot name a monthly figure | ux | low | medium | Fidelity / Wealth Wizards, 2026-11-14 | parked until the owner reacts to the chips shipped 2026-11-13 |
 | B20 | The strands chart scaled to the single wildest future, so sixty years of compounding flattened the central path into the baseline, and nothing on it said what the height meant | polish | medium | small | Owner's screenshot, 2026-11-13 | shipped 2026-11-13: scale to the ninth decile of strand peaks; label the top of the chart and the pot on the day you stop, in today's money |
@@ -163,6 +191,7 @@ Updated every cycle. Standing: ahead · parity · behind · missing. Stop rule i
 
 | Date | Planners | Improvement | PR | Outcome |
 |---|---|---|---|---|
+| 2026-11-15 | AJ Bell, Timeline, Royal London (Aviva, Scottish Widows, Legal & General blocked) | Tax relief made explicit: the "paid from my bank account" choice moved out of a closed section to sit under the payment, the field says what goes in, the home's counts line says whether relief is included (B2, part) | scout/2026-11-15-tax-relief-explicit | see PR |
 | — | — | Ledger seeded from the October 2026 UX research | — | — |
 | 2026-11-13 | MoneyHelper, Hargreaves Lansdown, PensionBee | Retirement Living Standards (Pensions UK 2026) beside the target: engine constant + 3 assertions, chips on the Someday page, hint under the dial figure, Assumptions row; fresh default 43,100 → 45,400 | [#34](https://github.com/stumacmar/Retire-Lens-2/pull/34) (branch scout/2026-11-13-living-standards) | merged and live 2026-11-13 10:18 |
 | 2026-11-13 (owner-driven) | — | CI runner pinned to Ubuntu 24.04 (GitHub moved `ubuntu-latest` to 26.04; Playwright could not install Chromium; nothing had deployed since 31 October) | [#35](https://github.com/stumacmar/Retire-Lens-2/pull/35) | merged; first green CI since 31 October; deploy restored |

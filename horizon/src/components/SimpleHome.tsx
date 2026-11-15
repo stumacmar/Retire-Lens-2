@@ -11,7 +11,7 @@ import { planCounts } from '../lib/counts';
 import { valuesFor, clampVal, type Val } from '../lib/planValues';
 import Sheet from './Sheet';
 import RiskPanel from './RiskPanel';
-import ClosingRing from './ClosingRing';
+import RoadAhead from './RoadAhead';
 import TenWindows from './TenWindows';
 
 /**
@@ -64,7 +64,7 @@ export default function SimpleHome({ plan, update, dd, mc, onDetails, header }: 
   const status = settled ? withDeadZone(prevKey.current, ruled) : ruled;
   useEffect(() => { if (settled) prevKey.current = status.key; }, [settled, status.key]);
 
-  // What the ring cannot show: how short the bad futures are. The leanest
+  // What the road cannot show: how short the bad futures are. The leanest
   // year in the worst 10 of 100 futures, as a monthly amount (it counts the
   // State Pension and other guaranteed income, so it is never shown as nothing).
   const structured = !!plan.architecture?.on;
@@ -107,7 +107,7 @@ export default function SimpleHome({ plan, update, dd, mc, onDetails, header }: 
     <div data-simple-home className="fixed inset-0 overflow-y-auto"
       style={{ background: 'var(--color-canvas)', paddingTop: 'calc(env(safe-area-inset-top) + 0.6rem)', paddingBottom: 'calc(env(safe-area-inset-bottom) + 5.4rem)',
         paddingLeft: 'max(16px, env(safe-area-inset-left))', paddingRight: 'max(16px, env(safe-area-inset-right))' }}>
-      {/* At least a screen tall, so the ring can take whatever height is
+      {/* At least a screen tall, so the road can take whatever height is
           left once the answer and the controls are laid out: the two
           questions always sit just above the tab bar. */}
       <div className="mx-auto w-full max-w-[560px] min-h-full flex flex-col">
@@ -127,20 +127,19 @@ export default function SimpleHome({ plan, update, dd, mc, onDetails, header }: 
             </p>
             {/* The answer in words, naming the amount the futures are counted against. */}
             <p data-futures className="mt-1 text-[1.02rem] leading-snug" style={{ color: 'var(--color-ink)' }}>{futuresSentence(status)}</p>
-            {/* ── The closing ring ─────────────────────────────────────── */}
-            <ClosingRing mc={mc} structured={structured} fromAge={stopAge} toAge={plan.horizonAge} ask={month}
+            {/* ── The road ahead ───────────────────────────────────────── */}
+            <RoadAhead mc={mc} structured={structured} fromAge={stopAge} toAge={plan.horizonAge} ask={month}
               summary={`${spokenAnswer(status, stopAge, typicalShort)} ${resting}`} resting={resting} onSeeFutures={() => setWindows(true)}>
-              {(side: number) => (<>
-                <h1 className="serif tnum leading-none" style={{ fontSize: Math.max(30, Math.min(56, side * 0.19)), letterSpacing: '-0.04em', color: 'var(--color-ink)' }} data-supports>{fmt(figure)}</h1>
-                <span className="mt-1 text-[0.82rem] leading-tight whitespace-nowrap" style={{ color: 'var(--color-ink-dim)' }}>a month after tax</span>
-                {gap != null && (
-                  <span data-gap className="mt-1.5 text-[0.95rem] font-semibold leading-tight whitespace-nowrap" style={{ color: gap < 0 ? 'var(--color-slate)' : 'var(--color-ring)' }}>
+              {(fontSize: number) => (<>
+                <h1 className="serif tnum leading-none" style={{ fontSize, letterSpacing: '-0.04em', color: 'var(--color-ink)' }} data-supports>{fmt(figure)}</h1>
+                <span className="mt-1 text-[0.86rem] leading-tight whitespace-nowrap" style={{ color: 'var(--color-ink-dim)' }}>a month after tax{gap != null && <>{' · '}
+                  <span data-gap className="font-semibold" style={{ color: gap < 0 ? 'var(--color-slate)' : 'var(--color-ring)' }}>
                     {Math.abs(gap) < 25 ? <>Just what you ask</>
                       : gap < 0 ? <>{fmt(-gap)} short</>
                         : <>{fmt(gap)} to spare</>}
-                  </span>)}
+                  </span></>}</span>
               </>)}
-            </ClosingRing>
+            </RoadAhead>
           </section>
         )}
 

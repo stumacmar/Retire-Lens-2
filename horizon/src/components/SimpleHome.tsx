@@ -11,8 +11,8 @@ import { planCounts } from '../lib/counts';
 import { valuesFor, clampVal, type Val } from '../lib/planValues';
 import Sheet from './Sheet';
 import RiskPanel from './RiskPanel';
-import RoadAhead from './RoadAhead';
-import TenWindows from './TenWindows';
+import TimeTunnel from './TimeTunnel';
+import { lifeEvents } from '../lib/lifeEvents';
 
 /**
  * The simple home: the answer first, in words, one figure and one picture,
@@ -42,6 +42,18 @@ import TenWindows from './TenWindows';
  * the Horizon Dial was retired in November 2026 (the owner found two homes,
  * and the dial, more complex than they were worth).
  */
+/** The answer sentence with a small swatch before each count, matching the tunnel's floor. */
+function withSwatches(text: string, structured: boolean) {
+  const sw = (c: string) => <i aria-hidden className="inline-block w-2.5 h-2.5 rounded-sm mr-1 align-baseline" style={{ background: c, outline: '1px solid color-mix(in srgb, var(--color-ink) 12%, transparent)' }} />;
+  const lit = 'var(--color-ring)', shade = 'color-mix(in srgb, var(--color-ring) 34%, var(--color-canvas))';
+  const parts = text.split(/(^In \d+|; in \d+)/);
+  return parts.map((p, i) => {
+    const m = p.match(/^(In |; in )(\d+)$/);
+    if (!m) return p;
+    return <span key={i}>{m[1]}{sw(m[1] === 'In ' && structured ? shade : lit)}{m[2]}</span>;
+  });
+}
+
 type Driver = { id: string; label: string; val: Val; step: number; show: (n: number) => string; sub: string; less: string; more: string };
 
 export default function SimpleHome({ plan, update, dd, mc, onDetails, header }: {
@@ -64,7 +76,7 @@ export default function SimpleHome({ plan, update, dd, mc, onDetails, header }: 
   const status = settled ? withDeadZone(prevKey.current, ruled) : ruled;
   useEffect(() => { if (settled) prevKey.current = status.key; }, [settled, status.key]);
 
-  // What the road cannot show: how short the bad futures are. The leanest
+  // What the tunnel cannot show: how short the bad futures are. The leanest
   // year in the worst 10 of 100 futures, as a monthly amount (it counts the
   // State Pension and other guaranteed income, so it is never shown as nothing).
   const structured = !!plan.architecture?.on;
@@ -81,7 +93,6 @@ export default function SimpleHome({ plan, update, dd, mc, onDetails, header }: 
     : firstShort != null ? `From ${firstShort}, some futures fall short.${dipLine}`
       : firstTrim != null ? `From ${firstTrim}, your rules trim spending in some futures.${dipLine}`
         : `No future falls short before ${plan.horizonAge}.`;
-  const [windows, setWindows] = useState(false);
 
   // The three drivers, read and written through the plan's value definitions
   // (lib/planValues), so a range or a step is defined in one place.
@@ -100,6 +111,7 @@ export default function SimpleHome({ plan, update, dd, mc, onDetails, header }: 
   const commit = () => { if (!typing) return; const n = parseFloat(typing.text.replace(/[,£\s]/g, '')); if (Number.isFinite(n)) write(typing.id, () => n); setTyping(null); };
 
   const [panel, setPanel] = useState<null | 'help' | 'risk'>(null);
+  const events = useMemo(() => lifeEvents(plan, dd), [plan, dd]);
   const figure = status.sustainable ?? month;
   const gap = status.gap;
 
@@ -107,7 +119,7 @@ export default function SimpleHome({ plan, update, dd, mc, onDetails, header }: 
     <div data-simple-home className="fixed inset-0 overflow-y-auto"
       style={{ background: 'var(--color-canvas)', paddingTop: 'calc(env(safe-area-inset-top) + 0.6rem)', paddingBottom: 'calc(env(safe-area-inset-bottom) + 5.4rem)',
         paddingLeft: 'max(16px, env(safe-area-inset-left))', paddingRight: 'max(16px, env(safe-area-inset-right))' }}>
-      {/* At least a screen tall, so the road can take whatever height is
+      {/* At least a screen tall, so the tunnel can take whatever height is
           left once the answer and the controls are laid out: the two
           questions always sit just above the tab bar. */}
       <div className="mx-auto w-full max-w-[560px] min-h-full flex flex-col">
@@ -125,47 +137,50 @@ export default function SimpleHome({ plan, update, dd, mc, onDetails, header }: 
             <p data-status={status.key} className="flex items-center gap-2 text-[0.95rem] font-semibold leading-tight" style={{ color: status.colour }} aria-live="polite">
               <span aria-hidden className="inline-block w-2 h-2 rounded-full shrink-0" style={{ background: status.colour }} />{status.label}
             </p>
-            {/* The answer in words, naming the amount the futures are counted against. */}
-            <p data-futures className="mt-1 text-[1.02rem] leading-snug" style={{ color: 'var(--color-ink)' }}>{futuresSentence(status)}</p>
-            {/* ── The road ahead ───────────────────────────────────────── */}
-            <RoadAhead mc={mc} structured={structured} fromAge={stopAge} toAge={plan.horizonAge} ask={month}
-              summary={`${spokenAnswer(status, stopAge, typicalShort)} ${resting}`} resting={resting} onSeeFutures={() => setWindows(true)}>
-              {(fontSize: number) => (<>
-                <h1 className="serif tnum leading-none" style={{ fontSize, letterSpacing: '-0.04em', color: 'var(--color-ink)' }} data-supports>{fmt(figure)}</h1>
-                <span className="mt-1 text-[0.86rem] leading-tight whitespace-nowrap" style={{ color: 'var(--color-ink-dim)' }}>a month after tax{gap != null && <>{' · '}
-                  <span data-gap className="font-semibold" style={{ color: gap < 0 ? 'var(--color-slate)' : 'var(--color-ring)' }}>
+            {/* The answer in words, naming the amount the futures are counted against.
+                The small swatches tie its numbers to the tunnel's floor. */}
+            <p data-futures className="mt-1 text-[1rem] leading-snug" style={{ color: 'var(--color-ink)' }}>{withSwatches(futuresSentence(status), structured)}</p>
+            {/* The figure: what the plan can pay, and the gap to the ask. */}
+            <div className="mt-2 flex items-center justify-center gap-3">
+              <h1 className="serif tnum leading-none" style={{ fontSize: 'clamp(2rem, 9vw, 2.6rem)', letterSpacing: '-0.04em', color: 'var(--color-ink)' }} data-supports>{fmt(figure)}</h1>
+              <span className="flex flex-col text-[0.84rem] leading-tight">
+                <span style={{ color: 'var(--color-ink-dim)' }}>a month after tax</span>
+                {gap != null && (
+                  <span data-gap className="font-semibold whitespace-nowrap" style={{ color: gap < 0 ? 'var(--color-slate)' : 'var(--color-ring)' }}>
                     {Math.abs(gap) < 25 ? <>Just what you ask</>
                       : gap < 0 ? <>{fmt(-gap)} short</>
                         : <>{fmt(gap)} to spare</>}
-                  </span></>}</span>
-              </>)}
-            </RoadAhead>
+                  </span>)}
+              </span>
+            </div>
+            {/* ── The time tunnel ──────────────────────────────────────── */}
+            <TimeTunnel mc={mc} structured={structured} fromAge={stopAge} toAge={plan.horizonAge} ask={month} events={events}
+              summary={`${spokenAnswer(status, stopAge, typicalShort)} ${resting}`} resting={resting} />
           </section>
         )}
 
-        {/* ── The three things most people change ────────────────────── */}
+        {/* ── The three things most people change, side by side ──────── */}
         {hasMoney && (
-          <section className="mt-4 [@media(max-height:760px)]:mt-2.5 rounded-3xl px-4" style={{ background: 'var(--color-surface)', border: '1px solid var(--color-hairline)' }} aria-label="Change your plan">
-            {drivers.map((d, i) => {
+          <section className="mt-3 [@media(max-height:760px)]:mt-2 grid grid-cols-3 gap-2" aria-label="Change your plan">
+            {drivers.map(d => {
               const n = d.val.get();
               return (
-                <div key={d.id} data-driver={d.id} className="flex items-center gap-2 py-2 [@media(max-height:760px)]:py-1" style={{ borderTop: i ? '1px solid var(--color-hairline)' : 'none' }}>
-                  <div className="min-w-0 flex-1">
-                    <div className="text-[0.95rem] font-semibold leading-tight" style={{ color: 'var(--color-ink)' }}>{d.label}</div>
-                    <div className="text-[0.74rem] leading-tight mt-0.5 truncate" style={{ color: 'var(--color-ink-faint)' }}>{d.sub}</div>
-                  </div>
-                  <button type="button" aria-label={`${d.label}: ${d.less}`} disabled={n <= d.val.min} onClick={() => write(d.id, (_v, cur) => cur - d.step)}
-                    className="w-11 h-11 [@media(max-height:760px)]:w-10 [@media(max-height:760px)]:h-10 shrink-0 rounded-full flex items-center justify-center disabled:opacity-30" style={{ background: 'var(--color-canvas)', border: '1px solid var(--color-hairline)', color: 'var(--color-ink)' }}><Minus size={18} /></button>
+                <div key={d.id} data-driver={d.id} className="rounded-2xl px-1.5 pt-2 pb-1.5 flex flex-col items-center text-center min-w-0" style={{ background: 'var(--color-surface)', border: '1px solid var(--color-hairline)' }}>
+                  <div className="text-[0.74rem] font-semibold leading-tight truncate max-w-full" style={{ color: 'var(--color-ink-dim)' }}>{d.label}</div>
                   {typing?.id === d.id ? (
                     <input autoFocus inputMode="decimal" aria-label={`${d.label}, type a figure`} value={typing.text} onChange={e => setTyping({ id: d.id, text: e.target.value })}
                       onBlur={commit} onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); if (e.key === 'Escape') setTyping(null); }}
-                      className="tnum text-center text-[1.05rem] font-bold rounded-xl py-1.5 w-[5.6rem] outline-none" style={{ background: 'var(--color-canvas)', color: 'var(--color-ink)', border: '1px solid var(--color-calm)' }} />
+                      className="tnum text-center text-[1.05rem] font-bold rounded-lg my-0.5 py-0.5 w-full outline-none" style={{ background: 'var(--color-canvas)', color: 'var(--color-ink)', border: '1px solid var(--color-calm)' }} />
                   ) : (
                     <button type="button" onClick={() => setTyping({ id: d.id, text: String(n) })} aria-label={`${d.label}: ${d.show(n)}. Tap to type a figure`}
-                      className="tnum text-center text-[1.1rem] font-bold rounded-xl py-1.5 w-[5.6rem] min-h-[44px] [@media(max-height:760px)]:min-h-[40px]" style={{ color: 'var(--color-ink)' }}>{d.show(n)}</button>
+                      className="tnum text-[1.12rem] font-bold leading-none mt-1 mb-1 min-h-[34px] w-full flex flex-col items-center justify-center" style={{ color: 'var(--color-ink)' }}>{d.show(n)}<span className="mt-0.5 text-[0.66rem] font-medium" style={{ color: 'var(--color-ink-faint)' }}>{d.sub}</span></button>
                   )}
-                  <button type="button" aria-label={`${d.label}: ${d.more}`} disabled={n >= d.val.max} onClick={() => write(d.id, (_v, cur) => cur + d.step)}
-                    className="w-11 h-11 [@media(max-height:760px)]:w-10 [@media(max-height:760px)]:h-10 shrink-0 rounded-full flex items-center justify-center disabled:opacity-30" style={{ background: 'var(--color-canvas)', border: '1px solid var(--color-hairline)', color: 'var(--color-ink)' }}><Plus size={18} /></button>
+                  <div className="flex gap-1.5 w-full">
+                    <button type="button" aria-label={`${d.label}: ${d.less}`} disabled={n <= d.val.min} onClick={() => write(d.id, (_v, cur) => cur - d.step)}
+                      className="flex-1 h-9 rounded-full flex items-center justify-center disabled:opacity-30" style={{ background: 'var(--color-canvas)', border: '1px solid var(--color-hairline)', color: 'var(--color-ink)' }}><Minus size={16} /></button>
+                    <button type="button" aria-label={`${d.label}: ${d.more}`} disabled={n >= d.val.max} onClick={() => write(d.id, (_v, cur) => cur + d.step)}
+                      className="flex-1 h-9 rounded-full flex items-center justify-center disabled:opacity-30" style={{ background: 'var(--color-canvas)', border: '1px solid var(--color-hairline)', color: 'var(--color-ink)' }}><Plus size={16} /></button>
+                  </div>
                 </div>);
             })}
           </section>
@@ -195,9 +210,6 @@ export default function SimpleHome({ plan, update, dd, mc, onDetails, header }: 
         and inside it a sheet would slide under the tab bar. */}
     <Sheet open={panel === 'help'} onClose={() => setPanel(null)} title="What would help most">
       {panel === 'help' && <HelpPanel plan={plan} update={update} onDone={() => setPanel(null)} />}
-    </Sheet>
-    <Sheet open={windows} onClose={() => setWindows(false)} title="Ten futures">
-      {windows && <TenWindows mc={mc} structured={structured} ask={month} />}
     </Sheet>
     <Sheet open={panel === 'risk'} onClose={() => setPanel(null)} title="What could go wrong">
       {panel === 'risk' && <RiskPanel plan={plan} mc={mc} rails={rails} />}

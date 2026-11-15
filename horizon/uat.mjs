@@ -747,7 +747,7 @@ const openMap = async () => { await closeSheet(); await tap('Explore'); await wa
   const sun = async () => p.evaluate(() => { const el = document.querySelector('[data-sunrise]'); const rings = [...el.querySelectorAll('[data-ring]')];
     return { first: +el.getAttribute('data-first'), last: +el.getAttribute('data-last'), n: +el.getAttribute('data-years'), k: rings.map(r => +r.getAttribute('data-ring')), years: rings.map(r => +r.getAttribute('data-years')), f: rings.map(r => +r.getAttribute('data-f')),
       drawn: rings.map(r => parseFloat(getComputedStyle(r).strokeDasharray)), len: rings.map(r => r.getTotalLength()),
-      end: (document.querySelector('[data-sun-end]')?.innerText || '').replace(/\s+/g, ' '), name: el.getAttribute('aria-label') || '', futures: document.querySelector('[data-futures]')?.textContent || '' }; });
+      end: (document.querySelector('[data-sun-end]')?.innerText || '').replace(/\s+/g, ' '), name: document.getElementById(el.getAttribute('aria-describedby') || '')?.textContent || '', role: el.getAttribute('role'), label: el.getAttribute('aria-label') || '', futures: document.querySelector('[data-futures]')?.textContent || '' }; });
   await check('158d the sunrise has 100 lines and runs from the year work stops to the plan age', async () => { const q = await planOf(), st = await sun();
     return st.k.length === 100 && st.k.every((k, i) => k === i + 1) && st.first === q.retireYear - q.partnerA.birthYear && st.n === E.planEndYear(q) - q.retireYear + 1 && st.last === st.first + st.n - 1; });
   await check('158e the lines that reach the horizon are the futures count in the sentence, and the label says so', async () => { const st = await sun(); const n = Number((st.futures.match(/in (\d+) of 100/) || [])[1]);
@@ -756,7 +756,8 @@ const openMap = async () => { await closeSheet(); await tap('Explore'); await wa
   await check('158g each line is drawn to its share of the sky', async () => { const st = await sun(); return st.len.every(l => l > 20) && st.f.every((f, i) => Math.abs(f - st.years[i] / st.n) < 1e-3 && Math.abs(st.drawn[i] - f) < 0.02); });
   await check('158h the sunrise agrees with the engine for the same seed, year by year', async () => { const q = await planOf(), st = await sun(); const m = E.runMonteCarlo(q, 2000, q.mcSeed || 42);
     return m.perAgeHeld.every((h, i) => Math.abs(Math.round(h.full * 100) - st.years.filter(y => y > i).length) <= 1); });
-  await check('158i the sunrise says in words what it shows (screen readers)', async () => { const st = await sun(); const n = st.years.filter(y => y === st.n).length; return /one for each simulated future/.test(st.name) && st.name.includes(`${n} of 100 reach age ${st.last}`); });
+  await check('158i the sunrise says in words what it shows (screen readers): a named slider, described in full', async () => { const st = await sun(); const n = st.years.filter(y => y === st.n).length;
+    return st.role === 'slider' && st.label === 'Futures still paying, by age' && /one for each simulated future/.test(st.name) && st.name.includes(`${n} of 100 reach age ${st.last}`) && /arrow keys/.test(st.name); });
   await p.locator('[data-counts] button').click(); await wait(700);
   await check('158b "Check or change in Details" opens Details', () => sheetOpen());
   await goPage('Your guaranteed income');

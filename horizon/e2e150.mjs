@@ -32,7 +32,7 @@
  *   L  (every fifth) the needle, moved with the keys to the last age and the
  *      first, reads the same counts
  *
- * In every fifth scenario the road is also moved with the keys,
+ * In every fifth scenario the tunnel is also moved with the keys,
  * to the plan's last age and back to the year work stops, and must read the
  * same counts as the engine. The first fourteen scenarios are the owner's own plan and its near
  * neighbours; the rest are drawn from a seeded generator, so the run is the
@@ -204,7 +204,7 @@ async function readHome(page, plan) {
   return page.evaluate(() => { const t = (s) => (document.querySelector(s)?.innerText || '').replace(/\s+/g, ' ').trim();
     return { key: document.querySelector('[data-simple-home] [data-status]')?.getAttribute('data-status'), label: t('[data-simple-home] [data-status]'),
       figure: Number(t('[data-supports]').replace(/[£,]/g, '')), gap: t('[data-gap]'), futures: t('[data-futures]'), counts: t('[data-counts]'), note: t('[data-note]'),
-      sun: (() => { const el = document.querySelector('[data-road]'); return !el ? null : { first: +el.getAttribute('data-first'), last: +el.getAttribute('data-last'), n: +el.getAttribute('data-years'),
+      sun: (() => { const el = document.querySelector('[data-tunnel]'); return !el ? null : { first: +el.getAttribute('data-first'), last: +el.getAttribute('data-last'), n: +el.getAttribute('data-years'),
         counts: (el.getAttribute('data-full-counts') || '').split(',').filter(Boolean).map(Number), rules: (el.getAttribute('data-rules') || '').split(',').filter(Boolean).map(Number) }; })() }; });
 }
 
@@ -243,17 +243,17 @@ async function worker() {
       if (shownF !== x.futures) fails.push(`E futures: shows ${shownF} of 100, engine gives ${x.futures}`);
       if (x.structured && x.futuresFull !== x.futures && !ui.futures.includes(`in ${x.futuresFull} it pays`)) fails.push(`E structured plan does not state the paid-in-full share ${x.futuresFull}: ${ui.futures}`);
       if (!/not a guarantee/.test(ui.futures)) fails.push('E the caveat is missing');
-      // K the road: the picture and the number are the same thing
+      // K the tunnel: the picture and the number are the same thing
       {
         const sun = ui.sun;
-        if (!sun || sun.counts.length !== sun.n) fails.push(`K the road is missing or has no count for some years (${sun ? sun.counts.length : 'none'})`);
+        if (!sun || sun.counts.length !== sun.n) fails.push(`K the tunnel is missing or has no count for some years (${sun ? sun.counts.length : 'none'})`);
         else {
           const use = x.structured ? sun.rules : sun.counts;
-          if (sun.first !== plan.retireYear - plan.partnerA.birthYear) fails.push(`K the road starts at ${sun.first}, work stops at ${plan.retireYear - plan.partnerA.birthYear}`);
-          if (sun.last !== sun.first + sun.n - 1) fails.push(`K the road ends at ${sun.last} after ${sun.n} years from ${sun.first}`);
+          if (sun.first !== plan.retireYear - plan.partnerA.birthYear) fails.push(`K the tunnel starts at ${sun.first}, work stops at ${plan.retireYear - plan.partnerA.birthYear}`);
+          if (sun.last !== sun.first + sun.n - 1) fails.push(`K the tunnel ends at ${sun.last} after ${sun.n} years from ${sun.first}`);
           if (!use.every((c, i) => c >= 0 && c <= 100 && (i === 0 || c <= use[i - 1]))) fails.push(`K the count rises somewhere: ${use.join(' ')}`);
-          if (use[sun.n - 1] !== x.futures) fails.push(`K the road ends on ${use[sun.n - 1]}, the sentence says ${x.futures}`);
-          if (x.structured && sun.counts[sun.n - 1] !== Math.min(x.futuresFull, x.futures)) fails.push(`K structured: the road's paid-in-full count ends on ${sun.counts[sun.n - 1]}, paid in full is ${x.futuresFull}`);
+          if (use[sun.n - 1] !== x.futures) fails.push(`K the tunnel ends on ${use[sun.n - 1]}, the sentence says ${x.futures}`);
+          if (x.structured && sun.counts[sun.n - 1] !== Math.min(x.futuresFull, x.futures)) fails.push(`K structured: the tunnel's paid-in-full count ends on ${sun.counts[sun.n - 1]}, paid in full is ${x.futuresFull}`);
         }
       }
       // F the counts line
@@ -277,14 +277,14 @@ async function worker() {
       if (x.drift > 0.01) fails.push(`J the figure differs by ${(x.drift * 100).toFixed(2)}% between Chromium and Node (limit 1%)`);
       // L the needle, moved with the keys, reads the engine's counts
       if (i % 5 === 0 && ui.sun) {
-        await page.focus('[data-road] [role=slider]'); await page.keyboard.press('End'); await page.waitForTimeout(80);
-        const atEnd = await page.$eval('[data-road]', e => [+e.getAttribute('data-age'), e.querySelector('[role=slider]').getAttribute('aria-valuetext')]);
+        await page.focus('[data-tunnel] [role=slider]'); await page.keyboard.press('End'); await page.waitForTimeout(80);
+        const atEnd = await page.$eval('[data-tunnel]', e => [+e.getAttribute('data-age'), e.querySelector('[role=slider]').getAttribute('aria-valuetext')]);
         await page.keyboard.press('Home'); await page.waitForTimeout(80);
-        const atStart = await page.$eval('[data-road]', e => [+e.getAttribute('data-age'), e.querySelector('[role=slider]').getAttribute('aria-valuetext')]);
+        const atStart = await page.$eval('[data-tunnel]', e => [+e.getAttribute('data-age'), e.querySelector('[role=slider]').getAttribute('aria-valuetext')]);
         const lastBar = ui.sun.counts[ui.sun.n - 1], firstBar = ui.sun.counts[0];
-        if (atEnd[0] !== ui.sun.last || !atEnd[1].startsWith(`Age ${ui.sun.last}: ${lastBar} of 100 futures still pay`)) fails.push(`L the road at ${ui.sun.last} reads "${atEnd[1]}", its own count is ${lastBar}`);
-        if (atStart[0] !== ui.sun.first || !atStart[1].startsWith(`Age ${ui.sun.first}: ${firstBar} of 100`)) fails.push(`L the road at ${ui.sun.first} reads "${atStart[1]}", its own count is ${firstBar}`);
-        if (lastBar !== x.futuresFull) fails.push(`L the road's paid-in-full count at the last age is ${lastBar}, the engine gives ${x.futuresFull}`);
+        if (atEnd[0] !== ui.sun.last || !atEnd[1].startsWith(`Age ${ui.sun.last}: ${lastBar} of 100 futures still pay`)) fails.push(`L the tunnel at ${ui.sun.last} reads "${atEnd[1]}", its own count is ${lastBar}`);
+        if (atStart[0] !== ui.sun.first || !atStart[1].startsWith(`Age ${ui.sun.first}: ${firstBar} of 100`)) fails.push(`L the tunnel at ${ui.sun.first} reads "${atStart[1]}", its own count is ${firstBar}`);
+        if (lastBar !== x.futuresFull) fails.push(`L the tunnel's paid-in-full count at the last age is ${lastBar}, the engine gives ${x.futuresFull}`);
       }
       // I errors
       if (errs.length) fails.push('I ' + [...new Set(errs)].slice(0, 2).join(' | '));

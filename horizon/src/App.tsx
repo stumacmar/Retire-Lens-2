@@ -7,7 +7,6 @@ import { fmt, fmtK, pct, deflate } from './lib/format';
 import Sheet from './components/Sheet';
 import Onboarding from './components/Onboarding';
 import PlanForm from './components/PlanForm';
-import Dial from './components/dial/Dial';
 import SimpleHome from './components/SimpleHome';
 import { useInsight } from './lib/useInsight';
 import type { Rail } from './lib/insights';
@@ -23,19 +22,6 @@ import { PlusPill, Locked, PlusSheetBody } from './components/Plus';
 import { EntitlementContext, useEntitlement, useEntitlementState } from './lib/entitlement';
 import { PRODUCT } from './config/product';
 
-// Continuous wealth series (today → horizon) from the engine output, in
-// today's money: every point is deflated to the start year, so the chart and
-// its axis say what the caption says.
-function series(plan: any, acc: Accum, dd: Drawdown): [number, number][] {
-  const D = (v: number, year: number) => deflate(v, year, plan.startYear, plan.inflation);
-  const start: [number, number] =
-    [plan.startYear, plan.partnerA.pension + plan.partnerA.isa + plan.partnerB.pension + plan.partnerB.isa + (plan.cash || 0)];
-  const pre = acc.years.filter((y: any) => y.year < dd.rows[0].year)
-    .map((y: any): [number, number] => [y.year, D(y.pensionA + y.isaA + y.pensionB + y.isaB + (y.cash || 0), y.year)]);
-  const post = dd.rows.map((r: any): [number, number] => [r.year, D(r.wealth, r.year)]);
-  return [start, ...pre, ...post];
-}
-
 // Confidence, said honestly: rounded to five, never "100%", with the
 // sampling range alongside. A simulation cannot promise certainty.
 export function confText(mc: any): { main: string; range: string; pctRounded: number } {
@@ -49,7 +35,6 @@ export function confText(mc: any): { main: string; range: string; pctRounded: nu
 const isSingle = (plan: any) => plan.household === 'single';
 
 type Tab = 'horizon' | 'details' | 'explore' | 'peace' | 'plus';
-const HOME_KEY = 'someday-home-v1';
 
 // Free + Plus: one entitlement state for the whole app, read anywhere via context.
 export default function App() {
@@ -60,7 +45,7 @@ export default function App() {
 function Horizon() {
   const { plus } = useEntitlement();
   const S = usePlan();
-  const { plan, dd, acc, ddBear, ddBull, mc, estate, setLens, update } = S;
+  const { plan, dd, acc, mc, estate, setLens, update } = S;
   // Explore reads the plan through the chosen lens, exactly as the Horizon
   // and the confidence figure do — one set of numbers, never two.
   const planL = useMemo(() => ({ ...plan, growth: S.growth }), [plan, S.growth]);
@@ -71,11 +56,6 @@ function Horizon() {
   const [onboarded, setOnboarded] = useState(hasSavedPlan());
   const [disclaimerOk, setDisclaimerOk] = useState(disclaimerAccepted());
   const openPlus = () => setSheet('plus');
-  // Two homes, one plan. The simple home (the answer, three steppers, two
-  // questions) is the default; the dial is for people who like it. The
-  // choice is remembered on this device.
-  const [homeView, setHomeView] = useState<'simple' | 'dial'>(() => { try { return localStorage.getItem(HOME_KEY) === 'dial' ? 'dial' : 'simple'; } catch { return 'simple'; } });
-  const switchHome = () => setHomeView(v => { const n = v === 'dial' ? 'simple' : 'dial'; try { localStorage.setItem(HOME_KEY, n); } catch { /* private mode */ } return n; });
 
 
   const resetAll = () => {
@@ -88,17 +68,6 @@ function Horizon() {
   };
 
 
-  const viz = useMemo(() => {
-    const base = series(plan, acc, dd);
-    const low = series(plan, acc, ddBear);
-    const high = series(plan, acc, ddBull);
-    // What you have on the day you stop, in today's money: the pots as the
-    // saving years leave them. (The chart's point for that year is the end
-    // of the first year of retirement, after a year's spending.)
-    const r0: any = acc.atRetirement || {};
-    const atRetire = deflate((r0.pensionA || 0) + (r0.pensionB || 0) + (r0.isaA || 0) + (r0.isaB || 0) + (r0.cash || 0) + (r0.gia || 0), plan.retireYear, plan.startYear, plan.inflation);
-    return { base, low, high, atRetire };
-  }, [plan, acc, dd, ddBear, ddBull]);
 
 
 
@@ -128,8 +97,8 @@ function Horizon() {
   return (
     <main className="min-h-full">
 
-      {/* The home. Simple by default: the answer, three steppers, two questions.
-          The Horizon Dial (one ring, six groups) is one tap away in the header. */}
+      {/* The home: the sunrise, the answer, three steppers, two questions. One
+          home since November 2026 (the Horizon Dial was retired). */}
       {(() => {
         const header = (
           <div className="flex items-center gap-2.5">
@@ -139,17 +108,9 @@ function Horizon() {
               <path d="M5 33.5h32" stroke="var(--color-calm)" strokeWidth="3.2" strokeLinecap="round" opacity=".5" />
             </svg>
             <span className="flex-1 serif text-[1.35rem] leading-none" style={{ color: 'var(--color-ink)' }}>Someday</span>
-            <button type="button" onClick={switchHome} data-home-switch
-              // 24px tall: a legal tap target that leaves the header's height alone
-              // (the dial's fixed screen has only a few pixels to spare).
-              className="rounded-full px-2.5 h-6 text-[0.7rem] font-semibold leading-none" style={{ background: 'var(--color-surface)', border: '1px solid var(--color-hairline)', color: 'var(--color-ink-dim)' }}>
-              {homeView === 'dial' ? 'Simple view' : 'Dial view'}
-            </button>
             {PRODUCT.plusOffered && <PlusPill plus={plus} onClick={openPlus} />}
           </div>);
-        return homeView === 'dial'
-          ? <Dial plan={plan} update={update} dd={dd} mc={mc} mcPending={S.mcPending} viz={viz} plus={plus} onUpgrade={openPlus} onDetails={() => setSheet('details')} header={header} />
-          : <SimpleHome plan={plan} update={update} dd={dd} mc={mc} onDetails={() => setSheet('details')} header={header} />;
+        return <SimpleHome plan={plan} update={update} dd={dd} mc={mc} onDetails={() => setSheet('details')} header={header} />;
       })()}
 
       <nav className="fixed bottom-0 left-0 right-0 z-40"

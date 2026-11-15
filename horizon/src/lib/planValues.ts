@@ -1,13 +1,13 @@
-import { fmt, fmtK } from '../../lib/format';
-import { standardLine } from '../../lib/livingStandards';
-import { longevityLine } from '../../lib/longevity';
+import { fmt, fmtK } from './format';
+import { standardLine } from './livingStandards';
+import { longevityLine } from './longevity';
 
 /**
- * What the ring can drive. Six faces round the bezel, each with up to two
- * values; a second set for a partner on the back of the dial. Every value
- * knows its range, its detent size, how to read itself aloud and how to
- * write itself back into the plan — so the ring, the hidden range inputs,
- * the keypad and the ± buttons all go through one definition.
+ * The plan's headline values, grouped. Every value knows its range, its step,
+ * how to read itself aloud and how to write itself back into the plan, so the
+ * home's steppers and anything else that changes these figures go through
+ * one definition. (Written for the Horizon Dial, retired in November 2026;
+ * the groups keep its names.)
  */
 export type Face = 'someday' | 'pensions' | 'savings' | 'later' | 'guaranteed' | 'who';
 export type Side = 'A' | 'B';

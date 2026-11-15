@@ -92,34 +92,22 @@ const tap = async t => {
   catch { try { await p.locator(`text=${t}`).first().click({ timeout: 2000 }); return true; } catch { return false; } }
 };
 const sheetOpen = async () => (await p.locator('[role=dialog]').count()) > 0;
-// The home: the Horizon Dial. Six hidden range inputs (more for a couple) are
-// the real controls; the drawn ring is bound to them. Setting a range writes
-// the plan exactly as turning the ring does.
-const setSlider = async (label, value) => {
-  const ok = await p.evaluate(([l, v]) => {
-    const el = [...document.querySelectorAll('[data-home] input[type=range]')].find(i => i.getAttribute('aria-label') === l);
-    if (!el) return false;
-    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(el, String(v));
-    el.dispatchEvent(new Event('input', { bubbles: true })); el.dispatchEvent(new Event('change', { bubbles: true }));
-    return true;
-  }, [label, value]);
-  await wait(300); return ok;
+// The home: one screen. The sunrise, the answer, three steppers (each also
+// typeable) and two questions. (The Horizon Dial was retired in November 2026.)
+const answerText = async () => (await p.$eval('[data-answer]', e => e.innerText).catch(() => '')).replace(/\s+/g, ' ');
+const futuresText = async () => p.$eval('[data-futures]', e => e.textContent).catch(() => '');
+const statusKey = async () => p.$eval('[data-status]', e => e.getAttribute('data-status')).catch(() => '');
+const waitAnswer = async (ms = 25000) => p.waitForFunction(() => document.querySelector('[data-answer]')?.getAttribute('data-ready') === '1' && /of 100/.test(document.querySelector('[data-futures]')?.textContent || ''), null, { timeout: ms }).catch(() => {});
+// Type a figure into one of the home's three steppers: 'Stop work at' (an
+// age), 'Take home' or 'You pay in' / 'Pay in' (a month).
+const homeType = async (label, value) => {
+  await p.getByRole('button', { name: new RegExp(`^${label}: .*Tap to type`) }).click({ timeout: 4000 });
+  await p.fill(`input[aria-label="${label}, type a figure"]`, String(value)); await p.keyboard.press('Enter'); await wait(400);
 };
-const valueText = async label => p.$eval(`[data-home] input[type=range][aria-label="${label}"]`, e => e.getAttribute('aria-valuetext')).catch(() => '');
-const tapFace = async id => { await p.locator(`button[data-face="${id}"]`).click(); await wait(350); };
-const activeFace = async () => p.$eval('button[data-face][aria-pressed="true"]', e => e.getAttribute('data-face')).catch(() => '');
-const answerText = async () => p.$eval('[data-answer]', e => e.innerText).catch(() => '');
-const sentence = async () => p.$eval('[data-sentence]', e => e.innerText).catch(() => '');
-const sliders = async () => p.locator('[data-home] input[type=range]').count();
-// Turn the ring by hand: press on the track and sweep round it.
-const turnRing = async (fromDeg, toDeg, steps = 16) => {
-  const box = await p.locator('[data-home] canvas').first().boundingBox();
-  const cx = box.x + box.width / 2, cy = box.y + box.height / 2, r = box.width / 2 * 0.8;
-  const at = deg => [cx + r * Math.sin(deg * Math.PI / 180), cy - r * Math.cos(deg * Math.PI / 180)];
-  let [x, y] = at(fromDeg); await p.mouse.move(x, y); await p.mouse.down();
-  for (let i = 1; i <= steps; i++) { [x, y] = at(fromDeg + (toDeg - fromDeg) * i / steps); await p.mouse.move(x, y); await wait(16); }
-  await p.mouse.up(); await wait(700);
-};
+// What the sunrise is showing: the needle's age and reading, and each line's length in years.
+const sunState = async () => p.evaluate(() => { const el = document.querySelector('[data-sunrise]'); if (!el) return null;
+  return { ready: el.getAttribute('data-ready') === '1', age: +el.getAttribute('data-age'), first: +el.getAttribute('data-first'), last: +el.getAttribute('data-last'), n: +el.getAttribute('data-years'),
+    valuetext: el.getAttribute('aria-valuetext') || '', label: (document.querySelector('[data-sun-drop]')?.textContent || ''), years: [...el.querySelectorAll('[data-ring]')].map(r => +r.getAttribute('data-years')) }; });
 // Controls that exist both on the Horizon and inside a sheet must be tapped
 // where they are meant, never on the card behind.
 const tapInSheet = async t => {
@@ -170,9 +158,6 @@ const fresh = async () => {
   await p.evaluate(() => localStorage.clear()).catch(() => {});
   await passGate();
   await seedPlus();
-  // The sweep below drives the dial; the simple home (the default) has its
-  // own section at the end, which removes this key.
-  await p.evaluate(() => localStorage.setItem('someday-home-v1', 'dial')).catch(() => {});
   await p.reload({ waitUntil: 'networkidle' }); await wait(700);
 };
 const planOf = async () => p.evaluate(() => { try { return JSON.parse(localStorage.getItem('horizon-plan-v1') || '{}'); } catch { return {}; } });
@@ -231,44 +216,43 @@ await check('17b approach screen asks how the money is run', async () => /How sh
 await check('17c traditional option offered', () => has('Traditional'));
 await check('17d de-risking option offered', () => has('De-risking'));
 await tap('Traditional'); await wait(1200);
-// Setting up IS the home: one ring, sensible defaults, the answer appears as money goes in.
-await check('04 home is the dial, asking the question', async () => (await p.locator('[data-home] canvas').count()) >= 1 && /What could you take home/i.test(await h1()));
-await check('05 six engravings round the bezel', async () => (await p.locator('button[data-face]').count()) === 6);
-await check('06 one person: twelve figures behind the ring', async () => (await sliders()) === 12);
-await check('07 an empty plan says what to do', async () => /Turn the ring/.test(await sentence()));
+// An empty plan lands on the home, which says what to do; the figures go in
+// through Details, and the answer appears on the home as money goes in.
+await check('04 home is the simple home, asking the question', async () => (await p.$('[data-simple-home]')) != null && /What could you take home/i.test(await h1()));
+await check('05 one home: no dial, and no switch to one', async () => (await p.$('[data-home]')) == null && (await p.$('[data-home-switch]')) == null && !(await has('Dial view')));
+await check('07 an empty plan says what to do', () => has('Add my details'));
 await check('08 no sign-up gate before the result', async () => (await p.locator('input[type=email]').count()) === 0);
-await tapFace('who'); await tapFace('who');
-await check('09 the Who engraving, tapped twice, offers who the plan is for', async () => (await activeFace()) === 'who' && (await has('The two of us')) && (await has('Just me')));
-await p.locator('[data-home] button', { hasText: 'The two of us' }).click(); await wait(400);
-await check('10 choosing the two of us records a couple', async () => (await planOf()).household === 'couple');
-await check('10b a couple brings the partner figures onto the back of the dial', async () => (await sliders()) === 19);
-await check('12 take-home range writes the plan (a month × 12)', async () => (await setSlider('Take home a month', 3500)) && (await planOf()).targetNet === 42000);
-{ const q = await planOf(); await setSlider('Retire at age', q.startYear + 6 - q.partnerA.birthYear); }
-await check('13 retire-at-age writes the year', async () => (await planOf()).retireYear === (await planOf()).startYear + 6);
-await setSlider('Your pension pots', 300000); await setSlider('Their pension pots', 120000);
+await tap('Add my details'); await wait(800);
+await check('09 "Add my details" opens Details on who the plan is for', async () => (await sheetOpen()) && /^Who/.test(await pageTitle()));
+await tapInSheet('A couple'); await wait(400);
+await check('10 choosing a couple records a couple', async () => (await planOf()).household === 'couple');
+await goPage('Someday');
+await setField('Income you want each year', 42000);
+await check('12 the income asked for writes the plan', async () => (await planOf()).targetNet === 42000);
+{ const q = await planOf(); await setField('Retire in year', q.startYear + 6); }
+await check('13 retire-in-year writes the year', async () => (await planOf()).retireYear === (await planOf()).startYear + 6);
+await goPage('Your pots'); await setField('Workplace pension today', 300000);
+await goPage('Their pots'); await setField('Workplace pension today', 120000);
 await check('15 both pots captured', async () => { const q = await planOf(); return q.partnerA.pension === 300000 && q.partnerB.pension === 120000; });
-await check('16 with money in, the answer is in the middle of the dial', async () => /£[\d,]+/.test(await answerText()) && /a month/.test(await answerText()));
-await tapFace('pensions');
-await check('16a tapping an engraving makes it the needle\'s home', async () => (await activeFace()) === 'pensions' && /Pension pots/.test(await p.locator('[data-home] button[aria-label^="Pension pots"]').innerText()));
-await p.locator('[data-home] button[aria-label^="Pension pots"]').click(); await wait(200);
-await p.locator('[data-home] input[aria-label$="type a figure"]').fill('310000'); await p.keyboard.press('Enter'); await wait(400);
-await check('16b tapping the figure lets you type it', async () => (await planOf()).partnerA.pension === 310000);
-await p.locator('[data-home] button[aria-label="Your pension pots: more"]').click(); await wait(300);
-await check('16c the plus button is one detent', async () => (await planOf()).partnerA.pension === 315000);
-await tapFace('someday');
-{ const before = (await planOf()).retireYear; await turnRing(80, 150); const after = (await planOf()).retireYear;
-  await check('16d turning the ring by hand changes the value, landing on a whole year', () => after > before && Number.isInteger(after)); }
-await p.waitForFunction(() => /Holds in \d+ of 100 futures/.test(document.querySelector('[data-sentence]')?.textContent || ''), null, { timeout: 15000 }).catch(() => {});
-await check('17 the sentence counts the futures that hold', async () => /Holds in \d+ of 100 futures/.test(await sentence()));
-// The results screen leads with where the plan stands, in words, and the
-// three numbers behind it (audit §5B): what the plan can support a month,
-// the gap to what was asked, the age it is tested through.
-await p.waitForFunction(() => /would last to \d+/.test(document.querySelector('[data-sentence]')?.textContent || ''), null, { timeout: 20000 }).catch(() => {});
-await check('17a the home states where the plan stands in words, not a colour', async () => /^(On track under these assumptions|Enough on average, not safe yet|Enough, with a trim to spending|Nearly enough|Not enough yet)\./.test(await sentence()));
-await check('17a2 the home says what the plan can support, the gap to the ask and the age tested to', async () => /About £[\d,]+ a month would last to \d+: (just what you ask|£[\d,]+ (more|less) than you ask)\./.test(await sentence()));
-await check('17a3 the caveat sits beside the headline figure', async () => /an estimate, not a guarantee|not a guarantee/.test(await sentence()));
+await closeSheet(); await waitAnswer();
+await check('16 with money in, the home gives the answer', async () => /£[\d,]+/.test(await answerText()) && /a month/.test(await answerText()));
+await homeType('You pay in', 1500);
+await check('16b tapping a figure on the home lets you type it', async () => (await planOf()).partnerA.monthlyPension === 1500);
+await p.getByRole('button', { name: 'You pay in: £50 a month more' }).click(); await wait(400);
+await check('16c the plus button is one step', async () => (await planOf()).partnerA.monthlyPension === 1550);
+{ const before = (await planOf()).retireYear; await p.getByRole('button', { name: 'Stop work at: a year later' }).click(); await wait(400);
+  await check('16d stop a year later moves the stop year by one', async () => (await planOf()).retireYear === before + 1); }
+await waitAnswer();
+await check('17 the home counts the futures that hold', async () => /holds in \d+ of 100 simulated futures/i.test(await futuresText()));
+// The home leads with where the plan stands, in words, and the numbers behind
+// it (audit §5B): what the plan can support a month, the gap to the ask, the
+// age it is tested through.
+await check('17a the home states where the plan stands in words, not a colour', async () => /^(On track under these assumptions|Enough on average, not safe yet|Enough, with a trim to spending|Nearly enough|Not enough yet) £/.test(await answerText()));
+await check('17a2 the home says what the plan can support, the age it is tested to and the gap to the ask', async () => { const t = await answerText(); const q = await planOf();
+  return /£[\d,]+ a month/.test(t) && t.includes(`to age ${q.horizonAge}`) && (/You ask for £[\d,]+: £[\d,]+ a month (more than that|to spare)\./.test(t) || /just what you ask/.test(t) || /what you ask/.test(t)); });
+await check('17a3 the caveat sits beside the headline figure', async () => /not a guarantee/.test(await futuresText()));
 await check('17a4 the status never contradicts the central case', async () => {
-  const q = await planOf(); const dd = E.drawdown({ ...q, growth: q.growthBase }); const key = await p.$eval('[data-status]', e => e.getAttribute('data-status'));
+  const q = await planOf(); const dd = E.drawdown({ ...q, growth: q.growthBase }); const key = await statusKey();
   // "On track" or "Enough on average" only when the central case pays in full; "Nearly" or "Not enough" only when it runs short.
   return dd.holds ? !['close', 'not'].includes(key) : ['close', 'not'].includes(key); });
 // "What could go wrong": the layered risk panel (audit §5C), one tap from home.
@@ -289,28 +273,19 @@ await p.waitForFunction(() => document.querySelectorAll('[role=dialog][aria-labe
     return Math.abs(shown - Math.round(Math.floor(lo / 100) * 100 / 12 / 10) * 10) <= 10; });
 }
 await p.getByRole('button', { name: 'Close' }).click(); await wait(400);
-await check('17e the strands are drawn under the dial', async () => (await p.locator('[data-home] canvas[role="img"]').count()) === 1);
-// The chart says what you have on the day you stop, and never presents the
-// top of its scale (where lucky futures peak) as the size of the pot.
-await check('17e2 the chart states the pot on the day you stop, and it agrees with the engine', async () => {
-  const q = await planOf(); const lab = await p.locator('[data-home] canvas[role="img"]').getAttribute('aria-label');
-  const acc = E.accumulate({ ...q, growth: q.growthBase }, q.growthBase).atRetirement;
-  const v = (acc.pensionA + acc.pensionB + acc.isaA + acc.isaB + (acc.cash || 0) + (acc.gia || 0)) / Math.pow(1 + q.inflation, q.retireYear - q.startYear);
-  const k = v >= 1e6 ? '£' + (v / 1e6).toFixed(2).replace(/\.?0+$/, '') + 'm' : '£' + Math.round(v / 1e3) + 'k';
-  return lab.includes(`${k} on the day you stop`) && /the luckiest reaching the top of the chart/.test(lab); });
 await p.getByRole('button', { name: 'What would help?' }).click();
 await p.waitForFunction(() => /\+\d+ of 100|Nothing measured/.test(document.querySelector('[role=dialog][aria-label="What would help most"]')?.textContent || ''), null, { timeout: 20000 }).catch(() => {});
-await check('17f the levers tray measures what would help', async () => /\+\d+ of 100|Nothing measured/.test(await p.locator('[role=dialog][aria-label="What would help most"]').innerText()));
+await check('17f what would help: each action measured', async () => /\+\d+ of 100|Nothing measured/.test(await p.locator('[role=dialog][aria-label="What would help most"]').innerText()));
 await p.getByRole('button', { name: 'Close' }).click(); await wait(400);
-await check('18 the figures are saved on the plan', async () => (await planOf()).partnerA.pension === 315000);
+await check('18 the figures are saved on the plan', async () => (await planOf()).partnerA.pension === 300000 && (await planOf()).partnerA.monthlyPension === 1550);
 await check('19 bottom tab bar visible', () => has('Horizon'));
 await check('20 setup completed without a separate form', () => true);
 
 await loadEx();
 await check('21 example loads Stuart & Carol', async () => (await planOf()).partnerA?.name === 'Stuart');
-await check('22 example shows an answer', async () => /a month, to \d+/i.test(await answerText()));
-await p.waitForFunction(() => /Holds in \d+ of 100/.test(document.querySelector('[data-sentence]')?.textContent || ''), null, { timeout: 15000 }).catch(() => {});
-await check('23 the count of futures shown', async () => /Holds in \d+ of 100 futures/.test(await sentence()));
+await waitAnswer();
+await check('22 example shows an answer', async () => /£[\d,]+ a month after tax/.test(await answerText()));
+await check('23 the count of futures shown', async () => /holds in \d+ of 100 simulated futures/i.test(await futuresText()));
 
 let k = 24;
 for (const [t, m] of [['Details', 'Your details'], ['Explore', 'Explore'], ['Peace', 'Peace of mind']]) {
@@ -320,24 +295,40 @@ for (const [t, m] of [['Details', 'Your details'], ['Explore', 'Explore'], ['Pea
   await check(`${k++} ${t} sheet closes on Escape`, async () => !(await sheetOpen()));
 }
 
-// Deeper views grow from the dial; the rest lives in Explore.
+// The deeper views live in Explore.
 await closeSheet(); await tap('Explore'); await wait(900);
 await p.waitForFunction(() => /Japan, 1990 on/.test(document.getElementById('explore-fall')?.textContent || ''), null, { timeout: 8000 }).catch(() => {});
 await check('29d guardrails from real bad histories, in Explore', async () => /Japan, 1990 on/.test(await p.locator('#explore-fall').innerText()));
 await check('29e the edge: every retirement, in Explore', () => has('Every retirement you could choose'));
 await closeSheet();
-await check('30 nothing scrolls: the home fits the screen', async () => (await p.evaluate(() => document.documentElement.scrollHeight <= innerHeight + 1)) && !(await has('Set this piece')));
-await p.getByRole('button', { name: 'See the range of futures' }).click(); await wait(700);
-await check('31 tapping the strands grows them into the range of futures', async () => (await has('Poor to good markets shaded')) && /£[\d,]+/.test(await answerText()));
-await p.getByRole('button', { name: 'Back to the dial' }).click(); await wait(700);
-await check('31b and back again', async () => !(await has('Poor to good markets shaded')) && (await p.locator('button[data-face]').count()) === 6);
+// The sunrise: 100 lines, and a needle you drag (or step with the keys) to
+// read any age. It rests where the first futures fall short.
+await p.waitForFunction(() => document.querySelector('[data-sunrise]')?.getAttribute('data-ready') === '1', null, { timeout: 20000 }).catch(() => {}); await wait(2400);
+{
+  const st = await sunState(); const q = await planOf(); const m = E.runMonteCarlo(q, 2000, q.mcSeed || 42);
+  const still = (i) => Math.round(m.perAgeHeld[i].full * 100);
+  const firstShort = m.perAgeHeld.find(h => Math.round(h.full * 100) < 100)?.age;
+  await check('30 the needle rests where the first futures fall short, and says so', () => st && st.age === (firstShort ?? st.last) && (firstShort == null || st.label === `First shortfalls at ${firstShort}`));
+  const box = await p.locator('[data-sunrise] svg').boundingBox();
+  await p.mouse.move(box.x + box.width * 0.12, box.y + box.height * 0.55); await p.mouse.down();
+  for (let i = 1; i <= 10; i++) { await p.mouse.move(box.x + box.width * (0.12 + 0.76 * i / 10), box.y + box.height * 0.5); await wait(20); }
+  await p.mouse.up(); await wait(300);
+  const dragged = await sunState();
+  await check('31 dragging across the sun moves the needle later, and the reading follows', () => dragged.age > st.first + (st.n * 0.6) && dragged.label === `At ${dragged.age}: ${still(dragged.age - st.first)} of 100 still paying`);
+  await p.locator('[data-sunrise]').focus(); await p.keyboard.press('Home'); await wait(150);
+  const home = await sunState(); await p.keyboard.press('ArrowRight'); await p.keyboard.press('ArrowRight'); await wait(150);
+  const two = await sunState();
+  await check('31b the keys work it too: Home is the year work stops, each arrow is one year', () => home.age === home.first && two.age === home.first + 2 && two.valuetext === `Age ${two.age}: ${still(2)} of 100 futures still paying in full`);
+  await p.keyboard.press('Escape'); await wait(150);
+  await check('31c Escape puts the needle back where it rests', async () => (await sunState()).age === st.age);
+}
 await check('32 exactly one visible h1', async () => (await visH1()) === 1);
-const before = await answerText(); await setSlider('Take home a month', 9000); await wait(500);
-await check('33 take-home changes the answer', async () => (await answerText()) !== before);
-{ const q = await planOf(); await setSlider('Retire at age', q.startYear + 2 - q.partnerA.birthYear); } await wait(400);
-await check('34 retire-at-age, no crash', () => pe.length === 0);
-await setSlider('Still paying in, a month', 4000); await wait(400);
-await check('35 paying-in reads back in plain English', async () => (await valueText('Still paying in, a month')) === 'Paying in £4,000 a month');
+const before = await answerText(); await homeType('Take home', 9000); await waitAnswer();
+await check('33 take-home changes the answer', async () => (await answerText()) !== before && (await planOf()).targetNet === 108000);
+{ const q = await planOf(); await homeType('Stop work at', q.startYear + 2 - q.partnerA.birthYear); } await wait(400);
+await check('34 stop age, no crash', async () => pe.length === 0 && (await planOf()).retireYear === (await planOf()).startYear + 2);
+await homeType('You pay in', 4000);
+await check('35 paying in reads back in plain English', async () => (await p.getByRole('button', { name: /^You pay in: £4,000\. Tap to type/ }).count()) === 1);
 
 await loadEx(); await tap('Details'); await wait(800);
 // Editing is the same carousel: a rail of named pages, one idea on each.
@@ -466,55 +457,54 @@ await check('71 story link → story.html', async () => (await p.$eval('a[href="
 await check('72 no classic-planner link (one product, one app)', async () => (await p.$('a[href="app.html"]')) == null);
 await closeSheet();
 
-await setSlider('Take home a month', 15000); await wait(700);
-await check('73 extreme spend renders, no crash', async () => (await h1()).length > 5 && pe.length === 0);
+await homeType('Take home', 15000); await wait(700);
+await check('73 extreme spend renders, no crash', async () => (await h1()).length > 1 && pe.length === 0);
 await check('74 no NaN at extreme spend', async () => !/NaN|undefined/.test(await bodyT()));
-await setSlider('Take home a month', 900); await wait(600); await check('75 minimal spend renders', async () => /a month, to \d+/i.test(await answerText()));
-{ const q = await planOf(); await setSlider('Retire at age', q.startYear + 1 - q.partnerA.birthYear); } await wait(600); await check('76 near-term retire, no crash', () => pe.length === 0);
-{ const q = await planOf(); await setSlider('Retire at age', q.startYear + 20 - q.partnerA.birthYear); } await wait(600); await check('77 far-out retire, no crash', () => pe.length === 0);
+await homeType('Take home', 900); await waitAnswer(); await check('75 minimal spend renders', async () => /£[\d,]+ a month/.test(await answerText()));
+{ const q = await planOf(); await homeType('Stop work at', q.startYear + 1 - q.partnerA.birthYear); } await wait(600); await check('76 near-term retire, no crash', () => pe.length === 0);
+{ const q = await planOf(); await homeType('Stop work at', q.startYear + 20 - q.partnerA.birthYear); } await wait(600); await check('77 far-out retire, no crash', () => pe.length === 0);
 await tap('Details'); await wait(700); await goPage('Stuart’s pots');
 await p.$$eval('[role=dialog] input[inputmode=decimal]', e => { const s = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set; e.forEach(el => { s.call(el, '0'); el.dispatchEvent(new Event('input', { bubbles: true })); el.dispatchEvent(new Event('blur', { bubbles: true })); }); }).catch(() => {}); await wait(700);
 await check('78 all pots zero survives', () => pe.length === 0);
 await check('79 no £NaN with zero pots', async () => !/£NaN/.test(await bodyT()));
 await closeSheet();
-await check('80 home renders after zero pots', async () => /£[\d,]+|take home/i.test(await h1()));
+await check('80 home renders after zero pots', async () => /£[\d,]+|take home/i.test(await h1()) && pe.length === 0);
 
 await loadEx(); await p.reload({ waitUntil: 'networkidle' }); await wait(800);
 await check('81 reload keeps plan (no onboarding)', async () => !/Begin/.test(await bodyT()));
 await check('82 reload renders an answer', async () => (await h1()).length > 5);
 
 await closeSheet();
-for (let i = 0; i < 12; i++) await p.evaluate(v => { const el = [...document.querySelectorAll('[data-home] input[type=range]')].find(x => x.getAttribute('aria-label') === 'Take home a month');
-  if (el) { Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(el, String(v)); el.dispatchEvent(new Event('input', { bubbles: true })); } }, 2000 + i * 900);
+for (let i = 0; i < 12; i++) await p.getByRole('button', { name: i % 3 ? 'Take home: £100 a month more' : 'Take home: £100 a month less' }).click();
 await wait(700);
-await check('83 rapid slider hammer, no crash', () => pe.length === 0);
-// Turning the ring re-renders the whole app; nothing slow may sit on that
-// path. (The report once ran the engine's 134 self-checks on every render,
-// a quarter of a second each: ten detents took three seconds.)
+await check('83 rapid stepper taps, no crash', () => pe.length === 0);
+// A tap re-renders the whole app; nothing slow may sit on that path. (The
+// report once ran the engine's 134 self-checks on every render, a quarter of
+// a second each: ten turns of the old dial took three seconds.)
 {
   const ms = await p.evaluate(async () => {
-    const el = [...document.querySelectorAll('[data-home] input[type=range]')].find(x => x.getAttribute('aria-label') === 'Take home a month');
-    if (!el) return 99999;
-    const set = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set;
+    const btn = [...document.querySelectorAll('[data-simple-home] button')].find(b => b.getAttribute('aria-label') === 'Take home: £100 a month more');
+    if (!btn) return 99999;
     const t0 = performance.now();
-    for (let i = 0; i < 10; i++) { set.call(el, String(3000 + i * 50)); el.dispatchEvent(new Event('input', { bubbles: true })); await new Promise(r => requestAnimationFrame(() => r())); }
+    for (let i = 0; i < 10; i++) { btn.click(); await new Promise(r => requestAnimationFrame(() => r())); }
     return performance.now() - t0;
   });
-  await check(`83b ten detents of the ring render in under 1.5 seconds (took ${Math.round(ms)} ms)`, () => ms < 1500);
+  await check(`83b ten taps of a stepper render in under 1.5 seconds (took ${Math.round(ms)} ms)`, () => ms < 1500);
 }
-for (let i = 0; i < 8; i++) { const q = await planOf(); await setSlider('Retire at age', q.startYear + 2 + i - q.partnerA.birthYear); }
+for (let i = 0; i < 8; i++) await p.getByRole('button', { name: i % 2 ? 'Stop work at: a year earlier' : 'Stop work at: a year later' }).click();
 await wait(900);
-await check('84 rapid retire-age changes, no crash', () => pe.length === 0);
+await check('84 rapid stop-age changes, no crash', () => pe.length === 0);
 for (let i = 0; i < 5; i++) { await tap('Details'); await wait(200); await closeSheet(); }
 await check('85 rapid sheet cycle, no crash', () => pe.length === 0);
 await closeSheet(); await wait(700); // let the debounced compute settle before reading the headline
 await check('86 headline valid after stress', async () => /£[\d,]+|take home/i.test(await h1()));
 
 await loadEx();
-await check('87 the example shows its answer in the dial', async () => /£[\d,]+/.test(await answerText()) && /a month, to \d+/.test(await answerText()));
-await check('88 the example is a couple with both sets of figures', async () => (await sliders()) === 19);
-await check('89 the home points to Details for everything else', () => has('Everything else, in Details'));
-await check('90 six engravings on the bezel', async () => (await p.locator('button[data-face]').count()) === 6);
+await waitAnswer();
+await check('87 the example shows its answer on the home', async () => /£[\d,]+ a month after tax/.test(await answerText()));
+await check('88 the example is a couple, and the home says it counts both', async () => (await planOf()).household === 'couple' && /^Counts Stuart and Carol:/.test(await p.$eval('[data-counts]', e => e.innerText)));
+await check('89 the home points to Details for everything else', () => has('Check or change in Details'));
+await check('90 exactly three things to change on the home', async () => (await p.locator('[data-simple-home] [data-driver]').count()) === 3);
 await check('91 four tab destinations', async () => (await has('Horizon')) && (await has('Details')) && (await has('Explore')) && (await has('Peace')));
 await tap('Details'); await wait(500);
 await check('92 sheet opens (dialog role)', () => sheetOpen());
@@ -569,9 +559,9 @@ const axeScan = async (label) => {
 await p.evaluate(() => localStorage.removeItem('someday-licence-v1')).catch(() => {});
 await p.reload({ waitUntil: 'networkidle' }); await wait(900);
 await check('101 free: disclaimer not asked again', async () => !/calm place to think/i.test(await h1()));
-await check('102 free: the answer still renders', async () => /a month, to \d+/i.test(await answerText()));
-await p.waitForFunction(() => /Holds in \d+ of 100/.test(document.querySelector('[data-sentence]')?.textContent || ''), null, { timeout: 15000 }).catch(() => {});
-await check('103 free: the count of futures still shown', async () => /Holds in \d+ of 100 futures/.test(await sentence()));
+await waitAnswer();
+await check('102 free: the answer still renders', async () => /£[\d,]+ a month/.test(await answerText()));
+await check('103 free: the count of futures still shown', async () => /holds in \d+ of 100 simulated futures/i.test(await futuresText()));
 // Plus can be switched off entirely (PRODUCT.plusOffered). Then nothing is
 // locked, nothing sells, and the word "Plus" appears nowhere.
 const plusOffered = !!(await $('button[aria-label="Get Someday Plus"]'));
@@ -628,6 +618,11 @@ await check('119 plus: print report rendered', async () => (await p.$('#print-su
 await check('120 free/plus sweep: zero page errors', () => pe.length === 0);
 }
 
+// The age the sunrise's needle rests on: the first at which fewer than 100 of
+// 100 futures are still paid in full, read from the engine for the same seed.
+const firstShortAge = (q) => E.runMonteCarlo(q, 2000, q.mcSeed || 42).perAgeHeld.find(h => Math.round(h.full * 100) < 100)?.age;
+const openMap = async () => { await closeSheet(); await tap('Explore'); await wait(900); await p.waitForSelector('#explore-map canvas', { timeout: 8000 }).catch(() => {}); await wait(2500); };
+
 // ── Unpaid years read as "runs short" ────────────────────────────────────
 // A 41-year-old who stops at 42 on £70,000 a year with the pension locked
 // until 57 and £72,000 of ISA and cash. The pot never "exhausts" because it
@@ -640,9 +635,13 @@ await check('120 free/plus sweep: zero page errors', () => pe.length === 0);
     partnerB: { ...F.partnerB, birthYear: 1985 } });
   await fresh();
   await p.evaluate(v => localStorage.setItem('horizon-plan-v1', v), JSON.stringify(Y));
-  await p.reload({ waitUntil: 'networkidle' }); await wait(900); await acceptDisclaimer(); await wait(3000);
-  await check('121 unpaid years: the home says the money runs short at 43, not "to 90"', async () => /to 43\b/.test(await answerText()));
-  await tap('Every retirement'); await wait(3500);
+  await p.reload({ waitUntil: 'networkidle' }); await wait(900); await acceptDisclaimer(); await waitAnswer(); await wait(2400);
+  // The central case runs short at 43; in a fifth of futures a bad first
+  // year empties the ISA and cash at 42. No future reaches 90.
+  await check('121 unpaid years: "not enough", the sunrise frays from 42 and no line reaches 90', async () => { const st = await sunState(); const q = await planOf();
+    return ['not', 'close'].includes(await statusKey()) && E.drawdown({ ...q, growth: q.growthBase }).runsShortAgeA === 43 && firstShortAge(q) === 42
+      && st.age === 42 && st.label === 'First shortfalls at 42' && st.years.every(y => y < st.n) && /^0 of 100 reach 90/.test(await p.$eval('[data-sun-end]', e => e.innerText.replace(/\s+/g, ' '))); });
+  await openMap();
   await check('122 unpaid years: the map says it runs short', () => has('it runs short'));
   await check('123 unpaid years: zero page errors', () => pe.length === 0);
 }
@@ -655,65 +654,47 @@ await check('120 free/plus sweep: zero page errors', () => pe.length === 0);
     partnerB: { ...F.partnerB, birthYear: 2000 } });
   await fresh();
   await p.evaluate(v => localStorage.setItem('horizon-plan-v1', v), JSON.stringify(Y));
-  await p.reload({ waitUntil: 'networkidle' }); await wait(900); await acceptDisclaimer(); await wait(3500);
-  await check('124 young planner: the stop-age ring reaches 75, not 46', async () => (await p.$eval('[data-home] input[type=range][aria-label="Retire at age"]', e => e.getAttribute('max'))) === '75');
-  await check('125 young planner: stopping at 46 reads as running short before 50', async () => /to 4[7-9]\b/.test(await answerText()));
-  await check('126 young planner: the futures agree (fewer than 5 in 100 hold)', async () => /Holds in [0-4] of 100/.test(await sentence()));
-  await check('127 first use: the ring hint is shown until the ring is turned', async () => (await p.$('[data-home] [data-hint]')) != null);
-  await setSlider('Retire at age', 60); await wait(1500);
-  await check('128 young planner: the ring moves the stop age to 60', async () => (await planOf()).retireYear === 2060);
-  await check('129 after the first turn the hint is gone', async () => (await p.$('[data-home] [data-hint]')) == null);
-  await tap('Every retirement'); await wait(4000);
+  await p.reload({ waitUntil: 'networkidle' }); await wait(900); await acceptDisclaimer(); await waitAnswer(); await wait(2400);
+  await homeType('Stop work at', 90); await wait(600);
+  await check('124 young planner: the stop age goes as far as 75, and no further', async () => (await planOf()).retireYear === 2075);
+  await homeType('Stop work at', 46); await waitAnswer(); await wait(2400);
+  await check('125 young planner: stopping at 46 frays at once, and almost nothing is left by 50', async () => { const q = await planOf(); const a = firstShortAge(q); const st = await sunState();
+    return a === 46 && st.label === 'First shortfalls at 46' && st.years.filter(y => y > 4).length <= 2 && E.drawdown({ ...q, growth: q.growthBase }).runsShortAgeA <= 49; });
+  await check('126 young planner: the futures agree (fewer than 5 in 100 hold)', async () => /holds in [0-4] of 100/i.test(await futuresText()));
+  await homeType('Stop work at', 60); await wait(1500);
+  await check('128 young planner: typing 60 moves the stop age to 60', async () => (await planOf()).retireYear === 2060);
+  await openMap();
   await check('130 young planner: the map runs to age 75 (2075)', () => has('2075'));
   await check('131 young planner: zero page errors', () => pe.length === 0);
-
-  // ── Age is typed, never dialled ──────────────────────────────────────
-  // The owner, 56, was turned into a 26-year-old by the ring while the WHO
-  // label was selected, and every figure on the screen became nonsense.
-  await p.locator('[role=dialog] button[aria-label="Close"]').first().click({ timeout: 3000 }).catch(() => {}); await wait(700);   // close the Every-retirement tray left open above
-  await p.locator('[data-home] input[type=range][aria-label="Your age"]').focus(); await wait(400);
-  await p.getByRole('button', { name: 'Your age: more' }).click({ timeout: 3000 }).catch(() => {}); await wait(400);
-  await check('132 the ± buttons leave the age alone', async () => (await planOf()).partnerA.birthYear === 2000);
-  await turnRing(80, 200); await wait(600);   // between the bezel labels, so the drag cannot land on one
-  await check('133 turning the ring leaves the age alone', async () => (await planOf()).partnerA.birthYear === 2000);
-  // Focusing the hidden "Your age" range selects the age on the dial exactly
-  // (face, value and side), whatever the drag above left selected.
-  await p.locator('[data-home] input[type=range][aria-label="Your age"]').focus(); await wait(400);
-  await check('134 the age says how to change it', () => has('tap the age to change it'));
-  // The figure sits under the ring's animation frame; force the tap so a
-  // redraw mid-click cannot stall it.
-  await p.locator('[data-home] button[aria-label^="Age 26"]').first().click({ force: true, timeout: 5000 }).catch(() => {}); await wait(400);
-  const ageBox = p.locator('[data-home] input[aria-label="Your age, type a figure"]');
-  if (await ageBox.count()) { await ageBox.fill('56'); await wait(200); await ageBox.press('Enter'); await wait(800); }
-  await check('135 typing the age writes the birth year (56 → 1970)', async () => (await planOf()).partnerA.birthYear === 1970);
-  await check('136 and the stop age ring still works at 56', async () => (await setSlider('Retire at age', 62)) && (await planOf()).retireYear === 2032);
-  await check('137 typed age: zero page errors', () => pe.length === 0);
+  await closeSheet();
 
   // ── The age to plan for says what it means ───────────────────────────
-  // A 56-year-old couple planning to 90: the dial shows the odds under the
-  // needle, read from the same mortality curve that weights the futures.
-  await p.locator('[data-home] input[type=range][aria-label="Plan to age"]').focus(); await wait(500);
-  await check('138 plan-to-age shows the odds (half live past …)', () => has('Half live past'));
-  await check('139 … and the chance one of the couple is here at the plan age', async () => /\d+% one of you at 90/.test(await p.$eval('body', e => e.innerText)));
-  await check('140 the odds agree with the engine', async () => { const o = E.lifeOdds(await planOf()); return has(`Half live past ${o.a.median}`) && has(`${Math.round(o.either * 100)}% one of you at 90`); });
+  // A 26-year-old couple planning to 90: Details shows the odds under the
+  // plan age, read from the same mortality curve that weights the futures.
+  await tap('Details'); await wait(700); await goPage('Someday');
+  await check('138 plan-to-age shows the odds (half of people … live past …)', () => onPage('live past'));
+  await check('139 … and the chance one of the couple is here at the plan age', async () => /at least one of you is still here at 90 is about \d+%/.test(await p.locator('[data-active]').innerText()));
+  await check('140 the odds agree with the engine', async () => { const o = E.lifeOdds(await planOf()); const t = await p.locator('[data-active]').innerText();
+    return t.includes(`live past ${o.a.median}`) && t.includes(`about ${Math.round(o.either * 100)}%`); });
   await check('141 longevity: zero page errors', () => pe.length === 0);
+  await closeSheet();
 }
 
-// ── The simple home: the default. The answer first, three steppers, two questions ──
+// ── The home: the sunrise, the answer, three steppers, two questions ──
 {
   const F = E.freshStart();
   const Y = E.sanitisePlan({ ...F, approach: 'traditional', retireYear: 2030, targetNet: 60000,
     partnerA: { ...F.partnerA, birthYear: 1970, spAmount: 12548, pension: 570000, monthlyPension: 3200, isa: 48000 },
     partnerB: { ...F.partnerB, birthYear: 1970 } });
   await fresh();
-  await p.evaluate(v => { localStorage.setItem('horizon-plan-v1', v); localStorage.removeItem('someday-home-v1'); }, JSON.stringify(Y));
+  await p.evaluate(v => localStorage.setItem('horizon-plan-v1', v), JSON.stringify(Y));
   await p.reload({ waitUntil: 'networkidle' }); await wait(900); await acceptDisclaimer();
   await p.waitForFunction(() => document.querySelector('[data-gap]') && /of 100/.test(document.querySelector('[data-futures]')?.textContent || ''), null, { timeout: 25000 }).catch(() => {});
   const answer = async () => (await p.$eval('[data-simple-home] [data-answer]', e => e.innerText).catch(() => '')).replace(/\s+/g, ' ');
   const cap = (q) => { let lo = 2000, hi = Math.max(250000, q.targetNet * 3);
     for (let i = 0; i < 16; i++) { const mid = (lo + hi) / 2; const Q = { ...q, spendingPlanOn: false, targetNet: mid, growth: q.growthBase }; const acc = E.accumulate(Q, Q.growth); if (E.drawdown(Q, { growth: Q.growth, startPots: acc.atRetirement }).holds) lo = mid; else hi = mid; }
     return Math.round(Math.floor(lo / 100) * 100 / 12 / 10) * 10; };
-  await check('142 the default home is the simple one (no ring to learn)', async () => (await p.$('[data-simple-home]')) != null && (await p.$('[data-home]')) == null);
+  await check('142 the home is the simple one (no ring to learn)', async () => (await p.$('[data-simple-home]')) != null && (await p.$('[data-home]')) == null);
   await check('143 it leads with where the plan stands, in words', async () => /^(On track under these assumptions|Enough on average, not safe yet|Enough, with a trim to spending|Nearly enough|Not enough yet) £/.test(await answer()));
   await check('144 the big figure is what the plan can support a month, and agrees with the engine', async () => {
     const shown = Number((await p.$eval('[data-supports]', e => e.textContent)).replace(/[£,]/g, '')); return Math.abs(shown - cap(await planOf())) <= 10; });
@@ -766,7 +747,7 @@ await check('120 free/plus sweep: zero page errors', () => pe.length === 0);
   const sun = async () => p.evaluate(() => { const el = document.querySelector('[data-sunrise]'); const rings = [...el.querySelectorAll('[data-ring]')];
     return { first: +el.getAttribute('data-first'), last: +el.getAttribute('data-last'), n: +el.getAttribute('data-years'), k: rings.map(r => +r.getAttribute('data-ring')), years: rings.map(r => +r.getAttribute('data-years')), f: rings.map(r => +r.getAttribute('data-f')),
       drawn: rings.map(r => parseFloat(getComputedStyle(r).strokeDasharray)), len: rings.map(r => r.getTotalLength()),
-      end: (document.querySelector('[data-sun-end]')?.innerText || '').replace(/\s+/g, ' '), name: el.getAttribute('aria-label') || '', futures: document.querySelector('[data-futures]')?.textContent || '' }; });
+      end: (document.querySelector('[data-sun-end]')?.innerText || '').replace(/\s+/g, ' '), name: document.getElementById(el.getAttribute('aria-describedby') || '')?.textContent || '', role: el.getAttribute('role'), label: el.getAttribute('aria-label') || '', futures: document.querySelector('[data-futures]')?.textContent || '' }; });
   await check('158d the sunrise has 100 lines and runs from the year work stops to the plan age', async () => { const q = await planOf(), st = await sun();
     return st.k.length === 100 && st.k.every((k, i) => k === i + 1) && st.first === q.retireYear - q.partnerA.birthYear && st.n === E.planEndYear(q) - q.retireYear + 1 && st.last === st.first + st.n - 1; });
   await check('158e the lines that reach the horizon are the futures count in the sentence, and the label says so', async () => { const st = await sun(); const n = Number((st.futures.match(/in (\d+) of 100/) || [])[1]);
@@ -775,18 +756,13 @@ await check('120 free/plus sweep: zero page errors', () => pe.length === 0);
   await check('158g each line is drawn to its share of the sky', async () => { const st = await sun(); return st.len.every(l => l > 20) && st.f.every((f, i) => Math.abs(f - st.years[i] / st.n) < 1e-3 && Math.abs(st.drawn[i] - f) < 0.02); });
   await check('158h the sunrise agrees with the engine for the same seed, year by year', async () => { const q = await planOf(), st = await sun(); const m = E.runMonteCarlo(q, 2000, q.mcSeed || 42);
     return m.perAgeHeld.every((h, i) => Math.abs(Math.round(h.full * 100) - st.years.filter(y => y > i).length) <= 1); });
-  await check('158i the sunrise says in words what it shows (screen readers)', async () => { const st = await sun(); const n = st.years.filter(y => y === st.n).length; return /one for each simulated future/.test(st.name) && st.name.includes(`${n} of 100 reach age ${st.last}`); });
+  await check('158i the sunrise says in words what it shows (screen readers): a named slider, described in full', async () => { const st = await sun(); const n = st.years.filter(y => y === st.n).length;
+    return st.role === 'slider' && st.label === 'Futures still paying, by age' && /one for each simulated future/.test(st.name) && st.name.includes(`${n} of 100 reach age ${st.last}`) && /arrow keys/.test(st.name); });
   await p.locator('[data-counts] button').click(); await wait(700);
   await check('158b "Check or change in Details" opens Details', () => sheetOpen());
   await goPage('Your guaranteed income');
   await check('158c the guaranteed-income field says annuity', async () => /Annuity, company or final-salary pension a year/.test(await bodyT()));
   await closeSheet();
-  await p.locator('[data-home-switch]').click(); await wait(700);
-  await check('159 the dial is one tap away', async () => (await p.$('[data-home]')) != null && (await p.$('[data-simple-home]')) == null);
-  await p.reload({ waitUntil: 'networkidle' }); await wait(900);
-  await check('160 and the choice is remembered', async () => (await p.$('[data-home]')) != null);
-  await p.locator('[data-home-switch]').click(); await wait(700);
-  await check('161 back to the simple home', async () => (await p.$('[data-simple-home]')) != null);
   await check('162 simple home: zero page errors', () => pe.length === 0);
 }
 

@@ -289,16 +289,12 @@ const tapInSheet = async t => {
   catch { return false; }
 };
 // Jump to a named page of the form carousel via its rail.
-// The home: the Horizon Dial — hidden range inputs are the real controls; the ring is bound to them.
-const setSlider = async (label, value) => {
-  const ok = await p.evaluate(([l, v]) => {
-    const el = [...document.querySelectorAll('[data-home] input[type=range]')].find(i => i.getAttribute('aria-label') === l);
-    if (!el) return false;
-    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(el, String(v));
-    el.dispatchEvent(new Event('input', { bubbles: true })); el.dispatchEvent(new Event('change', { bubbles: true }));
-    return true;
-  }, [label, value]);
-  await wait(300); return ok;
+// The home's three steppers can each be typed: 'Stop work at' (an age),
+// 'Take home' and 'You pay in' (a month). (The Horizon Dial, which once
+// drove these checks, was retired in November 2026.)
+const homeType = async (label, value) => {
+  await p.getByRole('button', { name: new RegExp(`^${label}: .*Tap to type`) }).click({ timeout: 4000 });
+  await p.fill(`input[aria-label="${label}, type a figure"]`, String(value)); await p.keyboard.press('Enter'); await wait(500);
 };
 const answerText = async () => p.$eval('[data-answer]', e => e.innerText).catch(() => '');
 // Jump to a named page of the form carousel via its rail, and WAIT for that
@@ -342,8 +338,6 @@ await p.evaluate(() => localStorage.clear());
 // Preview gate: unlock as a tester would (phrase hash from public/gate.js).
 await p.evaluate(h => localStorage.setItem('someday-gate-v1', h), fs.readFileSync(path.join(__dir, 'public', 'gate.js'), 'utf8').match(/var HASH = '([0-9a-f]{64})'/)[1]);
 // Run as a Plus customer so every input is reachable (pre-validated local record; no network).
-// The data-flow checks below drive the dial; the simple home has its own UAT section.
-await p.evaluate(() => localStorage.setItem('someday-home-v1', 'dial'));
 await p.evaluate(() => localStorage.setItem('someday-licence-v1', JSON.stringify({ key: 'e2e-seeded-licence', instanceId: 'e2e', instanceName: 'E2E', status: 'active', expiresAt: null, activatedAt: Date.now(), validatedAt: Date.now() })));
 await p.reload({ waitUntil: 'networkidle' }); await wait(700);
 await acheck('U50a a new plan starts as one person', async () => (await plan()).household === 'single');
@@ -359,43 +353,48 @@ await acheck('U60b choosing de-risking records the approach', async () => (await
 await acheck('U60c choosing de-risking arms the architecture', async () => (await plan()).architecture?.on === true);
 await acheck('U60d de-risking uses the 7-year ladder', async () => (await plan()).architecture?.ladderYears === 7);
 
-// ── The home: every figure behind the ring writes the real plan ─────────
-await p.locator('button[data-face="who"]').click(); await wait(350); await p.locator('button[data-face="who"]').click(); await wait(350);
-await p.locator('[data-home] button', { hasText: 'The two of us' }).click(); await wait(400);
-await acheck('U51b home: household becomes a couple', async () => (await plan()).household === 'couple');
-const sy0 = (await plan()).startYear;
-const by0 = (await plan()).partnerA.birthYear;
-await setSlider('Retire at age', sy0 + 8 - by0);
-await acheck('U51c home: retire year captured', async () => (await plan()).retireYear === sy0 + 8);
-await setSlider('Take home a month', 3600);
-await acheck('U51d home: take-home a month becomes the yearly target', async () => (await plan()).targetNet === 43200);
-await setSlider('Your pension pots', 600000);
-await acheck('U52 home: Stuart pension captured', async () => (await plan()).partnerA?.pension === 600000);
-await setSlider('Their pension pots', 45000);
-await acheck('U58 home: Carol pension captured', async () => (await plan()).partnerB?.pension === 45000);
-await setSlider('Still paying in, a month', 3000);
-await acheck('U53 home: Stuart monthly captured', async () => (await plan()).partnerA?.monthlyPension === 3000);
-await setSlider('Your ISAs', 45000); await setSlider('Their ISAs', 45000);
-await acheck('U54 home: Stuart ISA captured', async () => (await plan()).partnerA?.isa === 45000);
-await acheck('U59 home: Carol ISA captured', async () => (await plan()).partnerB?.isa === 45000);
-await setSlider('Your company pension a year', 9000);
-await acheck('U55 home: Stuart DB amount captured', async () => (await plan()).partnerA?.db === 9000);
-await acheck('U56 home: Stuart DB start = retire year (the fix)', async () => { const P = await plan(); return P.partnerA.dbStartYear === P.retireYear; });
-await setSlider('Their State Pension a year', 12548);
-await acheck('U56b home: partner State Pension captured', async () => (await plan()).partnerB?.spAmount === 12550 || (await plan()).partnerB?.spAmount === 12548);
-await p.evaluate(() => { const el = [...document.querySelectorAll('[data-home] input[type=range]')].find(i => i.getAttribute('aria-label') === 'Their company pension a year');
-  Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(el, '5000'); el.dispatchEvent(new Event('input', { bubbles: true })); }); await wait(300);
-await acheck('U60 home: Carol DB captured (the reported bug)', async () => (await plan()).partnerB?.db === 5000);
-await acheck('U61 home: Carol DB start = retire year', async () => { const P = await plan(); return P.partnerB.dbStartYear === P.retireYear; });
-await acheck('U62 both DBs captured', async () => { const P = await plan(); return P.partnerA.db === 9000 && P.partnerB.db === 5000; });
-await acheck('U63 the answer renders after DB entry', async () => /£[\d,]+/.test(await answerText()) && /a month/.test(await answerText()));
-// Names live in Details (the home is about figures)
-await tap('Details'); await wait(800);
+// ── Details: every figure entered writes the real plan ──────────────────
+// An empty plan lands on the home, which sends you to Details.
+await tap('Add my details'); await wait(900);
+await tapInSheet('A couple'); await wait(400);
+await acheck('U51b Details: household becomes a couple', async () => (await plan()).household === 'couple');
 await p.locator('[data-active] input[placeholder=You]').fill('Stuart').catch(() => {}); await wait(250);
 await acheck('U51 Details: name captured', async () => (await plan()).partnerA?.name === 'Stuart');
 await p.locator('[data-active] input[placeholder=Partner]').fill('Carol').catch(() => {}); await wait(250);
 await acheck('U57 Details: partner name captured', async () => (await plan()).partnerB?.name === 'Carol');
+const sy0 = (await plan()).startYear;
+await goPage('Someday');
+await setField('Retire in year', sy0 + 8);
+await acheck('U51c Details: retire year captured', async () => (await plan()).retireYear === sy0 + 8);
+await setField('Income you want each year', 43200);
+await acheck('U51d Details: the income asked for becomes the yearly target', async () => (await plan()).targetNet === 43200);
+await goPage('Stuart’s pots');
+await setField('Workplace pension today', 600000);
+await acheck('U52 Details: Stuart pension captured', async () => (await plan()).partnerA?.pension === 600000);
+await setField('Paying into pension monthly', 3000);
+await acheck('U53 Details: Stuart monthly captured', async () => (await plan()).partnerA?.monthlyPension === 3000);
+await setField('ISAs today', 45000);
+await acheck('U54 Details: Stuart ISA captured', async () => (await plan()).partnerA?.isa === 45000);
+await goPage('Carol’s pots');
+await setField('Workplace pension today', 45000);
+await acheck('U58 Details: Carol pension captured', async () => (await plan()).partnerB?.pension === 45000);
+await setField('ISAs today', 45000);
+await acheck('U59 Details: Carol ISA captured', async () => (await plan()).partnerB?.isa === 45000);
+await goPage('Stuart’s guaranteed income');
+await setField('final-salary pension a year', 9000);
+await acheck('U55 Details: Stuart DB amount captured', async () => (await plan()).partnerA?.db === 9000);
+await acheck('U56 Details: Stuart DB start = retire year (the fix)', async () => { const P = await plan(); return P.partnerA.dbStartYear === P.retireYear; });
+await goPage('Carol’s guaranteed income');
+await setField('State Pension a year', 12548);
+await acheck('U56b Details: partner State Pension captured', async () => (await plan()).partnerB?.spAmount === 12548);
+await setField('final-salary pension a year', 5000);
+await acheck('U60 Details: Carol DB captured (the reported bug)', async () => (await plan()).partnerB?.db === 5000);
+await acheck('U61 Details: Carol DB start = retire year', async () => { const P = await plan(); return P.partnerB.dbStartYear === P.retireYear; });
+await acheck('U62 both DBs captured', async () => { const P = await plan(); return P.partnerA.db === 9000 && P.partnerB.db === 5000; });
 await p.keyboard.press('Escape'); await wait(600);
+await p.waitForFunction(() => document.querySelector('[data-answer]')?.getAttribute('data-ready') === '1', null, { timeout: 25000 }).catch(() => {});
+await acheck('U63 the answer renders after DB entry', async () => /£[\d,]+/.test(await answerText()) && /a month/.test(await answerText()));
+await acheck('U63b the home counts both of them, with the guaranteed income', async () => /^Counts Stuart and Carol: .*£\d+k a year guaranteed/.test(await p.$eval('[data-counts]', e => e.innerText.replace(/\s+/g, ' '))));
 
 // Confidence responds to the DB we entered (compare to DB=0 in the same UI)
 await wait(700);
@@ -524,9 +523,9 @@ await acheck('U83 Details: add a windfall → income event in plan', async () =>
 // UI edits actually recompute the answer (end-to-end through the engine)
 await p.keyboard.press('Escape'); await wait(500);
 const hA = await answerText();
-await setSlider('Take home a month', 9500); await wait(700);
+await homeType('Take home', 9500); await wait(900);
 const hB = await answerText();
-await acheck('U84 spend slider recomputes the answer (UI→engine→UI)', async () => hA !== hB);
+await acheck('U84 the take-home stepper recomputes the answer (UI→engine→UI)', async () => hA !== hB && (await plan()).targetNet === 114000);
 await acheck('U85 plan persists after edits', async () => { const P = await plan(); return P.partnerA.db === 11000 && P.partnerB.db === 7000; });
 
 // Reload → captured DB survives (persistence of the fix)

@@ -29,9 +29,12 @@
  *      as long as that future pays) starts the year work stops, an outer line
  *      never runs further than an inner one, and the number of lines that
  *      reach the horizon is the futures count in the sentence
+ *   L  (every fifth) the needle, moved with the keys to the last age and the
+ *      first, reads the same counts
  *
- * Every fifth scenario is also opened on the dial, which must give the same
- * status. The first fourteen scenarios are the owner's own plan and its near
+ * In every fifth scenario the sunrise's needle is also moved with the keys,
+ * to the plan's last age and back to the year work stops, and must read the
+ * same counts as the engine. The first fourteen scenarios are the owner's own plan and its near
  * neighbours; the rest are drawn from a seeded generator, so the run is the
  * same every time.
  */
@@ -192,15 +195,10 @@ const b = await chromium.launch(exe ? { executablePath: exe } : {});
 const GATE_HASH = fs.readFileSync(path.join(__dir, 'public', 'gate.js'), 'utf8').match(/var HASH = '([0-9a-f]{64})'/)[1];
 const DISCLAIMER = (fs.readFileSync(path.join(__dir, 'src', 'config', 'product.ts'), 'utf8').match(/disclaimerVersion: '([^']+)'/) || [])[1];
 
-async function readHome(page, plan, home) {
+async function readHome(page, plan) {
   await page.goto(URL, { waitUntil: 'domcontentloaded' });
-  await page.evaluate(([h, d, pl, hm]) => { localStorage.clear(); localStorage.setItem('someday-gate-v1', h); localStorage.setItem('someday-disclaimer-v1', d); localStorage.setItem('horizon-plan-v1', pl); if (hm) localStorage.setItem('someday-home-v1', hm); }, [GATE_HASH, DISCLAIMER, JSON.stringify(plan), home]);
+  await page.evaluate(([h, d, pl]) => { localStorage.clear(); localStorage.setItem('someday-gate-v1', h); localStorage.setItem('someday-disclaimer-v1', d); localStorage.setItem('horizon-plan-v1', pl); }, [GATE_HASH, DISCLAIMER, JSON.stringify(plan)]);
   await page.reload({ waitUntil: 'domcontentloaded' });
-  if (home === 'dial') {
-    await page.waitForFunction(() => /of 100 futures/.test(document.querySelector('[data-sentence]')?.textContent || '') && /would last to|central case/.test(document.querySelector('[data-sentence]')?.textContent || ''), null, { timeout: 60000 });
-    await page.waitForTimeout(250);
-    return page.evaluate(() => ({ key: document.querySelector('[data-home] [data-status]')?.getAttribute('data-status'), sentence: document.querySelector('[data-sentence]')?.innerText.replace(/\s+/g, ' ') }));
-  }
   await page.waitForFunction(() => document.querySelector('[data-simple-home] [data-answer]')?.getAttribute('data-ready') === '1', null, { timeout: 60000 });
   await page.waitForTimeout(250);
   return page.evaluate(() => { const t = (s) => (document.querySelector(s)?.innerText || '').replace(/\s+/g, ' ').trim();
@@ -221,7 +219,7 @@ async function worker() {
     const [name, plan] = scenarios[i]; const fails = []; errs.length = 0;
     let x = null, ui = null;
     try {
-      ui = await readHome(page, plan, null);
+      ui = await readHome(page, plan);
       x = await page.evaluate(expectInPage, plan);
       x.drift = Math.abs(capInNode(plan) - x.capYear) / Math.max(1, x.capYear);
       // A the status
@@ -278,8 +276,18 @@ async function worker() {
       }
       // J the same plan in a different JavaScript engine: the figure may move a little, never much
       if (x.drift > 0.01) fails.push(`J the figure differs by ${(x.drift * 100).toFixed(2)}% between Chromium and Node (limit 1%)`);
-      // the dial must agree
-      if (i % 5 === 0) { const d = await readHome(page, plan, 'dial'); if (d.key !== x.key) fails.push(`A dial status ${d.key} differs from ${x.key}: ${d.sentence}`); }
+      // L the needle, moved with the keys, reads the engine's counts
+      if (i % 5 === 0 && ui.sun) {
+        await page.waitForTimeout(1800);                              // let the sun finish rising
+        await page.focus('[data-sunrise]'); await page.keyboard.press('End'); await page.waitForTimeout(80);
+        const atEnd = await page.$eval('[data-sunrise]', e => [+e.getAttribute('data-age'), e.getAttribute('aria-valuetext')]);
+        await page.keyboard.press('Home'); await page.waitForTimeout(80);
+        const atStart = await page.$eval('[data-sunrise]', e => [+e.getAttribute('data-age'), e.getAttribute('aria-valuetext')]);
+        const lastBar = ui.sun.rings.filter(r => r[0] > ui.sun.n - 1).length, firstBar = ui.sun.rings.filter(r => r[0] > 0).length;
+        if (atEnd[0] !== ui.sun.last || !atEnd[1].startsWith(`Age ${ui.sun.last}: ${x.futures} of 100 futures still paying`)) fails.push(`L the needle at ${ui.sun.last} reads "${atEnd[1]}", the engine gives ${x.futures}`);
+        if (atStart[0] !== ui.sun.first || !atStart[1].startsWith(`Age ${ui.sun.first}: ${firstBar} of 100`)) fails.push(`L the needle at ${ui.sun.first} reads "${atStart[1]}", the lines give ${firstBar}`);
+        if (lastBar !== x.futures) fails.push(`L ${lastBar} lines run to the last year, the engine gives ${x.futures}`);
+      }
       // I errors
       if (errs.length) fails.push('I ' + [...new Set(errs)].slice(0, 2).join(' | '));
     } catch (e) { fails.push('could not run: ' + String(e && e.message || e).split('\n')[0]); }
@@ -303,7 +311,7 @@ if (process.argv.includes('-v') || process.env.E2E150_VERBOSE) {
 console.log(`\nStatuses across the ${N}: ` + Object.entries(by).map(([k, v]) => `${LABEL[k]} ${v}`).join(' · '));
 const drifts = results.filter(r => r.x && r.x.drift != null).map(r => r.x.drift).sort((a, b) => a - b);
 console.log(`Same plan, two JavaScript engines (Chromium and Node): figure identical in ${drifts.filter(d => d === 0).length} of ${drifts.length}; largest difference ${(drifts[drifts.length - 1] * 100).toFixed(2)}%`);
-console.log(`Independent checks applied: pots formula ${scenarios.filter(s => formulaApplies(s[1])).length} of ${N} · tax-free ceiling ${scenarios.filter(s => ceilingApplies(s[1])).length} of ${N} · dial cross-check ${Math.ceil(N / 5)}`);
+console.log(`Independent checks applied: pots formula ${scenarios.filter(s => formulaApplies(s[1])).length} of ${N} · tax-free ceiling ${scenarios.filter(s => ceilingApplies(s[1])).length} of ${N} · needle cross-check ${Math.ceil(N / 5)}`);
 console.log(`\n═══ Horizon 150 END-TO-END SCENARIOS: ${passed}/${N} passed (${Math.round((Date.now() - t0) / 1000)} s) ═══`);
 const bad = results.map((r, i) => [i, r]).filter(([, r]) => r.fails.length);
 if (bad.length) console.log('\nFAILURES:\n' + bad.map(([i, r]) => `  ${String(i + 1).padStart(3, '0')} ${r.name}\n` + r.fails.map(f => '      ✗ ' + f).join('\n')).join('\n'));

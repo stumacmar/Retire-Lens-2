@@ -785,12 +785,13 @@ const openMap = async () => { await closeSheet(); await tap('Explore'); await wa
     && /The total going in, tax relief included/.test(await p.locator('[data-active]').innerText()));
   const potsBefore = E.accumulate({ ...(await planOf()), growth: (await planOf()).growthBase }, (await planOf()).growthBase).atRetirement.pensionA;
   await reliefSwitch.click(); await wait(600);
-  await check('158c3 switching it on adds 25% basic-rate relief: the plan records it and the field says what goes in', async () => (await planOf()).partnerA.contribGrossUp === true
-    && /with basic-rate tax relief added, £4,000 a month goes in/.test(await p.locator('[data-active]').innerText()));
+  const gbp = v => '£' + Math.round(v).toLocaleString('en-GB');
+  await check('158c3 switching it on adds 25% basic-rate relief: the plan records it and the field says what goes in', async () => { const q = await planOf();
+    return q.partnerA.contribGrossUp === true && (await p.locator('[data-active]').innerText()).includes(`with basic-rate tax relief added, ${gbp(q.partnerA.monthlyPension * 1.25)} a month goes in`); });
   await check('158c4 and the pot on the day work stops is larger', async () => { const q = await planOf(); return E.accumulate({ ...q, growth: q.growthBase }, q.growthBase).atRetirement.pensionA > potsBefore; });
   await closeSheet();
-  await check('158c5 the counts line says what you pay and what relief adds', async () =>
-    (await p.$eval('[data-counts]', e => e.innerText.replace(/\s+/g, ' '))).includes('£4,000 a month going into pensions: £3,200 paid plus 25% basic-rate tax relief.'));
+  await check('158c5 the counts line says what you pay and what relief adds', async () => { const m = (await planOf()).partnerA.monthlyPension;
+    return (await p.$eval('[data-counts]', e => e.innerText.replace(/\s+/g, ' '))).includes(`${gbp(m * 1.25)} a month going into pensions: ${gbp(m)} paid plus 25% basic-rate tax relief.`); });
   await tap('Details'); await wait(600); await goPage('Your pots');
   await p.locator('[data-active] [role=switch]:has-text("Paid from my bank account")').click(); await wait(500);
   await closeSheet();

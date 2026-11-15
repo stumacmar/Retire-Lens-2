@@ -205,7 +205,7 @@ async function readHome(page, plan) {
     return { key: document.querySelector('[data-simple-home] [data-status]')?.getAttribute('data-status'), label: t('[data-simple-home] [data-status]'),
       figure: Number(t('[data-supports]').replace(/[£,]/g, '')), gap: t('[data-gap]'), futures: t('[data-futures]'), counts: t('[data-counts]'), note: t('[data-note]'),
       sun: (() => { const el = document.querySelector('[data-ring]'); return !el ? null : { first: +el.getAttribute('data-first'), last: +el.getAttribute('data-last'), n: +el.getAttribute('data-years'),
-        counts: (el.getAttribute('data-counts') || '').split(',').filter(Boolean).map(Number), rules: (el.getAttribute('data-rules') || '').split(',').filter(Boolean).map(Number) }; })() }; });
+        counts: (el.getAttribute('data-full-counts') || '').split(',').filter(Boolean).map(Number), rules: (el.getAttribute('data-rules') || '').split(',').filter(Boolean).map(Number) }; })() }; });
 }
 
 const results = new Array(N);

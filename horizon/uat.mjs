@@ -107,7 +107,7 @@ const homeType = async (label, value) => {
 // What the ring is showing: the age read (if any), the reading under it, and the count of futures paying in full each year.
 const sunState = async () => p.evaluate(() => { const el = document.querySelector('[data-ring]'); if (!el) return null; const sl = el.querySelector('[role=slider]');
   return { ready: el.getAttribute('data-ready') === '1', age: el.getAttribute('data-age') === '' ? null : +el.getAttribute('data-age'), first: +el.getAttribute('data-first'), last: +el.getAttribute('data-last'), n: +el.getAttribute('data-years'),
-    counts: (el.getAttribute('data-counts') || '').split(',').filter(Boolean).map(Number), firstShort: el.getAttribute('data-first-short') === '' ? null : +el.getAttribute('data-first-short'),
+    counts: (el.getAttribute('data-full-counts') || '').split(',').filter(Boolean).map(Number), firstShort: el.getAttribute('data-first-short') === '' ? null : +el.getAttribute('data-first-short'),
     valuetext: sl?.getAttribute('aria-valuetext') || '', label: el.querySelector('[data-ring-text]')?.textContent || '', summary: document.getElementById('ring-summary')?.textContent || '' }; });
 // The ring's clarity rule (ClosingRing.tsx), written again here so the test does not trust the code it checks.
 const clarityOf = c => c >= 100 ? 1 : c >= 90 ? 0.7 + (c - 90) * 0.03 : c >= 70 ? 0.45 + (c - 70) * 0.0125 : c >= 40 ? 0.2 + (c - 40) * (0.25 / 30) : 0.2;
@@ -751,7 +751,7 @@ const openMap = async () => { await closeSheet(); await tap('Explore'); await wa
   await p.waitForFunction(() => document.querySelector('[data-ring]')?.getAttribute('data-ready') === '1' && /of 100/.test(document.querySelector('[data-futures]')?.textContent || ''), null, { timeout: 20000 }).catch(() => {}); await wait(800);
   const pcts = (bg) => [...bg.matchAll(/var\(--color-ring\) ([\d.]+)%, transparent\) ([\d.]+)deg/g)].map(m => [+m[1] / 100, +m[2]]);
   const ring = async () => p.evaluate(() => { const el = document.querySelector('[data-ring]'); const sl = el.querySelector('[role=slider]'); const layers = [...sl.querySelectorAll('div')].filter(d => /conic-gradient/.test(d.style.background));
-    return { first: +el.getAttribute('data-first'), last: +el.getAttribute('data-last'), n: +el.getAttribute('data-years'), counts: el.getAttribute('data-counts').split(',').map(Number),
+    return { first: +el.getAttribute('data-first'), last: +el.getAttribute('data-last'), n: +el.getAttribute('data-years'), counts: el.getAttribute('data-full-counts').split(',').map(Number),
       crisp: layers[0]?.style.background || '', soft: layers[1]?.style.background || '', label: sl.getAttribute('aria-label'), summary: document.getElementById('ring-summary')?.textContent || '', futures: document.querySelector('[data-futures]')?.textContent || '' }; });
   await check('158d the ring has a count for every year from the year work stops to the plan age', async () => { const q = await planOf(), st = await ring();
     return st.counts.length === st.n && st.first === q.retireYear - q.partnerA.birthYear && st.n === E.planEndYear(q) - q.retireYear + 1 && st.last === st.first + st.n - 1; });

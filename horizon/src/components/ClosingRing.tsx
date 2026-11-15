@@ -193,7 +193,7 @@ export default function ClosingRing({ mc, structured, fromAge, toAge, ask, summa
 
   return (
     <div data-ring data-ready={ready ? '1' : '0'} data-first={first} data-last={last} data-years={n}
-      data-counts={full.join(',')} data-rules={structured ? rules.join(',') : ''} data-first-short={firstShort ?? ''} data-first-trim={firstTrim ?? ''}
+      data-full-counts={full.join(',')} data-rules={structured ? rules.join(',') : ''} data-first-short={firstShort ?? ''} data-first-trim={firstTrim ?? ''}
       data-age={picked ?? ''} className="flex-1 min-h-[200px] max-h-[460px] w-full flex flex-col">
       <span id="ring-summary" className="sr-only">{summary}</span>
       <div ref={boxRef} className="relative flex-1 min-h-0">

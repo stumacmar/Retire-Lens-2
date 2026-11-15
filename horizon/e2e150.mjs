@@ -197,7 +197,7 @@ const DISCLAIMER = (fs.readFileSync(path.join(__dir, 'src', 'config', 'product.t
 
 async function readHome(page, plan) {
   await page.goto(URL, { waitUntil: 'domcontentloaded' });
-  await page.evaluate(([h, d, pl, hm]) => { localStorage.clear(); localStorage.setItem('someday-gate-v1', h); localStorage.setItem('someday-disclaimer-v1', d); localStorage.setItem('horizon-plan-v1', pl); if (hm) localStorage.setItem('someday-home-v1', hm); }, [GATE_HASH, DISCLAIMER, JSON.stringify(plan), home]);
+  await page.evaluate(([h, d, pl]) => { localStorage.clear(); localStorage.setItem('someday-gate-v1', h); localStorage.setItem('someday-disclaimer-v1', d); localStorage.setItem('horizon-plan-v1', pl); }, [GATE_HASH, DISCLAIMER, JSON.stringify(plan)]);
   await page.reload({ waitUntil: 'domcontentloaded' });
   await page.waitForFunction(() => document.querySelector('[data-simple-home] [data-answer]')?.getAttribute('data-ready') === '1', null, { timeout: 60000 });
   await page.waitForTimeout(250);

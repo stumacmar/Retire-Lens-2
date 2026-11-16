@@ -23,9 +23,34 @@ Memory between cycles. Read it first; update it last. Format is in
 | Timeline (adviser) | 2026-11-15 (research article; software is adviser-only) | Bengen-style rolling 30-year historical windows from 1915 (UK), 1% fee, gross of tax; UK local 50/50 at 4% succeeds in 70% of windows; worst UK start June 1947, £29,700 from £1m (2.97%). |
 | Royal London | 2026-11-15 (published documents; calculator URL 404) | FCA 2/5/8% capped rates from its quarterly LEAF assumptions; living-standards guide uses 5% growth, 2% inflation, 0.75% fee. Calculator not reachable. |
 | Aviva, Scottish Widows, Legal & General | 2026-11-15 (blocked: 403 / error page / not found) | Not examined; try again or via app-store teardown. |
-| Everything else in the roster | never | Next: Interactive Investor, Guiide, Nest, Moneybox, Penfold, MaxiFi, TPAW Planner. |
+| Nest retirement calculator | 2026-11-16 (public "What could I get" page) | Today's money; growth 2–3% above inflation and charges; 2.5% inflation; 0.3% a year plus **1.8% of each contribution**; basic-rate relief; annuity only (3.7% level, 0.2% for an inflation-linked income, as stated); **no income tax, no State Pension** (points to MoneyHelper); single estimate. |
+| Penfold generic illustration | 2026-11-16 | FCA 2/5/8%, 2% inflation, today's money; **0.75% a year** (0.88% Sharia); 25% TFC; annuity only, from 68; basic-rate relief; no State Pension. |
+| Smart Pension calculator | 2026-11-16 (help article; members only) | Members under 75 only; result against the Retirement Living Standards; fixed single-life annuity; growth after charges by fund; salary +2.5%. |
+| Interactive Investor, Guiide, TPAW Planner | 2026-11-16 (not reachable: ii calculator 404; Guiide and TPAW render only in JavaScript) | TPAW described secondhand: 500 simulations, percentile spending (5th used as the cautious view). Retry with a browser. |
+| Everything else in the roster | never | Next: Moneybox, MaxiFi, Aviva (new URL found: aviva.co.uk/retirement/tools/my-retirement-planner), Which?, Virgin Money Navigator. |
 
 ## Examinations
+
+### Nest — 2026-11-16 — https://nestpensions.org.uk/schemeweb/nest/my-nest-pension/what-could-I-get.html
+Workplace (auto-enrolment) members · free · web
+Engine: growth "between 2 per cent and 3 per cent per year on average" above inflation and charges, lower near retirement · inflation 2.5% · charges 0.3% a year plus 1.8% of every contribution · basic-rate relief · contributions rise with inflation · annuity bought at retirement (3.7% level, 0.2% inflation-linked, as stated) · no income tax · no State Pension · no MC
+UX: today's money · a single estimate, "could be more or less" · the "How we calculate" link is a placeholder
+Best thing: says plainly it shows today's money and that the income depends on annuity prices at the time.
+Worst thing: no State Pension and no income tax, so the "income" is neither the whole income nor what lands in the bank.
+Gaps for Someday: none in correctness. Its charge (0.3% + 1.8% of contributions) widens the market range for B12 → shipped this cycle.
+
+### Penfold — 2026-11-16 — https://getpenfold.com/generic-illustration
+App-first SIPP · free illustration · web
+Engine: FCA 2/5/8% (real 0.0 / 2.9 / 5.9%) · 2% inflation · 0.75% all in (0.88% Sharia) · basic-rate relief shown (£40 + £10) · 25% TFC · lifetime annuity from 68, five-year guarantee · no State Pension · no tax on income · no MC
+Best thing: the charge is broken into its parts (0.73% + 0.02%), with the fee tier above £100,000.
+Worst thing: an annuity at 68 is the only route, with no State Pension beside it.
+Gaps for Someday: none; 0.75% joins the evidence for B12.
+
+### Smart Pension — 2026-11-16 — https://smartpension.co.uk/support/en/articles/6006698-your-pension-calculator
+Workplace members under 75 · gated to members · in-app
+Engine: growth after charges by fund · salary +2.5% · fixed single-life annuity, no guarantee · other pensions (DC and DB) as yearly amounts
+UX: result compared with the Retirement Living Standards
+Gaps for Someday: none; confirms the standards as the common yardstick (B11).
 
 ### AJ Bell pension calculator — 2026-11-15 — https://www.ajbell.co.uk/pensions/calculator
 UK consumer · free, no sign-up · web
@@ -135,7 +160,7 @@ Updated every cycle. Standing: ahead · parity · behind · missing. Stop rule i
 | 14 | Liveness | Wealthfront Path | ahead | the ring; PensionBee is live too, MoneyHelper and HL are not |
 | 15 | Accessibility | — | ahead (2026-11-14): axe-core WCAG 2.2 AA gate in CI, zero critical/serious on all four surfaces; decision map as a table | B8 shipped; the first run found zoom disabled, bezel contrast 3.4:1, ink-on-blue buttons 3.45:1, unfocusable scroll regions; all fixed |
 | 16 | Mobile fit | — | parity | 375 × 667 fits |
-| 17 | Trust signals | MoneyHelper (GOV.UK transparency record, GAD scenarios) | parity → ahead (2026-11-14) | "How we checked" runs the engine's 134 checks live in the app with sources; `verify.mjs` differential and property evidence in CI; versions printed in the report; B6 (one tap from the dial) still open |
+| 17 | Trust signals | MoneyHelper (GOV.UK transparency record, GAD scenarios) | ahead (2026-11-16: charges placed among nine UK calculators and measured for the plan) | "How we checked" runs the engine's 134 checks live in the app with sources; `verify.mjs` differential and property evidence in CI; versions printed in the report; B6 (one tap from the dial) still open |
 | 18 | Performance | — | unknown (not measured on a real phone) | B7 |
 | 19 | Data safety | Someday (MoneyHelper also keeps inputs in the browser) | ahead | no server |
 | 20 | Copy | PensionBee (friendly) / MoneyHelper (plain) | parity | — |
@@ -149,7 +174,7 @@ Updated every cycle. Standing: ahead · parity · behind · missing. Stop rule i
 | Uncertainty | Boldin/ProjectionLab: % success; Wealthfront: fan | 100 grains (share of 2,000 futures), strands, floor under real bad histories | Ahead; keep honest |
 | Income tax | Most UK consumer tools ignore it (all three examined) | Full UK bands incl. Scotland, taper, LSA | Ahead |
 | Inflation | PensionBee, MoneyHelper 2.5%; HL none | User-set, applied to spending, SP, indexed pensions, thresholds | Ahead |
-| Charges | MoneyHelper 0.75%, PensionBee 0.7%, HL 1% | 0.5% default, user-set, off every return | Parity; default is at the low end — note in Assumptions (B12) |
+| Charges | Penfold breaks its 0.75% into parts; Nest adds 1.8% of contributions; range 0.3% (Nest) to 1% (HL) | 0.5% default, user-set, off every return; from 2026-11-16 Assumptions places it in that range and measures another 0.25% for the plan | Ahead (no other tool shows what its charge costs the income) |
 | Couples | Rare; MaxiFi and Boldin do it | Two individuals, survivor phase | Ahead; survivor UX is thin |
 | Dynamic spending rules | Timeline, Income Lab, Boldin | Guardrails and levers | At parity; no user-set rule yet |
 | Care costs / housing | Boldin, Voyant | Not modelled | Gap (coverage) |
@@ -173,7 +198,7 @@ Updated every cycle. Standing: ahead · parity · behind · missing. Stop rule i
 | B9 | Publish the engine's provenance: a "How we checked" page listing the load-time assertions and the hand-checked tax cases | trust | medium | small | MoneyHelper's GOV.UK transparency record (GAD scenarios) | shipped 2026-11-14: Peace → "How we checked these numbers" runs the 134 assertions live and lists every rule with its source; `docs/VALIDATION.md` is the dated record |
 | B10 | Sex-specific ONS cohort mortality for single-person plans (keep unisex for couples) | correctness | low | medium | HL uses ONS 2020-based cohort tables by sex | open |
 | B11 | Retirement Living Standards beside the target; fresh default corrected to the 2026 Moderate figure for two | coverage | medium | small | PensionBee; retirementlivingstandards.org.uk | shipped 2026-11-13 |
-| B12 | Say in Assumptions that 0.5% is a low-cost all-in charge and that 0.7–1% is common | trust | low | small | MoneyHelper 0.75%, PensionBee 0.7%, HL 1% | open |
+| B12 | Say in Assumptions that 0.5% is a low-cost all-in charge and that 0.7–1% is common | trust | low | small | MoneyHelper 0.75%, PensionBee 0.7%, HL 1%, Nest 0.3% + 1.8% of contributions, Penfold 0.75%, AJ Bell 0.6%, Standard Life 0.55%, Fidelity 0.41% | shipped 2026-11-16: a "Charges" row says where the plan's charge sits among nine UK calculators and what another 0.25% a year costs this plan a month (`lib/charges.ts`; UAT 69g recomputes it from the engine) |
 | B13 | "Lasts" must mean every year paid: a pension locked until 57 never "exhausts", so the map, edge, guardrails, dial and report called fifteen unpaid years a plan that lasts | correctness | high | small | Owner, 2026-11-13: "the dashboard is nonsense"; reproduced with a 41-year-old stopping at 42 on £70k | shipped 2026-11-13 (`holds`, `runsShortAgeA`) |
 | B14 | The "2008, the day you stop" path includes the 2009–2017 recovery (+86% real over ten years), so its floor sits only 3–6% under base in every plan shape; the dial showed it first and the sentence read as a boast ("Even after a 2008 start, £10,750 a month would hold") | correctness | medium | small | Owner, 2026-11-13 ("claptrap"); `STRESS_PATHS.gfc` analysis | shipped 2026-11-13: the dial rotates Japan-1990 → 30% fall then flat → 1970s; copy is "After X, the most that would hold is £Y" / "only £Y would hold". 2008 stays in the Explore stress tests |
 | B15 | The ring is not self-evident: nothing says "tap a label, then turn the ring"; bezel labels read as captions | ux | high | small | Owner, 2026-11-13; B5 | shipped 2026-11-13: first-use hint until the first turn, pill behind every label, the active one in the action colour |
@@ -191,6 +216,7 @@ Updated every cycle. Standing: ahead · parity · behind · missing. Stop rule i
 
 | Date | Planners | Improvement | PR | Outcome |
 |---|---|---|---|---|
+| 2026-11-16 | Nest, Penfold, Smart Pension (Interactive Investor 404; Guiide and TPAW JavaScript-only) | B12: charges in context. Assumptions gains a "Charges" row placing the plan's charge among nine UK calculators (0.3% to 1%) and measuring what another 0.25% a year costs the plan a month. UAT 69g | scout/2026-11-16-charges-in-context | see PR |
 | 2026-11-15 | AJ Bell, Timeline, Royal London (Aviva, Scottish Widows, Legal & General blocked) | Tax relief made explicit: the "paid from my bank account" choice moved out of a closed section to sit under the payment, the field says what goes in, the home's counts line says whether relief is included (B2, part) | scout/2026-11-15-tax-relief-explicit | see PR |
 | — | — | Ledger seeded from the October 2026 UX research | — | — |
 | 2026-11-13 | MoneyHelper, Hargreaves Lansdown, PensionBee | Retirement Living Standards (Pensions UK 2026) beside the target: engine constant + 3 assertions, chips on the Someday page, hint under the dial figure, Assumptions row; fresh default 43,100 → 45,400 | [#34](https://github.com/stumacmar/Retire-Lens-2/pull/34) (branch scout/2026-11-13-living-standards) | merged and live 2026-11-13 10:18 |

@@ -3,6 +3,8 @@ import { fmt, pct } from '../lib/format';
 import Accordion from './Accordion';
 import { LS, standardsFor, standardLine, whoText } from '../lib/livingStandards';
 import { lifeOdds, longevityLine } from '../lib/longevity';
+import { useMemo } from 'react';
+import { CHARGES_SEEN, chargeBand, costOfQuarterPoint } from '../lib/charges';
 
 /**
  * Every assumption behind the numbers, generated from the plan and the engine
@@ -14,6 +16,8 @@ export default function Assumptions({ plan, mc }: { plan: any; mc: any }) {
   const indexed = T.indexation !== 'frozen';
   const scot = T.region === 'scotland';
   const schemes = (E as any).DB_SCHEMES as Record<string, any>;
+  // Measured for this plan: two runs of the paid-in-full search (about 30 drawdowns), only when the plan changes.
+  const quarterPoint = useMemo(() => costOfQuarterPoint(E, plan), [plan]);
   const rows: [string, string][] = [];
   const add = (k: string, v: string) => rows.push([k, v]);
 
@@ -31,6 +35,10 @@ export default function Assumptions({ plan, mc }: { plan: any; mc: any }) {
   add(plan.household === 'single' ? 'One person' : 'Couples', plan.household === 'single' ? 'One State Pension, one personal allowance, one nil-rate band.' : `Each partner is taxed on their own income with their own allowance and bands. Pension draws are allocated to whoever has the cheaper next pound. After a first death the survivor is modelled alone: one State Pension, the scheme survivor pension (half unless set otherwise), the pots inherited (tax-free when death is before 75, taxable after) and spending at ${pct(plan.survivorSpend ?? 0.75, 0)} of the couple's. Ages to plan for are set per person under People; otherwise both run to the horizon.`);
   add('State Pension', `${plan.partnerA.name}: ${fmt(plan.partnerA.spAmount)} a year from ${(E as any).spAgeOf(plan.partnerA)}${plan.household !== 'single' && plan.partnerB?.birthYear ? ` · ${plan.partnerB.name}: ${fmt(plan.partnerB.spAmount)} from ${(E as any).spAgeOf(plan.partnerB)}` : ''} (ages from birth year under current law unless overridden). Rises with inflation (today’s money held).`);
   add('Growth', `Poor ${pct(plan.growthBear, 1)} · Base ${pct(plan.growthBase, 1)} · Positive ${pct(plan.growthBull, 1)} a year, nominal, before charges of ${pct(plan.fee || 0, 2)} a year which come off every return, on pensions, ISAs and the general account. Cash ${pct(plan.cashGrowth || 0, 1)}.${plan.riskPreset ? ` Preset: ${plan.riskPreset}.` : ''}`);
+  {
+    const fee = Number(plan.fee) || 0, band = chargeBand(fee);
+    add('Charges', `${pct(fee, 2)} a year, all in (platform, funds and any adviser), taken off every return on pensions, ISAs and the general account. That is ${band === 'low' ? 'at the low end of' : band === 'high' ? 'at the high end of' : 'typical of'} what UK pension calculators assumed in ${CHARGES_SEEN.asOf}: ${CHARGES_SEEN.low}; ${CHARGES_SEEN.middle}; ${CHARGES_SEEN.high}. In this plan another 0.25% a year would lower what it can pay in full by about ${fmt(quarterPoint)} a month. Your provider's own figure is on your annual statement; set it under Details.`);
+  }
   add('Inflation', `${pct(plan.inflation, 1)} a year, applied to spending, State Pensions and indexed pensions.`);
   add('Range of futures', `${(mc?.nPaths || 2000).toLocaleString()} simulated market histories from today, through the saving years as well as the spending years. Returns are drawn each year from a normal distribution with standard deviation ${pct(plan.mcSd, 1)} and an arithmetic mean set so the median path compounds at the chosen lens rate (${pct(plan.growthBase, 1)} under Base: mean ${pct((mc && mc.mcMean) != null ? mc.mcMean : plan.growthBase + plan.mcSd * plan.mcSd / 2, 2)} before charges); seed ${plan.mcSeed || 42} so the result repeats. Every path funds each year exactly as the central plan does. Confidence is the share of paths that paid the full planned spending every year, shown with its sampling range; a second figure weights each path by the chance the household is still here (a unisex Gompertz mortality curve fitted to ONS tables), which is the chance the money outlives you. No fat tails, no return-to-mean.`);
   add('Spending', `${fmt(plan.targetNet)} a year net${plan.phase1On ? `, easing ${pct(plan.phase1Cut, 0)} from ${plan.phase1Age}` : ''}${plan.phase2On ? `, ${pct(plan.phase2Cut, 0)} in total from ${plan.phase2Age}` : ''}. Planned to age ${plan.horizonAge} of the younger partner (${(E as any).planEndYear(plan)}), with both partners’ incomes and spending running to the end.`);

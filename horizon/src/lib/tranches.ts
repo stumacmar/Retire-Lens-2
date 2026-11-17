@@ -77,7 +77,7 @@ export function trancheWords(plan: any, key: TrancheKey) {
   const infl = plan.inflation || 0, fee = plan.fee || 0;
   switch (key) {
     case 'ladder': return {
-      what: `About ${AR.ladderYears || 0} years of your spending, held in gilts and cash. Your income is paid from here, so a fall in markets never forces you to sell shares.`,
+      what: `About ${AR.ladderYears || 0} years of your spending, held in gilts and cash. Your income is paid from here, so a fall in markets need not force you to sell shares while the ladder lasts; a long fall can empty it.`,
       assumed: `Assumed to earn about ${p(AR.giltReal || 0)} a year above inflation.` };
     case 'engine': return {
       what: `Shares${AR.goldPct ? `, with ${p(AR.goldPct, 0)} in gold,` : ''} left to grow. When markets are up it tops the safe ladder back up; when they are down it is left alone.`,

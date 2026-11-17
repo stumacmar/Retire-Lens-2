@@ -56,13 +56,13 @@ const F = E.freshStart(), D = E.defaults();
 const STRUCT = { on: true, ladderYears: 7, refill: 'whenUp', refillMin: 0, equityReal: 0.05, equitySd: 0.16, goldReal: 0.01, goldSd: 0.14, goldPct: 0.15, giltReal: 0.015,
   rulesOn: true, longevityAge: 95, cutBelow: 0.90, cutBy: 0.10, raiseAbove: 1.25, raiseBy: 0.05, raiseLagYears: 2, floorMult: 0.75, capMult: 1.25,
   parachuteOn: true, parachuteBelow: 0.75, parachuteFrom: 80, parachuteFraction: 0.5 };
-const stuart = { ...F.partnerA, name: 'Stuart', birthYear: 1970, pension: 570000, monthlyPension: 3200, isa: 48000, spAmount: 12548 };
+const stuart = { ...F.partnerA, name: 'Robin', birthYear: 1970, pension: 570000, monthlyPension: 3200, isa: 48000, spAmount: 12548 };
 const carol = { ...F.partnerB, ...D.partnerB };
 const owner = (over = {}) => E.sanitisePlan({ ...F, approach: 'traditional', retireYear: 2030, targetNet: 60000, partnerA: stuart, partnerB: carol, ...over });
 const named = [
-  ['owner: Stuart and Carol, stop 60, £5,000 a month', owner()],
-  ['owner without Carol\'s pots or annuity', owner({ partnerB: { ...F.partnerB, birthYear: 1963 } })],
-  ['owner, just Stuart (single)', owner({ household: 'single' })],
+  ['owner: Robin and Jo, stop 60, £5,000 a month', owner()],
+  ['owner without Jo\'s pots or annuity', owner({ partnerB: { ...F.partnerB, birthYear: 1963 } })],
+  ['owner, just Robin (single)', owner({ household: 'single' })],
   ['owner, asks exactly what the plan supports (£5,600)', owner({ targetNet: 67200 })],
   ['owner, asks £5,500 (thin margin)', owner({ targetNet: 66000 })],
   ['owner, asks £6,500 (short)', owner({ targetNet: 78000 })],
@@ -71,8 +71,8 @@ const named = [
   ['owner, stop at 65', owner({ retireYear: 2035 })],
   ['owner on the de-risking structure', owner({ approach: 'derisking', architecture: { ...F.architecture, ...STRUCT } })],
   ['owner on the structure, asks £4,000', owner({ approach: 'derisking', targetNet: 48000, architecture: { ...F.architecture, ...STRUCT } })],
-  ['the worked example as shipped (7% growth)', { ...D, approach: 'traditional' }],
-  ['owner, Carol works on to 2033', owner({ partnerB: { ...carol, stopYear: 2033, income: 28000 } })],
+  ['the reference workbook as shipped (7% growth)', { ...D, approach: 'traditional' }],
+  ['owner, Jo works on to 2033', owner({ partnerB: { ...carol, stopYear: 2033, income: 28000 } })],
   ['owner, Scotland', owner({ tax: { region: 'scotland' } })],
 ];
 function generated(i) {
@@ -262,7 +262,7 @@ async function worker() {
       if (pens > 0 && !ui.counts.includes(`${fmtK(pens)} in pensions`)) fails.push(`F counts: pensions ${fmtK(pens)} not in "${ui.counts}"`);
       if (sav > 0 && !ui.counts.includes(`${fmtK(sav)} in ISAs and cash`)) fails.push(`F counts: savings ${fmtK(sav)} not in "${ui.counts}"`);
       if (gua > 0 && !ui.counts.includes(`${fmtK(gua)} a year guaranteed`)) fails.push(`F counts: guaranteed ${fmtK(gua)} not in "${ui.counts}"`);
-      if (single && / and (your partner|Carol|Partner)\b/.test(ui.counts.split(':')[0])) fails.push(`F counts names a partner on a single plan: ${ui.counts}`);
+      if (single && / and (your partner|Jo|Partner)\b/.test(ui.counts.split(':')[0])) fails.push(`F counts names a partner on a single plan: ${ui.counts}`);
       // G no double counting: pots on the day of stopping
       if (formulaApplies(plan)) {
         const eng = x.pots, mine = potsByFormula(plan);

@@ -169,8 +169,8 @@ const fresh = async () => {
 };
 const planOf = async () => p.evaluate(() => { try { return JSON.parse(localStorage.getItem('horizon-plan-v1') || '{}'); } catch { return {}; } });
 // Every carousel page stays in the DOM, so a page-wide selector would happily
-// type into the page you are NOT looking at (and did: Carol's figures landed
-// on Stuart). Prefer the active page; fall back to the document for the
+// type into the page you are NOT looking at (and did: Jo's figures landed
+// on Robin). Prefer the active page; fall back to the document for the
 // screens that are not a carousel.
 async function setField(label, value, which = 0) {
   const sel = `label:has-text(${JSON.stringify(label)}) input`;
@@ -187,9 +187,12 @@ async function setField(label, value, which = 0) {
   return true;
 }
 
-async function loadEx() { // robust: retry the example tap; wait for the plan to persist
+// The suite's own fixture: the reference workbook plan (E.defaults()), loaded directly. The
+// "See a worked example" button loads a different, made-up couple (E.example()); check 03b.
+async function loadEx() {
   await fresh();
-  for (let i = 0; i < 3; i++) { await tap('worked example'); await wait(1000); if (!/Begin/.test(await bodyT())) break; }
+  await p.evaluate(v => localStorage.setItem('horizon-plan-v1', v), JSON.stringify({ ...E.defaults(), approach: 'traditional' }));
+  await p.reload({ waitUntil: 'networkidle' }); await wait(700);
   await p.waitForFunction(() => !!localStorage.getItem('horizon-plan-v1'), { timeout: 3000 }).catch(() => {});
   await acceptDisclaimer();
 }
@@ -214,6 +217,13 @@ await fresh();
 await check('01 onboarding on first visit', async () => /stop/i.test(await h1()));
 await check('02 Begin button', () => has('Begin'));
 await check('03 example link', () => has('worked example'));
+// Privacy (review, 17 November 2026): the worked example is a made-up couple, never the reference workbook.
+await check('03b the worked example loads the made-up couple (Alex and Sam), not the workbook fixture', async () => {
+  for (let i = 0; i < 3; i++) { await tap('worked example'); await wait(1000); if (!/Begin/.test(await bodyT())) break; }
+  await p.waitForFunction(() => !!localStorage.getItem('horizon-plan-v1'), { timeout: 3000 }).catch(() => {});
+  const q = await planOf(), ex = E.example(), D = E.defaults();
+  return q.partnerA?.name === 'Alex' && q.partnerB?.name === 'Sam' && q.partnerA.pension === ex.partnerA.pension && q.partnerA.pension !== D.partnerA.pension; });
+await fresh();
 await tap('Begin'); await wait(900);
 // The disclaimer, accepted once before the first answer
 await check('17a disclaimer shown once, before the horizon', async () => /calm place to think/i.test(await h1()));
@@ -289,7 +299,7 @@ await check('19 bottom tab bar visible', () => has('Horizon'));
 await check('20 setup completed without a separate form', () => true);
 
 await loadEx();
-await check('21 example loads Stuart & Carol', async () => (await planOf()).partnerA?.name === 'Stuart');
+await check('21 example loads Robin & Jo', async () => (await planOf()).partnerA?.name === 'Robin');
 await waitAnswer();
 await check('22 example shows an answer', async () => /£[\d,]+ a month after tax/.test(await answerText()));
 await check('23 the count of futures shown', async () => /^In \d+ of 100 futures/.test(await futuresText()));
@@ -379,11 +389,11 @@ await check('41 withdrawal-order options', async () => (await onPage('Pensions')
 await tapInSheet('ISAs'); await wait(400); await check('42 strategy switch, no crash', () => pe.length === 0);
 await goPage('Tax');
 await check('38b income-tax region choice (Scotland)', () => onPage('Scotland'));
-await goPage('Stuart’s pots');
-await check('43 partner names present', async () => /Stuart|Carol/.test(await bodyT()));
+await goPage('Robin’s pots');
+await check('43 partner names present', async () => /Robin|Jo/.test(await bodyT()));
 await check('44 pension pot field', () => onPage('Workplace pension'));
 await check('44b advanced-mode toggle present', () => onPage('Advanced'));
-await goPage('Stuart’s guaranteed income');
+await goPage('Robin’s guaranteed income');
 await check('45 State Pension fields present', () => onPage('State Pension age'));
 await check('44c public-sector scheme pension can be added', () => onPage('Add an NHS'));
 await goPage('Spending');
@@ -468,7 +478,7 @@ await check('74 no NaN at extreme spend', async () => !/NaN|undefined/.test(awai
 await homeType('Take home', 900); await waitAnswer(); await check('75 minimal spend renders', async () => /£[\d,]+ a month/.test(await answerText()));
 { const q = await planOf(); await homeType('Stop work at', q.startYear + 1 - q.partnerA.birthYear); } await wait(600); await check('76 near-term retire, no crash', () => pe.length === 0);
 { const q = await planOf(); await homeType('Stop work at', q.startYear + 20 - q.partnerA.birthYear); } await wait(600); await check('77 far-out retire, no crash', () => pe.length === 0);
-await tap('Details'); await wait(700); await goPage('Stuart’s pots');
+await tap('Details'); await wait(700); await goPage('Robin’s pots');
 await p.$$eval('[role=dialog] input[inputmode=decimal]', e => { const s = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set; e.forEach(el => { s.call(el, '0'); el.dispatchEvent(new Event('input', { bubbles: true })); el.dispatchEvent(new Event('blur', { bubbles: true })); }); }).catch(() => {}); await wait(700);
 await check('78 all pots zero survives', () => pe.length === 0);
 await check('79 no £NaN with zero pots', async () => !/£NaN/.test(await bodyT()));
@@ -507,7 +517,7 @@ await check('86 headline valid after stress', async () => /£[\d,]+|take home/i.
 await loadEx();
 await waitAnswer();
 await check('87 the example shows its answer on the home', async () => /£[\d,]+ a month after tax/.test(await answerText()));
-await check('88 the example is a couple, and the home says it counts both', async () => (await planOf()).household === 'couple' && /^Counts Stuart and Carol:/.test(await p.$eval('[data-counts]', e => e.innerText)));
+await check('88 the example is a couple, and the home says it counts both', async () => (await planOf()).household === 'couple' && /^Counts Robin and Jo:/.test(await p.$eval('[data-counts]', e => e.innerText)));
 await check('89 the home points to Details for everything else', () => has('Check or change in Details'));
 await check('90 exactly three things to change on the home', async () => (await p.locator('[data-simple-home] [data-driver]').count()) === 3);
 await check('91 four tab destinations', async () => (await has('Horizon')) && (await has('Details')) && (await has('Explore')) && (await has('Peace')));
@@ -579,7 +589,7 @@ if (!plusOffered) {
   await check('108 plus off: withdrawal order unlocked', () => has('lowest lifetime tax'));
   await check('109 plus off: the word Plus appears nowhere in Explore', async () => !/\bPlus\b/.test(await bodyT()));
   await closeSheet();
-  await tap('Details'); await wait(700); await goPage('Stuart’s pots');
+  await tap('Details'); await wait(700); await goPage('Robin’s pots');
   await check('114 plus off: advanced detail unlocked', async () => (await p.locator('[role=switch]:has-text("Advanced")').count()) === 1);
   await goPage('Structure');
   await check('115 plus off: structure page unlocked', async () => !(await has('See what Plus adds')));
@@ -608,7 +618,7 @@ await tap('Already have a licence key?'); await wait(300);
 await p.fill('input[aria-label="Licence key"]', 'not-a-key'); await tap('Activate on this device'); await wait(500);
 await check('113 free: malformed key is refused locally (no network)', async () => /doesn’t look like a licence key/.test(await bodyT()));
 await closeSheet();
-await tap('Details'); await wait(700); await goPage('Stuart’s pots');
+await tap('Details'); await wait(700); await goPage('Robin’s pots');
 await check('114 free: advanced detail locked', async () => (await onPage('Advanced detail')) && (await p.locator('[role=switch]:has-text("Advanced")').count()) === 0);
 await goPage('Structure');
 await check('115 free: structure page locked', async () => (await onPage('Plan structure')) && !(await onPage('Set up the standard architecture')));

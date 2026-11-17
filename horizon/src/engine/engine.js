@@ -1,6 +1,6 @@
 /**
  * Someday engine.
- * Modelled on the Marshall Retirement Model workbook: central assumptions,
+ * Modelled on the reference retirement workbook workbook: central assumptions,
  * Bear/Base/Bull scenarios, nominal figures with an inflation assumption,
  * income layering in drawdown. Deliberate improvements over the workbook,
  * all surfaced in the UI:
@@ -76,7 +76,7 @@ export function createEngine() {
     { upTo: Infinity, rate: 0.48 },
   ];
 
-  // ── Default assumptions: the Marshall workbook, February 2026 ────────
+  // ── Default assumptions: the reference workbook, February 2026 ────────
   function defaults() {
     return {
       startYear: 2026,
@@ -84,7 +84,7 @@ export function createEngine() {
       horizonAge: 90,           // "drawdown to age" for partner A
 
       partnerA: {
-        name: 'Stuart',
+        name: 'Robin',
         birthYear: 1970,
         spAge: 67,
         spAmount: 12548,        // today's money, per year
@@ -109,7 +109,7 @@ export function createEngine() {
         dbSurvivorPct: 0.5,     // share of the company DB paid to a surviving partner
       },
       partnerB: {
-        name: 'Carol',
+        name: 'Jo',
         birthYear: 1963,
         spAge: 67,
         spAmount: 12548,
@@ -235,7 +235,7 @@ export function createEngine() {
   // ── Fresh start: what a NEW visitor sees ──────────────────────────────
   // Same shape as defaults(), but with no personal data — generic names and
   // zeroed pots/savings/property — so nobody lands on someone else's plan.
-  // defaults() stays the Marshall workbook, which the test suites pin to.
+  // defaults() stays the reference workbook, which the test suites pin to.
   function freshStart() {
     const P = defaults();
     P.partnerA = { ...P.partnerA, name: 'You',     pension: 0, isa: 0, monthlyPension: 0, monthlyIsa: 0, db: 0 };
@@ -259,7 +259,7 @@ export function createEngine() {
   }
 
   // A plausible, generic example couple for the opt-in "see an example" peek.
-  // Not the Marshall workbook, not anyone real — just illustrative round numbers.
+  // Not the reference workbook, not anyone real — just illustrative round numbers.
   function example() {
     const P = freshStart();
     P.partnerA = { ...P.partnerA, name: 'Alex', birthYear: 1968, pension: 320000, isa: 40000, monthlyPension: 800, monthlyIsa: 0, db: 0 };
@@ -2149,8 +2149,8 @@ export function createEngine() {
     check('Scotland golden: 125,140 gross pays 45,195 (top rate from there)', taxOn(125140, S), 3967 * 0.19 + 12989 * 0.20 + 14136 * 0.21 + 31338 * 0.42 + 62710 * 0.45, 0.01);
     check('60% marginal inside taper', marginalRate(110000, T), 0.60, 0.005);
     // The allocator must use a free personal allowance before paying tax:
-    // with only Carol having base income, a small draw must come from
-    // Stuart's allowance at zero tax.
+    // with only Jo having base income, a small draw must come from
+    // Robin's allowance at zero tax.
     const P = defaults();
     const dd = drawdown(P);
     // Already-accessed pensions: a fully used cash cap or fully crystallised

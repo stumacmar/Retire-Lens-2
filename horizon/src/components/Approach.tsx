@@ -129,7 +129,7 @@ export default function Approach({ plan, update, onDone }: {
             line="Safe money for the years just ahead, a growth engine behind it, and written rules."
             points={[
               'The next few years of spending held in index-linked gilts',
-              'Topped up from growth only after a good year, so you never sell into a fall',
+              'Topped up from growth only after a good year, so a fall need not force you to sell shares while the ladder lasts',
               'Spending trims automatically if the plan drifts off track',
               'The house kept back as a last resort, never core funding',
             ]}

@@ -1,6 +1,6 @@
 /**
  * Multi-scenario reconciliation: RetireLens 4 vs an INDEPENDENT re-implementation
- * of the Marshall workbook's maths, across many different inputs.
+ * of the reference workbook's maths, across many different inputs.
  *
  * For each scenario we compute the headline outcomes two completely separate
  * ways — the app's engine, and a from-scratch replica of the workbook formulas —
@@ -51,7 +51,7 @@ const base = JSON.parse(JSON.stringify(D));
 const scen = (label, patch) => ({ label, P: patch(JSON.parse(JSON.stringify(base))) });
 
 const SCENARIOS = [
-  scen('Marshall base (Stuart & Carol)', p => p),
+  scen('Reference base (Robin & Jo)', p => p),
   scen('Bigger pots, higher target', p => { p.partnerA.pension = 900000; p.partnerB.pension = 120000; p.targetNet = 80000; return p; }),
   scen('Smaller pots, modest target', p => { p.partnerA.pension = 180000; p.partnerB.pension = 20000; p.targetNet = 30000; return p; }),
   scen('Retire later (2035), lower growth', p => { p.retireYear = 2035; p.growth = 0.05; p.growthBase = 0.05; return p; }),

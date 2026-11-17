@@ -834,6 +834,45 @@ const openMap = async () => { await closeSheet(); await tap('Explore'); await wa
   await check('162 simple home: zero page errors', () => pe.length === 0);
 }
 
+// ── The Lantern preview (Stage 1; docs/LANTERN_PLAN.md) ────────────────────
+// The tower from made-up figures at ?lantern=1. It does not replace the home.
+{
+  await p.goto(URL + '?lantern=1', { waitUntil: 'networkidle' }); await wait(700);
+  const gl = await p.evaluate(() => { const c = document.createElement('canvas'); return !!(c.getContext('webgl2') || c.getContext('webgl')); });
+  const L = k => p.$eval('[data-lantern]', (e, k) => e.getAttribute(k), k);
+  const readout = () => p.$eval('[data-lantern-readout]', e => e.textContent);
+  if (gl) {
+    await p.waitForSelector('[data-lantern][data-ready="1"]', { timeout: 20000 }).catch(() => {});
+    await check('163 lantern: the tower renders at ?lantern=1', async () => (await L('data-ready')) === '1' && (await p.$eval('[data-lantern] canvas', c => c.width > 100 && c.height > 100)));
+    await check('164 lantern: one floor a year and 20 windows a floor, sorted worst to best', async () => (await L('data-floors')) === '36' && (await L('data-windows')) === '20' && (await L('data-model-ok')) === '1');
+    await check('165 lantern: each lens button turns the tower to its face', async () => {
+      for (const k of [1, 2, 3, 0]) {
+        await p.locator(`[data-lens="${k}"]`).click();
+        const ok = await p.waitForFunction(k => { const e = document.querySelector('[data-lantern]'); return e.dataset.face === String(k) && e.dataset.settled === '1'; }, k, { timeout: 4000 }).then(() => true, () => false);
+        if (!ok || (await p.getAttribute(`[data-lens="${k}"]`, 'aria-pressed')) !== 'true') return false;
+      }
+      return true; });
+    await check('166 lantern: the readout counts all 20 windows of the floor in words', async () => {
+      const t = await readout(), n = [...t.matchAll(/(\d+) (?:of 20 futures pay|pays? the essentials|falls? short)/g)].map(m => +m[1]);
+      return /^At 85 \(\d{4}\): \d+ of 20 futures pay your full £/.test(t) && n.reduce((a, b) => a + b, 0) === 20; });
+    await check('167 lantern: tapping a floor reads that year', async () => {
+      const box = await p.locator('[data-lantern]').boundingBox(), before = await readout();
+      await p.mouse.click(box.x + box.width / 2, box.y + box.height * 0.62); await wait(400);
+      const t = await readout(); return t !== before && /^At \d+ \(\d{4}\)/.test(t) && (await L('data-selected')) !== '25'; });
+    await check('168 lantern: the stress lens names its stress and every target is at least 44 px', async () => {
+      await p.locator('[data-lens="3"]').click(); await wait(700);
+      const small = await p.$$eval('[data-lantern-preview] button, [data-lantern-preview] a', els => els.filter(e => e.getBoundingClientRect().height < 44).length);
+      return /after a 30% fall in year 1/.test(await readout()) && small === 0; });
+    await check('169 lantern: the picture is described in words for a screen reader', async () => /^The Lantern: a tower of 36 years/.test(await L('aria-label')));
+  } else {
+    await check('163 lantern: without WebGL the preview says so', () => has('This preview needs WebGL'));
+  }
+  await check('170 lantern: nothing left the device', () => requests.length === 0);
+  await p.goto(URL, { waitUntil: 'networkidle' }); await wait(900);
+  await check('171 lantern: the home is untouched (the island is still the picture)', async () => (await p.$('[data-island]')) != null && (await p.$('[data-lantern]')) == null);
+  await check('172 lantern: zero page errors', () => pe.length === 0);
+}
+
 console.log(`\n═══ Horizon UAT: ${pass}/${pass + fail} passed ═══`);
 if (fails.length) console.log('\nFAILURES:\n' + fails.map(f => '  ' + f).join('\n'));
 if (ce.length) console.log('\nCONSOLE ERRORS:\n' + [...new Set(ce)].slice(0, 10).map(e => '  • ' + e).join('\n'));

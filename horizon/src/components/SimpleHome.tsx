@@ -176,20 +176,38 @@ export default function SimpleHome({ plan, update, dd, mc, onDetails, header }: 
                   )}
                   <div className="flex gap-1.5 w-full">
                     <button type="button" aria-label={`${d.label}: ${d.less}`} disabled={n <= d.val.min} onClick={() => write(d.id, (_v, cur) => cur - d.step)}
-                      className="flex-1 h-9 rounded-full flex items-center justify-center disabled:opacity-30" style={{ background: 'var(--color-canvas)', border: '1px solid var(--color-hairline)', color: 'var(--color-ink)' }}><Minus size={16} /></button>
+                      className="flex-1 h-8 rounded-full flex items-center justify-center disabled:opacity-30" style={{ background: 'var(--color-canvas)', border: '1px solid var(--color-hairline)', color: 'var(--color-ink)' }}><Minus size={16} /></button>
                     <button type="button" aria-label={`${d.label}: ${d.more}`} disabled={n >= d.val.max} onClick={() => write(d.id, (_v, cur) => cur + d.step)}
-                      className="flex-1 h-9 rounded-full flex items-center justify-center disabled:opacity-30" style={{ background: 'var(--color-canvas)', border: '1px solid var(--color-hairline)', color: 'var(--color-ink)' }}><Plus size={16} /></button>
+                      className="flex-1 h-8 rounded-full flex items-center justify-center disabled:opacity-30" style={{ background: 'var(--color-canvas)', border: '1px solid var(--color-hairline)', color: 'var(--color-ink)' }}><Plus size={16} /></button>
                   </div>
                 </div>);
             })}
           </section>
         )}
 
+        {/* ── Spending less in later life (owner, 17 November 2026: "add toggles for reduce
+            spend at 75 and 82"). The same settings as Details → Spending; the percentages are
+            measured against the full retirement spend, so the later one is the total, not a cut
+            on top of the first. ──────────────────────────────────────────── */}
+        {hasMoney && (
+          <div className="mt-2 grid grid-cols-2 gap-2" role="group" aria-label="Spend less in later life">
+            {([['phase1', plan.phase1Age, plan.phase1Cut, !!plan.phase1On], ['phase2', plan.phase2Age, plan.phase2Cut, !!plan.phase2On]] as const).map(([k, age, cut, on]) => (
+              <button key={k} type="button" role="switch" aria-checked={on} data-step-down={k}
+                aria-label={`Spend ${Math.round(cut * 100)}% less from ${age}${k === 'phase2' ? ', in total' : ''}`}
+                onClick={() => update((p: any) => ({ ...p, [k + 'On']: !on }))}
+                className="flex items-center justify-center gap-1.5 rounded-full min-h-[36px] px-2 text-[0.78rem] [@media(max-width:379px)]:text-[0.72rem] font-semibold"
+                style={{ background: on ? 'color-mix(in srgb, var(--color-calm) 12%, var(--color-canvas))' : 'var(--color-canvas)', border: `1px solid ${on ? 'var(--color-calm)' : 'var(--color-hairline)'}`, color: on ? 'var(--color-calm-strong)' : 'var(--color-ink-dim)' }}>
+                <span aria-hidden className="inline-flex items-center justify-center w-4 h-4 rounded-full text-[0.65rem]" style={{ background: on ? 'var(--color-calm)' : 'transparent', border: on ? 'none' : '1px solid var(--color-ink-faint)', color: 'var(--color-on-calm)' }}>{on ? '✓' : ''}</span>
+                {Math.round(cut * 100)}% less from {age}
+              </button>))}
+          </div>
+        )}
+
         {/* ── Two questions, one tap each ────────────────────────────── */}
         {hasMoney && (
           <div className="mt-3 [@media(max-height:760px)]:mt-2 grid grid-cols-2 gap-3">
-            <button type="button" onClick={() => setPanel('help')} className="rounded-2xl py-3 px-1 min-h-[48px] text-[0.86rem] [@media(max-width:379px)]:text-[0.8rem] font-semibold" style={{ background: 'var(--color-canvas)', border: '1px solid var(--color-calm)', color: 'var(--color-calm-strong)' }}>What would help?</button>
-            <button type="button" onClick={() => setPanel('risk')} className="rounded-2xl py-3 px-1 min-h-[48px] text-[0.86rem] [@media(max-width:379px)]:text-[0.8rem] font-semibold" style={{ background: 'var(--color-canvas)', border: '1px solid var(--color-calm)', color: 'var(--color-calm-strong)' }}>What could go wrong?</button>
+            <button type="button" onClick={() => setPanel('help')} className="rounded-2xl py-2.5 px-1 min-h-[44px] text-[0.86rem] [@media(max-width:379px)]:text-[0.8rem] font-semibold" style={{ background: 'var(--color-canvas)', border: '1px solid var(--color-calm)', color: 'var(--color-calm-strong)' }}>What would help?</button>
+            <button type="button" onClick={() => setPanel('risk')} className="rounded-2xl py-2.5 px-1 min-h-[44px] text-[0.86rem] [@media(max-width:379px)]:text-[0.8rem] font-semibold" style={{ background: 'var(--color-canvas)', border: '1px solid var(--color-calm)', color: 'var(--color-calm-strong)' }}>What could go wrong?</button>
           </div>
         )}
       </div>

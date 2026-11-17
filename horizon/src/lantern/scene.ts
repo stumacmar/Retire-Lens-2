@@ -4,7 +4,7 @@ import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import type { LanternModel, SourceKey, WindowState } from './model';
-import { MEDIAN_WINDOW, WINDOWS } from './model';
+import { MEDIAN_WINDOW, WINDOWS } from './adapter';
 
 /**
  * The Lantern, drawn: a four-sided glass tower of retirement years. One
@@ -13,41 +13,54 @@ import { MEDIAN_WINDOW, WINDOWS } from './model';
  * square-on, and turning the tower is how the lens changes:
  *
  *   0 front  "Will it pay?"         20 windows a floor, worst future to best
- *   1 right  "Where it comes from"  the middle future's income by source
+ *   1 right  "Where it comes from"  the central case's spending by source
  *   2 back   "What's left"          money left: middle bar, 10th to 90th halo
  *   3 left   "Stress"               the windows again, under the stress
+ *
+ * The floor you tap opens up: it and its neighbours grow taller, so its 20
+ * windows are large enough to count and their states can be told apart by
+ * shape as well as colour (full height, half height, dark with an ember
+ * foot). The other floors stay slim: texture that shows where the lights go
+ * out, not marks to be read one by one.
  *
  * Framework-free: it is given a host element, an overlay for text labels and
  * a view model, and knows nothing about React or the engine.
  */
 const W0 = 20;          // width of the widest floor, in window cells
-const H = 1;            // height of a floor
+const GAP = 0.4;        // dark band between one floor's windows and the next
 const EPS = 0.03;       // how far face content sits outside the glass
 const FOV = 22;
 const TILT = (8 * Math.PI) / 180;   // seen slightly from below
 const QUARTER = Math.PI / 2;
+/** Height of the open floor, its neighbours and theirs; every other floor is 1. */
+const OPEN = [3.4, 1.7, 1.25];
+const EXTRA = (OPEN[0] - 1) + 2 * (OPEN[1] - 1) + 2 * (OPEN[2] - 1);
 /** Outward normal of each face as (x, z). */
 const NORMALS: [number, number][] = [[0, 1], [1, 0], [0, -1], [-1, 0]];
+/** Which corners carry which State Pension: one of each on every face. */
+const CORNERS: Record<'sp' | 'partnerSp', [number, number][]> = { sp: [[-1, 1], [1, -1]], partnerSp: [[1, 1], [-1, -1]] };
 
 const hex = (h: number, k = 1) => new THREE.Color(h).multiplyScalar(k);
+const WHITE = new THREE.Color(1, 1, 1);
 const COL = {
   full: hex(0xffb02e, 0.95),
-  floor: hex(0xcfe0ff, 0.6),
+  floor: hex(0xcfe0ff, 0.62),
   short: hex(0x0b1226, 1),
-  ember: hex(0xe2553a, 0.8),
-  ring: hex(0xffffff, 0.85),
-  essential: hex(0xbfe6ff, 0.7),
-  halo: hex(0x3d5fb8, 0.55),
-  wealth: hex(0x8fdcff, 0.9),
+  ember: hex(0xe2553a, 0.85),
+  median: hex(0xffffff, 0.9),
+  halo: hex(0x4f74d8, 0.62),
+  wealth: hex(0x8fdcff, 0.95),
   marker: hex(0xffffff, 1.0),
 };
 const SOURCE_COL: Record<SourceKey, THREE.Color> = {
-  gilt: hex(0xffa62e, 0.9), equity: hex(0x3fd8ff, 0.8), gold: hex(0xf2d06b, 0.8), mmf: hex(0xb9c2d0, 0.7),
-  sp: hex(0x9a6bff, 0.95), partnerSp: hex(0xcdb4ff, 0.8), work: hex(0x55e08a, 0.85), downsize: hex(0xf6f5ea, 0.9),
+  pension: hex(0x3fd8ff, 0.8), isa: hex(0xf2d06b, 0.8), cash: hex(0xb9c2d0, 0.7), scheme: hex(0xffa62e, 0.9),
+  work: hex(0x55e08a, 0.85), sp: hex(0x9a6bff, 0.95), partnerSp: hex(0xcdb4ff, 0.8),
 };
+const STRIP_COL = { sp: SOURCE_COL.sp.clone().multiplyScalar(0.8), partnerSp: SOURCE_COL.partnerSp.clone().multiplyScalar(0.75) };
 const RANK: Record<WindowState, number> = { short: 0, floor: 1, full: 2 };
 
-type Quad = { m: THREE.Matrix4; c: THREE.Color };
+type Inst = { m: THREE.Matrix4; c: THREE.Color };
+type Layer = 'quads' | 'frames' | 'glass' | 'rims' | 'strips' | 'stone' | 'amber';
 
 export type SceneOpts = {
   reducedMotion: boolean;
@@ -57,22 +70,27 @@ export type SceneOpts = {
   onLost: () => void;
 };
 
+const UP = new THREE.Vector3(0, 1, 0), NOROT = new THREE.Quaternion();
+
 export class LanternScene {
   private renderer: THREE.WebGLRenderer;
   private composer: EffectComposer;
-  private bloom: UnrealBloomPass;
   private scene = new THREE.Scene();
   private camera = new THREE.PerspectiveCamera(FOV, 1, 1, 600);
   private tower = new THREE.Group();
   private dust: THREE.Points | null = null;
-  private selBox: THREE.LineSegments | null = null;
+  private meshes = new Map<Layer, THREE.InstancedMesh>();
+  private edges: THREE.LineSegments | null = null;
   private labels: { el: HTMLSpanElement; floor: number }[] = [];
   private selLabel: HTMLSpanElement;
-  private w: number[] = [];
   private n: number;
+  private w: number[] = [];
+  private maxSpend = 1;
+  private h: number[] = []; private y: number[] = []; private total = 0;
+  private grow: { from: number[]; to: number[]; t0: number; dur: number } | null = null;
   private cw = 1; private ch = 1;
   private rot = 0; private zoom = 1;
-  private tween: { from: number; to: number; t0: number; dur: number } | null = null;
+  private turn: { from: number; to: number; t0: number; dur: number } | null = null;
   private raf = 0; private idle = 0;
   private selected = -1;
   private pointers = new Map<number, { x: number; y: number }>();
@@ -84,6 +102,10 @@ export class LanternScene {
 
   constructor(private host: HTMLElement, private overlay: HTMLElement, private model: LanternModel, private opts: SceneOpts) {
     this.n = model.floors.length;
+    this.maxSpend = Math.max(1, ...model.floors.map(f => f.spend));
+    this.w = model.floors.map(f => Math.max(4, (W0 * f.spend) / this.maxSpend));
+    this.setHeights(new Array(this.n).fill(1));
+
     this.renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
     const el = this.renderer.domElement;
@@ -95,16 +117,16 @@ export class LanternScene {
     this.scene.add(new THREE.AmbientLight(0xffffff, 0.5));
     const sun = new THREE.DirectionalLight(0xffe2b8, 1.2); sun.position.set(-10, 24, 30); this.scene.add(sun);
     this.scene.add(this.tower);
-    this.build();
+    this.buildDust();
+    this.buildLabels();
+    this.selLabel = this.makeLabel(true);
+    this.selLabel.style.display = 'none';
+    this.apply();
 
     this.composer = new EffectComposer(this.renderer);
     this.composer.addPass(new RenderPass(this.scene, this.camera));
-    this.bloom = new UnrealBloomPass(new THREE.Vector2(256, 256), 0.38, 0.28, 0.34);
-    this.composer.addPass(this.bloom);
+    this.composer.addPass(new UnrealBloomPass(new THREE.Vector2(256, 256), 0.38, 0.28, 0.34));
     this.composer.addPass(new OutputPass());
-
-    this.selLabel = this.makeLabel(true);
-    this.selLabel.style.display = 'none';
 
     el.addEventListener('pointerdown', this.onDown);
     el.addEventListener('pointermove', this.onMove);
@@ -122,173 +144,171 @@ export class LanternScene {
     }, 100);
   }
 
-  // ── Building the tower ──────────────────────────────────────────────────
-  private quad(face: number, floor: number, u: number, yc: number, sx: number, sy: number, c: THREE.Color, out = 0): Quad {
+  // ── Layout: how tall each floor is ──────────────────────────────────────
+  private setHeights(h: number[]) {
+    this.h = h; let y = 0;
+    this.y = h.map(v => { const b = y; y += v; return b; });
+    this.total = y;
+  }
+
+  private heightsFor(sel: number) {
+    return this.model.floors.map((_f, i) => { const d = Math.abs(i - sel); return sel >= 0 && d < OPEN.length ? OPEN[d] : 1; });
+  }
+
+  // ── Composing the tower for the current layout ──────────────────────────
+  private quad(face: number, floor: number, u: number, yc: number, sx: number, sy: number, c: THREE.Color, out = 0): Inst {
     const [nx, nz] = NORMALS[face], d = this.w[floor] / 2 + EPS + out;
-    const m = new THREE.Matrix4().compose(
-      new THREE.Vector3(nx * d + nz * u, yc, nz * d - nx * u),
-      new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.atan2(nx, nz)),
-      new THREE.Vector3(sx, sy, 1));
-    return { m, c };
+    return {
+      m: new THREE.Matrix4().compose(
+        new THREE.Vector3(nx * d + nz * u, yc, nz * d - nx * u),
+        new THREE.Quaternion().setFromAxisAngle(UP, Math.atan2(nx, nz)),
+        new THREE.Vector3(sx, sy, 1)),
+      c,
+    };
   }
 
-  private instanced(geo: THREE.BufferGeometry, quads: Quad[], mat?: THREE.Material) {
-    const mesh = new THREE.InstancedMesh(geo, mat || new THREE.MeshBasicMaterial({ toneMapped: false }), Math.max(1, quads.length));
-    mesh.count = quads.length;
-    quads.forEach((q, i) => { mesh.setMatrixAt(i, q.m); mesh.setColorAt(i, q.c); });
-    mesh.instanceMatrix.needsUpdate = true;
-    if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
-    mesh.frustumCulled = false;
-    this.tower.add(mesh);
-    return mesh;
+  private box(x: number, y: number, z: number, sx: number, sy: number, sz: number, c?: THREE.Color): Inst {
+    return { m: new THREE.Matrix4().compose(new THREE.Vector3(x, y, z), NOROT, new THREE.Vector3(sx, sy, sz)), c: c || WHITE };
   }
 
-  private build() {
+  private compose() {
     const M = this.model, F = M.floors, n = this.n;
-    const maxSpend = Math.max(...F.map(f => f.spend));
-    this.w = F.map(f => (W0 * f.spend) / maxSpend);
-    const wMin = Math.min(...this.w), we = (W0 * M.essential) / maxSpend;
+    const L: Record<Layer, Inst[]> = { quads: [], frames: [], glass: [], rims: [], strips: [], stone: [], amber: [] };
+    const edge: number[] = [];
+    const wMin = Math.min(...this.w);
+    const maxP90 = Math.max(1, ...F.map(f => f.wealth.p90)), wScale = (wMin * 0.94) / maxP90, u0 = -(wMin * 0.94) / 2;
 
-    const quads: Quad[] = [], rings: Quad[] = [], frames: Quad[] = [];
     const windowsOn = (face: number, i: number, states: WindowState[], base?: WindowState[]) => {
-      const cw = this.w[i] / WINDOWS, yc = i * H + H / 2;
+      const cw = this.w[i] / WINDOWS, body = this.h[i] - GAP, yb = this.y[i] + GAP / 2, mid = yb + body / 2;
       states.forEach((s, j) => {
         const u = (j - (WINDOWS - 1) / 2) * cw;
-        // Never colour alone: essentials-only windows are smaller and softer, dark ones carry an ember edge.
-        if (s === 'full') quads.push(this.quad(face, i, u, yc, cw * 0.68, 0.58, COL.full));
-        else if (s === 'floor') quads.push(this.quad(face, i, u, yc, cw * 0.46, 0.4, COL.floor));
+        // Never colour alone: an essentials-only window is half the height and narrower; a dark one has an ember foot.
+        if (s === 'full') L.quads.push(this.quad(face, i, u, mid, cw * 0.68, body, COL.full));
+        else if (s === 'floor') L.quads.push(this.quad(face, i, u, yb + body * 0.25, cw * 0.5, body * 0.5, COL.floor));
         else {
-          quads.push(this.quad(face, i, u, yc, cw * 0.74, 0.62, COL.short));
-          quads.push(this.quad(face, i, u, yc - 0.27, cw * 0.74, 0.08, COL.ember, 0.005));
+          L.quads.push(this.quad(face, i, u, mid, cw * 0.68, body, COL.short));
+          L.quads.push(this.quad(face, i, u, yb + 0.04, cw * 0.68, 0.08, COL.ember, 0.005));
         }
-        if (j === MEDIAN_WINDOW) rings.push(this.quad(face, i, u, yc, cw * 1.02, 0.96, COL.ring, 0.012));
         // The ghost of the base plan: an outline where a light that was on has dimmed or gone out.
-        if (base && RANK[s] < RANK[base[j]]) frames.push(this.quad(face, i, u, yc, cw * 0.82, 0.7, (base[j] === 'full' ? COL.full : COL.floor).clone().multiplyScalar(0.42), 0.012));
+        if (base && RANK[s] < RANK[base[j]]) L.frames.push(this.quad(face, i, u, mid, cw * 0.82, (body + 0.08) / 0.962, (base[j] === 'full' ? COL.full : COL.floor).clone().multiplyScalar(0.7), 0.012));
+        // The middle future, marked on the open floor only.
+        if (i === this.selected && j === MEDIAN_WINDOW) L.frames.push(this.quad(face, i, u, mid, cw * 0.99, (body + 0.26) / 0.962, COL.median, 0.016));
       });
     };
 
-    const maxP90 = Math.max(...F.map(f => f.wealth.p90), 1), wScale = (wMin * 0.94) / maxP90, u0 = -(wMin * 0.94) / 2;
     F.forEach((f, i) => {
-      const w = this.w[i], yc = i * H + H / 2;
+      const w = this.w[i], hh = this.h[i], y0 = this.y[i], body = hh - GAP, mid = y0 + hh / 2;
       windowsOn(0, i, f.windows);
       windowsOn(3, i, f.stress, f.windows);
 
-      // Face 1: the middle future's income by source, left to right; a gap at the right is a shortfall.
-      const scale = (w * 0.94) / f.spend; let x = -(w * 0.94) / 2;
+      // Face 1: the central case's spending by source, left to right; a gap at the right is a shortfall.
+      // (A structured plan's rules can raise spending above the plan in good futures; the row is then scaled to fit.)
+      const scale = (w * 0.94) / Math.max(1, f.spend, f.sources.reduce((a, s) => a + s.amount, 0)); let x = -(w * 0.94) / 2;
       for (const s of f.sources) {
         const len = s.amount * scale;
-        if (len > 0.12) quads.push(this.quad(1, i, x + len / 2, yc, len - 0.06, 0.62, SOURCE_COL[s.key]));
+        if (len > 0.12) L.quads.push(this.quad(1, i, x + len / 2, mid, len - 0.06, body, SOURCE_COL[s.key]));
         x += len;
       }
 
-      // Face 2: money left. A soft halo from the 10th to the 90th percentile, the middle as a bright bar.
+      // Face 2: money left. A halo from the 10th to the 90th percentile, the middle as a bright bar.
       const { p10, p50, p90 } = f.wealth;
-      if (p90 > p10) quads.push(this.quad(2, i, u0 + ((p10 + p90) / 2) * wScale, yc, (p90 - p10) * wScale, 0.62, COL.halo));
-      if (p50 > 0) quads.push(this.quad(2, i, u0 + (p50 / 2) * wScale, yc, p50 * wScale, 0.26, COL.wealth, 0.01));
-      if (i === n - 1) quads.push(this.quad(2, i, u0 + p50 * wScale, yc, 0.34, 0.9, COL.marker, 0.02));
+      if (p90 > p10) L.quads.push(this.quad(2, i, u0 + ((p10 + p90) / 2) * wScale, mid, Math.max(0.1, (p90 - p10) * wScale), body, COL.halo));
+      if (p50 > 0) L.quads.push(this.quad(2, i, u0 + (p50 / 2) * wScale, mid, Math.max(0.1, p50 * wScale), body * 0.45, COL.wealth, 0.01));
+      if (i === n - 1) L.quads.push(this.quad(2, i, u0 + p50 * wScale, mid, 0.34, body + 0.3, COL.marker, 0.02));
 
-      // The essential floor: a thin bright line up both sides of every face.
-      const ue = Math.min(we, w - 0.1) / 2;
-      for (let face = 0; face < 4; face++) for (const sgn of [-1, 1]) quads.push(this.quad(face, i, sgn * ue, yc, 0.07, H, COL.essential, 0.016));
-    });
+      // Glass: a low-opacity box, a rim under it (not a slab, so nothing hides the floor above), bright corner edges.
+      L.glass.push(this.box(0, mid, 0, w, hh * 0.98, w));
+      for (const sgn of [-1, 1]) { L.rims.push(this.box(0, y0, sgn * w / 2, w + 0.12, 0.05, 0.12)); L.rims.push(this.box(sgn * w / 2, y0, 0, 0.12, 0.05, w + 0.12)); }
+      for (const sx of [-1, 1]) for (const sz of [-1, 1]) edge.push(sx * w / 2, y0, sz * w / 2, sx * w / 2, y0 + hh, sz * w / 2);
 
-    const plane = new THREE.PlaneGeometry(1, 1);
-    this.instanced(plane, quads);
-    this.instanced(new THREE.RingGeometry(0.42, 0.47, 28), rings);
-    this.instanced(new THREE.RingGeometry(0.6, 0.68, 4, 1, Math.PI / 4), frames);
-
-    // Glass: low-opacity faces, thin bright edges, a plate under every floor.
-    const box = new THREE.BoxGeometry(1, 1, 1);
-    const at = (x: number, y: number, z: number, sx: number, sy: number, sz: number): Quad =>
-      ({ m: new THREE.Matrix4().compose(new THREE.Vector3(x, y, z), new THREE.Quaternion(), new THREE.Vector3(sx, sy, sz)), c: new THREE.Color(1, 1, 1) });
-    this.instanced(box, this.w.map((w, i) => at(0, i * H + H / 2, 0, w, H * 0.98, w)),
-      new THREE.MeshBasicMaterial({ color: 0x1c2f66, transparent: true, opacity: 0.16, depthWrite: false }));
-    // A rim under every floor rather than a slab, so the core stays visible from below.
-    const rims: Quad[] = [];
-    [...this.w.map((w, i) => [w, i * H] as [number, number]), [this.w[n - 1], n * H] as [number, number]].forEach(([w, y]) => {
-      for (const sgn of [-1, 1]) { rims.push(at(0, y, sgn * w / 2, w + 0.12, 0.05, 0.12)); rims.push(at(sgn * w / 2, y, 0, 0.12, 0.05, w + 0.12)); }
-    });
-    this.instanced(box, rims, new THREE.MeshBasicMaterial({ color: 0x3a52a0 }));
-    const edge: number[] = [];
-    this.w.forEach((w, i) => { for (const sx of [-1, 1]) for (const sz of [-1, 1]) edge.push(sx * w / 2, i * H, sz * w / 2, sx * w / 2, (i + 1) * H, sz * w / 2); });
-    this.tower.add(lines(edge, 0x8fb0ff, 0.6));
-
-    // The gilt ladder: a warm stone plinth with corner buttresses; where it ends is a visible event.
-    const stone = new THREE.MeshLambertMaterial({ color: 0x6e5536, emissive: 0x1c1004 });
-    const amber = new THREE.MeshBasicMaterial({ color: hex(0xffb347, 0.9), toneMapped: false });
-    const add = (g: THREE.BufferGeometry, mat: THREE.Material, x: number, y: number, z: number) => { const m = new THREE.Mesh(g, mat); m.position.set(x, y, z); this.tower.add(m); return m; };
-    add(new THREE.BoxGeometry(W0 + 3.2, 0.5, W0 + 3.2), stone, 0, -0.25, 0);
-    const gh = M.giltFloors * H, c = W0 / 2 + 0.45;
-    if (gh > 0) {
-      for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
-        add(new THREE.BoxGeometry(1.5, gh, 1.5), stone, sx * c, gh / 2, sz * c);
-        add(new THREE.BoxGeometry(1.5, 0.1, 1.5), amber, sx * c, gh + 0.05, sz * c);
+      // The State Pensions: strips of light up the corners from the year each starts, as thick as the income.
+      for (const sp of M.spines) {
+        if (i < sp.fromFloor) continue;
+        const side = Math.max(0.16, Math.min(0.42, ((W0 * sp.income) / this.maxSpend) * 0.07));
+        for (const [sx, sz] of CORNERS[sp.key]) L.strips.push(this.box(sx * (w / 2 + side / 2), mid, sz * (w / 2 + side / 2), side, hh, side, STRIP_COL[sp.key]));
       }
-      const band = W0 + 0.9;
-      for (const s of [-1, 1]) {
-        add(new THREE.BoxGeometry(band, 0.09, 0.09), amber, 0, gh, s * (W0 / 2 + 0.2));
-        add(new THREE.BoxGeometry(0.09, 0.09, band), amber, s * (W0 / 2 + 0.2), gh, 0);
-      }
-    }
-
-    // The working years: dim scaffolding under the tower.
-    const sc: number[] = [], sw = (W0 * 0.9) / 2;
-    for (let l = 0; l < M.workingYears; l++) {
-      const y1 = -0.5 - l * H, y0 = y1 - H;
-      const corners: [number, number][] = [[-sw, -sw], [sw, -sw], [sw, sw], [-sw, sw]];
-      corners.forEach(([x, z], k) => {
-        const [x2, z2] = corners[(k + 1) % 4];
-        sc.push(x, y0, z, x, y1, z, x, y0, z, x2, y0, z2, x, y0, z, x2, y1, z2);
-      });
-    }
-    if (sc.length) this.tower.add(lines(sc, 0x5b6c9c, 0.45));
-
-    // The State Pensions: glowing spines in the core, as thick as the income they bring.
-    const spineW = M.spines.map(s => (W0 * s.income) / maxSpend);
-    M.spines.forEach((s, k) => {
-      const a = spineW[k], y0 = s.fromFloor * H, y1 = n * H + (s.key === 'sp' ? 0.9 : 0.5);
-      const x = M.spines.length === 1 ? 0 : s.key === 'sp' ? a / 2 + 0.25 : -(a / 2 + 0.25);
-      add(new THREE.BoxGeometry(a, y1 - y0, a), new THREE.MeshBasicMaterial({ color: SOURCE_COL[s.key].clone().multiplyScalar(0.24), toneMapped: false }), x, (y0 + y1) / 2, 0);
-      const lit = new THREE.MeshBasicMaterial({ color: SOURCE_COL[s.key], toneMapped: false });
-      add(new THREE.BoxGeometry(a, 0.14, a), lit, x, y0 + 0.07, 0);
-      add(new THREE.BoxGeometry(a, 0.3, a), lit, x, y1 - 0.15, 0);
     });
+    const wt = this.w[n - 1];
+    for (const sgn of [-1, 1]) { L.rims.push(this.box(0, this.total, sgn * wt / 2, wt + 0.12, 0.08, 0.12)); L.rims.push(this.box(sgn * wt / 2, this.total, 0, 0.12, 0.08, wt + 0.12)); }
 
-    // Faint dust, far and near.
-    if (!this.opts.reducedMotion) {
-      const p: number[] = []; let seed = 7;
-      const rnd = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
-      for (let i = 0; i < 240; i++) p.push((rnd() - 0.5) * 70, -8 + rnd() * (n + 16), (rnd() - 0.5) * 70);
-      const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(p, 3));
-      this.dust = new THREE.Points(g, new THREE.PointsMaterial({ color: 0x8ea4e6, size: 1.1 * Math.min(window.devicePixelRatio || 1, 2), sizeAttenuation: false, transparent: true, opacity: 0.3, depthWrite: false }));
-      this.scene.add(this.dust);
+    // The ground, and a structured plan's safe ladder: stone buttresses as tall as the years it holds, capped in amber.
+    L.stone.push(this.box(0, -0.25, 0, W0 + 4.4, 0.5, W0 + 4.4));
+    const lf = Math.min(n, M.ladderFloors), gh = lf > 0 ? this.y[lf - 1] + this.h[lf - 1] : 0, c = W0 / 2 + 1.35;
+    for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
+      L.stone.push(this.box(sx * c, gh / 2, sz * c, 1.3, Math.max(0.001, gh), 1.3));
+      L.amber.push(this.box(sx * c, gh + 0.05, sz * c, 1.3, gh > 0 ? 0.1 : 0.001, 1.3));
     }
+    return { L, edge };
+  }
 
-    // Age labels (text stays in the page, so it is crisp and the glow never touches it).
-    let prev = -1;
+  /** Write the composed tower into the meshes (made on first use; the counts never change after that). */
+  private apply() {
+    const { L, edge } = this.compose();
+    const make = (layer: Layer): THREE.InstancedMesh => {
+      const cap = L[layer].length + (layer === 'frames' ? 2 : 0);
+      const geo = layer === 'quads' ? new THREE.PlaneGeometry(1, 1) : layer === 'frames' ? new THREE.RingGeometry(0.6, 0.68, 4, 1, Math.PI / 4) : new THREE.BoxGeometry(1, 1, 1);
+      const mat = layer === 'glass' ? new THREE.MeshBasicMaterial({ color: 0x1c2f66, transparent: true, opacity: 0.16, depthWrite: false })
+        : layer === 'rims' ? new THREE.MeshBasicMaterial({ color: 0x3a52a0 })
+          : layer === 'stone' ? new THREE.MeshLambertMaterial({ color: 0x6e5536, emissive: 0x1c1004 })
+            : layer === 'amber' ? new THREE.MeshBasicMaterial({ color: hex(0xffb347, 0.9), toneMapped: false })
+              : new THREE.MeshBasicMaterial({ toneMapped: false });
+      const mesh = new THREE.InstancedMesh(geo, mat, Math.max(1, cap));
+      mesh.frustumCulled = false;
+      this.tower.add(mesh); this.meshes.set(layer, mesh);
+      return mesh;
+    };
+    (Object.keys(L) as Layer[]).forEach(layer => {
+      const mesh = this.meshes.get(layer) || make(layer), list = L[layer];
+      const count = Math.min(list.length, mesh.instanceMatrix.count);
+      for (let i = 0; i < count; i++) { mesh.setMatrixAt(i, list[i].m); mesh.setColorAt(i, list[i].c); }
+      mesh.count = count;
+      mesh.instanceMatrix.needsUpdate = true;
+      if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+    });
+    if (!this.edges) {
+      const g = new THREE.BufferGeometry();
+      g.setAttribute('position', new THREE.Float32BufferAttribute(edge, 3));
+      this.edges = new THREE.LineSegments(g, new THREE.LineBasicMaterial({ color: 0x8fb0ff, transparent: true, opacity: 0.6 }));
+      this.edges.frustumCulled = false; this.tower.add(this.edges);
+    } else {
+      const a = this.edges.geometry.getAttribute('position') as THREE.BufferAttribute;
+      (a.array as Float32Array).set(edge); a.needsUpdate = true;
+    }
+  }
+
+  private buildDust() {
+    if (this.opts.reducedMotion) return;
+    const p: number[] = []; let seed = 7;
+    const rnd = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
+    for (let i = 0; i < 240; i++) p.push((rnd() - 0.5) * 70, -8 + rnd() * (this.n + 16), (rnd() - 0.5) * 70);
+    const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(p, 3));
+    this.dust = new THREE.Points(g, new THREE.PointsMaterial({ color: 0x8ea4e6, size: 1.1 * Math.min(window.devicePixelRatio || 1, 2), sizeAttenuation: false, transparent: true, opacity: 0.3, depthWrite: false }));
+    this.scene.add(this.dust);
+  }
+
+  /** Age labels (text stays in the page, so it is crisp and the glow never touches it). */
+  private buildLabels() {
+    const F = this.model.floors;
     F.forEach((f, i) => {
       const step = i > 0 && f.spend !== F[i - 1].spend;
-      if (!(i % 5 === 0 || step || i === n - 1)) return;
+      if (!(f.age % 5 === 0 || step || i === 0 || i === this.n - 1)) return;
+      if (i > 0 && this.labels.length && this.labels[this.labels.length - 1].floor === i - 1) return;   // never two on adjacent floors
       const el = this.makeLabel(false);
       el.textContent = f.partnerAge != null ? `${f.age} · ${f.partnerAge}` : String(f.age);
-      this.labels.push({ el, floor: i }); prev = i;
+      this.labels.push({ el, floor: i });
     });
-    void prev;
   }
 
   private makeLabel(strong: boolean) {
     const el = document.createElement('span');
     el.setAttribute('aria-hidden', 'true');
-    el.style.cssText = `position:absolute;left:0;top:0;white-space:nowrap;pointer-events:none;font-variant-numeric:tabular-nums;line-height:1;transform-origin:right center;` +
+    el.style.cssText = `position:absolute;left:0;top:0;white-space:nowrap;pointer-events:none;font-variant-numeric:tabular-nums;line-height:1;` +
       (strong ? 'font-size:11px;font-weight:700;color:#ffffff;background:#16224a;border-radius:6px;padding:3px 5px;' : 'font-size:10px;font-weight:600;color:#9fb0d9;');
     this.overlay.appendChild(el);
     return el;
   }
 
   // ── Camera and drawing ──────────────────────────────────────────────────
-  private get bottom() { return -0.5 - this.model.workingYears * H; }
-  private get top() { return this.n * H + 1.2; }
-
   private resize() {
     if (this.disposed) return;
     const r = this.host.getBoundingClientRect();
@@ -300,12 +320,14 @@ export class LanternScene {
   }
 
   private fit() {
+    // Framed for the tallest the tower gets (a floor open), so opening a floor never rescales it.
+    const top = this.n + EXTRA + 0.4, bottom = -0.5;
     const t = Math.tan((FOV * Math.PI) / 360);
-    const halfH = ((this.top - this.bottom) / 2) * 1.09, halfW = W0 / 2 + 2.2;
+    const halfH = ((top - bottom) / 2) * 1.14, halfW = W0 / 2 + 2.3;   // the near face stands taller than the axis
     // Room on both sides for the age labels, so the tower stays centred.
     const room = Math.max(0.2, (this.cw - 108) / this.ch);
     const d = Math.max(halfH / t, halfW / (t * room)) / this.zoom;
-    const cy = (this.top + this.bottom) / 2;
+    const cy = (top + bottom) / 2;
     this.camera.position.set(0, cy - d * Math.sin(TILT), d * Math.cos(TILT));
     this.camera.lookAt(0, cy, 0);
     this.camera.updateProjectionMatrix();
@@ -318,13 +340,14 @@ export class LanternScene {
     return [(v.x * 0.5 + 0.5) * this.cw, (-v.y * 0.5 + 0.5) * this.ch] as [number, number];
   }
 
-  /** Screen position of a floor: its vertical centre on the surface facing the camera, and its left and right silhouette. */
+  /** A floor on screen: its vertical extent on the surface facing the camera, and its left and right silhouette. */
   private floorOnScreen(i: number) {
-    const w = this.w[i], yc = i * H + H / 2, o = i < this.model.giltFloors ? W0 + 2.4 : w;   // clear the buttresses
+    const w = this.w[i], y0 = this.y[i], y1 = y0 + this.h[i], yc = (y0 + y1) / 2;
+    const o = i < this.model.ladderFloors ? W0 + 4 : w + 1;   // clear the buttresses and the corner strips
     let minX = Infinity, maxX = -Infinity;
     for (const sx of [-1, 1]) for (const sz of [-1, 1]) { const [x] = this.project(sx * o / 2, yc, sz * o / 2, true); minX = Math.min(minX, x); maxX = Math.max(maxX, x); }
-    const [, y] = this.project(0, yc, w / 2, false);
-    return { minX, maxX, y };
+    const [, top] = this.project(0, y1, w / 2, false), [, bot] = this.project(0, y0, w / 2, false);
+    return { minX, maxX, top, bot, y: (top + bot) / 2 };
   }
 
   private place(el: HTMLSpanElement, i: number) {
@@ -336,7 +359,10 @@ export class LanternScene {
     this.tower.rotation.y = this.rot;
     this.tower.updateMatrixWorld(true);
     this.composer.render();
-    for (const l of this.labels) { l.el.style.visibility = l.floor === this.selected ? 'hidden' : 'visible'; this.place(l.el, l.floor); }
+    for (const l of this.labels) {
+      const near = this.selected >= 0 && Math.abs(l.floor - this.selected) <= 1;
+      l.el.style.visibility = near ? 'hidden' : 'visible'; this.place(l.el, l.floor);
+    }
     if (this.selected >= 0) this.place(this.selLabel, this.selected);
   }
 
@@ -344,10 +370,16 @@ export class LanternScene {
     this.raf = 0;
     if (this.disposed) return;
     let moving = false;
-    if (this.tween) {
-      const k = Math.min(1, Math.max(0, (t - this.tween.t0) / this.tween.dur)), e = 1 - Math.pow(1 - k, 3);
-      this.rot = this.tween.from + (this.tween.to - this.tween.from) * e;
-      if (k >= 1) { this.tween = null; this.opts.onFace(this.face, true); } else { moving = true; this.opts.onFace(this.face, false); }
+    if (this.turn) {
+      const k = Math.min(1, Math.max(0, (t - this.turn.t0) / this.turn.dur)), e = 1 - Math.pow(1 - k, 3);
+      this.rot = this.turn.from + (this.turn.to - this.turn.from) * e;
+      if (k >= 1) { this.turn = null; this.opts.onFace(this.face, true); } else { moving = true; this.opts.onFace(this.face, false); }
+    }
+    if (this.grow) {
+      const g = this.grow, k = Math.min(1, Math.max(0, (t - g.t0) / g.dur)), e = 1 - Math.pow(1 - k, 3);
+      this.setHeights(g.to.map((v, i) => g.from[i] + (v - g.from[i]) * e));
+      this.apply();
+      if (k >= 1) this.grow = null; else moving = true;
     }
     this.draw();
     if (moving) this.raf = requestAnimationFrame(this.frame);
@@ -364,10 +396,10 @@ export class LanternScene {
       const el = this.renderer.domElement;
       el.style.transition = 'none'; el.style.opacity = '0.15'; void el.offsetWidth;
       el.style.transition = 'opacity 220ms ease'; el.style.opacity = '1';
-      this.tween = null; this.rot = target; this.opts.onFace(this.face, true); this.invalidate();
+      this.turn = null; this.rot = target; this.opts.onFace(this.face, true); this.invalidate();
       return;
     }
-    this.tween = { from: this.rot, to: target, t0: performance.now(), dur: 350 };
+    this.turn = { from: this.rot, to: target, t0: performance.now(), dur: 350 };
     this.invalidate();
   }
 
@@ -375,21 +407,23 @@ export class LanternScene {
   setLens(k: number) {
     const base = -k * QUARTER, turns = Math.round((this.rot - base) / (2 * Math.PI));
     const target = base + turns * 2 * Math.PI;
-    if (Math.abs(target - this.rot) < 1e-4 && !this.tween) return;
+    if (Math.abs(target - this.rot) < 1e-4 && !this.turn) return;
     this.turnTo(target);
   }
 
+  /** Open a floor: it and its neighbours grow, the rest stay slim. */
   select(i: number) {
-    this.selected = i >= 0 && i < this.n ? i : -1;
-    if (this.selBox) { this.tower.remove(this.selBox); this.selBox.geometry.dispose(); (this.selBox.material as THREE.Material).dispose(); this.selBox = null; }
-    if (this.selected < 0) { this.selLabel.style.display = 'none'; this.invalidate(); return; }
-    const f = this.model.floors[this.selected], w = this.w[this.selected] + 0.3;
-    const g = new THREE.EdgesGeometry(new THREE.BoxGeometry(w, H, w));
-    this.selBox = new THREE.LineSegments(g, new THREE.LineBasicMaterial({ color: hex(0xffffff, 1.6), toneMapped: false }));
-    this.selBox.position.set(0, this.selected * H + H / 2, 0);
-    this.tower.add(this.selBox);
-    this.selLabel.textContent = f.partnerAge != null ? `${f.age} · ${f.partnerAge}` : String(f.age);
-    this.selLabel.style.display = '';
+    const next = i >= 0 && i < this.n ? i : -1;
+    if (next === this.selected && !this.grow) return;
+    this.selected = next;
+    if (next >= 0) {
+      const f = this.model.floors[next];
+      this.selLabel.textContent = f.partnerAge != null ? `${f.age} · ${f.partnerAge}` : String(f.age);
+      this.selLabel.style.display = '';
+    } else this.selLabel.style.display = 'none';
+    const to = this.heightsFor(next);
+    if (this.opts.reducedMotion) { this.grow = null; this.setHeights(to); this.apply(); }
+    else this.grow = { from: this.h.slice(), to, t0: performance.now(), dur: 260 };
     this.invalidate();
   }
 
@@ -401,7 +435,7 @@ export class LanternScene {
       const [a, b] = [...this.pointers.values()];
       this.pinch = { d: Math.hypot(a.x - b.x, a.y - b.y) || 1, zoom: this.zoom }; this.drag = null;
     } else if (this.pointers.size === 1) {
-      this.tween = null;
+      this.turn = null;
       this.drag = { x: e.clientX, y: e.clientY, rot: this.rot, moved: false, lastX: e.clientX, lastT: e.timeStamp, v: 0 };
     }
   };
@@ -444,7 +478,8 @@ export class LanternScene {
     for (let i = 0; i < this.n; i++) {
       const p = this.floorOnScreen(i);
       if (x < p.minX - 28 || x > p.maxX + 28) continue;
-      const dy = Math.abs(p.y - y); if (dy < bd) { bd = dy; best = i; }
+      const dy = y < p.top ? p.top - y : y > p.bot ? y - p.bot : 0;
+      if (dy < bd) { bd = dy; best = i; }
     }
     if (best >= 0 && bd < 26) this.opts.onSelect(best);
   };
@@ -474,14 +509,6 @@ export class LanternScene {
     el.remove();
     this.overlay.replaceChildren();
   }
-}
-
-function lines(positions: number[], colour: number, opacity: number) {
-  const g = new THREE.BufferGeometry();
-  g.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
-  const l = new THREE.LineSegments(g, new THREE.LineBasicMaterial({ color: colour, transparent: true, opacity }));
-  l.frustumCulled = false;
-  return l;
 }
 
 /** Dark navy, a little lighter towards the foot of the tower. */

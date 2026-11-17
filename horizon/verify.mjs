@@ -241,6 +241,56 @@ for (const [name, P0] of Object.entries(shapes)) {
   check('L the shock travels with the result, and its absence is recorded', hit.shock && hit.shock.year === 1 && hit.shock.size === 0.3 && m2.shock === null);
 }
 
+// ── 5c. The Lantern's adapter (engine output -> view model), by hand ─────
+{
+  const { lanternModel, windowState, essentialOf, sourcesOf, countWindows, modelOk } = await import('./src/lantern/adapter.js');
+  const fill = (head, rest) => [...head, ...new Array(20 - head.length).fill(rest)];
+  const mcOfRows = (qs, left) => ({ perAgePaid: { ages: qs.map((q, i) => ({ age: 60 + i, q })) }, perAgeWealth: qs.map((_q, i) => left ? left[i] : { p10: 1, p50: 2, p90: 3 }) });
+  const counts = (m, i, which = 'windows') => { const c = countWindows(m.floors[i][which]); return `${c.short}/${c.floor}/${c.full}`; };
+
+  // Scenario A: no inflation, a flat £40,000 plan, essentials £30,000. Three years.
+  const rowsA = [0, 1, 2].map(i => ({ year: 2030 + i, ageA: 60 + i, ageB: 58 + i, planTarget: 40000, paid: 1, spA: 0, spB: 0 }));
+  const A = lanternModel({ plan: { household: 'couple', inflation: 0, startYear: 2026, targetNet: 40000 }, rows: rowsA, stress: null, essential: 30000,
+    mc: mcOfRows([fill([], 1), fill([0.5, 0.7, 0.74, 0.75, 0.8, 0.98, 0.99], 1), fill([], 0)]) });
+  check('A-lantern A year 1: every future pays in full, 0/0/20', counts(A, 0) === '0/0/20');
+  check('A-lantern A year 2: £20,000, £28,000 and £29,600 fall short; £30,000, £32,000 and £39,200 cover the essentials; 99% counts as full: 3/3/14', counts(A, 1) === '3/3/14');
+  check('A-lantern A year 3: nothing paid, 20/0/0', counts(A, 2) === '20/0/0');
+
+  // Scenario B: 2% inflation from 2026, £50,000 stepping down to £37,500, essentials £37,500 (the floor equals the stepped-down plan).
+  const f = y => Math.pow(1.02, y - 2026);
+  const rowsB = [[2030, 50000], [2045, 37500], [2046, 37500]].map(([y, t], i) => ({ year: y, ageA: 60 + (y - 2030), ageB: 62 + (y - 2030), planTarget: t * f(y), paid: 1, spA: i ? 12000 * f(y) : 0, spB: 9000 * f(y) }));
+  const B = lanternModel({ plan: { household: 'couple', inflation: 0.02, startYear: 2026, targetNet: 50000 }, rows: rowsB, stress: null, essential: 37500,
+    mc: mcOfRows([fill(new Array(10).fill(0.98), 1), fill(new Array(10).fill(0.98), 1), fill([0.74, 0.76], 1)]) });
+  check('A-lantern B spend is today’s money: £50,000 then £37,500', B.floors[0].spend === 50000 && B.floors[1].spend === 37500);
+  check('A-lantern B at the full plan, 98% (£49,000) covers the essentials: 0/10/10', counts(B, 0) === '0/10/10');
+  check('A-lantern B once the plan has stepped down to the essentials, 98% (£36,750) falls short: 10/0/10', counts(B, 1) === '10/0/10');
+  check('A-lantern B 74% and 76% of £37,500 both fall short of £37,500: 2/0/18', counts(B, 2) === '2/0/18');
+  check('A-lantern B the State Pensions start where the rows say, in today’s money', JSON.stringify(B.spines) === JSON.stringify([{ key: 'sp', fromFloor: 1, income: 12000 }, { key: 'partnerSp', fromFloor: 0, income: 9000 }]));
+
+  // Scenario C: one person, a stress run, sources and money left.
+  const rowC = { year: 2030, ageA: 66, ageB: 0, planTarget: 40000, paid: 1, spA: 12000, spB: 0, grossA: 20000, grossB: 0, tfcA: 5000, tfcB: 0, isaDraw: 3000 };
+  const C = lanternModel({ plan: { household: 'single', inflation: 0, startYear: 2030, targetNet: 40000 }, rows: [rowC, { ...rowC, year: 2031, ageA: 67, paid: 0.5 }, { ...rowC, year: 2032, ageA: 68 }], essential: 30000,
+    mc: mcOfRows([fill([], 1), fill([], 1), fill([0.6], 1)], [{ p10: -5, p50: 100.4, p90: 200.6 }, { p10: 1, p50: 2, p90: 3 }, { p10: 1, p50: 2, p90: 3 }]),
+    stress: { shock: { year: 1, size: 0.3 }, perAgePaid: { ages: [fill([0.7, 0.8], 1), fill([], 0.76), fill([], 0.2)].map((q, i) => ({ age: 66 + i, q })) } } });
+  check('A-lantern C stress year 1: £28,000 short, £32,000 covers the essentials: 1/1/18', counts(C, 0, 'stress') === '1/1/18');
+  check('A-lantern C stress year 2: every future at 76% (£30,400): 0/20/0; year 3 at 20%: 20/0/0', counts(C, 1, 'stress') === '0/20/0' && counts(C, 2, 'stress') === '20/0/0');
+  check('A-lantern C the base windows are untouched by the stress: 0/0/20, 0/0/20, 1/0/19', counts(C, 0) === '0/0/20' && counts(C, 1) === '0/0/20' && counts(C, 2) === '1/0/19');
+  // Income £40,000 (pension £20,000 + £5,000 tax-free cash, ISA £3,000, State Pension £12,000), applied to £40,000 spent.
+  const src = Object.fromEntries(C.floors[0].sources.map(x => [x.key, x.amount]));
+  check('A-lantern C sources share out what was spent: pensions £25,000, ISA £3,000, State Pension £12,000', src.pension === 25000 && src.isa === 3000 && src.sp === 12000 && Object.keys(src).length === 3);
+  check('A-lantern C a year that paid half shows half from every source: £12,500, £1,500, £6,000', JSON.stringify(C.floors[1].sources.map(x => x.amount).sort((a, b) => b - a)) === '[12500,6000,1500]');
+  check('A-lantern C one person: no partner age, no partner spine; money left is rounded and never negative; the stress is named', C.floors[0].partnerAge === null && C.spines.length === 1 && C.floors[0].wealth.p10 === 0 && C.floors[0].wealth.p50 === 100 && C.floors[0].wealth.p90 === 201 && C.stressName === 'a 30% fall in year 1');
+  check('A-lantern the essentials default to three quarters of the plan, to the nearest £500', essentialOf({ targetNet: 60000 }) === 45000 && essentialOf({ targetNet: 41000 }) === 31000 && windowState(0.99, 1, 1) === 'full');
+
+  // And on the real engine: one floor a year, windows that agree with an independent count.
+  const base = E.runMonteCarlo(owner, 2000, 42), hit = E.runMonteCarlo(owner, 2000, 42, { shock: { year: 1, size: 0.3 } }), rows = E.drawdown(owner).rows;
+  const M = lanternModel({ plan: owner, rows, mc: base, stress: hit });
+  check('A-lantern engine: one floor for every year of the plan, 20 sorted windows each', M.floors.length === rows.length && modelOk(M));
+  check('A-lantern engine: lit windows equal a direct count of the engine’s paid shares', M.floors.every((fl, i) => countWindows(fl.windows).full === base.perAgePaid.ages[i].q.filter(v => v >= 0.99).length));
+  check('A-lantern engine: the stress never lights a window the plan left dark', M.floors.every(fl => countWindows(fl.stress).full <= countWindows(fl.windows).full));
+  check('A-lantern engine: each year’s sources add up to what the central case spent (to £5)', M.floors.every((fl, i) => Math.abs(fl.sources.reduce((a, x) => a + x.amount, 0) - rows[i].paid * fl.spend) <= 5 + 50 * 7));
+}
+
 // ── 6. Migration: a v1 saved plan ───────────────────────────────────────
 {
   const v1 = { startYear: 2025, retireYear: 2030, horizonAge: 90, targetNet: 40000,

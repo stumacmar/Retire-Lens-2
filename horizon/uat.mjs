@@ -834,43 +834,58 @@ const openMap = async () => { await closeSheet(); await tap('Explore'); await wa
   await check('162 simple home: zero page errors', () => pe.length === 0);
 }
 
-// ── The Lantern preview (Stage 1; docs/LANTERN_PLAN.md) ────────────────────
-// The tower from made-up figures at ?lantern=1. It does not replace the home.
+// ── The Lantern preview (Stage 2; docs/LANTERN_PLAN.md) ────────────────────
+// The tower at ?lantern=1, drawn from the plan on this device through the
+// engine and the adapter. Read only; it does not replace the home.
 {
+  const stored = await planOf();
+  const q0 = E.migratePlan(stored), q = { ...q0, growth: q0.growthBase ?? q0.growth };
   await p.goto(URL + '?lantern=1', { waitUntil: 'networkidle' }); await wait(700);
   const gl = await p.evaluate(() => { const c = document.createElement('canvas'); return !!(c.getContext('webgl2') || c.getContext('webgl')); });
   const L = k => p.$eval('[data-lantern]', (e, k) => e.getAttribute(k), k);
   const readout = () => p.$eval('[data-lantern-readout]', e => e.textContent);
+  const nums = t => [...t.matchAll(/(\d+) (?:of 20 futures pay|pays? less than the plan|falls? short)/g)].map(m => +m[1]);
+  await check('163 lantern: it says whose figures these are (the plan on this device)', async () => /your plan/.test(await p.$eval('[data-lantern-whose]', e => e.textContent)));
   if (gl) {
-    await p.waitForSelector('[data-lantern][data-ready="1"]', { timeout: 20000 }).catch(() => {});
-    await check('163 lantern: the tower renders at ?lantern=1', async () => (await L('data-ready')) === '1' && (await p.$eval('[data-lantern] canvas', c => c.width > 100 && c.height > 100)));
-    await check('164 lantern: one floor a year and 20 windows a floor, sorted worst to best', async () => (await L('data-floors')) === '36' && (await L('data-windows')) === '20' && (await L('data-model-ok')) === '1');
-    await check('165 lantern: each lens button turns the tower to its face', async () => {
+    await p.waitForSelector('[data-lantern][data-ready="1"]', { timeout: 40000 }).catch(() => {});
+    const rows = E.drawdown(q).rows, seed = q.mcSeed || 42;
+    const lit = m => m.perAgePaid.ages.map(r => r.q.filter(v => v >= 0.99).length);
+    const base = lit(E.runMonteCarlo(q, 2000, seed)), hit = lit(E.runMonteCarlo(q, 2000, seed, { shock: { year: 1, size: 0.3 } }));
+    await check('164 lantern: the tower renders, one floor for every year of the plan, 20 windows a floor sorted worst to best', async () =>
+      (await L('data-ready')) === '1' && (await p.$eval('[data-lantern] canvas', c => c.width > 100 && c.height > 100))
+      && (await L('data-floors')) === String(rows.length) && (await L('data-windows')) === '20' && (await L('data-model-ok')) === '1' && (await L('data-first-age')) === String(rows[0].ageA));
+    await check('165 lantern: the lit windows on every floor are the engine\'s own count of futures paid in full that year', async () => (await L('data-lit')) === base.join(','));
+    await check('166 lantern: the readout counts the open floor\'s 20 windows in words, and the count is the engine\'s', async () => {
+      const t = await readout(), sel = +(await L('data-selected')), n = nums(t);
+      return new RegExp(`^At ${rows[sel].ageA} \\(${rows[sel].year}\\): ${base[sel]} of 20 futures pay your full £`).test(t) && n.reduce((a, b) => a + b, 0) === 20; });
+    await check('167 lantern: each lens button turns the tower to its face', async () => {
       for (const k of [1, 2, 3, 0]) {
         await p.locator(`[data-lens="${k}"]`).click();
         const ok = await p.waitForFunction(k => { const e = document.querySelector('[data-lantern]'); return e.dataset.face === String(k) && e.dataset.settled === '1'; }, k, { timeout: 4000 }).then(() => true, () => false);
         if (!ok || (await p.getAttribute(`[data-lens="${k}"]`, 'aria-pressed')) !== 'true') return false;
       }
       return true; });
-    await check('166 lantern: the readout counts all 20 windows of the floor in words', async () => {
-      const t = await readout(), n = [...t.matchAll(/(\d+) (?:of 20 futures pay|pays? the essentials|falls? short)/g)].map(m => +m[1]);
-      return /^At 85 \(\d{4}\): \d+ of 20 futures pay your full £/.test(t) && n.reduce((a, b) => a + b, 0) === 20; });
-    await check('167 lantern: tapping a floor reads that year', async () => {
-      const box = await p.locator('[data-lantern]').boundingBox(), before = await readout();
-      await p.mouse.click(box.x + box.width / 2, box.y + box.height * 0.62); await wait(400);
-      const t = await readout(); return t !== before && /^At \d+ \(\d{4}\)/.test(t) && (await L('data-selected')) !== '25'; });
-    await check('168 lantern: the stress lens names its stress and every target is at least 44 px', async () => {
+    await check('168 lantern: tapping a floor opens it and reads that year', async () => {
+      const box = await p.locator('[data-lantern]').boundingBox(), before = +(await L('data-selected'));
+      await p.mouse.click(box.x + box.width / 2, box.y + box.height * 0.78); await wait(600);
+      const sel = +(await L('data-selected')), t = await readout();
+      return sel !== before && sel >= 0 && t.startsWith(`At ${rows[sel].ageA} (${rows[sel].year}): ${base[sel]} of 20 futures`); });
+    await check('169 lantern: the stress face is the same futures after a 30% fall in year 1, counted by the engine; every target is at least 44 px', async () => {
       await p.locator('[data-lens="3"]').click(); await wait(700);
+      const sel = +(await L('data-selected')), t = await readout();
       const small = await p.$$eval('[data-lantern-preview] button, [data-lantern-preview] a', els => els.filter(e => e.getBoundingClientRect().height < 44).length);
-      return /after a 30% fall in year 1/.test(await readout()) && small === 0; });
-    await check('169 lantern: the picture is described in words for a screen reader', async () => /^The Lantern: a tower of 36 years/.test(await L('aria-label')));
+      return (await L('data-lit-stress')) === hit.join(',') && t.startsWith(`At ${rows[sel].ageA}, after a 30% fall in year 1: ${hit[sel]} of 20 futures`) && small === 0; });
+    await check('170 lantern: sources and money left are read in words, and the picture is described for a screen reader', async () => {
+      await p.locator('[data-lens="1"]').click(); await wait(600); const a = await readout();
+      await p.locator('[data-lens="2"]').click(); await wait(600); const b = await readout();
+      return /^At \d+ \(\d{4}\): .*£/.test(a) && /left in the middle future/.test(b) && new RegExp(`^The Lantern: a tower of ${rows.length} years`).test(await L('aria-label')); });
   } else {
-    await check('163 lantern: without WebGL the preview says so', () => has('This preview needs WebGL'));
+    await check('164 lantern: without WebGL the preview says so', () => has('This preview needs WebGL'));
   }
-  await check('170 lantern: nothing left the device', () => requests.length === 0);
+  await check('171 lantern: nothing left the device, and the plan on it is unchanged', async () => requests.length === 0 && JSON.stringify(await planOf()) === JSON.stringify(stored));
   await p.goto(URL, { waitUntil: 'networkidle' }); await wait(900);
-  await check('171 lantern: the home is untouched (the island is still the picture)', async () => (await p.$('[data-island]')) != null && (await p.$('[data-lantern]')) == null);
-  await check('172 lantern: zero page errors', () => pe.length === 0);
+  await check('172 lantern: the home is untouched (the island is still the picture)', async () => (await p.$('[data-island]')) != null && (await p.$('[data-lantern]')) == null);
+  await check('173 lantern: zero page errors', () => pe.length === 0);
 }
 
 console.log(`\n═══ Horizon UAT: ${pass}/${pass + fail} passed ═══`);

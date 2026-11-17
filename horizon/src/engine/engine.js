@@ -23,7 +23,7 @@ export function createEngine() {
   // The engine's own version: bumped on any change to the maths, a rule or a
   // default. Shown in Assumptions and the report and saved with every plan,
   // so a figure can always be traced to the engine that produced it.
-  const ENGINE_VERSION = '2026.11.17';
+  const ENGINE_VERSION = '2026.11.18';
   // The rule pack behind the constants below: what each rests on, where it
   // came from, when it was read and when it takes effect. Reviewed every
   // April and on any fiscal event; see docs/MODEL_SPEC.md.
@@ -1013,7 +1013,8 @@ export function createEngine() {
     let goneA = false, goneB = !couple, inheritedTotal = 0;
     const st = { spend: 0, years: 0, worstRatio: 1, leanYears: 0, utilSum: 0, utilN: 0,
       solvent: [], okFull: true, okRules: true, minCoverage: 1, failIndex: null, leanIndex: null,
-      pen: [], oth: [] };   // each year's pots at the year end (nominal): pensions, and ISAs, cash and the general account
+      pen: [], oth: [],     // each year's pots at the year end (nominal): pensions, and ISAs, cash and the general account
+      paid: [] };           // each year's spending delivered as a share of the plan for that year
     const gamma = X.gamma, SPEND_FLOOR = 2000;
 
     for (let year = P.retireYear, i = 0; year <= endYear; year++, i++) {
@@ -1182,7 +1183,7 @@ export function createEngine() {
       const deliveredReal = clamp0(target - shortfall) / infl;
       const planReal = planTarget / infl;
       const ratio = planReal > 1 ? deliveredReal / planReal : 1;
-      st.spend += deliveredReal; st.years++;
+      st.spend += deliveredReal; st.years++; st.paid.push(ratio);
       if (ratio < st.worstRatio) st.worstRatio = ratio;
       if (ratio < 0.99) { st.leanYears++; st.okFull = false; if (st.leanIndex == null) st.leanIndex = i; }
       const cu = Math.max(SPEND_FLOOR, deliveredReal);
@@ -1286,7 +1287,7 @@ export function createEngine() {
         taxA, taxB, tax: totalTax,
         isaDraw, isaDrawA, isaDrawB, cashDraw, giaDraw, dbLump, lumpTax, earnedA, earnedB,
         eventCost, eventInflow: eventIncome + eventInvested, eventLabels, inherited,
-        target, planTarget, netIncome, banked, shortfall,
+        target, planTarget, netIncome, banked, shortfall, paid: ratio,
         potA, potB, isaA, isaB, cash, gia, wealth,
         marginalA: marginalRate(baseA + grossA, T),
         marginalB: marginalRate(baseB + grossB, T),
@@ -1841,7 +1842,15 @@ export function createEngine() {
     return B.ages.map((age, i) => ({ age, cover: c[i] }));
   }
 
-  function runMonteCarlo(P, nPaths, seed) {
+  // The Lantern's windows: 20 levels across the futures, the middle of each 5%.
+  const PAID_LEVELS = Array.from({ length: 20 }, (_v, k) => 0.025 + k * 0.05);
+
+  /** `opts.shock = { year, size }` forces a fall of `size` in real terms in
+   *  retirement year `year` (1 = the year work stops) on every path, through
+   *  the same blend the named stress paths use. The random numbers are still
+   *  drawn, so every other year of every future is the one the unshocked run
+   *  saw: the two runs differ by the shock alone. */
+  function runMonteCarlo(P, nPaths, seed, opts) {
     const X = prepare(P);
     P = X.P;
     nPaths = nPaths || P.mcPaths || 1000;
@@ -1876,6 +1885,10 @@ export function createEngine() {
     const tracks = [], finals = [], trims = [], spendMults = [];
     const avgSpends = [], worstRatios = [], leanShares = [], potsAtRet = [];
     const coverB = coverBasis(P), covers = [];
+    const paids = [], wealths = [];
+    const shock = opts && opts.shock && num(opts.shock.size) > 0
+      ? { index: Math.max(0, Math.round(num(opts.shock.year, 1)) - 1), size: Math.min(0.95, num(opts.shock.size)) } : null;
+    const eqShock = equityShareOf(P);
     let okFull = 0, okRules = 0, utilSum = 0, utilN = 0;
     const H = householdSurvival(X);
     let lifeSuccess = 0;
@@ -1888,8 +1901,12 @@ export function createEngine() {
         acc = accumulate(P, g, { returnAt: (y) => pre[y - P.startYear] }).atRetirement;
       }
       potsAtRet.push(acc.pensionA + acc.pensionB + acc.isaA + acc.isaB + (acc.cash || 0));
-      const ret = () => {
+      const ret = (i) => {
         const [z, z2] = normalPair();
+        if (shock && i === shock.index) {
+          const r = (1 + blendReal(-shock.size, eqShock)) * (1 + P.inflation) - 1 - fee;
+          return { r, rGrowth: archOn ? (1 - shock.size) * (1 + P.inflation) - 1 - fee : r, rGilt: RATES.gilt - fee };
+        }
         const r = mcMean + sd * z - fee;
         if (!archOn) return { r, rGrowth: r, rGilt: RATES.gilt - fee };
         // Equity and gold drawn from the same pair of normals, so the
@@ -1902,6 +1919,7 @@ export function createEngine() {
       const out = runPath(X, acc, ret, p < 60 ? 'track' : 'lite');
       const st = out.st;
       covers.push(coverSeries(coverB, acc.pensionA + acc.pensionB, acc.isaA + acc.isaB + (acc.cash || 0) + (acc.gia || 0), st.pen, st.oth));
+      paids.push(st.paid); wealths.push(st.pen.map((v, i) => v + st.oth[i]));
       for (let i = 0; i < nYears; i++) if (st.solvent[i]) solventAt[i]++;
       if (st.okFull) okFull++;
       firstLean[st.leanIndex == null ? nYears : Math.min(nYears, st.leanIndex)]++;
@@ -1965,6 +1983,29 @@ export function createEngine() {
       threshold,
       shortAgeP10, shortAgeP5,
       engineVersion: ENGINE_VERSION, seed,
+      shock: shock ? { year: shock.index + 1, size: shock.size } : null,
+      // The Lantern. For each year after work stops: spending delivered as a
+      // share of that year's plan, at 20 levels across the futures (sorted
+      // afresh each year, worst first), and the money left at the year's end
+      // in today's money at the 10th, 50th and 90th percentile.
+      perAgePaid: (() => {
+        const ages = [];
+        for (let i = 0; i < nYears; i++) {
+          const col = paids.map(a => (i < a.length ? a[i] : 1)).sort((a, b) => a - b);
+          ages.push({ age: P.retireYear + i - P.partnerA.birthYear, q: PAID_LEVELS.map(l => col[Math.min(col.length - 1, Math.floor(l * col.length))]) });
+        }
+        return { levels: PAID_LEVELS, ages };
+      })(),
+      perAgeWealth: (() => {
+        const out = [];
+        for (let i = 0; i < nYears; i++) {
+          const f = inflFactor(P, P.retireYear + i);
+          const col = wealths.map(a => (i < a.length ? a[i] : 0)).sort((a, b) => a - b);
+          const at = (q) => col[Math.min(col.length - 1, Math.floor(q * col.length))] / f;
+          out.push({ age: P.retireYear + i - P.partnerA.birthYear, p10: at(0.10), p50: at(0.50), p90: at(0.90) });
+        }
+        return out;
+      })(),
       perAgeSolvency: solventAt.map((c, i) => ({
         age: P.retireYear + i - P.partnerA.birthYear, p: c / nPaths,
       })),
@@ -2375,6 +2416,12 @@ export function createEngine() {
         const cb = coverByAge(Q), pc = mc.perAgeCover.ages;
         const worst = pc.reduce((m, row, i) => Math.max(m, ...row.q.map(v => Math.abs(v - cb[i].cover) / Math.max(0.01, cb[i].cover))), 0);
         check('Cover parity (' + name + ') within 0.1%', pc.length === cb.length && worst < 0.001 ? 0 : 1, 0, 0.1);
+        // And the Lantern: every window pays what the central case pays, and the money left is the central case's.
+        const pp = mc.perAgePaid.ages, pw = mc.perAgeWealth;
+        const paidOff = pp.reduce((m, row, i) => Math.max(m, ...row.q.map(v => Math.abs(v - dd.rows[i].paid))), 0);
+        const leftOff = pw.reduce((m, row, i) => { const w = dd.rows[i].wealth / inflFactor(Q, dd.rows[i].year);
+          return Math.max(m, ...[row.p10, row.p50, row.p90].map(v => Math.abs(v - w) / Math.max(1000, Math.abs(w)))); }, 0);
+        check('Lantern parity (' + name + '): paid share and money left match the plan', pp.length === dd.rows.length && pw.length === dd.rows.length && paidOff < 1e-6 && leftOff < 0.001 ? 0 : 1, 0, 0.1);
       };
       const D = defaults();
       parity('worked example', D);
@@ -2523,6 +2570,21 @@ export function createEngine() {
       const half = drawdown({ ...D, equityShare: 0.5 }, { returnPath: STRESS_PATHS.gfc });
       const full = drawdown({ ...D, equityShare: 1 }, { returnPath: STRESS_PATHS.gfc });
       check('A lower equity share softens the 2008 path', half.endWealth !== full.endWealth ? 0 : 1, 0, 0.1);
+      // The Lantern's stress: a fall forced on every future. At zero volatility it is the same
+      // year-one fall replayed through the plan; without the option nothing changes; with it, less is left.
+      {
+        const Q0 = { ...D, mcSd: 0, mcMean: D.growth, growthBase: D.growth, architecture: { ...(D.architecture || {}), on: false } };
+        const hit = runMonteCarlo(Q0, 2, 7, { shock: { year: 1, size: 0.3 } }), replay = drawdown(Q0, { returnPath: [-0.3] });
+        check('Shock parity: a 30% fall in year 1 equals the replayed path at zero volatility',
+          Math.abs(hit.finalP50 - replay.endWealth) / Math.max(1, Math.abs(replay.endWealth)) < 0.001 ? 0 : 1, 0, 0.1);
+        const base = runMonteCarlo(D, 60, 42), same = runMonteCarlo(D, 60, 42, {}), shocked = runMonteCarlo(D, 60, 42, { shock: { year: 1, size: 0.3 } });
+        check('No shock asked for: the result is unchanged', base.successProb === same.successProb && base.finalP50 === same.finalP50 && base.shock === null ? 0 : 1, 0, 0.1);
+        check('A shock leaves less: the middle future holds less at every age and no window pays more',
+          shocked.perAgeWealth.every((w, i) => w.p50 <= base.perAgeWealth[i].p50 + 1)
+          && shocked.perAgePaid.ages.every((r, i) => r.q.every((v, k) => v <= base.perAgePaid.ages[i].q[k] + 1e-9)) ? 0 : 1, 0, 0.1);
+        check('Windows are sorted worst to best and never pay more than the plan asks without the rules',
+          base.perAgePaid.ages.every(r => r.q.length === 20 && r.q.every((v, k) => (k === 0 || r.q[k - 1] <= v) && v <= 1 + 1e-9)) ? 0 : 1, 0, 0.1);
+      }
       // R13 Validation and migration.
       check('Horizon before stop year is an error, not a crash', validatePlan({ ...D, horizonAge: 55 }).some(i => i.path === 'horizonAge' && i.level === 'error') ? 0 : 1, 0, 0.1);
       check('…and the engine still runs it', drawdown({ ...D, horizonAge: 55 }).rows.length >= 1 ? 0 : 1, 0, 0.1);

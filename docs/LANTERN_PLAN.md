@@ -82,7 +82,9 @@ to `docs/VALIDATION.md`, and extends the zero-volatility parity check.
 5. A three-way asset mix for plain plans (variable 8).
 6. Inflation that varies in the simulation (B26), if the inflation dial is to mean more than the fixed level.
 
-Until each lands, its control is shown disabled, labelled "Not in the engine yet".
+**Landed (engine 2026.11.18):** 1 (`perAgePaid`), 2 (`perAgeWealth`) and 3 (the shock option), with zero-volatility parity and seven checks in `verify.mjs`. 4, 5 and 6 are open.
+
+Until each of the others lands, its control is shown disabled, labelled "Not in the engine yet".
 
 ## 6. Where the brief and the codebase disagree
 

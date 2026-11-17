@@ -762,6 +762,13 @@ const openMap = async () => { await closeSheet(); await tap('Explore'); await wa
   await check('158 the two questions sit above the tab bar without scrolling', async () => p.evaluate(() => {
     const nav = document.querySelector('nav').getBoundingClientRect(); const b = [...document.querySelectorAll('[data-simple-home] button')].find(x => /What could go wrong/.test(x.textContent)).getBoundingClientRect();
     return b.bottom <= nav.top; }));
+  // Spending less in later life, one tap on the home (owner, 17 November 2026).
+  await check('158l the home has the two later-life switches, and each one turns its step-down on and off in the plan', async () => {
+    const q0 = await planOf(); const sw = p.locator('[data-step-down="phase1"]'); if ((await sw.count()) !== 1 || (await p.locator('[data-step-down="phase2"]').count()) !== 1) return false;
+    const label = await sw.innerText(); if (!label.includes(`${Math.round(q0.phase1Cut * 100)}% less from ${q0.phase1Age}`)) return false;
+    await sw.click(); await wait(500); const q1 = await planOf(); const a1 = await sw.getAttribute('aria-checked');
+    await sw.click(); await wait(500); const q2 = await planOf();
+    return q1.phase1On === !q0.phase1On && a1 === String(!q0.phase1On) && q2.phase1On === !!q0.phase1On; });
   // The time tunnel: a corridor from the stop age to the plan age; across
   // each year's stretch of floor, the bright lane's share of the floor's width
   // is the share of futures still paying in full. It is drawn from the same run as the

@@ -223,7 +223,7 @@ export default function TimeTunnel({ mc, structured, fromAge, toAge, ask, events
     <div data-tunnel data-ready={ready ? '1' : '0'} data-first={first} data-last={last} data-years={n}
       data-full-counts={full.join(',')} data-rules={structured ? rules.join(',') : ''} data-first-short={firstShort ?? ''} data-first-trim={firstTrim ?? ''}
       data-age={picked ?? ''} data-horizon={vy} data-cam={Math.round(cam * 100) / 100}
-      className="flex-1 min-h-[180px] [@media(min-height:680px)]:min-h-[240px] max-h-[560px] flex flex-col mt-2 -mx-4 sm:mx-0">
+      className="flex-1 min-h-[150px] [@media(min-height:680px)]:min-h-[240px] max-h-[560px] flex flex-col mt-2 -mx-4 sm:mx-0">
       <span id="tunnel-summary" className="sr-only">{summary}</span>
       <div ref={boxRef} className="relative flex-1 min-h-0">
         <div ref={sceneRef} role="slider" tabIndex={ready ? 0 : -1} aria-label="Futures still paying, by age" aria-describedby="tunnel-summary"

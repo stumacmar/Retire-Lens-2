@@ -205,7 +205,10 @@ if (GATE_ON) {
   await check('00a preview gate shown to a fresh visitor', () => $('#someday-gate'));
   await p.fill('#someday-gate-input', 'wrong-phrase'); await p.keyboard.press('Enter'); await wait(400);
   await check('00b wrong phrase is refused', async () => (await $('#someday-gate')) && /not the phrase/.test(await bodyT()));
-  await p.fill('#someday-gate-input', 'someday-preview-2026'); await p.keyboard.press('Enter'); await wait(500);
+  // The phrase itself is never written into this public repository: give it as GATE_PHRASE to type it
+  // in; without it, the test unlocks with the stored hash, as a returning tester's device would.
+  if (process.env.GATE_PHRASE) { await p.fill('#someday-gate-input', process.env.GATE_PHRASE); await p.keyboard.press('Enter'); await wait(500); }
+  else { await passGate(); await p.reload({ waitUntil: 'networkidle' }); await wait(500); }
   await check('00c right phrase opens the app', async () => !(await $('#someday-gate')));
   await check('00d gate remembered on reload', async () => { await p.reload({ waitUntil: 'networkidle' }); await wait(500); return !(await $('#someday-gate')); });
 } else {

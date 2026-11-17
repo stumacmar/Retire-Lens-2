@@ -3,7 +3,7 @@ import { deflate } from './format';
 
 /**
  * The money behind the plan, in two tranches, year by year, in today's
- * money: the walls of the home's time tunnel and the sheets they open.
+ * money: the chips on the home's island and the sheets they open.
  *
  * A plan with the retirement architecture holds a safe ladder (years of
  * spending in gilts and cash; income is paid from it) and a growth engine

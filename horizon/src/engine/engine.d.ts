@@ -69,6 +69,8 @@ export interface MC {
   perAgeSolvency: { age: number; p: number }[];
   /** Share of futures paid every year up to and including this age: in full, and with the written rules. Ends on successProb / successProbWithCuts. */
   perAgeHeld: { age: number; full: number; rules: number }[];
+  /** The island: at each age, cover (money still covering the ask from there; 1 = exactly) at 21 levels across the futures. */
+  perAgeCover: { levels: number[]; ages: { age: number; q: number[] }[] };
   [k: string]: any;
 }
 export interface Engine {
@@ -105,6 +107,7 @@ export interface Engine {
   livingStandards(P: Plan): LivingStandardSet;
   livingStandardOf(P: Plan, net: number): LivingTier | null;
   lifeOdds(P: Plan, horizonAge?: number): LifeOdds;
+  coverByAge(P: Plan): { age: number; cover: number }[];
   trancheBenefits(P: Plan, who: Partner, t: DbTranche): TrancheBenefits;
   trancheNpa(who: Partner, t: DbTranche): number;
   trancheMinAge(who: Partner, t: DbTranche): number;

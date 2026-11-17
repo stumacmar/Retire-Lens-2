@@ -118,12 +118,12 @@ console.log('Grid: ' + combos + ' drawdown combinations checked.');
   // paid 20% on this. This is the audit's key allocation regression.
   const Qlow = E.defaults(); Qlow.targetNet = 30000;
   const ylow = E.drawdown(Qlow).rows[0];
-  const carolBaseTax = E.taxOn(ylow.spB + ylow.dbB);
+  const partnerBaseTax = E.taxOn(ylow.spB + ylow.dbB);
   // Optimal tax for this year: Jo's base tax, plus 20% on the grossed-up
   // net need beyond Robin's free allowance (net x 0.25). The old
   // serve-B-first order paid 20% on the whole draw instead.
-  const needLow = ylow.target - (ylow.guaranteed - carolBaseTax);
-  const optimal = carolBaseTax + Math.max(0, needLow - 12570) * 0.25;
+  const needLow = ylow.target - (ylow.guaranteed - partnerBaseTax);
+  const optimal = partnerBaseTax + Math.max(0, needLow - 12570) * 0.25;
   check(Math.abs(ylow.tax - optimal) < 2,
     `low need at optimum: tax ${Math.round(ylow.tax)} vs optimal ${Math.round(optimal)}`);
   check(ylow.grossA >= 12570 - 1, 'Robin free allowance fully used at low need');

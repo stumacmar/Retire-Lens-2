@@ -373,12 +373,12 @@ export default function PlanForm({ plan, update, reset, plus, onUpgrade, issues 
     });
 
     list.push({
-      id: 'structure', title: 'Structure', blurb: 'A real plan is a shape, not one growth rate.',
+      id: 'structure', title: 'Safe ladder', blurb: 'Optional: gilts for the next few years, and spending rules.',
       body: plus
         ? <ArchitectureSection plan={plan} update={update} />
-        : <Locked title="Plan structure" onUpgrade={onUpgrade}
+        : <Locked title="Safe ladder" onUpgrade={onUpgrade}
             line={(plan.architecture?.on
-              ? 'Your plan runs the de-risking structure you chose — a gilt ladder, a growth engine and written spending rules. Plus lets you tune every part of it and measures whether it earns its keep.'
+              ? 'Your plan runs a safe ladder — a gilt ladder, a growth engine and written spending rules. Plus lets you tune every part of it and measures whether it earns its keep.'
               : 'Model a gilt ladder, a growth engine and written spending rules instead of one growth rate — then see, measured on your own figures, whether the structure is worth it.')} />,
     });
 

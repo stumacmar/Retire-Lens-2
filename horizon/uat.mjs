@@ -231,10 +231,10 @@ await tap('Begin'); await wait(900);
 await check('17a disclaimer shown once, before the horizon', async () => /calm place to think/i.test(await h1()));
 await check('17a2 disclaimer links to the legal page', async () => (await p.$('a[href="legal.html"]')) != null);
 await tap('I understand'); await wait(800);
-await check('17b approach screen asks how the money is run', async () => /How should the money be run/i.test(await h1()));
-await check('17c traditional option offered', () => has('Traditional'));
-await check('17d de-risking option offered', () => has('De-risking'));
-await tap('Traditional'); await wait(1200);
+// No approach question (owner, 17 November 2026): every plan starts as one
+// invested pot; the safe ladder is an optional switch in Details.
+await check('17b no approach question: the home follows the disclaimer', async () => !/How should the money be run/i.test(await bodyT()) && (await p.$('[data-simple-home]')) != null);
+await check('17c a fresh plan starts as one invested pot', async () => (await planOf()).architecture?.on !== true);
 // An empty plan lands on the home, which says what to do; the figures go in
 // through Details, and the answer appears on the home as money goes in.
 await check('04 home is the simple home, asking the question', async () => (await p.$('[data-simple-home]')) != null && /What could you take home/i.test(await h1()));
@@ -593,7 +593,7 @@ if (!plusOffered) {
   await closeSheet();
   await tap('Details'); await wait(700); await goPage('Robin’s pots');
   await check('114 plus off: advanced detail unlocked', async () => (await p.locator('[role=switch]:has-text("Advanced")').count()) === 1);
-  await goPage('Structure');
+  await goPage('Safe ladder');
   await check('115 plus off: structure page unlocked', async () => !(await has('See what Plus adds')));
   await closeSheet();
   await tap('Peace'); await wait(500);
@@ -622,8 +622,8 @@ await check('113 free: malformed key is refused locally (no network)', async () 
 await closeSheet();
 await tap('Details'); await wait(700); await goPage('Robin’s pots');
 await check('114 free: advanced detail locked', async () => (await onPage('Advanced detail')) && (await p.locator('[role=switch]:has-text("Advanced")').count()) === 0);
-await goPage('Structure');
-await check('115 free: structure page locked', async () => (await onPage('Plan structure')) && !(await onPage('Set up the standard architecture')));
+await goPage('Safe ladder');
+await check('115 free: structure page locked', async () => (await onPage('Safe ladder')) && (await p.locator('[role=dialog] [role=switch]:has-text("Use a safe ladder")').count()) === 0);
 await closeSheet();
 await tap('Peace'); await wait(500);
 await check('116 free: report button routes to Plus', async () => { await tap('Save the full report'); await wait(600); return has('Already have a licence key?'); });

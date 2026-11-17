@@ -12,7 +12,6 @@ import { useInsight } from './lib/useInsight';
 import type { Rail } from './lib/insights';
 import DecisionMap from './components/DecisionMap';
 import PrintReport from './components/PrintReport';
-import Approach from './components/Approach';
 import { Segmented } from './components/Field';
 import Disclaimer, { disclaimerAccepted } from './components/Disclaimer';
 import Dates from './components/Dates';
@@ -86,13 +85,6 @@ function Horizon() {
   if (!disclaimerOk) {
     return <Disclaimer onAccept={() => setDisclaimerOk(true)} />;
   }
-
-  // The framing choice, asked once — including for plans saved before it
-  // existed, which is why it lives here rather than inside onboarding.
-  if (plan.approach == null) {
-    return <Approach plan={plan} update={update} onDone={() => { /* plan now carries the choice */ }} />;
-  }
-
 
   return (
     <main className="min-h-full">

@@ -23,9 +23,22 @@ Memory between cycles. Read it first; update it last. Format is in
 | Timeline (adviser) | 2026-11-15 (research article; software is adviser-only) | Bengen-style rolling 30-year historical windows from 1915 (UK), 1% fee, gross of tax; UK local 50/50 at 4% succeeds in 70% of windows; worst UK start June 1947, £29,700 from £1m (2.97%). |
 | Royal London | 2026-11-15 (published documents; calculator URL 404) | FCA 2/5/8% capped rates from its quarterly LEAF assumptions; living-standards guide uses 5% growth, 2% inflation, 0.75% fee. Calculator not reachable. |
 | Aviva, Scottish Widows, Legal & General | 2026-11-15 (blocked: 403 / error page / not found) | Not examined; try again or via app-store teardown. |
-| Everything else in the roster | never | Next: Interactive Investor, Guiide, Nest, Moneybox, Penfold, MaxiFi, TPAW Planner. |
+| Moneyfarm pension calculator | 2026-11-17 | 5% saving / 3% retired (one fixed allocation), 2% inflation, today's money, **0.62% all in**, basic-rate relief ("higher and additional rate taxpayers may get more"), **State Pension £11,501 at 66 (2024/25 figures)**, drawdown to **ONS life expectancy 82.6**, no tax on withdrawals, single estimate; FAQ quotes different assumptions (4% growth, SP £8,546, 83). |
+| Which? pension calculator | 2026-11-17 (article only) | Pot at retirement; State Pension "you'll also need to factor in"; no assumptions published on the page. |
+| Aviva My Retirement Planner | 2026-11-17 (403 again at aviva.co.uk/retirement/tools/my-retirement-planner) | Not examined. |
+| Moneybox | 2026-11-17 (help article 404; search snippet only) | Target and projected income adjusted for 2% inflation; nothing else published. |
+| Everything else in the roster | never | Next: MaxiFi, Virgin Money Navigator, Interactive Investor's tax-relief guide (ii.co.uk/pensions/tax/high-rate-tax-relief), Guiide and TPAW with a browser. |
 
 ## Examinations
+
+### Moneyfarm — 2026-11-17 — https://www.moneyfarm.com/uk/pension-calculator/
+Robo-adviser · free, no sign-up; product and consultant CTAs · web
+Engine: growth 5% while saving, 3% in retirement, one fixed allocation · inflation 2%, today's money · charges 0.62% all in · basic-rate relief, "higher and additional rate taxpayers may get more" (not shown) · State Pension £11,501 from 66 (2024/25) · drawdown to ONS life expectancy 82.6 · no tax on withdrawals · no MC
+UX: inputs include a gross income target and a State Pension toggle · single estimate · headline: "£20,615.92 off your target", the monthly contribution needed
+Best thing: answers "what would I need to pay in" directly, as a monthly figure.
+Worst thing: plans to an average life expectancy of 82.6, so half of people outlive the plan; its State Pension and age are two years stale, and the FAQ contradicts the calculator.
+Traps: average life expectancy as the horizon; stale State Pension; higher-rate relief mentioned but never quantified.
+Gaps for Someday: higher-rate relief named but not measured by anyone examined → shipped this cycle (B2, part).
 
 ### AJ Bell pension calculator — 2026-11-15 — https://www.ajbell.co.uk/pensions/calculator
 UK consumer · free, no sign-up · web
@@ -123,7 +136,7 @@ Updated every cycle. Standing: ahead · parity · behind · missing. Stop rule i
 | 3 | UK tax correctness | Fidelity (basic calc, net) / Timeline | ahead (unverified vs Timeline) | engine `taxFor`, Scotland, taper, LSA; of six UK consumer tools examined only Fidelity taxes retirement income, and only with a "basic" calculation |
 | 4 | State Pension | PensionBee (12,547, 2026/27) | parity | `spaFor`, 12,548 (12,547.60 rounded); MoneyHelper's record is a year stale |
 | 5 | Defined benefit | Timeline / Voyant | parity (unverified) | `DB_SCHEMES` |
-| 6 | Contributions and relief | MoneyHelper / HL | parity (2026-11-15) | The choice is now under the payment field with what goes in stated, and the home's counts line says "tax relief included" or "£X paid plus 25% basic-rate tax relief". Most UK tools treat the figure as relief-included (MoneyHelper, Standard Life) and none of AJ Bell, Vanguard, Fidelity shows relief in the figure. Higher-rate relief and salary sacrifice savings remain (B2) |
+| 6 | Contributions and relief | MoneyHelper / HL | ahead on relief (2026-11-17: the extra relief a higher-rate payer can claim back is measured in pounds; Moneyfarm, AJ Bell and PensionBee only mention it) | The choice is now under the payment field with what goes in stated, and the home's counts line says "tax relief included" or "£X paid plus 25% basic-rate tax relief". Most UK tools treat the figure as relief-included (MoneyHelper, Standard Life) and none of AJ Bell, Vanguard, Fidelity shows relief in the figure. Higher-rate relief and salary sacrifice savings remain (B2) |
 | 7 | Sequence risk, bad histories | Timeline / cFIREsim | ahead on coverage; the 2008 path is too kind (B14) | `STRESS_PATHS`; gfc floor only 3–6% under base |
 | 8 | Dynamic spending rules | Income Lab / Timeline | parity | guardrails, levers |
 | 9 | Couples and survivor | MaxiFi / Boldin; Fidelity (two SPs, both contribute) | parity; UX thin | B1; Fidelity starts both State Pensions on one date, Someday uses each partner's age |
@@ -163,7 +176,7 @@ Updated every cycle. Standing: ahead · parity · behind · missing. Stop rule i
 | Id | Title | Class | Value | Cost | Evidence | Status |
 |---|---|---|---|---|---|---|
 | B1 | Show the survivor's income after a first death on the dial (not only in Explore) | coverage | medium | medium | Comparison: couples | open |
-| B2 | Explicit tax relief on contributions (basic/higher rate, salary sacrifice) | correctness | medium | small | MoneyHelper, HL, PensionBee show relief | part shipped 2026-11-15: the basic-rate choice is visible under the payment, says what goes in, and the home states it. Open: higher-rate relief returned to the person, salary-sacrifice NI saving |
+| B2 | Explicit tax relief on contributions (basic/higher rate, salary sacrifice) | correctness | medium | small | MoneyHelper, HL, PensionBee show relief; Moneyfarm and AJ Bell only mention higher-rate relief | part shipped 2026-11-15 (basic-rate choice under the payment) and 2026-11-17 (with a salary entered, the field names the extra relief a higher-rate or Scottish intermediate-and-above payer can claim back, from the engine's tax tables; `lib/relief.ts`; UAT 158c3b–c). Open: salary-sacrifice NI saving |
 | B3 | Show cohort life expectancy and the chance of reaching the plan age beside "Plan to age" (engine `householdSurvival` already exists) | coverage | medium | small | HL drawdown calculator names ONS cohort life expectancy; Engaging Data | shipped 2026-11-14: `lifeOdds(P, age)` (median age, chance of reaching the plan age, chance one of a couple is here at the plan's end; 3 assertions, 126); dial sub line, Details hint, Assumptions "Longevity" row; UAT 138–141, e2e E47i–k, U75b |
 | B4 | Care-cost scenario as a lever | coverage | medium | large | Boldin, Voyant | open |
 | B5 | Hallway test the dial's bezel words (findability within 10 s) | ux-evidence | high | small | Research report §D | open |
@@ -191,6 +204,7 @@ Updated every cycle. Standing: ahead · parity · behind · missing. Stop rule i
 
 | Date | Planners | Improvement | PR | Outcome |
 |---|---|---|---|---|
+| 2026-11-17 | Moneyfarm, Which?, Moneybox (Aviva 403; Moneybox help 404) | B2 (part): higher-rate relief in pounds. With relief at source and a salary entered, Details says how much more a year can be claimed back through Self Assessment (tax(S) − tax(S − G) − 20% of G on the engine's tables, so Scotland and the taper count) and that it goes to the person, not the pot. UAT 158c3b–c. Disjoint from the open #58 | scout/2026-11-17-higher-rate-relief | see PR |
 | 2026-11-15 | AJ Bell, Timeline, Royal London (Aviva, Scottish Widows, Legal & General blocked) | Tax relief made explicit: the "paid from my bank account" choice moved out of a closed section to sit under the payment, the field says what goes in, the home's counts line says whether relief is included (B2, part) | scout/2026-11-15-tax-relief-explicit | see PR |
 | — | — | Ledger seeded from the October 2026 UX research | — | — |
 | 2026-11-13 | MoneyHelper, Hargreaves Lansdown, PensionBee | Retirement Living Standards (Pensions UK 2026) beside the target: engine constant + 3 assertions, chips on the Someday page, hint under the dial figure, Assumptions row; fresh default 43,100 → 45,400 | [#34](https://github.com/stumacmar/Retire-Lens-2/pull/34) (branch scout/2026-11-13-living-standards) | merged and live 2026-11-13 10:18 |

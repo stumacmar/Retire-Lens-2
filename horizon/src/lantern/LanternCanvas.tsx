@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { LanternScene } from './scene';
 import type { LanternModel } from './model';
-import { WINDOWS, modelOk } from './model';
+import { WINDOWS, countWindows, modelOk } from './adapter';
 
 /**
  * The one React component that owns the Lantern's scene. It passes the view
@@ -43,6 +43,7 @@ export default function LanternCanvas({ model, lens, selected, summary, onLens, 
   return (
     <div data-lantern data-ready={state === 'ready' ? '1' : '0'} data-face={face} data-settled={settled ? '1' : '0'}
       data-floors={model.floors.length} data-windows={WINDOWS} data-model-ok={modelOk(model) ? '1' : '0'} data-selected={selected}
+      data-first-age={model.floors[0]?.age} data-lit={model.floors.map(f => countWindows(f.windows).full).join(',')} data-lit-stress={model.floors.map(f => countWindows(f.stress).full).join(',')}
       role="img" aria-label={summary} className="relative w-full h-full overflow-hidden">
       <div ref={host} className="absolute inset-0" />
       <div ref={overlay} className="absolute inset-0 pointer-events-none" />

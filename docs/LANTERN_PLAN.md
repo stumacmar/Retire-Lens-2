@@ -119,8 +119,63 @@ a third party.
 | Stage | What | State |
 |---|---|---|
 | 0 | This plan | Done |
-| 1 | The tower from dummy data at `?lantern=1`: glow, camera, rotation that snaps to a face, four faces | Built; waiting for the owner's verdict on an iPhone |
-| 2 | Adapter and engine wiring (needs engine changes 1 and 2) | Not started |
+| 1 | The tower from dummy data at `?lantern=1` | Done (#65) |
+| 2a | Engine outputs: `perAgePaid`, `perAgeWealth`, the shock option | Done (#66, engine 2026.11.18) |
+| 2b | Adapter (`lantern/adapter.js`, tested by hand calculation) and wiring to the plan on the device, read only | Done |
 | 3 | Dials, chips, bottom sheet | Not started |
-| 4 | The "now" band, Play, Flat view, table, reduced motion | Not started |
+| 4 | The "now" band, Play, Flat view, table, reduced motion | Not started (reduced motion already cross-fades and stops the dust) |
 | 5 | Polish, performance stepping, replace the home behind a setting | Not started |
+
+## 9. Self-review after Stage 1 (17 November 2026)
+
+The owner asked for an honest assessment rather than a verdict of their own.
+
+**What worked.** It reads at once as a lit building, and the question it
+poses ("how many lights are on at 85?") is about a life, not about money
+moving through space. The stepped silhouette shows the spending taper with no
+legend. The Sources face is the clearest of the four.
+
+**What did not, and what was done about it.**
+
+1. *The front face was a gold slab with one informative corner.* Most of the
+   720 windows were identical, each 6 to 8 px wide: the "many small marks"
+   problem that sank the ten windows and the orbit. Countable windows only
+   help on a floor you can actually count. **Changed:** the tapped floor
+   opens (3.4 floors tall, its neighbours 1.7 and 1.25), so its 20 windows
+   are tall bars that can be counted and told apart by shape: full height,
+   half height, dark with an ember foot. The other floors are texture that
+   shows where the lights go out.
+2. *The ring column carried nothing.* A ring on the same column of every
+   floor is a stripe, not information. **Changed:** one outline, on the open
+   floor.
+3. *The essential-floor lines cut through the windows* and read as a glitch.
+   **Removed;** the essentials are in the window states, the key and the
+   readout.
+4. *The State Pension core muddied every face.* A glass tower with charts on
+   its faces cannot also be read through. **Changed:** strips of light up
+   the corners, from the year each pension starts.
+5. *The scaffolding for the working years* was four empty floors that shrank
+   the tower. **Removed.**
+6. *"Essentials only" was the wrong words* for a future paying 90% of the
+   plan. **Changed** to "less than the plan but covers the essentials".
+
+**What is still true and not fixed.**
+
+* The third dimension is not doing analytical work. Each face is a flat
+  chart; turning the tower is a carousel between four of them. That is the
+  brief's own answer to "no unjustified 3D", and it is defensible, but the
+  depth is atmosphere, not information.
+* "What's left" and "Stress" are the weakest faces: thin bars, and outlines
+  that are hard to see at phone size.
+* With the essential floor at three quarters of the plan and the second
+  step-down at a quarter off, the floor equals the plan from that age, so
+  there a trimmed future reads as "falls short" with nothing in between.
+* Frame rate, pinch and the glow have only been seen in a software renderer.
+  They need a real iPhone.
+* Whether a stranger aged 55 to 70 reads it in a few seconds is untested,
+  as it was for every picture before it.
+
+**Verdict.** Better than Stage 1 and honest to the engine. Its real strength
+is reading one year at a time in countable units, which the island does not
+do; the island is better at the whole shape at a glance. It has not yet
+earned the home screen.

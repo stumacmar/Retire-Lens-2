@@ -342,16 +342,14 @@ await p.evaluate(() => localStorage.setItem('someday-licence-v1', JSON.stringify
 await p.reload({ waitUntil: 'networkidle' }); await wait(700);
 await acheck('U50a a new plan starts as one person', async () => (await plan()).household === 'single');
 await tap('Begin'); await wait(900);
-// The disclaimer is accepted once, then the framing choice, then the home
+// The disclaimer is accepted once, then the home
 await acheck('U60z disclaimer appears before the first horizon',
   async () => /calm place to think/i.test(await p.$eval('h1', e => e.textContent).catch(() => '')));
 await tap('I understand'); await wait(800);
-await acheck('U60a approach screen appears before the horizon',
-  async () => /How should the money be run/i.test(await p.$eval('h1', e => e.textContent).catch(() => '')));
-await tap('De-risking'); await wait(1200);
-await acheck('U60b choosing de-risking records the approach', async () => (await plan()).approach === 'derisking');
-await acheck('U60c choosing de-risking arms the architecture', async () => (await plan()).architecture?.on === true);
-await acheck('U60d de-risking uses the 7-year ladder', async () => (await plan()).architecture?.ladderYears === 7);
+// No approach question (owner, 17 November 2026): the home follows the disclaimer.
+await acheck('U60a no approach question: the home follows the disclaimer',
+  async () => !/How should the money be run/i.test(await p.$eval('body', e => e.innerText)) && (await p.$('[data-simple-home]')) != null);
+await acheck('U60b a fresh plan starts as one invested pot', async () => (await plan()).architecture?.on !== true);
 
 // ── Details: every figure entered writes the real plan ──────────────────
 // An empty plan lands on the home, which sends you to Details.
@@ -461,14 +459,16 @@ await acheck('U72f two schemes sum into the pot (350k)', async () => (await plan
 await p.locator('[role=dialog] [role=switch]:has-text("Advanced")').first().click().catch(() => {}); await wait(400);
 
 // ── Structure ───────────────────────────────────────────────────────────
-await goPage('Structure');
-await acheck('U72g Structure page opens', async () => (await p.locator('text=Plan structure').count()) > 0);
-await tapInSheet('Set up the standard architecture'); await wait(700);
-await acheck('U72h preset turns the architecture on', async () => (await plan()).architecture?.on === true);
-await acheck('U72i preset uses a 7-year ladder', async () => (await plan()).architecture?.ladderYears === 7);
-await acheck('U72j preset arms the written rules', async () => (await plan()).architecture?.rulesOn === true);
-await p.locator('[role=dialog] [role=switch]:has-text("Model the plan")').first().click().catch(() => {}); await wait(500);
-await acheck('U72k architecture can be switched back off', async () => (await plan()).architecture?.on === false);
+await goPage('Safe ladder');
+await acheck('U72g the safe ladder page opens, marked optional', async () => (await p.locator('text=Safe ladder (optional)').count()) > 0);
+const ladderSwitch = () => p.locator('[role=dialog] [role=switch]:has-text("Use a safe ladder")').first();
+await ladderSwitch().click().catch(() => {}); await wait(700);
+await acheck('U72h switching the ladder on turns the architecture on', async () => (await plan()).architecture?.on === true);
+await acheck('U72i it starts from a 7-year ladder', async () => (await plan()).architecture?.ladderYears === 7);
+await acheck('U72j it arms the written rules', async () => (await plan()).architecture?.rulesOn === true);
+await acheck('U72j2 it records the approach', async () => (await plan()).approach === 'derisking');
+await ladderSwitch().click().catch(() => {}); await wait(500);
+await acheck('U72k the ladder can be switched back off', async () => (await plan()).architecture?.on === false && (await plan()).approach === 'traditional');
 
 // ── Jo's own pages — proves BOTH partners work ───────────────────────
 await goPage('Jo’s guaranteed income');

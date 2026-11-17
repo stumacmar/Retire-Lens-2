@@ -1,4 +1,3 @@
-import { DERISKING_ARCHITECTURE } from './Approach';
 import { MoneyField, NumField, PctField, Toggle, Segmented } from './Field';
 import Group from './Group';
 
@@ -6,7 +5,21 @@ import Group from './Group';
 // ── Plan structure: the architecture controls ───────────────────────────
 // A real plan is not one growth rate. It is a shape: safe money for the next
 // few years, a growth engine behind it, and written rules for when to trim.
-const ARCH_PRESET = DERISKING_ARCHITECTURE;
+//
+// Optional (owner, 17 November 2026: the ladder is "too specific to me for a
+// UX that I could sell"). Every plan starts as one invested pot; the ladder is
+// switched on here, never asked about during setup.
+export const ARCH_PRESET = {
+  on: true,
+  ladderYears: 7, refill: 'whenUp', refillMin: 0,
+  equityReal: 0.05, equitySd: 0.16, goldReal: 0.01, goldSd: 0.14, goldPct: 0.15,
+  giltReal: 0.015,
+  rulesOn: true, longevityAge: 95,
+  cutBelow: 0.90, cutBy: 0.10, raiseAbove: 1.25, raiseBy: 0.05, raiseLagYears: 2,
+  floorMult: 0.75, capMult: 1.25,
+  parachuteOn: true, parachuteBelow: 0.75, parachuteFrom: 80, parachuteFraction: 0.5,
+  annuityOn: false, careOn: false, stressPath: 'none', riskAversion: 4,
+};
 
 export default function ArchitectureSection({ plan, update }: { plan: any; update: (p: any) => void }) {
   const A = plan.architecture || {};
@@ -20,20 +33,14 @@ export default function ArchitectureSection({ plan, update }: { plan: any; updat
   const on = !!A.on;
   return (
     <>
-      <Group title="Plan structure">
-        <Toggle label="Model the plan's structure, not one growth rate" checked={on} onChange={v => set({ on: v })} />
+      <Group title="Safe ladder (optional)">
+        <Toggle label="Use a safe ladder and spending rules" checked={on} onChange={v => set(v ? ARCH_PRESET : { on: false })} />
         <p className="text-[0.78rem] leading-relaxed" style={{ color: 'var(--color-ink-faint)' }}>
-          Off, everything grows at a single rate. On, your money is split into a <b>gilt ladder</b> holding the next
-          few years of spending and a <b>growth engine</b>, with an annual top-up and written rules for trimming.
-          It is how a real plan survives a bad decade — and it is measured, not assumed: see Explore.
+          Off (the usual way), your money is one invested pot that grows at one assumed rate. On, the next few
+          years of spending are held in gilts and cash, the rest is left to grow and tops the ladder up after good
+          years, and written rules trim spending if the plan drifts off track. Explore measures whether it is worth
+          it on your own figures. Switching it on starts from the standard set-up below, which you can change.
         </p>
-        {!on && (
-          <button onClick={() => set(ARCH_PRESET)}
-            className="w-full rounded-2xl py-3 font-bold text-[0.95rem] text-[var(--color-on-calm)] active:scale-[0.98] transition-transform"
-            style={{ background: 'var(--color-calm)' }}>
-            Set up the standard architecture
-          </button>
-        )}
       </Group>
 
       {on && <>

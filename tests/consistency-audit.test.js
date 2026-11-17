@@ -316,18 +316,18 @@ assert(
   `${Math.round(y60.withdrawals.pension)}`
 );
 
-const carolSP60 = y60.partnerStatePension || 0;
-const carolDB60 = y60.partnerDbPension || 0;
+const partnerSP60 = y60.partnerStatePension || 0;
+const partnerDB60 = y60.partnerDbPension || 0;
 assert(
-  carolSP60 > 10000,
+  partnerSP60 > 10000,
   'Jo SP present and > £10k at age 60',
-  `got ${Math.round(carolSP60)}`
+  `got ${Math.round(partnerSP60)}`
 );
 
 assert(
-  carolDB60 >= 15000,
+  partnerDB60 >= 15000,
   'Jo DB present and >= £15k at age 60',
-  `got ${Math.round(carolDB60)}`
+  `got ${Math.round(partnerDB60)}`
 );
 
 // Total guaranteed + withdrawal should produce target net

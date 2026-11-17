@@ -56,9 +56,9 @@ const F = E.freshStart(), D = E.defaults();
 const STRUCT = { on: true, ladderYears: 7, refill: 'whenUp', refillMin: 0, equityReal: 0.05, equitySd: 0.16, goldReal: 0.01, goldSd: 0.14, goldPct: 0.15, giltReal: 0.015,
   rulesOn: true, longevityAge: 95, cutBelow: 0.90, cutBy: 0.10, raiseAbove: 1.25, raiseBy: 0.05, raiseLagYears: 2, floorMult: 0.75, capMult: 1.25,
   parachuteOn: true, parachuteBelow: 0.75, parachuteFrom: 80, parachuteFraction: 0.5 };
-const stuart = { ...F.partnerA, name: 'Robin', birthYear: 1970, pension: 570000, monthlyPension: 3200, isa: 48000, spAmount: 12548 };
-const carol = { ...F.partnerB, ...D.partnerB };
-const owner = (over = {}) => E.sanitisePlan({ ...F, approach: 'traditional', retireYear: 2030, targetNet: 60000, partnerA: stuart, partnerB: carol, ...over });
+const robin = { ...F.partnerA, name: 'Robin', birthYear: 1970, pension: 570000, monthlyPension: 3200, isa: 48000, spAmount: 12548 };
+const jo = { ...F.partnerB, ...D.partnerB };
+const owner = (over = {}) => E.sanitisePlan({ ...F, approach: 'traditional', retireYear: 2030, targetNet: 60000, partnerA: robin, partnerB: jo, ...over });
 const named = [
   ['owner: Robin and Jo, stop 60, £5,000 a month', owner()],
   ['owner without Jo\'s pots or annuity', owner({ partnerB: { ...F.partnerB, birthYear: 1963 } })],
@@ -72,7 +72,7 @@ const named = [
   ['owner on the de-risking structure', owner({ approach: 'derisking', architecture: { ...F.architecture, ...STRUCT } })],
   ['owner on the structure, asks £4,000', owner({ approach: 'derisking', targetNet: 48000, architecture: { ...F.architecture, ...STRUCT } })],
   ['the reference workbook as shipped (7% growth)', { ...D, approach: 'traditional' }],
-  ['owner, Jo works on to 2033', owner({ partnerB: { ...carol, stopYear: 2033, income: 28000 } })],
+  ['owner, Jo works on to 2033', owner({ partnerB: { ...jo, stopYear: 2033, income: 28000 } })],
   ['owner, Scotland', owner({ tax: { region: 'scotland' } })],
 ];
 function generated(i) {

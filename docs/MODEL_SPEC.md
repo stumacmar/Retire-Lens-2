@@ -1,6 +1,6 @@
 # Someday · Horizon — model specification
 
-**Engine version:** 2026.11.17 (`ENGINE_VERSION` in `horizon/src/engine/engine.js`)
+**Engine version:** 2026.11.18 (`ENGINE_VERSION` in `horizon/src/engine/engine.js`)
 **Plan schema:** 2 (`SCHEMA_VERSION`)
 **Tax rules:** UK 2026/27, in force from 6 April 2026, read on 14 November 2026 (`TAX_RULES`)
 
@@ -305,6 +305,28 @@ own quote takes precedence.
   deterministic plan, and at zero volatility the Monte Carlo's median equals
   it (asserted, within 0.1%, across the thirteen plan shapes). The home
   screen's island draws it.
+* `perAgePaid`: for each year after work stops, the spending delivered that
+  year as a share of that year's plan (`rows[].paid` in the deterministic
+  plan: `(target − shortfall) ÷ planTarget`, so a year trimmed by a
+  structured plan's rules counts as reduced), at 20 levels across the futures
+  (2.5% to 97.5% in steps of 5%, `PAID_LEVELS`), sorted afresh each year with
+  the worst first. A level is a share of the futures **that year**, not one
+  future followed through time, so it answers "how many futures pay in full
+  at 85?", which `perAgeHeld` (paid every year so far) does not.
+* `perAgeWealth`: for each year, the money left at the year's end (pensions,
+  ISAs, cash and the general account) in today's money at the 10th, 50th and
+  90th percentile across the futures.
+* `runMonteCarlo(P, n, seed, { shock: { year, size } })` forces a fall of
+  `size` in real terms in retirement year `year` (1 is the year work stops)
+  on every path, through the same blend as the named stress paths
+  (`blendReal` with the plan's `equityShare`; a structured plan's growth
+  engine takes the whole fall). The random numbers are still drawn, so every
+  other year of every future is the one the unshocked run saw. Without the
+  option the result is unchanged, bit for bit; the result carries `shock`.
+  At zero volatility `perAgePaid` and `perAgeWealth` equal the deterministic
+  plan across the thirteen plan shapes, and a 30% fall in year 1 equals
+  `drawdown(P, { returnPath: [-0.3] })` (all asserted). The Lantern preview
+  draws these.
 * **What the range covers**: the sampling range shown in the app
   (±2 standard errors) covers the randomness of the simulation **only**. It
   does not cover parameter uncertainty (are the growth, inflation and charge

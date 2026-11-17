@@ -225,6 +225,22 @@ for (const [name, P0] of Object.entries(shapes)) {
   check('S the engine version and seed travel with the result', m2.engineVersion === E.ENGINE_VERSION && m2.seed === 42);
 }
 
+// ── 5b. The Lantern's outputs (per-year paid share, money left, the shock) ──
+{
+  const m2 = mcOf(owner, 2000), m10 = mcOf(owner, 10000);
+  const lit = (m) => m.perAgePaid.ages.map(r => r.q.filter(v => v >= 0.99).length);
+  const l2 = lit(m2), l10 = lit(m10);
+  check('L one row of 20 windows for every year of the plan, sorted worst to best', m2.perAgePaid.ages.length === m2.perAgeHeld.length && m2.perAgePaid.ages.every(r => r.q.length === 20 && r.q.every((v, k) => k === 0 || r.q[k - 1] <= v)));
+  check('L in every year at least as many windows are lit as futures were paid every year so far', l2.every((n, i) => n / 20 >= m2.perAgeHeld[i].full - 0.05));
+  check(`L 2,000 vs 10,000 paths: no year gains or loses more than one lit window (worst ${Math.max(...l2.map((n, i) => Math.abs(n - l10[i])))})`, l2.every((n, i) => Math.abs(n - l10[i]) <= 1));
+  const more = mcOf({ ...owner, targetNet: owner.targetNet * 1.2 }, 2000);
+  check('L asking for more never lights a window', more.perAgePaid.ages.every((r, i) => r.q.filter(v => v >= 0.99).length <= l2[i]));
+  check('L money left: the 10th percentile is never above the middle, nor the middle above the 90th', m2.perAgeWealth.every(w => w.p10 <= w.p50 + 1 && w.p50 <= w.p90 + 1));
+  const hit = E.runMonteCarlo(owner, 2000, 42, { shock: { year: 1, size: 0.3 } });
+  check('L a 30% fall in year 1 never lights a window and leaves less in the middle future', hit.perAgePaid.ages.every((r, i) => r.q.filter(v => v >= 0.99).length <= l2[i]) && hit.perAgeWealth.every((w, i) => w.p50 <= m2.perAgeWealth[i].p50 + 1));
+  check('L the shock travels with the result, and its absence is recorded', hit.shock && hit.shock.year === 1 && hit.shock.size === 0.3 && m2.shock === null);
+}
+
 // ── 6. Migration: a v1 saved plan ───────────────────────────────────────
 {
   const v1 = { startYear: 2025, retireYear: 2030, horizonAge: 90, targetNet: 40000,

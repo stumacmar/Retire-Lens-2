@@ -133,11 +133,17 @@ export default function SimpleHome({ plan, update, dd, mc, onDetails, header }: 
             </p>
             {/* The answer in words, naming the amount the futures are counted against. */}
             <p data-futures className="mt-1 text-[1rem] leading-snug" style={{ color: 'var(--color-ink)' }}>{futuresSentence(status)}</p>
-            {/* The figure: what the plan can pay, and the gap to the ask. */}
-            <div className="mt-2 flex items-center justify-center gap-3">
-              <h1 className="serif tnum leading-none" style={{ fontSize: 'clamp(2rem, 9vw, 2.6rem)', letterSpacing: '-0.04em', color: 'var(--color-ink)' }} data-supports>{fmt(figure)}</h1>
-              <span className="flex flex-col text-[0.84rem] leading-tight">
+            {/* The figure: what the plan can pay, labelled so it is never mistaken for what
+                you ask (review, 17 November 2026: "You ask for £5,000 and the headline says
+                £6,020"), with what you ask and the gap beside it. */}
+            <div className="mt-2 flex items-end justify-center gap-3">
+              <span className="flex flex-col items-end">
+                <span data-figure-label className="text-[0.74rem] font-semibold leading-tight" style={{ color: 'var(--color-ink-dim)' }}>Your plan can pay</span>
+                <h1 className="serif tnum leading-none" style={{ fontSize: 'clamp(2rem, 9vw, 2.6rem)', letterSpacing: '-0.04em', color: 'var(--color-ink)' }} data-supports>{fmt(figure)}</h1>
+              </span>
+              <span className="flex flex-col text-[0.8rem] leading-tight pb-0.5">
                 <span style={{ color: 'var(--color-ink-dim)' }}>a month after tax</span>
+                <span data-ask style={{ color: 'var(--color-ink-dim)' }}>You ask for {fmt(month)}</span>
                 {gap != null && (
                   <span data-gap className="font-semibold whitespace-nowrap" style={{ color: gap < 0 ? 'var(--color-slate)' : 'var(--color-ring)' }}>
                     {Math.abs(gap) < 25 ? <>Just what you ask</>

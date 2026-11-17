@@ -16,7 +16,7 @@ The headline withdrawal rate is calculated at retirement (60,000 / retirement po
 ## Faction B (Consumers) -- Top 3 Demands
 
 ### B1: The narrative summary is too generic
-"Your money lasts to age 90 with X remaining" is good but doesn't tell me the key events. I want to see: "At 60, Carol's pensions start covering 16,000/year. At 67, your State Pension adds another 12,000. After that, you only need 30,000/year from your pension pot." A timeline of events, not just an outcome.
+"Your money lasts to age 90 with X remaining" is good but doesn't tell me the key events. I want to see: "At 60, Jo's pensions start covering 16,000/year. At 67, your State Pension adds another 12,000. After that, you only need 30,000/year from your pension pot." A timeline of events, not just an outcome.
 
 ### B2: The data table needs fewer columns on mobile
 I can't read 10 columns on my phone. Show me: Age, Start, In/Out, End. Let me tap a row to see the detail. Or collapse to 4 columns on mobile and show a "tap for detail" hint.
@@ -100,7 +100,7 @@ The dashed target line on the income chart should step down from 60,000 to 45,00
 
 ### Change 3.2: Event-based narrative replacing generic summary
 Replace "Your money lasts to age 90" with a timeline:
-"Age 60: You retire. Carol's State Pension (11,973) and DB pension (4,500) start immediately.
+"Age 60: You retire. Jo's State Pension (11,973) and DB pension (4,500) start immediately.
 Age 67: Your State Pension starts (11,973). Pension withdrawal drops from 52k to 30k.
 Age 80: Spending reduces to 45,000. Pension withdrawal drops further.
 Age 90: Final balance 1.3M (pension 900k + ISA 400k)."

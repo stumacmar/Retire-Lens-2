@@ -72,6 +72,7 @@ export default function TimeTunnel({ mc, structured, fromAge, toAge, ask, events
   summary: string; resting: string;
 }) {
   const reduced = useReducedMotion();
+  const coarse = typeof window !== 'undefined' && !!window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
   const [boxRef, { w, h }] = useMeasured();
   const held = mc?.perAgeHeld;
   const ready = !!(held && held.length);
@@ -222,7 +223,7 @@ export default function TimeTunnel({ mc, structured, fromAge, toAge, ask, events
     <div data-tunnel data-ready={ready ? '1' : '0'} data-first={first} data-last={last} data-years={n}
       data-full-counts={full.join(',')} data-rules={structured ? rules.join(',') : ''} data-first-short={firstShort ?? ''} data-first-trim={firstTrim ?? ''}
       data-age={picked ?? ''} data-horizon={vy} data-cam={Math.round(cam * 100) / 100}
-      className="flex-1 min-h-[200px] [@media(min-height:680px)]:min-h-[260px] max-h-[560px] flex flex-col mt-2 -mx-4 sm:mx-0">
+      className="flex-1 min-h-[180px] [@media(min-height:680px)]:min-h-[240px] max-h-[560px] flex flex-col mt-2 -mx-4 sm:mx-0">
       <span id="tunnel-summary" className="sr-only">{summary}</span>
       <div ref={boxRef} className="relative flex-1 min-h-0">
         <div ref={sceneRef} role="slider" tabIndex={ready ? 0 : -1} aria-label="Futures still paying, by age" aria-describedby="tunnel-summary"
@@ -282,10 +283,10 @@ export default function TimeTunnel({ mc, structured, fromAge, toAge, ask, events
                 <rect key={a} data-frame={a} x={r1(f.l)} y={r1(f.t)} width={r1(f.r - f.l)} height={r1(f.b - f.t)} rx={r1(10 * s)}
                   fill="none" style={{ stroke: a === last + 1 ? ink(26) : ink(17) }} strokeWidth={r1(0.8 + 1.4 * s)} />); })}
             </svg>)}
-          {/* Ages, at the foot of each frame's right side. */}
-          {w > 0 && frameAges.map(a => { const s = frameOf(a), f = fr(s), size = Math.max(10, Math.min(14, 14 * Math.pow(s, 0.4))); const shown = a === last + 1 ? last : a; return (
-            <span key={a} aria-hidden {...(a === last + 1 ? { 'data-tunnel-end': '' } : {})} className="absolute tnum leading-none font-semibold -translate-x-full -translate-y-full"
-              style={{ left: f.r - 4 - 2 * s, top: f.b - 4 - 2 * s, fontSize: size, color: 'var(--color-ink-dim)' }}>{shown}</span>); })}
+          {/* Ages, on the floor just inside each frame's right edge, clear of the walls' fill (review, 17 November 2026). */}
+          {w > 0 && frameAges.filter(a => fr(frameOf(a)).b < h - 40).map(a => { const s = frameOf(a), f = fr(s), size = Math.max(10, Math.min(14, 14 * Math.pow(s, 0.4))); const shown = a === last + 1 ? last : a; return (
+            <span key={a} aria-hidden data-tunnel-age={shown} {...(a === last + 1 ? { 'data-tunnel-end': '' } : {})} className="absolute tnum leading-none font-semibold -translate-x-1/2 -translate-y-full"
+              style={{ left: cx + 6 * s, top: f.b - 3 - 2 * s, fontSize: size, color: 'var(--color-ink-dim)' }}>{shown}</span>); })}
           {/* Life, where it changes. */}
           {placed.map(p => (
             <span key={`${p.e.age}-${p.e.label}`} aria-hidden data-event={p.e.kind} data-event-age={p.e.age} 
@@ -295,27 +296,32 @@ export default function TimeTunnel({ mc, structured, fromAge, toAge, ask, events
               <b className="tnum">{p.e.age}</b> · {p.e.label}
             </span>))}
           {markT != null && shortSign && (() => { const s2 = sAt(markT), f = fr(s2), size = Math.max(10, Math.min(13, 13 * Math.pow(s2, 0.4))); return (
-            <span aria-hidden data-notch data-event={shortSign.kind} data-event-age={shortSign.age} className="absolute leading-none font-semibold whitespace-nowrap -translate-y-full rounded px-1 py-0.5"
-              style={{ left: f.l + 6 + 10 * s2, top: f.b - 3, fontSize: size, color: 'var(--color-ink)', background: 'color-mix(in srgb, var(--color-canvas) 80%, transparent)' }}>{shortSign.kind === 'short' ? `short from ${shortSign.age}` : `trims from ${shortSign.age}`}</span>); })()}
+            <span aria-hidden data-notch data-event={shortSign.kind} data-event-age={shortSign.age} className="absolute leading-none font-semibold whitespace-nowrap -translate-x-full -translate-y-full rounded px-1 py-0.5"
+              style={{ left: cx - 6, top: f.b - 3, fontSize: size, color: 'var(--color-ink)', background: 'color-mix(in srgb, var(--color-canvas) 80%, transparent)' }}>{shortSign.kind === 'short' ? `short from ${shortSign.age}` : `trims from ${shortSign.age}`}</span>); })()}
           {/* Where you are, while travelling. */}
           {picked != null && ready && (
             <span aria-hidden data-tunnel-here className="absolute left-1/2 -translate-x-1/2 bottom-2 rounded-full px-3 py-1 text-[0.8rem] font-bold tnum whitespace-nowrap"
               style={{ background: 'var(--color-ink)', color: 'var(--color-canvas)' }}>Age {age}</span>)}
           {hintSide && picked == null && (
             <span aria-hidden data-tunnel-hint className={`absolute ${hintSide === 'r' ? 'right-2' : 'left-2'} top-1.5 rounded-full px-2.5 py-1 text-[0.72rem] font-semibold whitespace-nowrap pointer-events-none`}
-              style={{ background: 'color-mix(in srgb, var(--color-canvas) 90%, transparent)', color: 'var(--color-ink-dim)', boxShadow: `0 1px 4px ${ink(12)}` }}>Swipe up to travel ↑</span>)}
+              style={{ background: 'color-mix(in srgb, var(--color-canvas) 90%, transparent)', color: 'var(--color-ink-dim)', boxShadow: `0 1px 4px ${ink(12)}` }}>{coarse ? 'Swipe up to travel ↑' : 'Drag up or press ↑ to travel'}</span>)}
         </div>
         {/* The tranches' names and what each holds at the age you stand at; tap to open. */}
         {tranches && ready && w > 0 && tranches.map((tr, k) => (
           <button key={tr.key} type="button" data-tranche-open={tr.key} onClick={() => onOpen(tr.key, picked)}
             aria-label={`${tr.name}: ${fmtK(tr.values[camIdx])} at ${first + camIdx}, in today's money. Open to see how it performs`}
             className={`absolute ${k ? 'right-2 text-right items-end' : 'left-2 text-left items-start'} flex flex-col rounded-xl px-2.5 py-1.5 leading-tight`}
-            style={{ top: Math.round(vy + (h - vy) * 0.18), background: 'color-mix(in srgb, var(--color-canvas) 90%, transparent)', boxShadow: `0 1px 6px ${ink(14)}`, borderTop: `3px solid ${tr.colour}`, color: 'var(--color-ink)' }}>
+            style={{ bottom: 6, background: 'color-mix(in srgb, var(--color-canvas) 90%, transparent)', boxShadow: `0 1px 6px ${ink(14)}`, borderTop: `3px solid ${tr.colour}`, color: 'var(--color-ink)' }}>
             <span className="text-[0.72rem] font-semibold" style={{ color: 'var(--color-ink-dim)' }}>{tr.name}</span>
             <span className="tnum text-[1rem] font-bold">{fmtK(tr.values[camIdx])} <span aria-hidden style={{ color: 'var(--color-calm-strong)' }}>›</span></span>
           </button>))}
       </div>
       {/* Under it: how short the bad futures are, or the age you have reached. */}
+      {/* What the picture shows, in one line (review: "nothing explains what the width of the bands means"). */}
+      {tranches && (
+        <p data-tunnel-key className="mt-1.5 px-4 sm:px-0 text-center text-[0.74rem] leading-snug" style={{ color: 'var(--color-ink-dim)' }}>
+Walls: what is left in each pot, in today's money.
+        </p>)}
       <p data-tunnel-reading className="mt-1.5 px-4 sm:px-0 text-center text-[0.84rem] leading-snug min-h-[2.6em]" style={{ color: picked != null ? 'var(--color-ink)' : 'var(--color-ink-dim)' }}>
         <span data-tunnel-text className={picked != null ? 'font-semibold' : ''}>{picked != null && ready
           ? `At ${age}: ${full[idx]} of 100 futures still pay ${fmt(ask)} a month in full${structured && rules[idx] > full[idx] ? `; ${rules[idx]} still paying with your rules` : ''}.`

@@ -17,7 +17,7 @@ A user who has already flexibly accessed their pension (which the "PCLS already 
 The model offers Conservative (3%), Moderate (4%), Optimistic (7%) but gives no context for what's historically realistic. 7% real with 0% fees is aggressive. The consumer picks the one that makes them feel best and gets a dangerously optimistic projection.
 
 ### B2: What happens if I die before my partner?
-There's no survivor modelling. If I die at 70, Carol loses my pension drawdown income but keeps her own SP, DB, and ISA. What's her position? This is the single biggest fear for couples and the model ignores it.
+There's no survivor modelling. If I die at 70, Jo loses my pension drawdown income but keeps her own SP, DB, and ISA. What's her position? This is the single biggest fear for couples and the model ignores it.
 
 ### B3: The numbers change every time I reload
 Auto-save restores a previous session which may have stale data from before new inputs were added. The user sees numbers from a previous run and thinks they're current. Confusing and erosion of trust.

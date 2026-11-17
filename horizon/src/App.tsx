@@ -77,7 +77,7 @@ function Horizon() {
     return (
       <Onboarding plan={plan} update={update} plus={plus} onUpgrade={openPlus}
         onDone={() => { update((p: any) => ({ ...p })); setOnboarded(true); }}
-        onExample={() => { update(() => ({ ...E.defaults(), approach: 'traditional' })); setOnboarded(true); }} />
+        onExample={() => { update(() => ({ ...E.example(), approach: 'traditional' })); setOnboarded(true); }} />
     );
   }
 
@@ -659,8 +659,8 @@ function Guardrails({ plan }: { plan: any }) {
 }
 
 function Levers({ plan, plus, onUpgrade, mc }: { plan: any; plus: boolean; onUpgrade: () => void; mc?: MC | null }) {
-  // Same 500 futures and seed as the confidence figure, so the base here is
-  // the number the person has already seen. Computed after the sheet has
+  // A faster sample of 500 futures with the same seed as the confidence
+  // figure (2,000); the copy below names the sample size. Computed after the sheet has
   // opened, so the eight simulations never block the animation.
   const [res, setRes] = useState<any>(null);
   useEffect(() => {
@@ -687,7 +687,7 @@ function Levers({ plan, plus, onUpgrade, mc }: { plan: any; plus: boolean; onUpg
         <div className="text-[0.9rem] font-semibold">{l.label}</div>
         <div className="tnum text-right shrink-0">
           <span className="block text-[0.95rem] font-extrabold" style={{ color: l.dConf > 0.004 ? 'var(--color-sage-strong)' : l.dConf < -0.004 ? 'var(--color-hope)' : 'var(--color-ink-dim)' }}>{pp(l.dConf)}</span>
-          <span className="block text-[0.7rem]" style={{ color: 'var(--color-ink-faint)' }}>{l.dEnd >= 0 ? '+' : '−'}{fmtK(Math.abs(l.dEnd))} left at {plan.horizonAge}{Math.abs(l.dTax || 0) >= 1000 ? ` · ${l.dTax < 0 ? '−' : '+'}${fmtK(Math.abs(l.dTax))} tax` : ''}</span>
+          <span className="block text-[0.7rem]" style={{ color: 'var(--color-ink-faint)' }}>{Math.abs(l.dEnd) < 500 ? 'About the same' : `${l.dEnd >= 0 ? '+' : '−'}${fmtK(Math.abs(l.dEnd))}`} left at {plan.horizonAge}{Math.abs(l.dTax || 0) >= 1000 ? ` · ${l.dTax < 0 ? '−' : '+'}${fmtK(Math.abs(l.dTax))} tax` : ''}</span>
         </div>
       </div>
       <div className="mt-0.5 text-[0.78rem] leading-relaxed" style={{ color: 'var(--color-ink-dim)' }}>{l.detail}</div>
@@ -758,7 +758,7 @@ function StressTests({ plan, plus, onUpgrade }: { plan: any; plus: boolean; onUp
             </div>
             <div className="tnum text-right shrink-0">
               <span className="block text-[0.86rem] font-bold" style={{ color: t.holds ? 'var(--color-sage-strong)' : 'var(--color-hope)' }}>{t.holds ? 'holds' : `short at ${t.runsShortAgeA}`}</span>
-              <span className="block text-[0.7rem]" style={{ color: 'var(--color-ink-faint)' }}>{t.delta >= 0 ? '+' : '−'}{fmtK(Math.abs(t.delta))} vs plan</span>
+              <span className="block text-[0.7rem]" style={{ color: 'var(--color-ink-faint)' }}>{Math.abs(t.delta) < 500 ? 'No change in what is left at the end' : `${t.delta >= 0 ? '+' : '−'}${fmtK(Math.abs(t.delta))} vs plan`}</span>
             </div>
           </div>
         )) : (

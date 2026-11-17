@@ -18,8 +18,8 @@ const BASE = process.env.RL_BASE || 'http://localhost:8899';
 // Personas expressed as field-id → value. Pension contribution field is monthly.
 const TESTERS = [
   {
-    id: 'stuart-56', label: 'Stuart, 56 — single', household: 'single',
-    names: { a: 'Stuart' },
+    id: 'stuart-56', label: 'Robin, 56 — single', household: 'single',
+    names: { a: 'Robin' },
     fields: {
       'input-current-age': 56, 'input-retirement-age': 67, 'input-target-income': 28000,
       'input-pension-pot': 320000, 'input-pension-contribution': 1000,

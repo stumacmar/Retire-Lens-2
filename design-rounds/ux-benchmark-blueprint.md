@@ -224,14 +224,14 @@
 [Share card -- gradient border, copy button]
 
 [Retirement Timeline card]
-  60 -- You retire. Carol's SP+DB start.
+  60 -- You retire. Jo's SP+DB start.
   67 -- Your SP starts. Withdrawals drop.
   80 -- Spending reduces 25%.
   90 -- Plan succeeds. Final 1.9M.
   ! -- Worst 10%: age 67.
   Annuity alt: 47k/yr at 5%.
   Min pot: 261k (you have 334k more).
-  Survivor: Carol inherits 1M+.
+  Survivor: Jo inherits 1M+.
 
 [What-if sliders]
   Retirement age: [====O=========] 60

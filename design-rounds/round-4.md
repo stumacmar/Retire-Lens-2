@@ -30,7 +30,7 @@ Retiring at 59 vs 61 makes a huge difference. Show me the impact of +/- 1-2 year
 Currently all bullets have equal weight. The most impactful action should be first, visually highlighted, with a specific number. Others can be secondary.
 
 ### C2: Add a "Share with my partner" button
-The results are personal. But retirement decisions are household decisions. A "Share" button that copies a summary link or generates a screenshot/PDF for Carol to review.
+The results are personal. But retirement decisions are household decisions. A "Share" button that copies a summary link or generates a screenshot/PDF for Jo to review.
 
 ### C3: The results should be saveable and comparable
 Users want to run multiple scenarios (retire at 58, 60, 62) and compare them. Currently each run overwrites the previous. Add scenario naming and side-by-side comparison.
@@ -69,7 +69,7 @@ Users want to run multiple scenarios (retire at 58, 60, 62) and compare them. Cu
 
 ### On C2 (share):
 - **A attacks**: "A PDF summary that a partner or IFA can review is essential for couples."
-- **B attacks**: "I'd send Carol a screenshot right now if I could."
+- **B attacks**: "I'd send Jo a screenshot right now if I could."
 
 ### On C3 (scenarios):
 - **A attacks**: "Good idea but complex. Defer."

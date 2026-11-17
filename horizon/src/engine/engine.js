@@ -23,7 +23,7 @@ export function createEngine() {
   // The engine's own version: bumped on any change to the maths, a rule or a
   // default. Shown in Assumptions and the report and saved with every plan,
   // so a figure can always be traced to the engine that produced it.
-  const ENGINE_VERSION = '2026.11.14';
+  const ENGINE_VERSION = '2026.11.17';
   // The rule pack behind the constants below: what each rests on, where it
   // came from, when it was read and when it takes effect. Reviewed every
   // April and on any fiscal event; see docs/MODEL_SPEC.md.
@@ -1012,7 +1012,8 @@ export function createEngine() {
     let parachuteUsed = false, parachuteYear = null, lastRatio = null;
     let goneA = false, goneB = !couple, inheritedTotal = 0;
     const st = { spend: 0, years: 0, worstRatio: 1, leanYears: 0, utilSum: 0, utilN: 0,
-      solvent: [], okFull: true, okRules: true, minCoverage: 1, failIndex: null, leanIndex: null };
+      solvent: [], okFull: true, okRules: true, minCoverage: 1, failIndex: null, leanIndex: null,
+      pen: [], oth: [] };   // each year's pots at the year end (nominal): pensions, and ISAs, cash and the general account
     const gamma = X.gamma, SPEND_FLOOR = 2000;
 
     for (let year = P.retireYear, i = 0; year <= endYear; year++, i++) {
@@ -1274,6 +1275,7 @@ export function createEngine() {
       }
       if (exhaustedYear == null && wealth < 100 && shortfall > 1) exhaustedYear = year;
       if (track) track.push(wealth);
+      st.pen.push(potA + potB); st.oth.push(isaA + isaB + cash + gia);
 
       if (rows) rows.push({
         year, ageA, ageB, aliveA, aliveB,
@@ -1799,6 +1801,46 @@ export function createEngine() {
   // about s squared over two below its arithmetic mean.
   const mcMeanFor = (g, sd) => g + sd * sd / 2;
 
+  // ── Cover: how far the money still covers what you ask, from each age on ──
+  // At the start of each year of retirement: pensions at 85% (a rough allowance
+  // for tax on drawing them, a quarter being tax-free) plus ISAs, cash and the
+  // general account, plus the guaranteed income still to come, over the
+  // spending still to come (the plan's own ask, step-downs included), both
+  // discounted at the plan's central real return after charges. 1 means the
+  // money covers the ask exactly from here; 1.2 means a fifth to spare; 0.8
+  // means a fifth short. Today's money throughout. The island on the home
+  // draws it; the Monte Carlo reports its spread across the futures.
+  const COVER_LEVELS = Array.from({ length: 21 }, (_v, k) => 0.025 + k * 0.0475);
+  function coverBasis(P) {
+    const dd = drawdown(P), rows = dd.rows, n = rows.length;
+    const infl = num(P.inflation), fee = num(P.fee);
+    const r = Math.max(0.0001, (1 + num(P.growth, 0.05) - fee) / (1 + infl) - 1), d = 1 / (1 + r);
+    const f = rows.map(x => Math.pow(1 + infl, x.year - P.startYear));
+    const G = rows.map((x, i) => (num(x.spA) + num(x.spB) + num(x.dbA) + num(x.dbB) + num(x.annuity)) / f[i]);
+    const N = rows.map((x, i) => num(x.planTarget) / f[i]);
+    const pvG = new Array(n).fill(0), pvN = new Array(n).fill(0);
+    for (let i = n - 1; i >= 0; i--) { pvG[i] = G[i] + (i + 1 < n ? d * pvG[i + 1] : 0); pvN[i] = N[i] + (i + 1 < n ? d * pvN[i + 1] : 0); }
+    return { rows, n, f, pvG, pvN, ages: rows.map(x => x.ageA) };
+  }
+  // pen0/oth0: pots on the day work stops; pen/oth: each year's pots at the year end.
+  function coverSeries(B, pen0, oth0, pen, oth) {
+    const out = new Array(B.n);
+    for (let i = 0; i < B.n; i++) {
+      const pn = i === 0 ? pen0 : pen[i - 1], ot = i === 0 ? oth0 : oth[i - 1];
+      const have = (0.85 * Math.max(0, pn) + Math.max(0, ot)) / B.f[i] + B.pvG[i];
+      out[i] = B.pvN[i] > 1 ? have / B.pvN[i] : 9;
+    }
+    return out;
+  }
+  /** The central case's cover at each age: [{ age, cover }]. */
+  function coverByAge(P) {
+    P = prepare(P).P;
+    const B = coverBasis(P), acc = accumulate(P, num(P.growth, 0.05)).atRetirement;
+    const pen = B.rows.map(x => num(x.potA) + num(x.potB)), oth = B.rows.map(x => num(x.isaA) + num(x.isaB) + num(x.cash) + num(x.gia));
+    const c = coverSeries(B, acc.pensionA + acc.pensionB, acc.isaA + acc.isaB + (acc.cash || 0) + (acc.gia || 0), pen, oth);
+    return B.ages.map((age, i) => ({ age, cover: c[i] }));
+  }
+
   function runMonteCarlo(P, nPaths, seed) {
     const X = prepare(P);
     P = X.P;
@@ -1833,6 +1875,7 @@ export function createEngine() {
     const firstLean = new Array(nYears + 1).fill(0), firstFail = new Array(nYears + 1).fill(0);
     const tracks = [], finals = [], trims = [], spendMults = [];
     const avgSpends = [], worstRatios = [], leanShares = [], potsAtRet = [];
+    const coverB = coverBasis(P), covers = [];
     let okFull = 0, okRules = 0, utilSum = 0, utilN = 0;
     const H = householdSurvival(X);
     let lifeSuccess = 0;
@@ -1858,6 +1901,7 @@ export function createEngine() {
       };
       const out = runPath(X, acc, ret, p < 60 ? 'track' : 'lite');
       const st = out.st;
+      covers.push(coverSeries(coverB, acc.pensionA + acc.pensionB, acc.isaA + acc.isaB + (acc.cash || 0) + (acc.gia || 0), st.pen, st.oth));
       for (let i = 0; i < nYears; i++) if (st.solvent[i]) solventAt[i]++;
       if (st.okFull) okFull++;
       firstLean[st.leanIndex == null ? nYears : Math.min(nYears, st.leanIndex)]++;
@@ -1927,6 +1971,17 @@ export function createEngine() {
       // Share of futures paid every year up to and including this one: in
       // full (`full`), and once the written rules have trimmed (`rules`).
       // Never rises; the last entry is successProb and successProbWithCuts.
+      // The island: at each age, how far the money still covers what you ask
+      // (see coverBasis), at 21 levels across the futures from the worst
+      // 2.5% to the best 97.5%. levels[k] is the share of futures at or below.
+      perAgeCover: (() => {
+        const m = Math.min(nYears, coverB.n), q = [];
+        for (let i = 0; i < m; i++) {
+          const col = covers.map(c => c[i]).sort((a, b) => a - b);
+          q.push({ age: coverB.ages[i], q: COVER_LEVELS.map(l => col[Math.min(col.length - 1, Math.floor(l * col.length))]) });
+        }
+        return { levels: COVER_LEVELS, ages: q };
+      })(),
       perAgeHeld: (() => {
         let lean = 0, fail = 0;
         return solventAt.map((_c, i) => {
@@ -2316,6 +2371,10 @@ export function createEngine() {
         const mc = runMonteCarlo(Q, 2, 7);
         const rel = Math.abs(mc.finalP50 - dd.endWealth) / Math.max(1, Math.abs(dd.endWealth));
         check('MC parity (' + name + ') within 0.1%', rel < 0.001 ? 0 : rel, 0, 0.0005);
+        // The island too: at zero volatility every level of cover is the central case's.
+        const cb = coverByAge(Q), pc = mc.perAgeCover.ages;
+        const worst = pc.reduce((m, row, i) => Math.max(m, ...row.q.map(v => Math.abs(v - cb[i].cover) / Math.max(0.01, cb[i].cover))), 0);
+        check('Cover parity (' + name + ') within 0.1%', pc.length === cb.length && worst < 0.001 ? 0 : 1, 0, 0.1);
       };
       const D = defaults();
       parity('worked example', D);
@@ -2508,7 +2567,7 @@ export function createEngine() {
     TAX_DEFAULTS,
     DB_SCHEMES, DB_SCHEMES_ASOF, trancheBenefits, trancheNpa, trancheMinAge, maxCommute, dbSchedule, hasAnyDb, compareDbTiming,
     LIVING_STANDARDS, livingStandards, livingStandardOf,
-    levers, STRESS_PATHS, SCOT_BANDS, planEndYear, lumpAfterLsa, fundYear,
+    levers, STRESS_PATHS, SCOT_BANDS, coverByAge, planEndYear, lumpAfterLsa, fundYear,
     taxFor, spaFor, nmpaFor, spAgeOf, isSingle, normalisePlan, validatePlan, sanitisePlan, migratePlan,
     RISK_PRESETS, applyRiskPreset, shiftRetirement, mcMeanFor, householdSurvival, lifeOdds, prepare, SCHEMA_VERSION,
     TAX_YEAR, ENGINE_VERSION, TAX_RULES,

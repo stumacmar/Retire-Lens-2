@@ -371,6 +371,17 @@ function ExploreBody({ plan, dd, estate, mc, plus, onUpgrade, update }: { plan: 
           ))}
         </nav>
       </div>
+
+      {/* A way in to the Lantern preview from inside the app: installed on a
+          Home Screen there is no address bar to type ?lantern=1 into. */}
+      <a href="./?lantern=1" data-lantern-link className="flex items-center justify-between gap-3 rounded-2xl p-4 min-h-[56px] no-underline"
+        style={{ background: 'var(--color-canvas)', border: '1px solid var(--color-hairline)', color: 'var(--color-ink)' }}>
+        <span>
+          <span className="block font-bold">Preview: the Lantern</span>
+          <span className="block text-[0.82rem] leading-snug mt-0.5" style={{ color: 'var(--color-ink-dim)' }}>A tower of your years, one floor each, with a light on for every future that pays. Your plan, read only.</span>
+        </span>
+        <span aria-hidden="true" className="text-[1.2rem] font-bold" style={{ color: 'var(--color-calm-strong)' }}>›</span>
+      </a>
       {/* ── Every retirement you could choose ────────────────────── */}
       <DecisionMap plan={plan} update={update} />
       {/* ── How far it could fall: safe spending under real bad histories ── */}

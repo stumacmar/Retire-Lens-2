@@ -31,9 +31,42 @@ Memory between cycles. Read it first; update it last. Format is in
 | Which? pension calculator | 2026-11-17 (article only) | Pot at retirement; State Pension "you'll also need to factor in"; no assumptions published on the page. |
 | Aviva My Retirement Planner | 2026-11-17 (403 again at aviva.co.uk/retirement/tools/my-retirement-planner) | Not examined. |
 | Moneybox | 2026-11-17 (help article 404; search snippet only) | Target and projected income adjusted for 2% inflation; nothing else published. |
-| Everything else in the roster | never | Next: MaxiFi, Virgin Money Navigator, Interactive Investor's tax-relief guide (ii.co.uk/pensions/tax/high-rate-tax-relief), Guiide and TPAW with a browser. |
+| FIRECalc | 2026-11-18 | Every historical start year since 1871 (Shiller), 75/25 "couch potato" at a 0.18% fee, constant real spending by default; Bernicke (spending falls 2–3% a year in real terms from 56 to 76) and percentage-of-portfolio options; success = "not depleted"; no tax; free, "does not store any information you enter". |
+| MaxiFi Planner | 2026-11-18 (how-it-works page; software is paid) | Consumption smoothing: the headline is "the highest annual spending level that your household income and assets can support", in today's dollars; plans to a maximum age, not life expectancy; "Living Standard Monte Carlo"; argues an "80% chance of success" is a 20% chance of going broke. US taxes and Social Security. Subscription tiers. |
+| Engaging Data "Rich, Broke or Dead" | 2026-11-18 | Historical cycles (Shiller 1871–2023) crossed with mortality (SSA average, Society of Actuaries low/high, by sex): each year of retirement shows the share broke, the bands of money left and a growing "wedge of death"; average tax rate as a gross-up; fees; spending flexibility. "The likelihood of dying is much higher than running out of money." Free. |
+| Everything else in the roster | never | Next: Virgin Money Navigator, Interactive Investor's tax-relief guide (ii.co.uk/pensions/tax/high-rate-tax-relief), Guiide and TPAW with a browser, cFIREsim, ficalc.app, Portfolio Visualizer, Aviva (blocked twice). |
 
 ## Examinations
+
+### Engaging Data "Rich, Broke or Dead" — 2026-11-18 — https://engaging-data.com/will-money-last-retire-early/
+Early retirers (US) · free, no sign-up · web
+Engine: Shiller returns and inflation 1871–2023, every start year as a cycle · stocks/bonds/cash mix · fees · an average tax rate as a gross-up on spending · extra income and expenses by age · spending flexibility (a cut below a threshold of the starting balance) · mortality: SSA average, Society of Actuaries low and high tables, by sex · no MC (history only)
+UX: one stacked chart by age: broke (red), bands of money left (below the start, above it, 2×, 5×) and a grey "wedge of death" that can be hidden · nominal or real
+Best thing: the two risks on one picture. "The likelihood of dying is much higher than running out of money."
+Worst thing: one person only; an average tax rate; "success" is any balance above zero, so a pot of £1 passes.
+Traps: historical frequencies presented as probabilities (the page says so itself); the wedge can read as "do not worry", which is wrong for the half who live longer.
+Gaps for Someday: the joint figure existed in the engine (`successLifetime`) but only as a percentage in Explore and the report; "What could go wrong?" gave the age the unluckiest 1 in 10 run short and nothing about being here at that age → shipped this cycle (B27).
+Sources: the page above.
+
+### FIRECalc — 2026-11-18 — https://www.firecalc.com/
+Early retirers (US) · free; a supporter login adds yearly revisions · web
+Engine: every start year since 1871 (mixed portfolios from 1927), not an average · 75/25 default at 0.18% · inflation by CPI, PPI or a fixed rate · spending: constant real (default), Bernicke, or a percentage of the remaining portfolio with a floor (the "95% rule") · Social Security, pensions, lump sums as options · no tax · solves for a target success rate
+UX: three inputs to a first answer (spending, portfolio, years) · results in a new window as a success rate and a chart of year-end balances
+Best thing: every start year, so the answer is "it would have failed in N of M histories", which a lay reader can check.
+Worst thing: no tax at all; US data only.
+Traps: a success rate over overlapping 30-year windows is far fewer independent samples than it looks.
+Gaps for Someday: all-start-years history is B24 (needs a sourced UK annual real-returns series). Bernicke's falling real spending is already the two later-life switches (15% less from 75, 25% less from 82).
+Sources: the page above.
+
+### MaxiFi Planner — 2026-11-18 — https://maxifi.com/how-it-works
+US households · paid subscription (Standard, Premium, PRO) · web
+Engine: consumption smoothing by dynamic programming (Kotlikoff): the highest sustainable living standard for life · today's dollars · plans to a maximum age of life, not life expectancy · US tax and Social Security optimisers · "Living Standard Monte Carlo"
+UX (from the page): headline is a spending level, not a pot and not a probability
+Best thing: the headline is what you can spend, for life. Someday's "Your plan can pay £X a month" is the same idea.
+Worst thing: paywalled; nothing can be tried.
+Traps: none seen from the page.
+Gaps for Someday: none in framing (parity: the supportable figure is the headline). Its critique of a bare success percentage is met by the amount named in the sentence and, from this cycle, by the joint figure.
+Sources: the page above.
 
 ### Moneyfarm — 2026-11-17 — https://www.moneyfarm.com/uk/pension-calculator/
 Robo-adviser · free, no sign-up; product and consultant CTAs · web
@@ -64,6 +97,7 @@ Workplace members under 75 · gated to members · in-app
 Engine: growth after charges by fund · salary +2.5% · fixed single-life annuity, no guarantee · other pensions (DC and DB) as yearly amounts
 UX: result compared with the Retirement Living Standards
 Gaps for Someday: none; confirms the standards as the common yardstick (B11).
+
 
 
 ### AJ Bell pension calculator — 2026-11-15 — https://www.ajbell.co.uk/pensions/calculator
@@ -166,7 +200,7 @@ Updated every cycle. Standing: ahead · parity · behind · missing. Stop rule i
 | 7 | Sequence risk, bad histories | Timeline / cFIREsim | ahead on coverage; the 2008 path is too kind (B14) | `STRESS_PATHS`; gfc floor only 3–6% under base |
 | 8 | Dynamic spending rules | Income Lab / Timeline | parity | guardrails, levers |
 | 9 | Couples and survivor | MaxiFi / Boldin; Fidelity (two SPs, both contribute) | parity; UX thin | B1; Fidelity starts both State Pensions on one date, Someday uses each partner's age |
-| 10 | Longevity | HL (ONS cohort by sex, chance of 100) / Rich Broke or Dead | parity (B3 shipped 2026-11-14); B10 open | "Half live past 86 · 56% one of you at 90" under the plan-age needle, the long form under "Plan through to age" and in Assumptions; from the engine's Gompertz fit (`lifeOdds`). Unisex, so a single person gets the midpoint of the ONS male/female tables (B10) |
+| 10 | Longevity | HL (ONS cohort by sex, chance of 100) / Rich Broke or Dead | parity, ahead in words (2026-11-18: "What could go wrong?" puts running short beside still being here, B27); B10 open | "Half live past 86 · 56% one of you at 90" under the plan-age needle, the long form under "Plan through to age" and in Assumptions; from the engine's Gompertz fit (`lifeOdds`). Unisex, so a single person gets the midpoint of the ONS male/female tables (B10) |
 | 11 | Care, housing, IHT | Boldin / Voyant | missing | B4 |
 | 12 | Levers, measured | Boldin | ahead | `levers`; MoneyHelper offers two unmeasured suggestions |
 | 13 | Time to first answer, defaults | PensionBee (standards alongside the target) | ahead on the target and the growth default; discoverability addressed 2026-11-14 by the simple home (owner found the dial complex twice: 13 and 14 Nov) | The default home needs no instruction: one figure, three steppers. B5 (hallway test) now applies to the simple home |
@@ -194,6 +228,7 @@ Updated every cycle. Standing: ahead · parity · behind · missing. Stop rule i
 | Care costs / housing | Boldin, Voyant | Not modelled | Gap (coverage) |
 | Pension contributions and tax relief | MoneyHelper, Standard Life: "contributions include tax relief"; AJ Bell describes 20% relief but does not show it | Shipped 2026-11-15: the relief choice sits under the payment, the field says what goes in, the home's counts line says which | Parity; higher-rate relief to the person (not the pot) explained, not modelled |
 | Longevity | HL: ONS cohort life expectancy by sex, chance of 100; Rich Broke or Dead; Fidelity and PensionBee fix 100; Standard Life and Vanguard state no horizon | Shipped 2026-11-14: the chosen plan age, with the median age and the chance of reaching it (one of a couple) beside the control, on the dial and in Assumptions | Parity (sex-specific single-person table still open, B10) |
+| Running short against being here | Engaging Data: one chart of broke, money left and a "wedge of death" by age (history, one person) | Shipped 2026-11-18: in "What could go wrong?", the chance you are (one of you is) still here at the age the unluckiest 1 in 10 run short, and the futures in which the money runs short while you are still here (`successLifetime`), in words | Parity on the idea; ahead for couples and for tax; no chart of it |
 | Decumulation model | Vanguard and Fidelity: 4% of the pot a year; Standard Life: flat drawdown or an annuity; MoneyHelper: fixed annuity | Year-by-year funding to the spend you set, tax-aware, with the money's end age | Ahead |
 | Provenance | MoneyHelper: GOV.UK transparency record, 25 GAD scenarios | 126 load-time assertions, not surfaced | Gap (trust) |
 
@@ -225,6 +260,7 @@ Updated every cycle. Standing: ahead · parity · behind · missing. Stop rule i
 | B23 | The same plan supports a figure up to 0.4% different in different browsers: the withdrawal allocator makes exact comparisons at band edges and `Math.pow` differs in its last bit between JavaScript engines | correctness | medium | medium | `e2e150.mjs` check J, 2026-11-14 (141 of 150 identical, largest 0.38%) | open |
 | B22 | A lifestyle quiz (holidays, car, kitchen) as a way into the Living Standards target for people who cannot name a monthly figure | ux | low | medium | Fidelity / Wealth Wizards, 2026-11-14 | parked until the owner reacts to the chips shipped 2026-11-13 |
 | B20 | The strands chart scaled to the single wildest future, so sixty years of compounding flattened the central path into the baseline, and nothing on it said what the height meant | polish | medium | small | Owner's screenshot, 2026-11-13 | shipped 2026-11-13: scale to the ninth decile of strand peaks; label the top of the chart and the pot on the day you stop, in today's money |
+| B27 | Put the chance of still being here beside the chance of running short | coverage | medium | small | Engaging Data "Rich, Broke or Dead"; MaxiFi on bare success percentages | shipped 2026-11-18: `lib/stillHere.ts`, two sentences in the futures row of "What could go wrong?"; UAT 17b5b. Open: the same pair by age as a table in Explore |
 
 ## Cycles
 
@@ -257,3 +293,4 @@ Updated every cycle. Standing: ahead · parity · behind · missing. Stop rule i
 | 2026-11-17 (owner-driven) | — | "The safety ladder is too specific to me for a UX that I could sell": the approach question ("How should the money be run?") is gone from setup (closes B25 by removing it rather than moving it); every plan starts as one invested pot and the ladder is an optional switch in Details → Safe ladder, starting from the standard set-up. Variables named after real people renamed in the test files | owner/2026-11-17-ladder-optional | see PR |
 | 2026-11-17 (owner-driven) | — | The owner's brief for a tenth picture, "The Lantern" (a glass tower of years, 20 windows a floor, turning the tower changes the lens). Stage 0 plan written (`docs/LANTERN_PLAN.md`: what the engine gives, what it lacks, eleven places the brief and the codebase disagree, including that lit windows were rejected on 15 November and that the brief bans the island shipped the same day). Stage 1 built from made-up figures at `?lantern=1`; the island stays the home until the owner has judged the look on a phone | owner/2026-11-17-lantern-stage1 | see PR |
 | 2026-11-17 (owner-driven) | — | "Go for it - what do you think. Self analyse as you are better than I." Engine outputs for the Lantern shipped on their own ([#66](https://github.com/stumacmar/Retire-Lens-2/pull/66): `perAgePaid`, `perAgeWealth`, opt-in shock; 154 assertions). Stage 2: the tower wired to the plan on the device through a tested adapter. Self-review written into `docs/LANTERN_PLAN.md` §9 and acted on: the front face was a gold slab with one informative corner and windows too small to count, so the tapped floor now opens; decoration that carried nothing (ring column, floor lines, scaffolding, a core that muddied the faces) removed. Honest verdict recorded: strongest as a way to read one year at a time; rotation is a carousel of four flat charts, not a use of depth; still needs a real phone and real 55 to 70 year olds | owner/2026-11-17-lantern-stage2 | see PR |
+| 2026-11-18 | FIRECalc, MaxiFi, Engaging Data "Rich, Broke or Dead" | B27: running short beside still being here. The futures row of "What could go wrong?" now says how likely you are (or one of you is) to be here at the age the unluckiest 1 in 10 run short, and in how many of 100 futures the money runs short while you are still here, from the engine's mortality curve and `successLifetime`. No engine change. UAT 17b5b. Disjoint from the open #58 and #59 | scout/2026-11-18-short-while-here | see PR |

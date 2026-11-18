@@ -284,6 +284,21 @@ await p.waitForFunction(() => document.querySelectorAll('[role=dialog][aria-labe
   await check('17b3 each case is a limit in pounds a month, with what it would take to see it through', async () => /£[\d,]+/.test(await risk.locator('[data-risk="japan"]').innerText()) && /would see it through|would still be paid/.test(await risk.locator('[data-risk="japan"]').innerText()));
   await check('17b4 the unluckiest 1 in 10 is stated as an age', async () => /unluckiest 1 in 10/.test(await risk.locator('[data-risk="futures"]').innerText()));
   await check('17b5 scenarios, not predictions', async () => /Scenarios, not predictions/.test(await risk.innerText()));
+  // Scout, 18 November 2026: running short beside still being here (after Engaging Data's "Rich, Broke or Dead").
+  await check('17b5b the futures row puts running short beside still being here, with the engine\'s own figures', async () => {
+    const q0 = await planOf(), q = { ...q0, growth: q0.growthBase ?? q0.growth }, m = E.runMonteCarlo(q, 2000, q.mcSeed || 42);
+    const el = await risk.locator('[data-still-here]').count();
+    if (m.successProb >= 0.995) return el === 0;
+    const t = (await risk.locator('[data-still-here]').innerText()).replace(/\s+/g, ' ');
+    const joint = Math.round((1 - m.successLifetime) * 100), couple = q.household !== 'single';
+    let ok = t.includes(joint < 1 ? 'in fewer than 1 of 100 futures' : `in about ${joint} of 100 futures`) && t.includes(couple ? 'while one of you is still here' : 'while you are still here')
+      && /national averages, and many people live longer/.test(t) && joint <= 100 - Math.round(m.successProb * 100) + 1;
+    if (m.shortAgeP10 != null) {
+      const o = E.lifeOdds(q, m.shortAgeP10), ahead = m.shortAgeP10 - o.a.ageNow;
+      const here = Math.round((1 - (1 - o.a.at(m.shortAgeP10)) * (1 - (o.b ? o.b.at(o.b.ageNow + ahead) : 0))) * 100);
+      ok = ok && t.includes(`still here at ${m.shortAgeP10} is about ${here} in 100`) && here >= 1 && here <= 100;
+    }
+    return ok; });
   await check('17b6 the central case agrees with the engine to the nearest ten pounds', async () => {
     const q = await planOf(); const txt = await risk.locator('[data-risk="base"]').innerText(); const shown = Number((txt.match(/£([\d,]+)/) || [])[1]?.replace(/,/g, ''));
     // The most a year that still holds, by bisection, as the insight does.

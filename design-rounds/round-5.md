@@ -19,7 +19,7 @@ The tool uses 2025/26 tax bands. It should state this clearly: "Based on HMRC ru
 Before I trust the results, I want to see my inputs clearly: "You entered: Age 56, retiring at 60, target 60,000, pension 595,000, partner age 63, partner DB 4,500." If any of these are wrong, I can go back and fix them.
 
 ### B2: A version I can print or email to my spouse
-Carol needs to see this too. A print-friendly view or PDF that shows the narrative, key numbers, and charts.
+Jo needs to see this too. A print-friendly view or PDF that shows the narrative, key numbers, and charts.
 
 ### B3: Tell me when to come back and check again
 "Review your plan in April 2027 after your pension statement arrives" is more useful than "review annually."
@@ -44,7 +44,7 @@ Currently the disclaimer is at the very bottom of the results page. It should be
 - **C attacks**: "Collapsible section at bottom of results. Expanded for IFA review, collapsed for consumers."
 
 ### On A2 (PDF export):
-- **B attacks**: "Yes! I want to print this for Carol."
+- **B attacks**: "Yes! I want to print this for Jo."
 - **C attacks**: "jspdf is installed. Wire it to a button. The print should include the narrative + data table + disclaimer."
 
 ### On A3 (tax year stamp):

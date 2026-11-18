@@ -1,5 +1,5 @@
 /**
- * End-to-end tally check: drive the RetireLens 4 UI with the Marshall data,
+ * End-to-end tally check: drive the RetireLens 4 UI with the Reference data,
  * scrape the figures the APP ACTUALLY DISPLAYS, then build a real Excel
  * workbook (.xlsx) from the SAME inputs with independent formulas, and
  * reconcile the two. Also compares both to the owner's real workbook figures.
@@ -16,14 +16,14 @@ const XLSX = XLSXpkg.utils ? XLSXpkg : (XLSXpkg.default || XLSXpkg);
 
 // ── The inputs we will type into the app AND feed the Excel model ──────────
 const IN = {
-  A: { name: 'Stuart', birthYear: 1970, spAge: 67, spAmount: 12548, pension: 570000, isa: 46600, monthlyPension: 3125, monthlyIsa: 0, db: 0 },
-  B: { name: 'Carol',  birthYear: 1963, spAge: 67, spAmount: 12548, pension: 46000,  isa: 46600, monthlyPension: 100,  monthlyIsa: 0, db: 5000 },
+  A: { name: 'Robin', birthYear: 1970, spAge: 67, spAmount: 12548, pension: 570000, isa: 46600, monthlyPension: 3125, monthlyIsa: 0, db: 0 },
+  B: { name: 'Jo',  birthYear: 1963, spAge: 67, spAmount: 12548, pension: 46000,  isa: 46600, monthlyPension: 100,  monthlyIsa: 0, db: 5000 },
   startYear: 2026, retireYear: 2030, horizonAge: 90,
   growthBase: 7, inflation: 2, growthBear: 4, growthBull: 10,
   targetNet: 60000,
   house: 750000,
 };
-// Owner's real Marshall workbook results (Base 7%). Read live from the .xlsx if
+// Owner's real reference workbook results (Base 7%). Read live from the .xlsx if
 // a path is passed (node tests/ui-excel-reconcile.mjs <workbook.xlsx>), else use
 // the values verified against that workbook.
 function readWorkbook(path) {
@@ -209,7 +209,7 @@ const TOL_APP_XL = 0.5;      // app vs independent Excel formula
 const TOL_APP_WB = 2.5;      // app vs owner's workbook (contribution-timing differences)
 let fails = 0;
 console.log('\n══════════════════════════════════════════════════════════════════════════════');
-console.log('  UI  ↔  EXCEL MODEL  ↔  OWNER WORKBOOK  — same Marshall data, three ways');
+console.log('  UI  ↔  EXCEL MODEL  ↔  OWNER WORKBOOK  — same Reference data, three ways');
 console.log('══════════════════════════════════════════════════════════════════════════════\n');
 console.log('  Metric                     App (UI)      Excel model   Workbook     vs Excel  vs WB');
 console.log('  ─────────────────────────  ────────────  ────────────  ───────────  ────────  ──────');
@@ -236,8 +236,8 @@ const inputAoa = [
   ['Same inputs typed into the app and computed here independently.', ''],
   [],
   ['INPUTS', ''],
-  ['Stuart pension £', IN.A.pension], ['Stuart monthly pension £', IN.A.monthlyPension], ['Stuart ISA £', IN.A.isa],
-  ['Carol pension £', IN.B.pension], ['Carol monthly pension £', IN.B.monthlyPension], ['Carol ISA £', IN.B.isa],
+  ['Robin pension £', IN.A.pension], ['Robin monthly pension £', IN.A.monthlyPension], ['Robin ISA £', IN.A.isa],
+  ['Jo pension £', IN.B.pension], ['Jo monthly pension £', IN.B.monthlyPension], ['Jo ISA £', IN.B.isa],
   ['Start year', IN.startYear], ['Retire year', IN.retireYear], ['Growth %', IN.growthBase], ['Inflation %', IN.inflation],
   ['Target net (today £)', IN.targetNet],
 ];

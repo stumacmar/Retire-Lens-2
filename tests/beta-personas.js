@@ -8,8 +8,8 @@
 
 export const PERSONAS = [
   {
-    id: 'stuart-56',
-    label: 'Stuart, 56 — the founder’s own case',
+    id: 'robin-56',
+    label: 'Robin, 56 — the founder’s own case',
     note: 'Single man, decade to go, decent DC pot, wants ~£28k net.',
     isCouple: false,
     inputs: {

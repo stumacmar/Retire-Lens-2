@@ -29,7 +29,7 @@ export default function Onboarding({ plan, update, onDone, onExample }: {
         </svg>
         <h1 className="serif text-[2.6rem] leading-[1.02]" style={{ color: 'var(--color-ink)' }}>See the day<br /><em style={{ color: 'var(--color-calm-strong)' }}>you can stop.</em></h1>
         <p className="mt-4 text-[1rem] leading-relaxed" style={{ color: 'var(--color-ink-dim)' }}>
-          A few sliders and you have your answer: what you could take home a month, after tax, for life — and what would help most.
+          A few questions about your pensions and savings, and you have your answer: what you could take home a month, after tax, for life — and what would help most.
           No sign-up. Everything stays on this device.
         </p>
         <button onClick={onDone} className="mt-8 w-full rounded-2xl py-4 font-semibold text-[1.05rem] active:scale-[0.98] transition-transform"

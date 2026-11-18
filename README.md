@@ -9,9 +9,11 @@
 
 ## Product / going live
 
-Someday is **free**. A paid tier, **Someday Plus**, is built in but switched
-off for now (`plusOffered: false` in `product.ts`): everyone has everything and
-the app makes no network request at all. When it is switched on it is sold
+Someday is **free**, and nothing in it is for sale: every feature is open to
+everyone and the app makes no network request at all. Dormant code for a paid
+tier (**Someday Plus**) remains, switched off (`plusOffered: false` in
+`product.ts`); switching it on would mean changing the story page ("Free to
+use"), the legal page (trader identity) and this README first. When it is switched on it is sold
 through Lemon Squeezy (merchant of record) and unlocked with a licence key; the
 licence check is then the only request the app ever makes. No account, no
 backend, no tracking.

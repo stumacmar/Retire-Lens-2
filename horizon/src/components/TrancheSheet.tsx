@@ -3,7 +3,7 @@ import { fmtK } from '../lib/format';
 import { trancheScenarios, trancheWords, type Tranche } from '../lib/tranches';
 
 /**
- * One tranche, opened from a wall of the time tunnel: what it is, what it is
+ * One tranche, opened from a chip on the island: what it is, what it is
  * assumed to earn, and what it would be worth at each age (today's money)
  * in positive, base and poor markets and if 2008 struck the day work stops.
  * Four lines, each labelled at its end; the base line is the strongest.

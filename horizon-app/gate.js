@@ -10,8 +10,8 @@
  *   https://…/?gate=the-phrase
  */
 (function () {
-  var ENABLED = false;   // preview gate off (set true to put it back)
-  var HASH = 'cb324a4b2e31c92710892f6da1e947047d1c681ef5f94edeab60eac54b828e8f';
+  var ENABLED = true;    // preview gate on (owner, 17 November 2026)
+  var HASH = '6b72fad5cedc3df40191457d746fcea255723515eb2d064e8e04a92b3a611bd9';
   var KEY = 'someday-gate-v1';
   var SALT = 'someday-gate:';
   if (!ENABLED) return;

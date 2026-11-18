@@ -41,7 +41,7 @@ After analyzing ProjectionLab, Boldin, Fidelity, Voyant, Timeline, Guiide, cFIRE
 "It's a solid consumer tool. Better than MoneyHelper, comparable to Guiide. But it's nowhere near Voyant or Timeline for planning depth. The missing pieces: no withdrawal strategy options (VPW, guardrails), no tax wrapper optimization (ISA vs SIPP drawdown order), no income splitting strategy for couples, no state pension deferral modelling, no partial annuity/drawdown blended strategy. The per-person tax is a good start but doesn't optimize -- it just calculates."
 
 **Consumer faction (split -- 12 YES, 8 NO):**
-The YES camp: "It answered my question clearly. 88 out of 100. The narrative told me what happens at each age. The annuity comparison was useful. I can print it for Carol."
+The YES camp: "It answered my question clearly. 88 out of 100. The narrative told me what happens at each age. The annuity comparison was useful. I can print it for Jo."
 The NO camp: "I can't compare 'retire at 58 vs 60 vs 62' side by side. The what-if buttons show a number but don't update the charts. I want to play with scenarios and see the impact visually."
 
 **UX faction (unanimous NO):**
@@ -65,7 +65,7 @@ Each faction submits their top 3 demands for the NEXT level:
 
 2. **Monthly income view**: Everything is annual. I budget monthly. Show me "you'll have 5,000/month" not "60,000/year". Simple but important for how I think about money.
 
-3. **"What Carol sees" view**: A simplified summary I can text to my partner. Not the full results page -- just: "We can retire at 60. Income 60k/year. Money lasts to 90. If anything happens to me, you'll have 1M+ and your own pensions."
+3. **"What Jo sees" view**: A simplified summary I can text to my partner. Not the full results page -- just: "We can retire at 60. Income 60k/year. Money lasts to 90. If anything happens to me, you'll have 1M+ and your own pensions."
 
 **UX Top 3:**
 
@@ -74,7 +74,7 @@ Each faction submits their top 3 demands for the NEXT level:
 2. **Design refresh with microinteractions**: The numbers should animate when they appear. The charts should draw in. The tabs should slide. The confidence meter should fill like a gauge. These details are what make ProjectionLab feel premium. Currently RetireLens feels like a government tool.
 
 3. **Progressive summary card**: A single card that floats at the top of results summarizing the entire plan in 4 lines:
-   "You + Carol | Retire at 60 | Income 60k/yr (5k/month)
+   "You + Jo | Retire at 60 | Income 60k/yr (5k/month)
    88% confident your money lasts to 90
    Pension covers it all. ISA grows untouched.
    Next review: April 2027"
@@ -96,7 +96,7 @@ Show all income figures as monthly (5,000/month) with a toggle to switch to annu
 **2. Shareable summary card**
 A fixed-format card at the top of results with 4 lines summarizing the entire plan. "Copy to clipboard" button. Designed to be screenshotted and sent to a partner.
 - Effort: Small (HTML/CSS)
-- Impact: High (solves the "share with Carol" problem)
+- Impact: High (solves the "share with Jo" problem)
 
 **3. Side-by-side scenario comparison**
 Save current scenario, change one variable (retirement age), recalculate, show both on the same chart with a delta summary. Use the existing Save Scenario infrastructure.

@@ -1,7 +1,7 @@
 /**
- * RetireLens 4 ↔ Marshall workbook parity check.
+ * RetireLens 4 ↔ reference workbook parity check.
  *
- * Runs the RetireLens 4 engine with the Marshall defaults and compares its
+ * Runs the RetireLens 4 engine with the Reference defaults and compares its
  * headline outputs to the values cached in the owner's Excel model (Base 7%).
  * This is the yardstick: any engine change must keep these agreeing. Figures
  * that drift more than the tolerance are flagged NEEDS FIXING.
@@ -11,13 +11,13 @@
 
 import { Engine } from '../v4/engine.js';
 
-// Values read straight from the Marshall workbook's cached results (Base 7%).
+// Values read straight from the reference workbook's cached results (Base 7%).
 const EXCEL = {
   pensionTotalAtRetire: 969125,   // Accumulation D21
   isaTotalAtRetire: 122873,       // Accumulation D28
   year1NetIncome: 60000,          // Drawdown M10
   survives: true,                 // Drawdown M50 = "Pot survives to 2055"
-  pension2050: 1714162,           // Drawdown O30 (Stuart SIPP EOY 2050)
+  pension2050: 1714162,           // Drawdown O30 (Robin SIPP EOY 2050)
   lifetimeTax: 481334,            // Drawdown: total income tax paid 2030-2055
 };
 

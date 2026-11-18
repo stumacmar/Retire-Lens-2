@@ -11,7 +11,7 @@ import { planCounts } from '../lib/counts';
 import { valuesFor, clampVal, type Val } from '../lib/planValues';
 import Sheet from './Sheet';
 import RiskPanel from './RiskPanel';
-import TimeTunnel from './TimeTunnel';
+import Island from './Island';
 import { lifeEvents } from '../lib/lifeEvents';
 import { tranchesOf, type TrancheKey } from '../lib/tranches';
 import TrancheSheet from './TrancheSheet';
@@ -66,7 +66,7 @@ export default function SimpleHome({ plan, update, dd, mc, onDetails, header }: 
   const status = settled ? withDeadZone(prevKey.current, ruled) : ruled;
   useEffect(() => { if (settled) prevKey.current = status.key; }, [settled, status.key]);
 
-  // What the tunnel cannot show: how short the bad futures are. The leanest
+  // What the island shows only on touch: how short the bad futures are. The leanest
   // year in the worst 10 of 100 futures, as a monthly amount (it counts the
   // State Pension and other guaranteed income, so it is never shown as nothing).
   const structured = !!plan.architecture?.on;
@@ -102,6 +102,7 @@ export default function SimpleHome({ plan, update, dd, mc, onDetails, header }: 
 
   const [panel, setPanel] = useState<null | 'help' | 'risk'>(null);
   const events = useMemo(() => lifeEvents(plan, dd), [plan, dd]);
+  const central = useMemo(() => { try { return (E as any).coverByAge(plan) as { age: number; cover: number }[]; } catch { return []; } }, [plan]);
   const endAge = held.length ? held[held.length - 1].age : plan.horizonAge;
   const tranches = useMemo(() => tranchesOf(plan, dd, stopAge, endAge), [plan, dd, stopAge, endAge]);
   const [open, setOpen] = useState<{ key: TrancheKey; at: number | null } | null>(null);
@@ -113,7 +114,7 @@ export default function SimpleHome({ plan, update, dd, mc, onDetails, header }: 
     <div data-simple-home className="fixed inset-0 overflow-y-auto"
       style={{ background: 'var(--color-canvas)', paddingTop: 'calc(env(safe-area-inset-top) + 0.6rem)', paddingBottom: 'calc(env(safe-area-inset-bottom) + 5.4rem)',
         paddingLeft: 'max(16px, env(safe-area-inset-left))', paddingRight: 'max(16px, env(safe-area-inset-right))' }}>
-      {/* At least a screen tall, so the tunnel can take whatever height is
+      {/* At least a screen tall, so the island can take whatever height is
           left once the answer and the controls are laid out: the two
           questions always sit just above the tab bar. */}
       <div className="mx-auto w-full max-w-[560px] min-h-full flex flex-col">
@@ -128,62 +129,80 @@ export default function SimpleHome({ plan, update, dd, mc, onDetails, header }: 
           </section>
         ) : (
           <section className="flex-1 flex flex-col mt-1" data-answer data-ready={rails && mc ? '1' : '0'}>
-            <p data-status={status.key} className="flex items-center gap-2 text-[0.95rem] font-semibold leading-tight" style={{ color: status.colour }} aria-live="polite">
-              <span aria-hidden className="inline-block w-2 h-2 rounded-full shrink-0" style={{ background: status.colour }} />{status.label}
-            </p>
-            {/* The answer in words, naming the amount the futures are counted against. */}
-            <p data-futures className="mt-1 text-[1rem] leading-snug" style={{ color: 'var(--color-ink)' }}>{futuresSentence(status)}</p>
-            {/* The figure: what the plan can pay, and the gap to the ask. */}
-            <div className="mt-2 flex items-center justify-center gap-3">
-              <h1 className="serif tnum leading-none" style={{ fontSize: 'clamp(2rem, 9vw, 2.6rem)', letterSpacing: '-0.04em', color: 'var(--color-ink)' }} data-supports>{fmt(figure)}</h1>
-              <span className="flex flex-col text-[0.84rem] leading-tight">
-                <span style={{ color: 'var(--color-ink-dim)' }}>a month after tax</span>
+            {/* ── Your island: the picture is the screen; the answer floats in its sky ── */}
+            <Island mc={mc} structured={structured} fromAge={stopAge} toAge={plan.horizonAge} ask={month} central={central} events={events} tranches={tranches}
+              onOpen={(key, at) => setOpen({ key, at })} onAsk={m => update((p: any) => ({ ...p, targetNet: m * 12 }))}
+              summary={`${spokenAnswer(status, stopAge, typicalShort)} ${resting}`} resting={resting}
+              head={<>
+                <p data-status={status.key} className="flex items-center gap-1.5 text-[0.82rem] font-semibold leading-tight" style={{ color: status.colour }} aria-live="polite">
+                  <span aria-hidden className="inline-block w-2 h-2 rounded-full shrink-0" style={{ background: status.colour }} />{status.label}
+                </p>
+                {/* The figure: what the plan can pay, labelled so it is never mistaken for what
+                    you ask (review, 17 November 2026), with what you ask and the gap. */}
+                <span data-figure-label className="mt-1 block text-[0.7rem] font-semibold leading-tight" style={{ color: 'var(--color-ink-dim)' }}>Your plan can pay</span>
+                <h1 className="serif tnum leading-none" style={{ fontSize: 'clamp(1.9rem, 8.5vw, 2.5rem)', letterSpacing: '-0.04em', color: 'var(--color-ink)' }} data-supports>{fmt(figure)}</h1>
+                <span className="block text-[0.74rem] leading-tight mt-0.5" style={{ color: 'var(--color-ink-dim)' }}>a month after tax · <span data-ask>You ask for {fmt(month)}</span></span>
                 {gap != null && (
-                  <span data-gap className="font-semibold whitespace-nowrap" style={{ color: gap < 0 ? 'var(--color-slate)' : 'var(--color-ring)' }}>
+                  <span data-gap className="block text-[0.78rem] font-semibold leading-tight whitespace-nowrap" style={{ color: gap < 0 ? 'var(--color-slate)' : 'var(--color-ring)' }}>
                     {Math.abs(gap) < 25 ? <>Just what you ask</>
                       : gap < 0 ? <>{fmt(-gap)} short</>
                         : <>{fmt(gap)} to spare</>}
                   </span>)}
-              </span>
-            </div>
-            {/* ── The time tunnel ──────────────────────────────────────── */}
-            <TimeTunnel mc={mc} structured={structured} fromAge={stopAge} toAge={plan.horizonAge} ask={month} events={events} tranches={tranches} onOpen={(key, at) => setOpen({ key, at })}
-              summary={`${spokenAnswer(status, stopAge, typicalShort)} ${resting}`} resting={resting} />
+              </>}
+              answer={<span data-futures style={{ color: 'var(--color-ink)' }}>{futuresSentence(status)}</span>} />
           </section>
         )}
 
         {/* ── The three things most people change, side by side ──────── */}
         {hasMoney && (
-          <section className="mt-3 [@media(max-height:760px)]:mt-2 grid grid-cols-3 gap-2" aria-label="Change your plan">
+          <section className="mt-2 grid grid-cols-3 gap-1.5" aria-label="Change your plan">
             {drivers.map(d => {
               const n = d.val.get();
               return (
-                <div key={d.id} data-driver={d.id} className="rounded-2xl px-1.5 pt-2 pb-1.5 flex flex-col items-center text-center min-w-0" style={{ background: 'var(--color-surface)', border: '1px solid var(--color-hairline)' }}>
-                  <div className="text-[0.74rem] font-semibold leading-tight truncate max-w-full" style={{ color: 'var(--color-ink-dim)' }}>{d.label}</div>
-                  {typing?.id === d.id ? (
-                    <input autoFocus inputMode="decimal" aria-label={`${d.label}, type a figure`} value={typing.text} onChange={e => setTyping({ id: d.id, text: e.target.value })}
-                      onBlur={commit} onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); if (e.key === 'Escape') setTyping(null); }}
-                      className="tnum text-center text-[1.05rem] font-bold rounded-lg my-0.5 py-0.5 w-full outline-none" style={{ background: 'var(--color-canvas)', color: 'var(--color-ink)', border: '1px solid var(--color-calm)' }} />
-                  ) : (
-                    <button type="button" onClick={() => setTyping({ id: d.id, text: String(n) })} aria-label={`${d.label}: ${d.show(n)}. Tap to type a figure`}
-                      className="tnum text-[1.12rem] font-bold leading-none mt-1 mb-1 min-h-[34px] w-full flex flex-col items-center justify-center" style={{ color: 'var(--color-ink)' }}>{d.show(n)}<span className="mt-0.5 text-[0.66rem] font-medium" style={{ color: 'var(--color-ink-faint)' }}>{d.sub}</span></button>
-                  )}
-                  <div className="flex gap-1.5 w-full">
+                <div key={d.id} data-driver={d.id} className="rounded-2xl px-1 pt-1.5 pb-1 flex flex-col items-center text-center min-w-0" style={{ background: 'var(--color-surface)', border: '1px solid var(--color-hairline)' }}>
+                  <div className="text-[0.66rem] font-semibold leading-tight truncate max-w-full" style={{ color: 'var(--color-ink-dim)' }}>{d.label}{d.sub === 'a month' ? ' a month' : ''}</div>
+                  <div className="flex items-center gap-0.5 w-full mt-0.5">
                     <button type="button" aria-label={`${d.label}: ${d.less}`} disabled={n <= d.val.min} onClick={() => write(d.id, (_v, cur) => cur - d.step)}
-                      className="flex-1 h-9 rounded-full flex items-center justify-center disabled:opacity-30" style={{ background: 'var(--color-canvas)', border: '1px solid var(--color-hairline)', color: 'var(--color-ink)' }}><Minus size={16} /></button>
+                      className="shrink-0 w-7 h-8 rounded-full flex items-center justify-center disabled:opacity-30" style={{ color: 'var(--color-ink)' }}><Minus size={15} /></button>
+                    {typing?.id === d.id ? (
+                      <input autoFocus inputMode="decimal" aria-label={`${d.label}, type a figure`} value={typing.text} onChange={e => setTyping({ id: d.id, text: e.target.value })}
+                        onBlur={commit} onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); if (e.key === 'Escape') setTyping(null); }}
+                        className="tnum text-center text-[0.95rem] font-bold rounded-lg py-0.5 min-w-0 flex-1 outline-none" style={{ background: 'var(--color-canvas)', color: 'var(--color-ink)', border: '1px solid var(--color-calm)' }} />
+                    ) : (
+                      <button type="button" onClick={() => setTyping({ id: d.id, text: String(n) })} aria-label={`${d.label}: ${d.show(n)}. Tap to type a figure`}
+                        className="tnum text-[0.98rem] font-bold leading-none min-h-[32px] min-w-0 flex-1" style={{ color: 'var(--color-ink)' }}>{d.show(n)}</button>
+                    )}
                     <button type="button" aria-label={`${d.label}: ${d.more}`} disabled={n >= d.val.max} onClick={() => write(d.id, (_v, cur) => cur + d.step)}
-                      className="flex-1 h-9 rounded-full flex items-center justify-center disabled:opacity-30" style={{ background: 'var(--color-canvas)', border: '1px solid var(--color-hairline)', color: 'var(--color-ink)' }}><Plus size={16} /></button>
+                      className="shrink-0 w-7 h-8 rounded-full flex items-center justify-center disabled:opacity-30" style={{ color: 'var(--color-ink)' }}><Plus size={15} /></button>
                   </div>
                 </div>);
             })}
           </section>
         )}
 
+        {/* ── Spending less in later life (owner, 17 November 2026: "add toggles for reduce
+            spend at 75 and 82"). The same settings as Details → Spending; the percentages are
+            measured against the full retirement spend, so the later one is the total, not a cut
+            on top of the first. ──────────────────────────────────────────── */}
+        {hasMoney && (
+          <div className="mt-2 grid grid-cols-2 gap-2" role="group" aria-label="Spend less in later life">
+            {([['phase1', plan.phase1Age, plan.phase1Cut, !!plan.phase1On], ['phase2', plan.phase2Age, plan.phase2Cut, !!plan.phase2On]] as const).map(([k, age, cut, on]) => (
+              <button key={k} type="button" role="switch" aria-checked={on} data-step-down={k}
+                aria-label={`Spend ${Math.round(cut * 100)}% less from ${age}${k === 'phase2' ? ', in total' : ''}`}
+                onClick={() => update((p: any) => ({ ...p, [k + 'On']: !on }))}
+                className="flex items-center justify-center gap-1.5 rounded-full min-h-[34px] px-2 text-[0.76rem] [@media(max-width:379px)]:text-[0.72rem] font-semibold"
+                style={{ background: on ? 'color-mix(in srgb, var(--color-calm) 12%, var(--color-canvas))' : 'var(--color-canvas)', border: `1px solid ${on ? 'var(--color-calm)' : 'var(--color-hairline)'}`, color: on ? 'var(--color-calm-strong)' : 'var(--color-ink-dim)' }}>
+                <span aria-hidden className="inline-flex items-center justify-center w-4 h-4 rounded-full text-[0.65rem]" style={{ background: on ? 'var(--color-calm)' : 'transparent', border: on ? 'none' : '1px solid var(--color-ink-faint)', color: 'var(--color-on-calm)' }}>{on ? '✓' : ''}</span>
+                {Math.round(cut * 100)}% less from {age}
+              </button>))}
+          </div>
+        )}
+
         {/* ── Two questions, one tap each ────────────────────────────── */}
         {hasMoney && (
           <div className="mt-3 [@media(max-height:760px)]:mt-2 grid grid-cols-2 gap-3">
-            <button type="button" onClick={() => setPanel('help')} className="rounded-2xl py-3 px-1 min-h-[48px] text-[0.86rem] [@media(max-width:379px)]:text-[0.8rem] font-semibold" style={{ background: 'var(--color-canvas)', border: '1px solid var(--color-calm)', color: 'var(--color-calm-strong)' }}>What would help?</button>
-            <button type="button" onClick={() => setPanel('risk')} className="rounded-2xl py-3 px-1 min-h-[48px] text-[0.86rem] [@media(max-width:379px)]:text-[0.8rem] font-semibold" style={{ background: 'var(--color-canvas)', border: '1px solid var(--color-calm)', color: 'var(--color-calm-strong)' }}>What could go wrong?</button>
+            <button type="button" onClick={() => setPanel('help')} className="rounded-2xl py-2 px-1 min-h-[40px] text-[0.84rem] [@media(max-width:379px)]:text-[0.8rem] font-semibold" style={{ background: 'var(--color-canvas)', border: '1px solid var(--color-calm)', color: 'var(--color-calm-strong)' }}>What would help?</button>
+            <button type="button" onClick={() => setPanel('risk')} className="rounded-2xl py-2 px-1 min-h-[40px] text-[0.84rem] [@media(max-width:379px)]:text-[0.8rem] font-semibold" style={{ background: 'var(--color-canvas)', border: '1px solid var(--color-calm)', color: 'var(--color-calm-strong)' }}>What could go wrong?</button>
           </div>
         )}
       </div>

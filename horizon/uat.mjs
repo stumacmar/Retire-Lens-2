@@ -466,6 +466,17 @@ await check('68 not-advice card', () => has('Not financial advice'));
 await check('69 UK-aware card', () => has('UK-aware'));
 await check('69b assumptions list generated', async () => { await tap('Every assumption behind your numbers'); await wait(400); return (await has('Range of futures')) && (await has('Couples')); });
 await check('69c assumptions: the four layers of uncertainty and the versions are stated', async () => (await has('What the confidence covers')) && /Engine \d{4}\.\d{2}\.\d{2} · plan schema \d+ · tax rules 20\d\d\/\d\d/.test(await bodyT()));
+// Charges in context (Scout, 16 November 2026): the row places the plan's charge among what UK calculators
+// assume and measures another 0.25% a year. The paid-in-full search is written again here, from the engine.
+{
+  const paid = (dd) => !!dd.holds && !dd.rows.some(r => r.spendMult != null && r.spendMult < 0.999);
+  const run = (P) => { const g = P.growth ?? P.growthBase; const Q = { ...P, growth: g }; return E.drawdown(Q, { growth: g, startPots: E.accumulate(Q, g).atRetirement }); };
+  const cap = (plan) => { const P = { ...JSON.parse(JSON.stringify(plan)), spendingPlanOn: false }; let lo = 2000, hi = Math.max(250000, (P.targetNet || 0) * 3);
+    for (let i = 0; i < 16; i++) { const mid = (lo + hi) / 2; if (paid(run({ ...P, targetNet: mid }))) lo = mid; else hi = mid; } return Math.floor(lo / 100) * 100; };
+  await check('69g assumptions: charges are placed among UK calculators and another 0.25% is measured for this plan, from the engine', async () => {
+    const q = await planOf(); const per = Math.max(0, Math.round((cap(q) - cap({ ...q, fee: (q.fee || 0) + 0.0025 })) / 12 / 10) * 10);
+    const t = await bodyT(); return /Charges/.test(t) && /Nest 0\.3%/.test(t) && /Hargreaves Lansdown 1%/.test(t) && t.includes(`another 0.25% a year would lower what it can pay in full by about ${gbp(per)} a month`); });
+}
 await check('69d how we checked: the engine checks itself live and reports the count', async () => { await tap('How we checked these numbers'); await wait(600); return /(\d+) of \1 engine checks pass on this device/.test(await p.$eval('[data-how-we-checked]', e => e.innerText).catch(() => '')); });
 await check('69e how we checked: every rule names a source', async () => (await p.locator('[data-how-we-checked] a:has-text("Source")').count()) >= 10);
 await check('69f how we checked: no link leaves except to the published sources and the repository', async () => (await p.$$eval('[data-how-we-checked] a', as => as.every(a => /^https:\/\/(www\.gov\.uk|www\.gov\.scot|www\.handbook\.fca\.org\.uk|www\.ons\.gov\.uk|www\.retirementlivingstandards\.org\.uk|github\.com\/stumacmar)\//.test(a.href)))));

@@ -1,5 +1,5 @@
 /**
- * Someday planner UI. Tabs mirror the Marshall workbook. Engine is pure and
+ * Someday planner UI. Tabs mirror the reference workbook. Engine is pure and
  * lives in engine.js; everything here is rendering and state.
  * Display convention: with the Today's £ toggle on, every figure shown is
  * deflated to 2026 money, including aggregates. Lifetime tax uses the
@@ -36,7 +36,7 @@ function icon(name, cls) {
 const S = {
   // New visitors start with a blank, generic plan ("You" / "Partner", zeroed
   // pots) — never someone else's data. A returning visitor's saved plan is
-  // loaded below. E.defaults() (the Marshall workbook) is reserved for tests.
+  // loaded below. E.defaults() (the reference workbook) is reserved for tests.
   P: E.freshStart(),
   tab: 'assumptions',  // land on "Your details" first, not the dashboard
   todayMoney: true,   // open in today's money — clearer for people, matches the workbook view

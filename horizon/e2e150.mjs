@@ -32,7 +32,7 @@
  *   L  (every fifth) the needle, moved with the keys to the last age and the
  *      first, reads the same counts
  *
- * In every fifth scenario the tunnel is also moved with the keys,
+ * In every fifth scenario the island is also moved with the keys,
  * to the plan's last age and back to the year work stops, and must read the
  * same counts as the engine. The first fourteen scenarios are the owner's own plan and its near
  * neighbours; the rest are drawn from a seeded generator, so the run is the
@@ -56,13 +56,13 @@ const F = E.freshStart(), D = E.defaults();
 const STRUCT = { on: true, ladderYears: 7, refill: 'whenUp', refillMin: 0, equityReal: 0.05, equitySd: 0.16, goldReal: 0.01, goldSd: 0.14, goldPct: 0.15, giltReal: 0.015,
   rulesOn: true, longevityAge: 95, cutBelow: 0.90, cutBy: 0.10, raiseAbove: 1.25, raiseBy: 0.05, raiseLagYears: 2, floorMult: 0.75, capMult: 1.25,
   parachuteOn: true, parachuteBelow: 0.75, parachuteFrom: 80, parachuteFraction: 0.5 };
-const stuart = { ...F.partnerA, name: 'Stuart', birthYear: 1970, pension: 570000, monthlyPension: 3200, isa: 48000, spAmount: 12548 };
-const carol = { ...F.partnerB, ...D.partnerB };
-const owner = (over = {}) => E.sanitisePlan({ ...F, approach: 'traditional', retireYear: 2030, targetNet: 60000, partnerA: stuart, partnerB: carol, ...over });
+const robin = { ...F.partnerA, name: 'Robin', birthYear: 1970, pension: 570000, monthlyPension: 3200, isa: 48000, spAmount: 12548 };
+const jo = { ...F.partnerB, ...D.partnerB };
+const owner = (over = {}) => E.sanitisePlan({ ...F, approach: 'traditional', retireYear: 2030, targetNet: 60000, partnerA: robin, partnerB: jo, ...over });
 const named = [
-  ['owner: Stuart and Carol, stop 60, £5,000 a month', owner()],
-  ['owner without Carol\'s pots or annuity', owner({ partnerB: { ...F.partnerB, birthYear: 1963 } })],
-  ['owner, just Stuart (single)', owner({ household: 'single' })],
+  ['owner: Robin and Jo, stop 60, £5,000 a month', owner()],
+  ['owner without Jo\'s pots or annuity', owner({ partnerB: { ...F.partnerB, birthYear: 1963 } })],
+  ['owner, just Robin (single)', owner({ household: 'single' })],
   ['owner, asks exactly what the plan supports (£5,600)', owner({ targetNet: 67200 })],
   ['owner, asks £5,500 (thin margin)', owner({ targetNet: 66000 })],
   ['owner, asks £6,500 (short)', owner({ targetNet: 78000 })],
@@ -71,8 +71,8 @@ const named = [
   ['owner, stop at 65', owner({ retireYear: 2035 })],
   ['owner on the de-risking structure', owner({ approach: 'derisking', architecture: { ...F.architecture, ...STRUCT } })],
   ['owner on the structure, asks £4,000', owner({ approach: 'derisking', targetNet: 48000, architecture: { ...F.architecture, ...STRUCT } })],
-  ['the worked example as shipped (7% growth)', { ...D, approach: 'traditional' }],
-  ['owner, Carol works on to 2033', owner({ partnerB: { ...carol, stopYear: 2033, income: 28000 } })],
+  ['the reference workbook as shipped (7% growth)', { ...D, approach: 'traditional' }],
+  ['owner, Jo works on to 2033', owner({ partnerB: { ...jo, stopYear: 2033, income: 28000 } })],
   ['owner, Scotland', owner({ tax: { region: 'scotland' } })],
 ];
 function generated(i) {
@@ -204,7 +204,7 @@ async function readHome(page, plan) {
   return page.evaluate(() => { const t = (s) => (document.querySelector(s)?.innerText || '').replace(/\s+/g, ' ').trim();
     return { key: document.querySelector('[data-simple-home] [data-status]')?.getAttribute('data-status'), label: t('[data-simple-home] [data-status]'),
       figure: Number(t('[data-supports]').replace(/[£,]/g, '')), gap: t('[data-gap]'), futures: t('[data-futures]'), counts: t('[data-counts]'), note: t('[data-note]'),
-      sun: (() => { const el = document.querySelector('[data-tunnel]'); return !el ? null : { first: +el.getAttribute('data-first'), last: +el.getAttribute('data-last'), n: +el.getAttribute('data-years'),
+      sun: (() => { const el = document.querySelector('[data-island]'); return !el ? null : { first: +el.getAttribute('data-first'), last: +el.getAttribute('data-last'), n: +el.getAttribute('data-years'),
         counts: (el.getAttribute('data-full-counts') || '').split(',').filter(Boolean).map(Number), rules: (el.getAttribute('data-rules') || '').split(',').filter(Boolean).map(Number) }; })() }; });
 }
 
@@ -243,17 +243,17 @@ async function worker() {
       if (shownF !== x.futures) fails.push(`E futures: shows ${shownF} of 100, engine gives ${x.futures}`);
       if (x.structured && x.futuresFull !== x.futures && !ui.futures.includes(`in ${x.futuresFull} it pays`)) fails.push(`E structured plan does not state the paid-in-full share ${x.futuresFull}: ${ui.futures}`);
       if (!/not a guarantee/.test(ui.futures)) fails.push('E the caveat is missing');
-      // K the tunnel: the picture and the number are the same thing
+      // K the island: the picture and the number are the same thing
       {
         const sun = ui.sun;
-        if (!sun || sun.counts.length !== sun.n) fails.push(`K the tunnel is missing or has no count for some years (${sun ? sun.counts.length : 'none'})`);
+        if (!sun || sun.counts.length !== sun.n) fails.push(`K the island is missing or has no count for some years (${sun ? sun.counts.length : 'none'})`);
         else {
           const use = x.structured ? sun.rules : sun.counts;
-          if (sun.first !== plan.retireYear - plan.partnerA.birthYear) fails.push(`K the tunnel starts at ${sun.first}, work stops at ${plan.retireYear - plan.partnerA.birthYear}`);
-          if (sun.last !== sun.first + sun.n - 1) fails.push(`K the tunnel ends at ${sun.last} after ${sun.n} years from ${sun.first}`);
+          if (sun.first !== plan.retireYear - plan.partnerA.birthYear) fails.push(`K the island starts at ${sun.first}, work stops at ${plan.retireYear - plan.partnerA.birthYear}`);
+          if (sun.last !== sun.first + sun.n - 1) fails.push(`K the island ends at ${sun.last} after ${sun.n} years from ${sun.first}`);
           if (!use.every((c, i) => c >= 0 && c <= 100 && (i === 0 || c <= use[i - 1]))) fails.push(`K the count rises somewhere: ${use.join(' ')}`);
-          if (use[sun.n - 1] !== x.futures) fails.push(`K the tunnel ends on ${use[sun.n - 1]}, the sentence says ${x.futures}`);
-          if (x.structured && sun.counts[sun.n - 1] !== Math.min(x.futuresFull, x.futures)) fails.push(`K structured: the tunnel's paid-in-full count ends on ${sun.counts[sun.n - 1]}, paid in full is ${x.futuresFull}`);
+          if (use[sun.n - 1] !== x.futures) fails.push(`K the island ends on ${use[sun.n - 1]}, the sentence says ${x.futures}`);
+          if (x.structured && sun.counts[sun.n - 1] !== Math.min(x.futuresFull, x.futures)) fails.push(`K structured: the island's paid-in-full count ends on ${sun.counts[sun.n - 1]}, paid in full is ${x.futuresFull}`);
         }
       }
       // F the counts line
@@ -262,7 +262,7 @@ async function worker() {
       if (pens > 0 && !ui.counts.includes(`${fmtK(pens)} in pensions`)) fails.push(`F counts: pensions ${fmtK(pens)} not in "${ui.counts}"`);
       if (sav > 0 && !ui.counts.includes(`${fmtK(sav)} in ISAs and cash`)) fails.push(`F counts: savings ${fmtK(sav)} not in "${ui.counts}"`);
       if (gua > 0 && !ui.counts.includes(`${fmtK(gua)} a year guaranteed`)) fails.push(`F counts: guaranteed ${fmtK(gua)} not in "${ui.counts}"`);
-      if (single && / and (your partner|Carol|Partner)\b/.test(ui.counts.split(':')[0])) fails.push(`F counts names a partner on a single plan: ${ui.counts}`);
+      if (single && / and (your partner|Jo|Partner)\b/.test(ui.counts.split(':')[0])) fails.push(`F counts names a partner on a single plan: ${ui.counts}`);
       // G no double counting: pots on the day of stopping
       if (formulaApplies(plan)) {
         const eng = x.pots, mine = potsByFormula(plan);
@@ -277,14 +277,14 @@ async function worker() {
       if (x.drift > 0.01) fails.push(`J the figure differs by ${(x.drift * 100).toFixed(2)}% between Chromium and Node (limit 1%)`);
       // L the needle, moved with the keys, reads the engine's counts
       if (i % 5 === 0 && ui.sun) {
-        await page.focus('[data-tunnel] [role=slider]'); await page.keyboard.press('End'); await page.waitForTimeout(80);
-        const atEnd = await page.$eval('[data-tunnel]', e => [+e.getAttribute('data-age'), e.querySelector('[role=slider]').getAttribute('aria-valuetext')]);
+        await page.focus('[data-island] [role=slider]'); await page.keyboard.press('End'); await page.waitForTimeout(80);
+        const atEnd = await page.$eval('[data-island]', e => [+e.getAttribute('data-age'), e.querySelector('[role=slider]').getAttribute('aria-valuetext')]);
         await page.keyboard.press('Home'); await page.waitForTimeout(80);
-        const atStart = await page.$eval('[data-tunnel]', e => [+e.getAttribute('data-age'), e.querySelector('[role=slider]').getAttribute('aria-valuetext')]);
+        const atStart = await page.$eval('[data-island]', e => [+e.getAttribute('data-age'), e.querySelector('[role=slider]').getAttribute('aria-valuetext')]);
         const lastBar = ui.sun.counts[ui.sun.n - 1], firstBar = ui.sun.counts[0];
-        if (atEnd[0] !== ui.sun.last || !atEnd[1].startsWith(`Age ${ui.sun.last}: ${lastBar} of 100 futures still pay`)) fails.push(`L the tunnel at ${ui.sun.last} reads "${atEnd[1]}", its own count is ${lastBar}`);
-        if (atStart[0] !== ui.sun.first || !atStart[1].startsWith(`Age ${ui.sun.first}: ${firstBar} of 100`)) fails.push(`L the tunnel at ${ui.sun.first} reads "${atStart[1]}", its own count is ${firstBar}`);
-        if (lastBar !== x.futuresFull) fails.push(`L the tunnel's paid-in-full count at the last age is ${lastBar}, the engine gives ${x.futuresFull}`);
+        if (atEnd[0] !== ui.sun.last || !atEnd[1].startsWith(`Age ${ui.sun.last}: ${lastBar} of 100 futures still pay`)) fails.push(`L the island at ${ui.sun.last} reads "${atEnd[1]}", its own count is ${lastBar}`);
+        if (atStart[0] !== ui.sun.first || !atStart[1].startsWith(`Age ${ui.sun.first}: ${firstBar} of 100`)) fails.push(`L the island at ${ui.sun.first} reads "${atStart[1]}", its own count is ${firstBar}`);
+        if (lastBar !== x.futuresFull) fails.push(`L the island's paid-in-full count at the last age is ${lastBar}, the engine gives ${x.futuresFull}`);
       }
       // I errors
       if (errs.length) fails.push('I ' + [...new Set(errs)].slice(0, 2).join(' | '));

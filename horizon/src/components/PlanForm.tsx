@@ -312,7 +312,8 @@ export default function PlanForm({ plan, update, reset, plus, onUpgrade, issues 
         <p style={{ color: 'var(--color-ink-faint)' }}>
           Sets the Poor / Base / Positive growth lenses, the simulation’s spread and the share of your money the stress tests hit together. Custom keeps whatever you set on The lens.
         </p>
-        <PctField label="Charges a year (platform and funds, taken off every return)" value={plan.fee || 0} onChange={v => update({ fee: v, riskPreset: plan.riskPreset })} />
+        <PctField label="Charges a year (platform and funds, taken off every return)" value={plan.fee || 0} onChange={v => update({ fee: v, riskPreset: plan.riskPreset })}
+          hint={(plan.fee || 0) < 0.001 ? 'No charges at all is rare: UK pensions and ISAs usually cost about 0.3% to 1% a year all in, and leaving them out flatters every figure. Your annual statement shows yours.' : undefined} />
       </Group>,
     });
 
@@ -365,19 +366,22 @@ export default function PlanForm({ plan, update, reset, plus, onUpgrade, issues 
         <PctField label="Poor" value={plan.growthBear} onChange={v => update({ growthBear: v, riskPreset: null })} />
         <PctField label="Base" value={plan.growthBase} onChange={v => update({ growthBase: v, riskPreset: null })} />
         <PctField label="Positive" value={plan.growthBull} onChange={v => update({ growthBull: v, riskPreset: null })} />
-        <PctField label="Volatility (a year)" value={plan.mcSd} onChange={v => update({ mcSd: v, riskPreset: null })} />
+        {/* A spread too small for the share in shares flatters the futures count (review, 17 November 2026):
+            world shares have swung by about 15–17% a year, so a portfolio's spread is roughly 16% × its share in shares. */}
+        <PctField label="Volatility (a year)" value={plan.mcSd} onChange={v => update({ mcSd: v, riskPreset: null })}
+          hint={(plan.mcSd || 0) < 0.144 * (plan.equityShare ?? 1) ? `Low for ${Math.round((plan.equityShare ?? 1) * 100)}% in shares: world shares have swung by about 15–17% a year, so about ${Math.round(16 * (plan.equityShare ?? 1))}% is more realistic. A smaller figure makes more futures look safe.` : undefined} />
         <PctField label="Share in shares (stress tests)" value={plan.equityShare ?? 1} onChange={v => update({ equityShare: v, riskPreset: null })} />
         <PctField label="Inflation" value={plan.inflation} onChange={v => update({ inflation: v })} />
       </Group>,
     });
 
     list.push({
-      id: 'structure', title: 'Structure', blurb: 'A real plan is a shape, not one growth rate.',
+      id: 'structure', title: 'Safe ladder', blurb: 'Optional: gilts for the next few years, and spending rules.',
       body: plus
         ? <ArchitectureSection plan={plan} update={update} />
-        : <Locked title="Plan structure" onUpgrade={onUpgrade}
+        : <Locked title="Safe ladder" onUpgrade={onUpgrade}
             line={(plan.architecture?.on
-              ? 'Your plan runs the de-risking structure you chose — a gilt ladder, a growth engine and written spending rules. Plus lets you tune every part of it and measures whether it earns its keep.'
+              ? 'Your plan runs a safe ladder — a gilt ladder, a growth engine and written spending rules. Plus lets you tune every part of it and measures whether it earns its keep.'
               : 'Model a gilt ladder, a growth engine and written spending rules instead of one growth rate — then see, measured on your own figures, whether the structure is worth it.')} />,
     });
 

@@ -51,23 +51,23 @@ const setA = (P, k, v) => { P.partnerA = { ...P.partnerA, [k]: v }; };
 const setB = (P, k, v) => { P.partnerB = { ...P.partnerB, [k]: v }; };
 
 // Accumulation — both partners, every pot input
-mono('E01 Stuart pension↑ → pots↑', P => setA(P, 'pension', P.partnerA.pension + 100000), 'pots', 1);
-mono('E02 Carol  pension↑ → pots↑', P => setB(P, 'pension', P.partnerB.pension + 100000), 'pots', 1);
-mono('E03 Stuart ISA↑ → pots↑', P => setA(P, 'isa', P.partnerA.isa + 50000), 'pots', 1);
-mono('E04 Carol  ISA↑ → pots↑', P => setB(P, 'isa', P.partnerB.isa + 50000), 'pots', 1);
-mono('E05 Stuart monthly↑ → pots↑', P => setA(P, 'monthlyPension', P.partnerA.monthlyPension + 1000), 'pots', 1);
-mono('E06 Carol  monthly↑ → pots↑', P => setB(P, 'monthlyPension', P.partnerB.monthlyPension + 1000), 'pots', 1);
-mono('E07 Stuart monthly ISA↑ → pots↑', P => setA(P, 'monthlyIsa', 500), 'pots', 1);
-mono('E08 Carol  monthly ISA↑ → pots↑', P => setB(P, 'monthlyIsa', 500), 'pots', 1);
-mono('E09 lower Stuart pension → pots↓', P => setA(P, 'pension', 100000), 'pots', -1);
-mono('E10 lower Carol pots → pots↓', P => setB(P, 'pension', 10000), 'pots', -1);
+mono('E01 Robin pension↑ → pots↑', P => setA(P, 'pension', P.partnerA.pension + 100000), 'pots', 1);
+mono('E02 Jo  pension↑ → pots↑', P => setB(P, 'pension', P.partnerB.pension + 100000), 'pots', 1);
+mono('E03 Robin ISA↑ → pots↑', P => setA(P, 'isa', P.partnerA.isa + 50000), 'pots', 1);
+mono('E04 Jo  ISA↑ → pots↑', P => setB(P, 'isa', P.partnerB.isa + 50000), 'pots', 1);
+mono('E05 Robin monthly↑ → pots↑', P => setA(P, 'monthlyPension', P.partnerA.monthlyPension + 1000), 'pots', 1);
+mono('E06 Jo  monthly↑ → pots↑', P => setB(P, 'monthlyPension', P.partnerB.monthlyPension + 1000), 'pots', 1);
+mono('E07 Robin monthly ISA↑ → pots↑', P => setA(P, 'monthlyIsa', 500), 'pots', 1);
+mono('E08 Jo  monthly ISA↑ → pots↑', P => setB(P, 'monthlyIsa', 500), 'pots', 1);
+mono('E09 lower Robin pension → pots↓', P => setA(P, 'pension', 100000), 'pots', -1);
+mono('E10 lower Jo pots → pots↓', P => setB(P, 'pension', 10000), 'pots', -1);
 
 // Defined-benefit pension — THE reported bug area, both partners + timing + indexation
-mono('E11 Stuart DB set → lifetime guaranteed↑', P => setA(P, 'db', 12000), 'guarTotal', 1);
-mono('E12 Carol  DB set → lifetime guaranteed↑', P => setB(P, 'db', 12000), 'guarTotal', 1);
-mono('E13 Stuart DB set → endWealth↑ (less drawdown)', P => setA(P, 'db', 12000), 'end', 1);
-mono('E14 Carol  DB↑ → endWealth↑', P => setB(P, 'db', P.partnerB.db + 8000), 'end', 1);
-mono('E15 Stuart DB → guaranteed present in year one (start=retire)', P => { setA(P, 'db', 15000); setA(P, 'dbStartYear', P.retireYear); }, 'guar0', 1);
+mono('E11 Robin DB set → lifetime guaranteed↑', P => setA(P, 'db', 12000), 'guarTotal', 1);
+mono('E12 Jo  DB set → lifetime guaranteed↑', P => setB(P, 'db', 12000), 'guarTotal', 1);
+mono('E13 Robin DB set → endWealth↑ (less drawdown)', P => setA(P, 'db', 12000), 'end', 1);
+mono('E14 Jo  DB↑ → endWealth↑', P => setB(P, 'db', P.partnerB.db + 8000), 'end', 1);
+mono('E15 Robin DB → guaranteed present in year one (start=retire)', P => { setA(P, 'db', 15000); setA(P, 'dbStartYear', P.retireYear); }, 'guar0', 1);
 // start-year timing genuinely matters (the fix): DB starting AFTER retirement gives NO year-one guaranteed
 check('E16 DB start after retirement → no year-one DB (timing respected)', (() => {
   const P = base(); P.retireYear = 2035; P.partnerA = { ...P.partnerA, birthYear: 1970 };
@@ -81,15 +81,15 @@ check('E17 DB start at retirement vs 8yrs later → lifetime guaranteed differs 
   const later = metrics({ ...P, partnerA: { ...P.partnerA, db: 15000, dbStartYear: P.retireYear + 8 } }).guarTotal;
   return atRet > later + 1; // starting later pays for fewer years
 })());
-mono('E18 Stuart DB indexed → lifetime guaranteed higher than flat', P => { setA(P, 'db', 12000); setA(P, 'dbIndexed', true); }, 'guarTotal', 1);
-mono('E19 Carol  DB indexed → lifetime guaranteed↑', P => { setB(P, 'dbIndexed', true); }, 'guarTotal', 1);
-mono('E20 Stuart DB → year-one guaranteed income↑ (start=retire)', P => { setA(P, 'db', 20000); setA(P, 'dbStartYear', P.retireYear); }, 'guar0', 1);
+mono('E18 Robin DB indexed → lifetime guaranteed higher than flat', P => { setA(P, 'db', 12000); setA(P, 'dbIndexed', true); }, 'guarTotal', 1);
+mono('E19 Jo  DB indexed → lifetime guaranteed↑', P => { setB(P, 'dbIndexed', true); }, 'guarTotal', 1);
+mono('E20 Robin DB → year-one guaranteed income↑ (start=retire)', P => { setA(P, 'db', 20000); setA(P, 'dbStartYear', P.retireYear); }, 'guar0', 1);
 
 // State Pension — both partners
-mono('E21 Stuart State Pension↑ → guaranteed↑', P => setA(P, 'spAmount', P.partnerA.spAmount + 4000), 'guarTotal', 1);
-mono('E22 Carol  State Pension↑ → guaranteed↑', P => setB(P, 'spAmount', P.partnerB.spAmount + 4000), 'guarTotal', 1);
-mono('E23 Stuart SP age earlier (67→62) → lifetime guaranteed↑ (his SP is future)', P => { setA(P, 'spAge', 62); }, 'guarTotal', 1);
-mono('E24 Stuart SP age later (67→70) → lifetime guaranteed↓', P => { setA(P, 'spAge', 70); }, 'guarTotal', -1);
+mono('E21 Robin State Pension↑ → guaranteed↑', P => setA(P, 'spAmount', P.partnerA.spAmount + 4000), 'guarTotal', 1);
+mono('E22 Jo  State Pension↑ → guaranteed↑', P => setB(P, 'spAmount', P.partnerB.spAmount + 4000), 'guarTotal', 1);
+mono('E23 Robin SP age earlier (67→62) → lifetime guaranteed↑ (his SP is future)', P => { setA(P, 'spAge', 62); }, 'guarTotal', 1);
+mono('E24 Robin SP age later (67→70) → lifetime guaranteed↓', P => { setA(P, 'spAge', 70); }, 'guarTotal', -1);
 
 // Spending / timing
 mono('E25 target↑ → endWealth↓', P => { P.targetNet += 15000; }, 'end', -1);
@@ -160,8 +160,8 @@ check('E47b a fresh start spends the Moderate living standard for two (Pensions 
 }
 check('E47c living standard of a spend: single Minimum, couple Comfortable', E.livingStandardOf({ ...E.freshStart(), household: 'single' }, 13900) === 'minimum' && E.livingStandardOf(E.freshStart(), 70000) === 'comfortable');
 mono('E48 both partners DB together → bigger guaranteed than one', P => { setA(P, 'db', 10000); setB(P, 'db', 10000); }, 'guarTotal', 1);
-mono('E49 Stuart pension to 0 → pots↓', P => setA(P, 'pension', 0), 'pots', -1);
-mono('E50 Carol ISA to 0 → pots↓', P => setB(P, 'isa', 0), 'pots', -1);
+mono('E49 Robin pension to 0 → pots↓', P => setA(P, 'pension', 0), 'pots', -1);
+mono('E50 Jo ISA to 0 → pots↓', P => setB(P, 'isa', 0), 'pots', -1);
 
 // Scottish income-tax region (2025/26 bands)
 { const P = base(); const lv = E.levers(P, { paths: 60 });
@@ -316,8 +316,8 @@ const goPage = async t => {
 // synthetic input+blur in one tick would read stale state (MoneyField commits
 // on blur). `which` picks the nth match (0=first partner, 1=second).
 // Every carousel page stays in the DOM, so a page-wide selector would happily
-// type into the page you are NOT looking at (and did: Carol's figures landed
-// on Stuart). Prefer the active page; fall back to the document for the
+// type into the page you are NOT looking at (and did: Jo's figures landed
+// on Robin). Prefer the active page; fall back to the document for the
 // screens that are not a carousel.
 async function setField(label, value, which = 0) {
   const sel = `label:has-text(${JSON.stringify(label)}) input`;
@@ -342,83 +342,81 @@ await p.evaluate(() => localStorage.setItem('someday-licence-v1', JSON.stringify
 await p.reload({ waitUntil: 'networkidle' }); await wait(700);
 await acheck('U50a a new plan starts as one person', async () => (await plan()).household === 'single');
 await tap('Begin'); await wait(900);
-// The disclaimer is accepted once, then the framing choice, then the home
+// The disclaimer is accepted once, then the home
 await acheck('U60z disclaimer appears before the first horizon',
   async () => /calm place to think/i.test(await p.$eval('h1', e => e.textContent).catch(() => '')));
 await tap('I understand'); await wait(800);
-await acheck('U60a approach screen appears before the horizon',
-  async () => /How should the money be run/i.test(await p.$eval('h1', e => e.textContent).catch(() => '')));
-await tap('De-risking'); await wait(1200);
-await acheck('U60b choosing de-risking records the approach', async () => (await plan()).approach === 'derisking');
-await acheck('U60c choosing de-risking arms the architecture', async () => (await plan()).architecture?.on === true);
-await acheck('U60d de-risking uses the 7-year ladder', async () => (await plan()).architecture?.ladderYears === 7);
+// No approach question (owner, 17 November 2026): the home follows the disclaimer.
+await acheck('U60a no approach question: the home follows the disclaimer',
+  async () => !/How should the money be run/i.test(await p.$eval('body', e => e.innerText)) && (await p.$('[data-simple-home]')) != null);
+await acheck('U60b a fresh plan starts as one invested pot', async () => (await plan()).architecture?.on !== true);
 
 // ── Details: every figure entered writes the real plan ──────────────────
 // An empty plan lands on the home, which sends you to Details.
 await tap('Add my details'); await wait(900);
 await tapInSheet('A couple'); await wait(400);
 await acheck('U51b Details: household becomes a couple', async () => (await plan()).household === 'couple');
-await p.locator('[data-active] input[placeholder=You]').fill('Stuart').catch(() => {}); await wait(250);
-await acheck('U51 Details: name captured', async () => (await plan()).partnerA?.name === 'Stuart');
-await p.locator('[data-active] input[placeholder=Partner]').fill('Carol').catch(() => {}); await wait(250);
-await acheck('U57 Details: partner name captured', async () => (await plan()).partnerB?.name === 'Carol');
+await p.locator('[data-active] input[placeholder=You]').fill('Robin').catch(() => {}); await wait(250);
+await acheck('U51 Details: name captured', async () => (await plan()).partnerA?.name === 'Robin');
+await p.locator('[data-active] input[placeholder=Partner]').fill('Jo').catch(() => {}); await wait(250);
+await acheck('U57 Details: partner name captured', async () => (await plan()).partnerB?.name === 'Jo');
 const sy0 = (await plan()).startYear;
 await goPage('Someday');
 await setField('Retire in year', sy0 + 8);
 await acheck('U51c Details: retire year captured', async () => (await plan()).retireYear === sy0 + 8);
 await setField('Income you want each year', 43200);
 await acheck('U51d Details: the income asked for becomes the yearly target', async () => (await plan()).targetNet === 43200);
-await goPage('Stuart’s pots');
+await goPage('Robin’s pots');
 await setField('Workplace pension today', 600000);
-await acheck('U52 Details: Stuart pension captured', async () => (await plan()).partnerA?.pension === 600000);
+await acheck('U52 Details: Robin pension captured', async () => (await plan()).partnerA?.pension === 600000);
 await setField('Paying into pension monthly', 3000);
-await acheck('U53 Details: Stuart monthly captured', async () => (await plan()).partnerA?.monthlyPension === 3000);
+await acheck('U53 Details: Robin monthly captured', async () => (await plan()).partnerA?.monthlyPension === 3000);
 await setField('ISAs today', 45000);
-await acheck('U54 Details: Stuart ISA captured', async () => (await plan()).partnerA?.isa === 45000);
-await goPage('Carol’s pots');
+await acheck('U54 Details: Robin ISA captured', async () => (await plan()).partnerA?.isa === 45000);
+await goPage('Jo’s pots');
 await setField('Workplace pension today', 45000);
-await acheck('U58 Details: Carol pension captured', async () => (await plan()).partnerB?.pension === 45000);
+await acheck('U58 Details: Jo pension captured', async () => (await plan()).partnerB?.pension === 45000);
 await setField('ISAs today', 45000);
-await acheck('U59 Details: Carol ISA captured', async () => (await plan()).partnerB?.isa === 45000);
-await goPage('Stuart’s guaranteed income');
+await acheck('U59 Details: Jo ISA captured', async () => (await plan()).partnerB?.isa === 45000);
+await goPage('Robin’s guaranteed income');
 await setField('final-salary pension a year', 9000);
-await acheck('U55 Details: Stuart DB amount captured', async () => (await plan()).partnerA?.db === 9000);
-await acheck('U56 Details: Stuart DB start = retire year (the fix)', async () => { const P = await plan(); return P.partnerA.dbStartYear === P.retireYear; });
-await goPage('Carol’s guaranteed income');
+await acheck('U55 Details: Robin DB amount captured', async () => (await plan()).partnerA?.db === 9000);
+await acheck('U56 Details: Robin DB start = retire year (the fix)', async () => { const P = await plan(); return P.partnerA.dbStartYear === P.retireYear; });
+await goPage('Jo’s guaranteed income');
 await setField('State Pension a year', 12548);
 await acheck('U56b Details: partner State Pension captured', async () => (await plan()).partnerB?.spAmount === 12548);
 await setField('final-salary pension a year', 5000);
-await acheck('U60 Details: Carol DB captured (the reported bug)', async () => (await plan()).partnerB?.db === 5000);
-await acheck('U61 Details: Carol DB start = retire year', async () => { const P = await plan(); return P.partnerB.dbStartYear === P.retireYear; });
+await acheck('U60 Details: Jo DB captured (the reported bug)', async () => (await plan()).partnerB?.db === 5000);
+await acheck('U61 Details: Jo DB start = retire year', async () => { const P = await plan(); return P.partnerB.dbStartYear === P.retireYear; });
 await acheck('U62 both DBs captured', async () => { const P = await plan(); return P.partnerA.db === 9000 && P.partnerB.db === 5000; });
 await p.keyboard.press('Escape'); await wait(600);
 await p.waitForFunction(() => document.querySelector('[data-answer]')?.getAttribute('data-ready') === '1', null, { timeout: 25000 }).catch(() => {});
 await acheck('U63 the answer renders after DB entry', async () => /£[\d,]+/.test(await answerText()) && /a month/.test(await answerText()));
-await acheck('U63b the home counts both of them, with the guaranteed income', async () => /^Counts Stuart and Carol: .*£\d+k a year guaranteed/.test(await p.$eval('[data-counts]', e => e.innerText.replace(/\s+/g, ' '))));
+await acheck('U63b the home counts both of them, with the guaranteed income', async () => /^Counts Robin and Jo: .*£\d+k a year guaranteed/.test(await p.$eval('[data-counts]', e => e.innerText.replace(/\s+/g, ' '))));
 
 // Confidence responds to the DB we entered (compare to DB=0 in the same UI)
 await wait(700);
 // Details: zero both DBs, confidence should drop (guaranteed income removed)
 await tap('Details'); await wait(800);
 
-// ── Stuart's guaranteed income ──────────────────────────────────────────
-await goPage('Stuart’s guaranteed income');
-await acheck('U64 Details: Stuart DB start-year field appears when DB>0', async () => (await p.locator('text=…starts in (year)').count()) >= 1);
+// ── Robin's guaranteed income ──────────────────────────────────────────
+await goPage('Robin’s guaranteed income');
+await acheck('U64 Details: Robin DB start-year field appears when DB>0', async () => (await p.locator('text=…starts in (year)').count()) >= 1);
 await acheck('U65 Details: DB indexation toggle appears when DB>0', async () => (await p.locator('text=…rises with inflation').count()) >= 1);
 await setField('final-salary pension a year', 0);
-await acheck('U66 Details: setting Stuart DB=0 updates plan', async () => (await plan()).partnerA?.db === 0);
+await acheck('U66 Details: setting Robin DB=0 updates plan', async () => (await plan()).partnerA?.db === 0);
 await setField('final-salary pension a year', 11000);
-await acheck('U67 Details: re-entering Stuart DB updates plan', async () => (await plan()).partnerA?.db === 11000);
+await acheck('U67 Details: re-entering Robin DB updates plan', async () => (await plan()).partnerA?.db === 11000);
 await setField('…starts in (year)', 2036);
-await acheck('U68 Details: Stuart DB start-year editable → plan', async () => (await plan()).partnerA?.dbStartYear === 2036);
+await acheck('U68 Details: Robin DB start-year editable → plan', async () => (await plan()).partnerA?.dbStartYear === 2036);
 await p.locator('[role=dialog] [role=switch]:has-text("rises with inflation")').first().click().catch(() => {}); await wait(400);
-await acheck('U69 Details: Stuart DB indexation toggle → plan', async () => (await plan()).partnerA?.dbIndexed === true);
+await acheck('U69 Details: Robin DB indexation toggle → plan', async () => (await plan()).partnerA?.dbIndexed === true);
 await setField('State Pension a year', 11500);
 await acheck('U70 Details: State Pension amount → plan', async () => (await plan()).partnerA?.spAmount === 11500);
 
 // Public-sector scheme tranche: added, captured, and it moves the engine
 await p.locator('[role=dialog]').getByRole('button', { name: /Add an NHS/ }).first().click(); await wait(400);
-await acheck('U72m scheme tranche added to Stuart', async () => ((await plan()).partnerA?.dbSchemes || []).length === 1);
+await acheck('U72m scheme tranche added to Robin', async () => ((await plan()).partnerA?.dbSchemes || []).length === 1);
 await setField('Pension a year on your latest statement', 14000);
 await acheck('U72n scheme pension captured → plan', async () => (await plan()).partnerA?.dbSchemes?.[0]?.pension === 14000);
 await p.locator('[role=dialog] select[aria-label="Pension scheme"]').first().selectOption('nhs1995'); await wait(400);
@@ -436,8 +434,8 @@ await acheck('U72t tranche at NPA pays the statement figure (engine)', async () 
   const P = await plan(); const t = { ...P.partnerA.dbSchemes[0], takeAge: 60, commutePct: 0 };
   return Math.abs(E.trancheBenefits(P, P.partnerA, t).pension - 14000) < 0.01; });
 
-// ── Stuart's pots ───────────────────────────────────────────────────────
-await goPage('Stuart’s pots');
+// ── Robin's pots ───────────────────────────────────────────────────────
+await goPage('Robin’s pots');
 await setField('Paying into ISAs monthly', 200);
 await acheck('U71 Details: monthly ISA → plan', async () => (await plan()).partnerA?.monthlyIsa === 200);
 await tapInSheet('Already taken tax-free cash'); await wait(500);
@@ -461,19 +459,21 @@ await acheck('U72f two schemes sum into the pot (350k)', async () => (await plan
 await p.locator('[role=dialog] [role=switch]:has-text("Advanced")').first().click().catch(() => {}); await wait(400);
 
 // ── Structure ───────────────────────────────────────────────────────────
-await goPage('Structure');
-await acheck('U72g Structure page opens', async () => (await p.locator('text=Plan structure').count()) > 0);
-await tapInSheet('Set up the standard architecture'); await wait(700);
-await acheck('U72h preset turns the architecture on', async () => (await plan()).architecture?.on === true);
-await acheck('U72i preset uses a 7-year ladder', async () => (await plan()).architecture?.ladderYears === 7);
-await acheck('U72j preset arms the written rules', async () => (await plan()).architecture?.rulesOn === true);
-await p.locator('[role=dialog] [role=switch]:has-text("Model the plan")').first().click().catch(() => {}); await wait(500);
-await acheck('U72k architecture can be switched back off', async () => (await plan()).architecture?.on === false);
+await goPage('Safe ladder');
+await acheck('U72g the safe ladder page opens, marked optional', async () => (await p.locator('text=Safe ladder (optional)').count()) > 0);
+const ladderSwitch = () => p.locator('[role=dialog] [role=switch]:has-text("Use a safe ladder")').first();
+await ladderSwitch().click().catch(() => {}); await wait(700);
+await acheck('U72h switching the ladder on turns the architecture on', async () => (await plan()).architecture?.on === true);
+await acheck('U72i it starts from a 7-year ladder', async () => (await plan()).architecture?.ladderYears === 7);
+await acheck('U72j it arms the written rules', async () => (await plan()).architecture?.rulesOn === true);
+await acheck('U72j2 it records the approach', async () => (await plan()).approach === 'derisking');
+await ladderSwitch().click().catch(() => {}); await wait(500);
+await acheck('U72k the ladder can be switched back off', async () => (await plan()).architecture?.on === false && (await plan()).approach === 'traditional');
 
-// ── Carol's own pages — proves BOTH partners work ───────────────────────
-await goPage('Carol’s guaranteed income');
+// ── Jo's own pages — proves BOTH partners work ───────────────────────
+await goPage('Jo’s guaranteed income');
 await setField('final-salary pension a year', 7000);
-await acheck('U72 Details: Carol DB editable → plan (both partners work)', async () => (await plan()).partnerB?.db === 7000);
+await acheck('U72 Details: Jo DB editable → plan (both partners work)', async () => (await plan()).partnerB?.db === 7000);
 
 // ── The someday ─────────────────────────────────────────────────────────
 await goPage('Someday');
@@ -530,8 +530,8 @@ await acheck('U85 plan persists after edits', async () => { const P = await plan
 
 // Reload → captured DB survives (persistence of the fix)
 await p.reload({ waitUntil: 'networkidle' }); await wait(800);
-await acheck('U86 reload keeps Stuart DB + start year', async () => { const P = await plan(); return P.partnerA.db === 11000 && P.partnerA.dbStartYear === 2036; });
-await acheck('U87 reload keeps Carol DB', async () => (await plan()).partnerB?.db === 7000);
+await acheck('U86 reload keeps Robin DB + start year', async () => { const P = await plan(); return P.partnerA.db === 11000 && P.partnerA.dbStartYear === 2036; });
+await acheck('U87 reload keeps Jo DB', async () => (await plan()).partnerB?.db === 7000);
 await acheck('U88 reload keeps indexation flag', async () => (await plan()).partnerA?.dbIndexed === true);
 
 // Confidence genuinely reflects DB: compare engine metric with the captured plan
@@ -549,14 +549,14 @@ const cp = await plan();
 const cm = k => metrics({ ...cp, growth: cp.growthBase, ...({}) })[k];
 check('U91 captured pots > 0', metrics({ ...cp, growth: cp.growthBase }).pots > 0);
 check('U92 captured endWealth finite', Number.isFinite(metrics({ ...cp, growth: cp.growthBase }).end));
-check('U93 Stuart DB in captured plan raises guaranteed', metrics({ ...cp, growth: cp.growthBase }).guarTotal > metrics({ ...cp, growth: cp.growthBase, partnerA: { ...cp.partnerA, db: 0 } }).guarTotal);
-check('U94 Carol DB in captured plan raises guaranteed', metrics({ ...cp, growth: cp.growthBase }).guarTotal > metrics({ ...cp, growth: cp.growthBase, partnerB: { ...cp.partnerB, db: 0 } }).guarTotal);
-check('U95 later Stuart DB start reduces lifetime guaranteed vs at-retirement', (() => {
+check('U93 Robin DB in captured plan raises guaranteed', metrics({ ...cp, growth: cp.growthBase }).guarTotal > metrics({ ...cp, growth: cp.growthBase, partnerA: { ...cp.partnerA, db: 0 } }).guarTotal);
+check('U94 Jo DB in captured plan raises guaranteed', metrics({ ...cp, growth: cp.growthBase }).guarTotal > metrics({ ...cp, growth: cp.growthBase, partnerB: { ...cp.partnerB, db: 0 } }).guarTotal);
+check('U95 later Robin DB start reduces lifetime guaranteed vs at-retirement', (() => {
   const early = metrics({ ...cp, growth: cp.growthBase, partnerA: { ...cp.partnerA, dbStartYear: cp.retireYear } }).guarTotal;
   const late = metrics({ ...cp, growth: cp.growthBase, partnerA: { ...cp.partnerA, dbStartYear: cp.retireYear + 6 } }).guarTotal;
   return late < early - 1e-6;
 })());
-check('U96 indexed Stuart DB ≥ flat over the plan', metrics({ ...cp, growth: cp.growthBase }).guarTotal >= metrics({ ...cp, growth: cp.growthBase, partnerA: { ...cp.partnerA, dbIndexed: false } }).guarTotal);
+check('U96 indexed Robin DB ≥ flat over the plan', metrics({ ...cp, growth: cp.growthBase }).guarTotal >= metrics({ ...cp, growth: cp.growthBase, partnerA: { ...cp.partnerA, dbIndexed: false } }).guarTotal);
 await acheck('U97 no console errors during e2e', () => ce.length === 0);
 await acheck('U98 no page errors during e2e', () => pe.length === 0);
 await acheck('U99 UI still interactive after full run (tab opens)', async () => { await tap('Explore'); await wait(500); return (await p.locator('[role=dialog]').count()) > 0; });

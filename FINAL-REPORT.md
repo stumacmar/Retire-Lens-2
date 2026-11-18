@@ -73,7 +73,7 @@ Taking flexible income triggers MPAA (10,000 annual allowance). The tool doesn't
 ## Proposed Roadmap: Next 5 Rounds
 
 ### Round 6: Survivor Modelling
-What happens to Carol if you die at 70, 75, 80? Survivor projection showing her income from: her own SP, her own DB, beneficiary drawdown from your pension, ISA inheritance (spouse exempt from IHT). IHT implications from April 2027 pension inclusion.
+What happens to Jo if you die at 70, 75, 80? Survivor projection showing her income from: her own SP, her own DB, beneficiary drawdown from your pension, ISA inheritance (spouse exempt from IHT). IHT implications from April 2027 pension inclusion.
 
 ### Round 7: Input Consolidation
 Reduce wizard to 4-5 screens. Combine pensions (DC + DB + PCLS) into one screen. Combine ISA + SP into one screen. Progressive disclosure: show instant estimate from 3 inputs, then "improve your estimate" with optional extras.

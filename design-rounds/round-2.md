@@ -8,7 +8,7 @@ What do we ask, in what order, with what defaults?
 The "PCLS already taken" checkbox does not distinguish between taking tax-free cash only (no MPAA trigger) and taking flexible income (triggers MPAA at 10,000). The model must ask: "Have you taken any taxable income from your pension?" If yes, future contributions should be capped at 10,000/year. Getting this wrong overstates accumulation by up to 26,000/year for salary sacrifice users.
 
 ### A2: Separate each person's pensions clearly
-The combined pension pot (yours + partner's) is entered as one number, then partner DC is entered separately on the same screen. This is confusing. The accumulation engine adds them together anyway, but the user can't verify which pot belongs to whom. Each person should have their own clearly labelled section: "Your DC pot: X, Your DB: Y" then "Carol's DC pot: X, Carol's DB: Y".
+The combined pension pot (yours + partner's) is entered as one number, then partner DC is entered separately on the same screen. This is confusing. The accumulation engine adds them together anyway, but the user can't verify which pot belongs to whom. Each person should have their own clearly labelled section: "Your DC pot: X, Your DB: Y" then "Jo's DC pot: X, Jo's DB: Y".
 
 ### A3: Capture contribution type (personal vs salary sacrifice)
 Salary sacrifice contributions save employer NI (13.8%) which employers often pass on. A 1,000/month personal contribution costs 1,000 from net pay. A 1,000/month salary sacrifice contribution could add an extra 138 employer NI saving. This is material for high earners. At minimum, ask "Is this salary sacrifice?" and show the tax efficiency note.

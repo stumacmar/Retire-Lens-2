@@ -92,10 +92,12 @@ const tap = async t => {
   catch { try { await p.locator(`text=${t}`).first().click({ timeout: 2000 }); return true; } catch { return false; } }
 };
 const sheetOpen = async () => (await p.locator('[role=dialog]').count()) > 0;
-// The home: one screen. The answer, the time tunnel, three steppers (each also
+// The home: one screen. The answer, the island, three steppers (each also
 // typeable) and two questions. (The Horizon Dial was retired in November 2026.)
 const answerText = async () => (await p.$eval('[data-answer]', e => e.innerText).catch(() => '')).replace(/\s+/g, ' ');
 const futuresText = async () => p.$eval('[data-futures]', e => e.textContent).catch(() => '');
+// The status word and the answer sentence, in reading order (the island floats the status in its sky and puts the sentence under it).
+const statusThenFutures = async () => `${(await p.$eval('[data-status]', e => e.textContent).catch(() => '')).trim()} ${await futuresText()}`;
 const statusKey = async () => p.$eval('[data-status]', e => e.getAttribute('data-status')).catch(() => '');
 const waitAnswer = async (ms = 25000) => p.waitForFunction(() => document.querySelector('[data-answer]')?.getAttribute('data-ready') === '1' && /of 100/.test(document.querySelector('[data-futures]')?.textContent || ''), null, { timeout: ms }).catch(() => {});
 // Type a figure into one of the home's three steppers: 'Stop work at' (an
@@ -104,14 +106,11 @@ const homeType = async (label, value) => {
   await p.getByRole('button', { name: new RegExp(`^${label}: .*Tap to type`) }).click({ timeout: 4000 });
   await p.fill(`input[aria-label="${label}, type a figure"]`, String(value)); await p.keyboard.press('Enter'); await wait(400);
 };
-// What the tunnel is showing: the age read (if any), the reading under it, and the count of futures paying in full each year.
-const sunState = async () => p.evaluate(() => { const el = document.querySelector('[data-tunnel]'); if (!el) return null; const sl = el.querySelector('[role=slider]');
+// What the island is showing: the age read (if any), the reading under it, and the count of futures paying in full each year.
+const sunState = async () => p.evaluate(() => { const el = document.querySelector('[data-island]'); if (!el) return null; const sl = el.querySelector('[role=slider]');
   return { ready: el.getAttribute('data-ready') === '1', age: el.getAttribute('data-age') === '' ? null : +el.getAttribute('data-age'), first: +el.getAttribute('data-first'), last: +el.getAttribute('data-last'), n: +el.getAttribute('data-years'),
     counts: (el.getAttribute('data-full-counts') || '').split(',').filter(Boolean).map(Number), firstShort: el.getAttribute('data-first-short') === '' ? null : +el.getAttribute('data-first-short'),
-    valuetext: sl?.getAttribute('aria-valuetext') || '', label: el.querySelector('[data-tunnel-text]')?.textContent || '', summary: document.getElementById('tunnel-summary')?.textContent || '', horizon: +el.getAttribute('data-horizon') }; });
-// The tunnel's depth rule (TimeTunnel.tsx), written again here so the test does not trust the code it checks:
-// at rest, at t (0 at your feet, 1 at the plan age) a frame is 1 - 0.87t the size of the one at your feet, and its floor that far below the vanishing point.
-const roadS = t => 1 - 0.87 * t;
+    valuetext: sl?.getAttribute('aria-valuetext') || '', label: el.querySelector('[data-island-text]')?.textContent || '', summary: document.getElementById('island-summary')?.textContent || '', horizon: +el.getAttribute('data-horizon') }; });
 const gbp = v => '£' + Math.round(v).toLocaleString('en-GB');
 const restingLine = (q, m, firstShort) => { const month = Math.round(q.targetNet / 12); const dip = m.worstYearRatioP10 < 0.995 ? Math.round((m.worstYearRatioP10 * month) / 10) * 10 : null;
   return firstShort == null ? `No future falls short before ${q.horizonAge}.` : `From ${firstShort}, some futures fall short.${dip != null ? ` In the worst 10 of 100, income dips to about ${gbp(dip)} a month.` : ''}`; };
@@ -169,8 +168,8 @@ const fresh = async () => {
 };
 const planOf = async () => p.evaluate(() => { try { return JSON.parse(localStorage.getItem('horizon-plan-v1') || '{}'); } catch { return {}; } });
 // Every carousel page stays in the DOM, so a page-wide selector would happily
-// type into the page you are NOT looking at (and did: Carol's figures landed
-// on Stuart). Prefer the active page; fall back to the document for the
+// type into the page you are NOT looking at (and did: Jo's figures landed
+// on Robin). Prefer the active page; fall back to the document for the
 // screens that are not a carousel.
 async function setField(label, value, which = 0) {
   const sel = `label:has-text(${JSON.stringify(label)}) input`;
@@ -187,9 +186,12 @@ async function setField(label, value, which = 0) {
   return true;
 }
 
-async function loadEx() { // robust: retry the example tap; wait for the plan to persist
+// The suite's own fixture: the reference workbook plan (E.defaults()), loaded directly. The
+// "See a worked example" button loads a different, made-up couple (E.example()); check 03b.
+async function loadEx() {
   await fresh();
-  for (let i = 0; i < 3; i++) { await tap('worked example'); await wait(1000); if (!/Begin/.test(await bodyT())) break; }
+  await p.evaluate(v => localStorage.setItem('horizon-plan-v1', v), JSON.stringify({ ...E.defaults(), approach: 'traditional' }));
+  await p.reload({ waitUntil: 'networkidle' }); await wait(700);
   await p.waitForFunction(() => !!localStorage.getItem('horizon-plan-v1'), { timeout: 3000 }).catch(() => {});
   await acceptDisclaimer();
 }
@@ -202,7 +204,10 @@ if (GATE_ON) {
   await check('00a preview gate shown to a fresh visitor', () => $('#someday-gate'));
   await p.fill('#someday-gate-input', 'wrong-phrase'); await p.keyboard.press('Enter'); await wait(400);
   await check('00b wrong phrase is refused', async () => (await $('#someday-gate')) && /not the phrase/.test(await bodyT()));
-  await p.fill('#someday-gate-input', 'someday-preview-2026'); await p.keyboard.press('Enter'); await wait(500);
+  // The phrase itself is never written into this public repository: give it as GATE_PHRASE to type it
+  // in; without it, the test unlocks with the stored hash, as a returning tester's device would.
+  if (process.env.GATE_PHRASE) { await p.fill('#someday-gate-input', process.env.GATE_PHRASE); await p.keyboard.press('Enter'); await wait(500); }
+  else { await passGate(); await p.reload({ waitUntil: 'networkidle' }); await wait(500); }
   await check('00c right phrase opens the app', async () => !(await $('#someday-gate')));
   await check('00d gate remembered on reload', async () => { await p.reload({ waitUntil: 'networkidle' }); await wait(500); return !(await $('#someday-gate')); });
 } else {
@@ -214,15 +219,22 @@ await fresh();
 await check('01 onboarding on first visit', async () => /stop/i.test(await h1()));
 await check('02 Begin button', () => has('Begin'));
 await check('03 example link', () => has('worked example'));
+// Privacy (review, 17 November 2026): the worked example is a made-up couple, never the reference workbook.
+await check('03b the worked example loads the made-up couple (Alex and Sam), not the workbook fixture', async () => {
+  for (let i = 0; i < 3; i++) { await tap('worked example'); await wait(1000); if (!/Begin/.test(await bodyT())) break; }
+  await p.waitForFunction(() => !!localStorage.getItem('horizon-plan-v1'), { timeout: 3000 }).catch(() => {});
+  const q = await planOf(), ex = E.example(), D = E.defaults();
+  return q.partnerA?.name === 'Alex' && q.partnerB?.name === 'Sam' && q.partnerA.pension === ex.partnerA.pension && q.partnerA.pension !== D.partnerA.pension; });
+await fresh();
 await tap('Begin'); await wait(900);
 // The disclaimer, accepted once before the first answer
 await check('17a disclaimer shown once, before the horizon', async () => /calm place to think/i.test(await h1()));
 await check('17a2 disclaimer links to the legal page', async () => (await p.$('a[href="legal.html"]')) != null);
 await tap('I understand'); await wait(800);
-await check('17b approach screen asks how the money is run', async () => /How should the money be run/i.test(await h1()));
-await check('17c traditional option offered', () => has('Traditional'));
-await check('17d de-risking option offered', () => has('De-risking'));
-await tap('Traditional'); await wait(1200);
+// No approach question (owner, 17 November 2026): every plan starts as one
+// invested pot; the safe ladder is an optional switch in Details.
+await check('17b no approach question: the home follows the disclaimer', async () => !/How should the money be run/i.test(await bodyT()) && (await p.$('[data-simple-home]')) != null);
+await check('17c a fresh plan starts as one invested pot', async () => (await planOf()).architecture?.on !== true);
 // An empty plan lands on the home, which says what to do; the figures go in
 // through Details, and the answer appears on the home as money goes in.
 await check('04 home is the simple home, asking the question', async () => (await p.$('[data-simple-home]')) != null && /What could you take home/i.test(await h1()));
@@ -254,7 +266,7 @@ await check('17 the home counts the futures, naming the amount and the age', asy
 // The home leads with where the plan stands, in words, and the numbers behind
 // it (audit §5B): what the plan can support a month, the gap to the ask, the
 // age it is tested through.
-await check('17a the home states where the plan stands in words, not a colour', async () => /^(On track under these assumptions|Enough in most futures, not all|Enough, with a trim to spending|Nearly enough|Not enough yet) In \d+ of 100 futures/.test(await answerText()));
+await check('17a the home states where the plan stands in words, not a colour', async () => /^(On track under these assumptions|Enough in most futures, not all|Enough, with a trim to spending|Nearly enough|Not enough yet) In \d+ of 100 futures/.test(await statusThenFutures()));
 await check('17a2 the home says what the plan can support, the age it is tested to and the gap to the ask', async () => { const t = await answerText(); const q = await planOf();
   return /£[\d,]+ a month after tax/.test(t) && t.includes(`lasts to ${q.horizonAge}`) && /£[\d,]+ (to spare|short)|Just what you ask/.test(t); });
 await check('17a3 the caveat sits beside the headline figure', async () => /not a guarantee/.test(await futuresText()));
@@ -289,7 +301,7 @@ await check('19 bottom tab bar visible', () => has('Horizon'));
 await check('20 setup completed without a separate form', () => true);
 
 await loadEx();
-await check('21 example loads Stuart & Carol', async () => (await planOf()).partnerA?.name === 'Stuart');
+await check('21 example loads Robin & Jo', async () => (await planOf()).partnerA?.name === 'Robin');
 await waitAnswer();
 await check('22 example shows an answer', async () => /£[\d,]+ a month after tax/.test(await answerText()));
 await check('23 the count of futures shown', async () => /^In \d+ of 100 futures/.test(await futuresText()));
@@ -308,19 +320,19 @@ await p.waitForFunction(() => /Japan, 1990 on/.test(document.getElementById('exp
 await check('29d guardrails from real bad histories, in Explore', async () => /Japan, 1990 on/.test(await p.locator('#explore-fall').innerText()));
 await check('29e the edge: every retirement, in Explore', () => has('Every retirement you could choose'));
 await closeSheet();
-// The time tunnel: at rest it says how short the bad futures are; tap a
-// depth, swipe, or use the keys to travel to any age.
-await p.waitForFunction(() => document.querySelector('[data-tunnel]')?.getAttribute('data-ready') === '1', null, { timeout: 20000 }).catch(() => {}); await wait(800);
+// The island: at rest it says how short the bad futures are; touch the land,
+// or use the keys, to read any age.
+await p.waitForFunction(() => document.querySelector('[data-island]')?.getAttribute('data-ready') === '1', null, { timeout: 20000 }).catch(() => {}); await wait(800);
 {
   const st = await sunState(); const q = await planOf(); const m = E.runMonteCarlo(q, 2000, q.mcSeed || 42);
   const still = (i) => Math.round(m.perAgeHeld[i].full * 100), ask = gbp(q.targetNet / 12);
   const firstShort = m.perAgeHeld.find(h => Math.round(h.full * 100) < 100)?.age ?? null;
-  await check('30 at rest the tunnel reads the first shortfall and how far the worst 10 of 100 dip, from the engine', () => st && st.age === null && st.firstShort === firstShort && st.label === restingLine(q, m, firstShort));
-  const box = await p.locator('[data-tunnel] [role=slider]').boundingBox(); const i3 = Math.floor(st.n / 2);
-  await p.mouse.click(box.x + box.width / 2, box.y + st.horizon + (box.height - st.horizon) * roadS((i3 + 0.5) / st.n)); await wait(300);
+  await check('30 at rest the island reads the first shortfall and how far the worst 10 of 100 dip, from the engine', () => st && st.age === null && st.firstShort === firstShort && st.label === restingLine(q, m, firstShort));
+  const box = await p.locator('[data-island] [role=slider]').boundingBox();
+  await p.mouse.click(box.x + box.width * 0.45, box.y + box.height * 0.8); await wait(300);
   const touched = await sunState();
-  await check('31 tapping the tunnel floor halfway along travels to that age and reads it, from the engine', () => touched.age === st.first + i3 && touched.label === `At ${touched.age}: ${still(i3)} of 100 futures still pay ${ask} a month in full.`);
-  await p.locator('[data-tunnel] [role=slider]').focus(); await p.keyboard.press('Home'); await wait(150);
+  await check('31 touching the land reads that age, from the engine', () => touched.age != null && touched.age >= st.first && touched.age <= st.last && touched.label.startsWith(`At ${touched.age}: ${still(touched.age - st.first)} of 100 futures still pay ${ask} a month in full.`));
+  await p.locator('[data-island] [role=slider]').focus(); await p.keyboard.press('Home'); await wait(150);
   const home = await sunState(); await p.keyboard.press('ArrowRight'); await p.keyboard.press('ArrowRight'); await wait(150);
   const two = await sunState();
   await check('31b the keys work it too: Home is the year work stops, each arrow is one year', () => home.age === home.first && two.age === home.first + 2 && two.valuetext === `Age ${two.age}: ${still(2)} of 100 futures still pay ${ask} a month in full`);
@@ -379,11 +391,11 @@ await check('41 withdrawal-order options', async () => (await onPage('Pensions')
 await tapInSheet('ISAs'); await wait(400); await check('42 strategy switch, no crash', () => pe.length === 0);
 await goPage('Tax');
 await check('38b income-tax region choice (Scotland)', () => onPage('Scotland'));
-await goPage('Stuart’s pots');
-await check('43 partner names present', async () => /Stuart|Carol/.test(await bodyT()));
+await goPage('Robin’s pots');
+await check('43 partner names present', async () => /Robin|Jo/.test(await bodyT()));
 await check('44 pension pot field', () => onPage('Workplace pension'));
 await check('44b advanced-mode toggle present', () => onPage('Advanced'));
-await goPage('Stuart’s guaranteed income');
+await goPage('Robin’s guaranteed income');
 await check('45 State Pension fields present', () => onPage('State Pension age'));
 await check('44c public-sector scheme pension can be added', () => onPage('Add an NHS'));
 await goPage('Spending');
@@ -454,6 +466,17 @@ await check('68 not-advice card', () => has('Not financial advice'));
 await check('69 UK-aware card', () => has('UK-aware'));
 await check('69b assumptions list generated', async () => { await tap('Every assumption behind your numbers'); await wait(400); return (await has('Range of futures')) && (await has('Couples')); });
 await check('69c assumptions: the four layers of uncertainty and the versions are stated', async () => (await has('What the confidence covers')) && /Engine \d{4}\.\d{2}\.\d{2} · plan schema \d+ · tax rules 20\d\d\/\d\d/.test(await bodyT()));
+// Charges in context (Scout, 16 November 2026): the row places the plan's charge among what UK calculators
+// assume and measures another 0.25% a year. The paid-in-full search is written again here, from the engine.
+{
+  const paid = (dd) => !!dd.holds && !dd.rows.some(r => r.spendMult != null && r.spendMult < 0.999);
+  const run = (P) => { const g = P.growth ?? P.growthBase; const Q = { ...P, growth: g }; return E.drawdown(Q, { growth: g, startPots: E.accumulate(Q, g).atRetirement }); };
+  const cap = (plan) => { const P = { ...JSON.parse(JSON.stringify(plan)), spendingPlanOn: false }; let lo = 2000, hi = Math.max(250000, (P.targetNet || 0) * 3);
+    for (let i = 0; i < 16; i++) { const mid = (lo + hi) / 2; if (paid(run({ ...P, targetNet: mid }))) lo = mid; else hi = mid; } return Math.floor(lo / 100) * 100; };
+  await check('69g assumptions: charges are placed among UK calculators and another 0.25% is measured for this plan, from the engine', async () => {
+    const q = await planOf(); const per = Math.max(0, Math.round((cap(q) - cap({ ...q, fee: (q.fee || 0) + 0.0025 })) / 12 / 10) * 10);
+    const t = await bodyT(); return /Charges/.test(t) && /Nest 0\.3%/.test(t) && /Hargreaves Lansdown 1%/.test(t) && t.includes(`another 0.25% a year would lower what it can pay in full by about ${gbp(per)} a month`); });
+}
 await check('69d how we checked: the engine checks itself live and reports the count', async () => { await tap('How we checked these numbers'); await wait(600); return /(\d+) of \1 engine checks pass on this device/.test(await p.$eval('[data-how-we-checked]', e => e.innerText).catch(() => '')); });
 await check('69e how we checked: every rule names a source', async () => (await p.locator('[data-how-we-checked] a:has-text("Source")').count()) >= 10);
 await check('69f how we checked: no link leaves except to the published sources and the repository', async () => (await p.$$eval('[data-how-we-checked] a', as => as.every(a => /^https:\/\/(www\.gov\.uk|www\.gov\.scot|www\.handbook\.fca\.org\.uk|www\.ons\.gov\.uk|www\.retirementlivingstandards\.org\.uk|github\.com\/stumacmar)\//.test(a.href)))));
@@ -468,7 +491,7 @@ await check('74 no NaN at extreme spend', async () => !/NaN|undefined/.test(awai
 await homeType('Take home', 900); await waitAnswer(); await check('75 minimal spend renders', async () => /£[\d,]+ a month/.test(await answerText()));
 { const q = await planOf(); await homeType('Stop work at', q.startYear + 1 - q.partnerA.birthYear); } await wait(600); await check('76 near-term retire, no crash', () => pe.length === 0);
 { const q = await planOf(); await homeType('Stop work at', q.startYear + 20 - q.partnerA.birthYear); } await wait(600); await check('77 far-out retire, no crash', () => pe.length === 0);
-await tap('Details'); await wait(700); await goPage('Stuart’s pots');
+await tap('Details'); await wait(700); await goPage('Robin’s pots');
 await p.$$eval('[role=dialog] input[inputmode=decimal]', e => { const s = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set; e.forEach(el => { s.call(el, '0'); el.dispatchEvent(new Event('input', { bubbles: true })); el.dispatchEvent(new Event('blur', { bubbles: true })); }); }).catch(() => {}); await wait(700);
 await check('78 all pots zero survives', () => pe.length === 0);
 await check('79 no £NaN with zero pots', async () => !/£NaN/.test(await bodyT()));
@@ -507,7 +530,7 @@ await check('86 headline valid after stress', async () => /£[\d,]+|take home/i.
 await loadEx();
 await waitAnswer();
 await check('87 the example shows its answer on the home', async () => /£[\d,]+ a month after tax/.test(await answerText()));
-await check('88 the example is a couple, and the home says it counts both', async () => (await planOf()).household === 'couple' && /^Counts Stuart and Carol:/.test(await p.$eval('[data-counts]', e => e.innerText)));
+await check('88 the example is a couple, and the home says it counts both', async () => (await planOf()).household === 'couple' && /^Counts Robin and Jo:/.test(await p.$eval('[data-counts]', e => e.innerText)));
 await check('89 the home points to Details for everything else', () => has('Check or change in Details'));
 await check('90 exactly three things to change on the home', async () => (await p.locator('[data-simple-home] [data-driver]').count()) === 3);
 await check('91 four tab destinations', async () => (await has('Horizon')) && (await has('Details')) && (await has('Explore')) && (await has('Peace')));
@@ -579,9 +602,9 @@ if (!plusOffered) {
   await check('108 plus off: withdrawal order unlocked', () => has('lowest lifetime tax'));
   await check('109 plus off: the word Plus appears nowhere in Explore', async () => !/\bPlus\b/.test(await bodyT()));
   await closeSheet();
-  await tap('Details'); await wait(700); await goPage('Stuart’s pots');
+  await tap('Details'); await wait(700); await goPage('Robin’s pots');
   await check('114 plus off: advanced detail unlocked', async () => (await p.locator('[role=switch]:has-text("Advanced")').count()) === 1);
-  await goPage('Structure');
+  await goPage('Safe ladder');
   await check('115 plus off: structure page unlocked', async () => !(await has('See what Plus adds')));
   await closeSheet();
   await tap('Peace'); await wait(500);
@@ -608,10 +631,10 @@ await tap('Already have a licence key?'); await wait(300);
 await p.fill('input[aria-label="Licence key"]', 'not-a-key'); await tap('Activate on this device'); await wait(500);
 await check('113 free: malformed key is refused locally (no network)', async () => /doesn’t look like a licence key/.test(await bodyT()));
 await closeSheet();
-await tap('Details'); await wait(700); await goPage('Stuart’s pots');
+await tap('Details'); await wait(700); await goPage('Robin’s pots');
 await check('114 free: advanced detail locked', async () => (await onPage('Advanced detail')) && (await p.locator('[role=switch]:has-text("Advanced")').count()) === 0);
-await goPage('Structure');
-await check('115 free: structure page locked', async () => (await onPage('Plan structure')) && !(await onPage('Set up the standard architecture')));
+await goPage('Safe ladder');
+await check('115 free: structure page locked', async () => (await onPage('Safe ladder')) && (await p.locator('[role=dialog] [role=switch]:has-text("Use a safe ladder")').count()) === 0);
 await closeSheet();
 await tap('Peace'); await wait(500);
 await check('116 free: report button routes to Plus', async () => { await tap('Save the full report'); await wait(600); return has('Already have a licence key?'); });
@@ -700,7 +723,7 @@ const openMap = async () => { await closeSheet(); await tap('Explore'); await wa
     for (let i = 0; i < 16; i++) { const mid = (lo + hi) / 2; const Q = { ...q, spendingPlanOn: false, targetNet: mid, growth: q.growthBase }; const acc = E.accumulate(Q, Q.growth); if (E.drawdown(Q, { growth: Q.growth, startPots: acc.atRetirement }).holds) lo = mid; else hi = mid; }
     return Math.round(Math.floor(lo / 100) * 100 / 12 / 10) * 10; };
   await check('142 the home is the simple one (no ring to learn)', async () => (await p.$('[data-simple-home]')) != null && (await p.$('[data-home]')) == null);
-  await check('143 it leads with where the plan stands, in words', async () => /^(On track under these assumptions|Enough in most futures, not all|Enough, with a trim to spending|Nearly enough|Not enough yet) In \d+ of 100 futures/.test(await answer()));
+  await check('143 it leads with where the plan stands, in words', async () => /^(On track under these assumptions|Enough in most futures, not all|Enough, with a trim to spending|Nearly enough|Not enough yet) In \d+ of 100 futures/.test(await statusThenFutures()));
   await check('144 the big figure is what the plan can support a month, and agrees with the engine', async () => {
     const shown = Number((await p.$eval('[data-supports]', e => e.textContent)).replace(/[£,]/g, '')); return Math.abs(shown - cap(await planOf())) <= 10; });
   await check('145 the gap sits under the figure, and the sentence names what you ask', async () => /^(£[\d,]+ (to spare|short)|Just what you ask)$/.test((await p.$eval('[data-gap]', e => e.textContent)).trim()) && /£5,000 a month lasts to/.test(await answer()));
@@ -749,43 +772,47 @@ const openMap = async () => { await closeSheet(); await tap('Explore'); await wa
   await check('158 the two questions sit above the tab bar without scrolling', async () => p.evaluate(() => {
     const nav = document.querySelector('nav').getBoundingClientRect(); const b = [...document.querySelectorAll('[data-simple-home] button')].find(x => /What could go wrong/.test(x.textContent)).getBoundingClientRect();
     return b.bottom <= nav.top; }));
+  // Spending less in later life, one tap on the home (owner, 17 November 2026).
+  await check('158l the home has the two later-life switches, and each one turns its step-down on and off in the plan', async () => {
+    const q0 = await planOf(); const sw = p.locator('[data-step-down="phase1"]'); if ((await sw.count()) !== 1 || (await p.locator('[data-step-down="phase2"]').count()) !== 1) return false;
+    const label = await sw.innerText(); if (!label.includes(`${Math.round(q0.phase1Cut * 100)}% less from ${q0.phase1Age}`)) return false;
+    await sw.click(); await wait(500); const q1 = await planOf(); const a1 = await sw.getAttribute('aria-checked');
+    await sw.click(); await wait(500); const q2 = await planOf();
+    return q1.phase1On === !q0.phase1On && a1 === String(!q0.phase1On) && q2.phase1On === !!q0.phase1On; });
   // The time tunnel: a corridor from the stop age to the plan age; across
   // each year's stretch of floor, the bright lane's share of the floor's width
   // is the share of futures still paying in full. It is drawn from the same run as the
   // count in the sentence, so they cannot differ.
-  await p.waitForFunction(() => document.querySelector('[data-tunnel]')?.getAttribute('data-ready') === '1' && /of 100/.test(document.querySelector('[data-futures]')?.textContent || ''), null, { timeout: 20000 }).catch(() => {}); await wait(800);
-  const ring = async () => p.evaluate(() => { const el = document.querySelector('[data-tunnel]'); const sl = el.querySelector('[role=slider]');
-    const pts = (k) => (el.querySelector(`[data-lane=${k}]`)?.getAttribute('points') || '').trim().split(/\s+/).filter(Boolean).map(q => q.split(',').map(Number));
+  await p.waitForFunction(() => document.querySelector('[data-island]')?.getAttribute('data-ready') === '1' && /of 100/.test(document.querySelector('[data-futures]')?.textContent || ''), null, { timeout: 20000 }).catch(() => {}); await wait(800);
+  const ring = async () => p.evaluate(() => { const el = document.querySelector('[data-island]'); const sl = el.querySelector('[role=slider]');
     return { first: +el.getAttribute('data-first'), last: +el.getAttribute('data-last'), n: +el.getAttribute('data-years'), counts: el.getAttribute('data-full-counts').split(',').map(Number),
-      road: pts('road'), wallL: (el.querySelector('[data-wall=l]')?.getAttribute('points') || '').trim().split(/\s+/).filter(Boolean).map(q => q.split(',').map(Number)), wallR: (el.querySelector('[data-wall=r]')?.getAttribute('points') || '').trim().split(/\s+/).filter(Boolean).map(q => q.split(',').map(Number)), keys: [el.querySelector('[data-wall=l]')?.getAttribute('data-tranche'), el.querySelector('[data-wall=r]')?.getAttribute('data-tranche')], vy: +el.getAttribute('data-horizon'), h: +(el.querySelector('svg')?.getAttribute('height') || 0), label: sl.getAttribute('aria-label'), summary: document.getElementById('tunnel-summary')?.textContent || '', futures: document.querySelector('[data-futures]')?.textContent || '' }; });
-  await check('158d the tunnel has a count for every year from the year work stops to the plan age', async () => { const q = await planOf(), st = await ring();
-    return st.counts.length === st.n && st.first === q.retireYear - q.partnerA.birthYear && st.n === E.planEndYear(q) - q.retireYear + 1 && st.last === st.first + st.n - 1; });
-  await check('158e the tunnel ends on the futures count in the sentence', async () => { const st = await ring(); const n = Number((st.futures.match(/^In (\d+) of 100/) || [])[1]); return st.counts[st.n - 1] === n; });
-  await check('158f the count never rises from one year to the next', async () => { const st = await ring(); return st.counts.every((c, i) => c >= 0 && c <= 100 && (i === 0 || c <= st.counts[i - 1])); });
-  // The walls are the money: two tranches (a structured plan's safe ladder and growth engine, else pensions
-  // and ISAs with cash), each filled from the floor up to its value that year in today's money, on one scale.
+      mid: (el.getAttribute('data-cover-mid') || '').split(',').filter(Boolean).map(Number), label: sl.getAttribute('aria-label'), summary: document.getElementById('island-summary')?.textContent || '', futures: document.querySelector('[data-futures]')?.textContent || '' }; });
   const trancheVals = (q, rows, key, first, last) => { const by = new Map(rows.map(r => [r.ageA, r])); const out = [];
     for (let a = first; a <= last; a++) { const r = by.get(a); const v = !r ? 0 : key === 'ladder' ? r.ladder : key === 'engine' ? r.engine : key === 'pensions' ? r.potA + r.potB : r.isaA + r.isaB + r.cash + r.gia;
       out.push(r ? Math.max(0, v / Math.pow(1 + q.inflation, r.year - q.startYear)) : 0); } return out; };
-  await check('158g each wall is filled to its tranche\'s value each year (today\'s money, from the engine), as a share of the frame', async () => { const q = await planOf(), st = await ring();
-    const keys = q.architecture?.on ? ['ladder', 'engine'] : ['pensions', 'isas']; if (st.keys.join() !== keys.join()) return false;
-    const rows = E.drawdown(q).rows; const vals = keys.map(k => trancheVals(q, rows, k, st.first, st.last)); const scale = Math.max(1, ...vals[0], ...vals[1]) * 1.06;
-    return [st.wallL, st.wallR].every((pts, k) => { if (pts.length !== 2 * (st.n + 2)) return false; const base = pts.slice(0, st.n + 2), top = pts.slice(st.n + 2).reverse();
-      return vals[k].every((v, i) => { const b = base[i + 1], t = top[i + 1]; const sc = (b[1] - st.vy) / (st.h - st.vy); return Math.abs((b[1] - t[1]) / (sc * st.h) - Math.min(1, v / scale)) < 0.01; }); }); });
-  await check('158h the tunnel agrees with the engine for the same seed, year by year', async () => { const q = await planOf(), st = await ring(); const m = E.runMonteCarlo(q, 2000, q.mcSeed || 42);
+  await check('158d the island has a count for every year from the year work stops to the plan age', async () => { const q = await planOf(), st = await ring();
+    return st.counts.length === st.n && st.first === q.retireYear - q.partnerA.birthYear && st.n === E.planEndYear(q) - q.retireYear + 1 && st.last === st.first + st.n - 1; });
+  await check('158e the island ends on the futures count in the sentence', async () => { const st = await ring(); const n = Number((st.futures.match(/^In (\d+) of 100/) || [])[1]); return st.counts[st.n - 1] === n; });
+  await check('158f the count never rises from one year to the next', async () => { const st = await ring(); return st.counts.every((c, i) => c >= 0 && c <= 100 && (i === 0 || c <= st.counts[i - 1])); });
+  // The island's land is the engine's cover (money still covering the ask from each age), across the futures:
+  // its middle row is the median future's cover at every age, from the same seed.
+  await check('158g the island\'s middle row is the engine\'s median cover at every age, from the same seed', async () => { const q = await planOf(), st = await ring(); const m = E.runMonteCarlo(q, 2000, q.mcSeed || 42);
+    const med = m.perAgeCover.ages.map(r => r.q[10]); return st.mid.length === st.n && med.length === st.n && med.every((v, i) => Math.abs(v - st.mid[i]) <= 0.005 * Math.max(1, Math.abs(v))); });
+  await check('158h the island agrees with the engine for the same seed, year by year', async () => { const q = await planOf(), st = await ring(); const m = E.runMonteCarlo(q, 2000, q.mcSeed || 42);
     return m.perAgeHeld.every((h, i) => Math.round(h.full * 100) === st.counts[i]); });
-  await check('158i the tunnel says in words what it shows (screen readers)', async () => { const st = await ring(); const q = await planOf(); const f = st.counts[st.n - 1];
+  await check('158i the island says in words what it shows (screen readers)', async () => { const st = await ring(); const q = await planOf(); const f = st.counts[st.n - 1];
     const typical = f < 100 ? E.runMonteCarlo(q, 2000, q.mcSeed || 42).perAgeHeld.find(h => Math.round(h.full * 100) <= (100 + f) / 2)?.age : null;
     return st.label === 'Futures still paying, by age' && st.summary.startsWith(`Stop at ${st.first} and take ${gbp(q.targetNet / 12)} a month. In ${f} of 100 futures it lasts to ${st.last}.${f < 100 ? ` In the other ${100 - f}, money first runs short at about ${typical}.` : ''}`); });
-  await check('158j life hangs where it changes: travel towards the year the State Pension starts and its sign is there, from the engine', async () => {
+  await check('158j life is marked where it changes: the year the State Pension starts carries its flag, from the engine', async () => {
     const q = await planOf(), rows = E.drawdown(q).rows; const st = await ring();
     const at = rows.find((r, i) => i > 0 && !(rows[i - 1].spA > 1) && r.spA > 1)?.ageA;
     if (at == null || at <= st.first || at > st.last) return true;
-    await p.locator('[data-tunnel] [role=slider]').focus(); await p.keyboard.press('Home');
-    for (let k = st.first; k < at - 2; k++) await p.keyboard.press('ArrowRight');
-    await wait(700);
-    const ok = await p.evaluate(a => [...document.querySelectorAll(`[data-tunnel] [data-event-age="${a}"]`)].some(e => /State Pension starts/.test(e.textContent)), at);
-    await p.keyboard.press('Escape'); await wait(600); return ok; });
+    return p.evaluate(a => [...document.querySelectorAll(`[data-island] [data-event-age="${a}"]`)].some(e => /State Pension starts/.test(e.textContent)), at); });
+  // Drag the sea to change what you ask (or use its keys): the plan's ask moves with it.
+  await check('158m the sea is what you ask: its handle raises the ask by £100 a month on the up arrow and lowers it on the down arrow', async () => {
+    const t0 = (await planOf()).targetNet; await p.locator('[data-sea-handle]').focus(); await p.keyboard.press('ArrowUp'); await wait(500);
+    const up = (await planOf()).targetNet; await p.keyboard.press('ArrowDown'); await wait(500); const back = (await planOf()).targetNet;
+    return up === t0 + 1200 && back === t0; });
   await p.locator('[data-tranche-open]').first().click(); await wait(1200);
   await check('158k touching a tranche opens it: what it is, what it earns, and four markets drawn, from the engine', async () => { const q = await planOf(), st = await ring();
     const key = q.architecture?.on ? 'ladder' : 'pensions'; const el = await p.$(`[data-tranche-sheet="${key}"]`); if (!el) return false;
@@ -826,6 +853,60 @@ const openMap = async () => { await closeSheet(); await tap('Explore'); await wa
   await closeSheet();
   await closeSheet();
   await check('162 simple home: zero page errors', () => pe.length === 0);
+}
+
+// ── The Lantern preview (Stage 2; docs/LANTERN_PLAN.md) ────────────────────
+// The tower at ?lantern=1, drawn from the plan on this device through the
+// engine and the adapter. Read only; it does not replace the home.
+{
+  const stored = await planOf();
+  const q0 = E.migratePlan(stored), q = { ...q0, growth: q0.growthBase ?? q0.growth };
+  await p.goto(URL + '?lantern=1', { waitUntil: 'networkidle' }); await wait(700);
+  const gl = await p.evaluate(() => { const c = document.createElement('canvas'); return !!(c.getContext('webgl2') || c.getContext('webgl')); });
+  const L = k => p.$eval('[data-lantern]', (e, k) => e.getAttribute(k), k);
+  const readout = () => p.$eval('[data-lantern-readout]', e => e.textContent);
+  const nums = t => [...t.matchAll(/(\d+) (?:of 20 futures pay|pays? less than the plan|falls? short)/g)].map(m => +m[1]);
+  await check('163 lantern: it says whose figures these are (the plan on this device)', async () => /your plan/.test(await p.$eval('[data-lantern-whose]', e => e.textContent)));
+  if (gl) {
+    await p.waitForSelector('[data-lantern][data-ready="1"]', { timeout: 40000 }).catch(() => {});
+    const rows = E.drawdown(q).rows, seed = q.mcSeed || 42;
+    const lit = m => m.perAgePaid.ages.map(r => r.q.filter(v => v >= 0.99).length);
+    const base = lit(E.runMonteCarlo(q, 2000, seed)), hit = lit(E.runMonteCarlo(q, 2000, seed, { shock: { year: 1, size: 0.3 } }));
+    await check('164 lantern: the tower renders, one floor for every year of the plan, 20 windows a floor sorted worst to best', async () =>
+      (await L('data-ready')) === '1' && (await p.$eval('[data-lantern] canvas', c => c.width > 100 && c.height > 100))
+      && (await L('data-floors')) === String(rows.length) && (await L('data-windows')) === '20' && (await L('data-model-ok')) === '1' && (await L('data-first-age')) === String(rows[0].ageA));
+    await check('165 lantern: the lit windows on every floor are the engine\'s own count of futures paid in full that year', async () => (await L('data-lit')) === base.join(','));
+    await check('166 lantern: the readout counts the open floor\'s 20 windows in words, and the count is the engine\'s', async () => {
+      const t = await readout(), sel = +(await L('data-selected')), n = nums(t);
+      return new RegExp(`^At ${rows[sel].ageA} \\(${rows[sel].year}\\): ${base[sel]} of 20 futures pay your full £`).test(t) && n.reduce((a, b) => a + b, 0) === 20; });
+    await check('167 lantern: each lens button turns the tower to its face', async () => {
+      for (const k of [1, 2, 3, 0]) {
+        await p.locator(`[data-lens="${k}"]`).click();
+        const ok = await p.waitForFunction(k => { const e = document.querySelector('[data-lantern]'); return e.dataset.face === String(k) && e.dataset.settled === '1'; }, k, { timeout: 4000 }).then(() => true, () => false);
+        if (!ok || (await p.getAttribute(`[data-lens="${k}"]`, 'aria-pressed')) !== 'true') return false;
+      }
+      return true; });
+    await check('168 lantern: tapping a floor opens it and reads that year', async () => {
+      const box = await p.locator('[data-lantern]').boundingBox(), before = +(await L('data-selected'));
+      await p.mouse.click(box.x + box.width / 2, box.y + box.height * 0.78); await wait(600);
+      const sel = +(await L('data-selected')), t = await readout();
+      return sel !== before && sel >= 0 && t.startsWith(`At ${rows[sel].ageA} (${rows[sel].year}): ${base[sel]} of 20 futures`); });
+    await check('169 lantern: the stress face is the same futures after a 30% fall in year 1, counted by the engine; every target is at least 44 px', async () => {
+      await p.locator('[data-lens="3"]').click(); await wait(700);
+      const sel = +(await L('data-selected')), t = await readout();
+      const small = await p.$$eval('[data-lantern-preview] button, [data-lantern-preview] a', els => els.filter(e => e.getBoundingClientRect().height < 44).length);
+      return (await L('data-lit-stress')) === hit.join(',') && t.startsWith(`At ${rows[sel].ageA}, after a 30% fall in year 1: ${hit[sel]} of 20 futures`) && small === 0; });
+    await check('170 lantern: sources and money left are read in words, and the picture is described for a screen reader', async () => {
+      await p.locator('[data-lens="1"]').click(); await wait(600); const a = await readout();
+      await p.locator('[data-lens="2"]').click(); await wait(600); const b = await readout();
+      return /^At \d+ \(\d{4}\): .*£/.test(a) && /left in the middle future/.test(b) && new RegExp(`^The Lantern: a tower of ${rows.length} years`).test(await L('aria-label')); });
+  } else {
+    await check('164 lantern: without WebGL the preview says so', () => has('This preview needs WebGL'));
+  }
+  await check('171 lantern: nothing left the device, and the plan on it is unchanged', async () => requests.length === 0 && JSON.stringify(await planOf()) === JSON.stringify(stored));
+  await p.goto(URL, { waitUntil: 'networkidle' }); await wait(900);
+  await check('172 lantern: the home is untouched (the island is still the picture)', async () => (await p.$('[data-island]')) != null && (await p.$('[data-lantern]')) == null);
+  await check('173 lantern: zero page errors', () => pe.length === 0);
 }
 
 console.log(`\n═══ Horizon UAT: ${pass}/${pass + fail} passed ═══`);

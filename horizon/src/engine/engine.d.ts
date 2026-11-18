@@ -69,6 +69,13 @@ export interface MC {
   perAgeSolvency: { age: number; p: number }[];
   /** Share of futures paid every year up to and including this age: in full, and with the written rules. Ends on successProb / successProbWithCuts. */
   perAgeHeld: { age: number; full: number; rules: number }[];
+  /** The island: at each age, cover (money still covering the ask from there; 1 = exactly) at 21 levels across the futures. */
+  perAgeCover: { levels: number[]; ages: { age: number; q: number[] }[] };
+  /** The Lantern: spending delivered ÷ planned, at 20 levels across the futures, each year (worst first). */
+  perAgePaid: { levels: number[]; ages: { age: number; q: number[] }[] };
+  /** Money left at each year's end, today's money. */
+  perAgeWealth: { age: number; p10: number; p50: number; p90: number }[];
+  shock: { year: number; size: number } | null;
   [k: string]: any;
 }
 export interface Engine {
@@ -98,13 +105,14 @@ export interface Engine {
   compareStrategies(P: Plan): { id: string; label: string; lifetimeTax: number; endWealth: number; exhaustedAgeA: number | null }[];
   STRESS_PATHS: Record<string, number[]>;
   SCOT_BANDS: { upTo: number; rate: number }[];
-  runMonteCarlo(P: Plan, n: number, seed: number): MC;
+  runMonteCarlo(P: Plan, n: number, seed: number, opts?: { shock?: { year: number; size: number } }): MC;
   DB_SCHEMES: Record<string, DbScheme>;
   DB_SCHEMES_ASOF: string;
   LIVING_STANDARDS: LivingStandards;
   livingStandards(P: Plan): LivingStandardSet;
   livingStandardOf(P: Plan, net: number): LivingTier | null;
   lifeOdds(P: Plan, horizonAge?: number): LifeOdds;
+  coverByAge(P: Plan): { age: number; cover: number }[];
   trancheBenefits(P: Plan, who: Partner, t: DbTranche): TrancheBenefits;
   trancheNpa(who: Partner, t: DbTranche): number;
   trancheMinAge(who: Partner, t: DbTranche): number;

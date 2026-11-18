@@ -1,6 +1,6 @@
 /**
  * Someday test battery. Run with: node v4/tests.js
- * Part 1 asserts parity with the Marshall Retirement Model workbook.
+ * Part 1 asserts parity with the reference retirement workbook workbook.
  * Part 2 asserts engine invariants across a parameter grid.
  * Part 3 asserts regressions found by the adversarial audit stay fixed.
  */
@@ -25,16 +25,16 @@ console.log('==================');
 const P = E.defaults();
 
 const accBase = E.accumulate(P, 0.07).atRetirement;
-near(accBase.pensionA, 908131, 0.02, 'Stuart SIPP at 2030, base');
-near(accBase.isaA, 61083, 0.02, 'Stuart ISA at 2030, base');
-// The workbook adds one year of Carol's contribution then grows the lump;
+near(accBase.pensionA, 908131, 0.02, 'Robin SIPP at 2030, base');
+near(accBase.isaA, 61083, 0.02, 'Robin ISA at 2030, base');
+// The workbook adds one year of Jo's contribution then grows the lump;
 // the engine contributes every year. Documented divergence, wider tolerance.
-near(accBase.pensionB, 60994, 0.09, 'Carol SASS at 2030 (engine compounds contributions annually)');
-near(accBase.isaB, 61790, 0.06, 'Carol ISA at 2030, base');
+near(accBase.pensionB, 60994, 0.09, 'Jo SASS at 2030 (engine compounds contributions annually)');
+near(accBase.isaB, 61790, 0.06, 'Jo ISA at 2030, base');
 const accBear = E.accumulate(P, 0.04).atRetirement;
-near(accBear.pensionA, 818893, 0.02, 'Stuart SIPP at 2030, bear');
+near(accBear.pensionA, 818893, 0.02, 'Robin SIPP at 2030, bear');
 const accBull = E.accumulate(P, 0.10).atRetirement;
-near(accBull.pensionA, 1005093, 0.02, 'Stuart SIPP at 2030, bull');
+near(accBull.pensionA, 1005093, 0.02, 'Robin SIPP at 2030, bull');
 
 near(E.taxOn(57548), 10451.2, 0.001, 'Tax on 57548 single person');
 near(E.taxOn(77548), 18451.2, 0.001, 'Tax on 77548 single person');
@@ -106,27 +106,27 @@ console.log('Grid: ' + combos + ' drawdown combinations checked.');
 {
   const merged = E.taxOn(y2030.guaranteed + y2030.grossA + y2030.grossB);
   check(y2030.tax <= merged + 1, `per-partner ${Math.round(y2030.tax)} beats merged ${Math.round(merged)}`);
-  // Stuart has no base income in 2030, so his allowance must be in use
-  check(y2030.grossA >= 12000, 'Stuart allowance actually used in 2030, drew ' + Math.round(y2030.grossA));
+  // Robin has no base income in 2030, so his allowance must be in use
+  check(y2030.grossA >= 12000, 'Robin allowance actually used in 2030, drew ' + Math.round(y2030.grossA));
   // Large need: the historical optimum for this need is 9,951
   // (both allowances used, remainder at 20%). Must not regress above it.
   const Qnm = E.defaults();
   const ynm = E.drawdown(Qnm).rows[0];
   check(ynm.tax <= 9951.5, `large-need optimum held: ${Math.round(ynm.tax)} <= 9951`);
-  // Low need: everything should fit inside Stuart's free allowance, so the
-  // only tax is on Carol's guaranteed income. The old serve-B-first order
+  // Low need: everything should fit inside Robin's free allowance, so the
+  // only tax is on Jo's guaranteed income. The old serve-B-first order
   // paid 20% on this. This is the audit's key allocation regression.
   const Qlow = E.defaults(); Qlow.targetNet = 30000;
   const ylow = E.drawdown(Qlow).rows[0];
-  const carolBaseTax = E.taxOn(ylow.spB + ylow.dbB);
-  // Optimal tax for this year: Carol's base tax, plus 20% on the grossed-up
-  // net need beyond Stuart's free allowance (net x 0.25). The old
+  const partnerBaseTax = E.taxOn(ylow.spB + ylow.dbB);
+  // Optimal tax for this year: Jo's base tax, plus 20% on the grossed-up
+  // net need beyond Robin's free allowance (net x 0.25). The old
   // serve-B-first order paid 20% on the whole draw instead.
-  const needLow = ylow.target - (ylow.guaranteed - carolBaseTax);
-  const optimal = carolBaseTax + Math.max(0, needLow - 12570) * 0.25;
+  const needLow = ylow.target - (ylow.guaranteed - partnerBaseTax);
+  const optimal = partnerBaseTax + Math.max(0, needLow - 12570) * 0.25;
   check(Math.abs(ylow.tax - optimal) < 2,
     `low need at optimum: tax ${Math.round(ylow.tax)} vs optimal ${Math.round(optimal)}`);
-  check(ylow.grossA >= 12570 - 1, 'Stuart free allowance fully used at low need');
+  check(ylow.grossA >= 12570 - 1, 'Robin free allowance fully used at low need');
 }
 
 // 3.2 The spending builder carries no mortgage or motorhome line.

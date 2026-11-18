@@ -18,7 +18,7 @@ export function hasSavedPlan(): boolean {
 // Saved plans are migrated to the current schema on load: missing fields are
 // filled, bad values repaired and the tax constants always come from the
 // engine (never from a plan saved under an older tax year).
-function loadPlan(): Plan {
+export function loadPlan(): Plan {
   try {
     const s = localStorage.getItem(KEY);
     if (s) return (E as any).migratePlan(JSON.parse(s));

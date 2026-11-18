@@ -5,7 +5,7 @@ import { fmt, fmtK } from './format';
  * What the answer is counting, in one line, so nobody has to wonder whether
  * a partner's pots or annuity are in:
  *
- *   Counts you and Carol: £616k in pensions, £95k in ISAs and cash, and
+ *   Counts you and Jo: £616k in pensions, £95k in ISAs and cash, and
  *   £30k a year guaranteed once it is all in payment. £3,200 a month going
  *   into pensions, tax relief included.
  *

@@ -44,7 +44,8 @@ jobs:
       - name: Build Horizon and stage into site root
         run: |
           cd horizon && npm ci && npm run build && cd ..
-          rm -f assets/index-*.js assets/index-*.css horizon-app/assets/index-*.js horizon-app/assets/index-*.css
+          # Clear every hashed build file first, so old bundles and workers never pile up in the repo or on the site.
+          rm -rf assets horizon-app/assets
           mkdir -p assets horizon-app/assets
           # Whole dist (index, hashed assets, PWA manifest/sw/icons) → site root + subpath
           cp -r horizon/dist/. .

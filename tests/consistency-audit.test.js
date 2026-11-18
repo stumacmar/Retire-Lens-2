@@ -177,20 +177,20 @@ assert(balanceErrors === 0, 'Balance continuity year-to-year', `${balanceErrors}
 console.log('\n4. PARTNER PENSION TIMING');
 console.log('─────────────────────────────────────────────────────');
 
-// Carol is 62 when user is 55. At user age 60, Carol is 67.
-// So Carol's SP and DB should start at user age 60.
+// Jo is 62 when user is 55. At user age 60, Jo is 67.
+// So Jo's SP and DB should start at user age 60.
 const y60 = decYears.find(y => y.age === 60);
 const y59 = decYears.find(y => y.age === 59); // doesn't exist (retirement starts at 60)
 
 assert(
   (y60.partnerStatePension || 0) > 0,
-  'Carol SP starts at your age 60 (she is 67)',
+  'Jo SP starts at your age 60 (she is 67)',
   `partnerSP at 60 = ${y60.partnerStatePension}`
 );
 
 assert(
   (y60.partnerDbPension || 0) > 0,
-  'Carol DB starts at your age 60 (she is 67)',
+  'Jo DB starts at your age 60 (she is 67)',
   `partnerDB at 60 = ${y60.partnerDbPension}`
 );
 
@@ -309,25 +309,25 @@ assert(
 console.log('\n9. INCOME SOURCES COMPLETENESS');
 console.log('─────────────────────────────────────────────────────');
 
-// At age 60: should have pension withdrawal + Carol SP + Carol DB
+// At age 60: should have pension withdrawal + Jo SP + Jo DB
 assert(
   y60.withdrawals.pension > 0,
   'Pension withdrawal present at 60',
   `${Math.round(y60.withdrawals.pension)}`
 );
 
-const carolSP60 = y60.partnerStatePension || 0;
-const carolDB60 = y60.partnerDbPension || 0;
+const partnerSP60 = y60.partnerStatePension || 0;
+const partnerDB60 = y60.partnerDbPension || 0;
 assert(
-  carolSP60 > 10000,
-  'Carol SP present and > £10k at age 60',
-  `got ${Math.round(carolSP60)}`
+  partnerSP60 > 10000,
+  'Jo SP present and > £10k at age 60',
+  `got ${Math.round(partnerSP60)}`
 );
 
 assert(
-  carolDB60 >= 15000,
-  'Carol DB present and >= £15k at age 60',
-  `got ${Math.round(carolDB60)}`
+  partnerDB60 >= 15000,
+  'Jo DB present and >= £15k at age 60',
+  `got ${Math.round(partnerDB60)}`
 );
 
 // Total guaranteed + withdrawal should produce target net
@@ -377,7 +377,7 @@ console.log('\n11. TWO PERSONAL ALLOWANCES');
 console.log('─────────────────────────────────────────────────────');
 
 // With doubled PA (£25,140), at age 60:
-// Carol income: SP 11500 + DB 15000 = 26500
+// Jo income: SP 11500 + DB 15000 = 26500
 // Your pension withdrawal: ~42215
 // Total taxable: ~68715
 // With ONE PA: tax on (68715 - 12570) = 56145 -> basic + higher = ~14k

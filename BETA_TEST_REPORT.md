@@ -25,7 +25,7 @@ node tests/beta-e2e-bot.mjs   # UI testers (needs a server on :8899)
 
 ## The testers (personas)
 
-Single: Stuart (56, the founder's own case), Priya (45, early retiree), James
+Single: Robin (56, the founder's own case), Priya (45, early retiree), James
 (50, high earner in the taper zone), Maureen (58, late starter), Geoff (55, DB +
 DC), Dawn (52, ISA-heavy), Kirsty (48, Scottish taxpayer), Tom (60, cautious),
 Aisha (35, long runway). Couple: Ann & Bob (57/59).
@@ -41,7 +41,7 @@ marginal PCLS kicked in, the engine withdrew the full pension amount from the
 pot but only counted the *taxed* slice as income — omitting the 25% tax-free
 cash the retiree actually receives.
 
-- Example (Stuart, 56): the app showed **£24,023** net income when the retiree
+- Example (Robin, 56): the app showed **£24,023** net income when the retiree
   actually receives **~£28,994**. A ~£5,000/year understatement, every year PCLS
   applied.
 - **Fix:** `engine/projections.js` and `engine/monteCarlo.js` now credit the
@@ -65,7 +65,7 @@ results) with **zero console or page errors** and a fully rendered results page:
 
 | Persona | Retires | Result headline |
 |---|---|---|
-| Stuart, 56 (single) | 67 | £2,333/mo · 95% confidence |
+| Robin, 56 (single) | 67 | £2,333/mo · 95% confidence |
 | James, 50 (single) | 60 | £4,583/mo · 71% |
 | Maureen, 58 (single) | 68 | £1,250/mo · 100% |
 | Ann & Bob (couple) | 66 | £3,333/mo · 99% |

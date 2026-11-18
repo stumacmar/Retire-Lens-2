@@ -1,6 +1,6 @@
 # Someday · Horizon — model specification
 
-**Engine version:** 2026.11.14 (`ENGINE_VERSION` in `horizon/src/engine/engine.js`)
+**Engine version:** 2026.11.18 (`ENGINE_VERSION` in `horizon/src/engine/engine.js`)
 **Plan schema:** 2 (`SCHEMA_VERSION`)
 **Tax rules:** UK 2026/27, in force from 6 April 2026, read on 14 November 2026 (`TAX_RULES`)
 
@@ -166,22 +166,27 @@ supporting exactly the ask, or more, could read "Not yet funded"; and a
 structured plan kept solvent by cutting spending to 75% was credited with
 supporting the uncut figure. Both are covered by `e2e150.mjs`.
 
-The home draws **the time tunnel**: a corridor in perspective from the stop
-age (at your feet) to the plan age, then into light. Across each year's
-stretch the walls hold the money: two tranches (a structured plan's safe
-ladder and growth engine, otherwise pensions and ISAs with cash), each filled
-to its value that year in today's money from the central case, as a share of
-the frame on one scale. Touching a tranche replays the whole plan under the
+The home draws **the island**: a landscape seen at an angle, ages running
+left to right from the stop age to the plan age and the futures running back
+from the worst at the front to the best at the back. The height of the land
+at each point is **cover** (`perAgeCover`, §9): what the money still covers
+of what you ask from that age on, so the land stands above the sea where the
+money covers the ask and sinks below it where it does not. The sea sits at
+cover 1, the ask; dragging its handle (or the arrow keys on it) changes the
+ask and writes it back to the plan. Land is drawn up to twice the ask and
+flattened above. Touching the land at any age and level reads, in words,
+how many futures still pay the ask in full at that age (`perAgeHeld`) and how
+much the worst futures cover from there. Flags mark the central case's life
+events (an income starting, ISAs or pots used up, a partner stopping work,
+the plan's own events), read from the deterministic drawdown's rows; they
+describe the central case, not every future. The two tranches (a structured
+plan's safe ladder and growth engine, otherwise pensions and ISAs with cash)
+open from chips on the island: each sheet replays the whole plan under the
 positive, base and poor growth rates and the 2008 path from the stop age and
-draws that tranche in each. The futures count (`perAgeHeld`, §9) is read in
-the sentence and, at any age, in the line under the tunnel. Signs on the ceiling mark the central
-case's life events (an income starting, ISAs or pots used up, a partner
-stopping work, the plan's own events), read from the deterministic
-drawdown's rows; they describe the central case, not every future. Under the
-tunnel: the first
-age a future falls short and, from `worstYearRatioP10` (the 10th percentile
-of each future's leanest year as a share of the ask, guaranteed income
-included), "in the worst 10 of 100, income dips to about £X a month".
+draws that tranche in each. At rest the line under the island gives the
+first age a future falls short and, from `worstYearRatioP10` (the 10th
+percentile of each future's leanest year as a share of the ask, guaranteed
+income included), "in the worst 10 of 100, income dips to about £X a month".
 
 The status words hold within a dead zone at the two number-decided
 boundaries (78 to 82 of 100 futures; 0.88 to 0.92 of the ask), so a word
@@ -286,7 +291,42 @@ own quote takes precedence.
   every year up to and including that one, in full (`full`, the same test as
   `successProb`) and once the written rules have trimmed (`rules`, the same
   test as `successProbWithCuts`). It never rises and its last entry equals
-  those two shares exactly. The home screen's time tunnel draws it.
+  those two shares exactly. The home screen's island reads it.
+* `perAgeCover`: for each year after work stops, 21 quantiles (2.5% to
+  97.5% in steps of 4.75%, `COVER_LEVELS`) across futures of **cover** at the
+  start of that year: (0.85 × pensions + ISAs, cash and the general account,
+  in today's money, plus the present value of the guaranteed income still to
+  come) ÷ the present value of the planned spending still to come, both
+  discounted at the plan's real return after charges,
+  `(1 + growth − fee) / (1 + inflation) − 1`. The 0.85 is a flat allowance
+  for income tax on pension draws, not the plan's own tax; guaranteed income
+  and spending are the central case's. 1 means the money exactly covers the
+  ask from there on. `coverByAge(P)` gives the same figure for the
+  deterministic plan, and at zero volatility the Monte Carlo's median equals
+  it (asserted, within 0.1%, across the thirteen plan shapes). The home
+  screen's island draws it.
+* `perAgePaid`: for each year after work stops, the spending delivered that
+  year as a share of that year's plan (`rows[].paid` in the deterministic
+  plan: `(target − shortfall) ÷ planTarget`, so a year trimmed by a
+  structured plan's rules counts as reduced), at 20 levels across the futures
+  (2.5% to 97.5% in steps of 5%, `PAID_LEVELS`), sorted afresh each year with
+  the worst first. A level is a share of the futures **that year**, not one
+  future followed through time, so it answers "how many futures pay in full
+  at 85?", which `perAgeHeld` (paid every year so far) does not.
+* `perAgeWealth`: for each year, the money left at the year's end (pensions,
+  ISAs, cash and the general account) in today's money at the 10th, 50th and
+  90th percentile across the futures.
+* `runMonteCarlo(P, n, seed, { shock: { year, size } })` forces a fall of
+  `size` in real terms in retirement year `year` (1 is the year work stops)
+  on every path, through the same blend as the named stress paths
+  (`blendReal` with the plan's `equityShare`; a structured plan's growth
+  engine takes the whole fall). The random numbers are still drawn, so every
+  other year of every future is the one the unshocked run saw. Without the
+  option the result is unchanged, bit for bit; the result carries `shock`.
+  At zero volatility `perAgePaid` and `perAgeWealth` equal the deterministic
+  plan across the thirteen plan shapes, and a 30% fall in year 1 equals
+  `drawdown(P, { returnPath: [-0.3] })` (all asserted). The Lantern preview
+  draws these.
 * **What the range covers**: the sampling range shown in the app
   (±2 standard errors) covers the randomness of the simulation **only**. It
   does not cover parameter uncertainty (are the growth, inflation and charge
@@ -347,7 +387,7 @@ delivered (certainty-equivalent), never on survival alone.
 
 | Surface | Reads |
 |---|---|
-| Home | `accumulate`, `drawdown` (`holds`, `runsShortAgeA`), `runMonteCarlo` (`successProb`, `perAgeHeld` for the time tunnel, `worstYearRatioP10` for the line under it), `guardrails`, `stressTests`, `levers` |
+| Home | `accumulate`, `drawdown` (`holds`, `runsShortAgeA`), `runMonteCarlo` (`successProb`, `perAgeHeld` and `perAgeCover` for the island, `worstYearRatioP10` for the line under it), `guardrails`, `stressTests`, `levers` |
 | Decision map | `drawdown` per cell |
 | Explore | `drawdown` rows, `runMonteCarlo`, `levers`, `stressTests`, `compareStrategies`, `estate` |
 | Peace | `Assumptions` (generated from the plan and engine constants), `HowWeChecked` (`runAssertions` live, `TAX_RULES`) |

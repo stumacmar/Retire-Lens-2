@@ -1,6 +1,6 @@
 /**
  * Life events along the way, read from the central case (the deterministic
- * drawdown's rows), for the tunnel on the home: the moments an income
+ * drawdown's rows), for the island on the home: the moments an income
  * starts, something runs out, a partner stops work, or one of the plan's
  * own events happens. Ages are the first person's age that year.
  *

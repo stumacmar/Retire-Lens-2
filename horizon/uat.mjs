@@ -61,6 +61,9 @@ if (!URL) {
 const exe = findChrome();
 const b = await chromium.launch(exe ? { executablePath: exe } : {});
 const p = await (await b.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2 })).newPage();
+// Existing checks were written against the island; the home now opens on the Lantern, so they pin the island
+// (only where nothing is set). The Lantern home has its own block, in its own page, with no pin.
+await p.addInitScript(() => { try { if (!localStorage.getItem('someday-picture-v1')) localStorage.setItem('someday-picture-v1', 'island'); } catch { /* private mode */ } });
 
 const ce = [], pe = [];
 p.on('console', m => { if (m.type() === 'error' && !/404|favicon/i.test(m.text())) ce.push(m.text()); });
@@ -567,9 +570,9 @@ await check('100 zero uncaught page errors overall', () => pe.length === 0);
 // Zero critical or serious violations is the release gate; moderate and
 // minor are printed so they are seen, never hidden.
 const AXE = path.join(__dir, 'node_modules', 'axe-core', 'axe.min.js');
-const axeScan = async (label) => {
-  if (!(await p.evaluate(() => !!window.axe))) await p.addScriptTag({ path: AXE });
-  const r = await p.evaluate(async () => {
+const axeScan = async (label, pg = p) => {
+  if (!(await pg.evaluate(() => !!window.axe))) await pg.addScriptTag({ path: AXE });
+  const r = await pg.evaluate(async () => {
     const res = await window.axe.run(document, { runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'] } });
     return res.violations.map(v => ({ id: v.id, impact: v.impact, n: v.nodes.length,
       nodes: v.nodes.slice(0, 3).map(n => `${n.target.join(' ')} «${n.html.slice(0, 90)}» ${[...n.any, ...n.all].map(x => x.message).join(' | ')}`) }));
@@ -878,7 +881,7 @@ const openMap = async () => { await closeSheet(); await tap('Explore'); await wa
   const q0 = E.migratePlan(stored), q = { ...q0, growth: q0.growthBase ?? q0.growth };
   // The way in from inside the app (installed on a Home Screen there is no address bar).
   await tap('Explore'); await wait(900);
-  await check('163a lantern: Explore has a link to the preview, at least 44 px tall', async () => (await p.getAttribute('[data-lantern-link]', 'href')) === './?lantern=1' && (await p.$eval('[data-lantern-link]', e => e.getBoundingClientRect().height)) >= 44);
+  await check('163a lantern: Explore has a link to the full-screen Lantern, at least 44 px tall', async () => (await p.getAttribute('[data-lantern-link]', 'href')) === './?lantern=1' && (await p.$eval('[data-lantern-link]', e => e.getBoundingClientRect().height)) >= 44);
   await check('163b lantern: tapping it opens the preview, and "Back to Someday" returns to the home', async () => {
     await p.locator('[data-lantern-link]').click(); await p.waitForSelector('[data-lantern-preview]', { timeout: 15000 }).catch(() => {});
     const there = (await p.$('[data-lantern-preview]')) != null && /[?&]lantern=1/.test(p.url());
@@ -922,7 +925,7 @@ const openMap = async () => { await closeSheet(); await tap('Explore'); await wa
     await check('170 lantern: sources and money left are read in words, and the picture is described for a screen reader', async () => {
       await p.locator('[data-lens="1"]').click(); await wait(600); const a = await readout();
       await p.locator('[data-lens="2"]').click(); await wait(600); const b = await readout();
-      return /^At \d+ \(\d{4}\): .*£/.test(a) && /left in the middle future/.test(b) && new RegExp(`^The Lantern: a tower of ${rows.length} years`).test(await L('aria-label')); });
+      return /^At \d+ \(\d{4}\): .*£/.test(a) && /left in the middle future/.test(b) && new RegExp(`^The Lantern: a tower of ${rows.length} years`).test(await L('aria-valuetext')) && (await L('role')) === 'slider'; });
   } else {
     await check('164 lantern: without WebGL the preview says so', () => has('This preview needs WebGL'));
   }
@@ -930,6 +933,126 @@ const openMap = async () => { await closeSheet(); await tap('Explore'); await wa
   await p.goto(URL, { waitUntil: 'networkidle' }); await wait(900);
   await check('172 lantern: the home is untouched (the island is still the picture)', async () => (await p.$('[data-island]')) != null && (await p.$('[data-lantern]')) == null);
   await check('173 lantern: zero page errors', () => pe.length === 0);
+}
+
+// ── The Lantern on the home (owner, 18 November 2026: "move the candle to the main screen… a key
+// or other way to understand how it's constructed in each example") ─────────────────────────────
+// In its own page with nothing pinned, so it opens as a visitor's does: on the Lantern.
+{
+  const stored = await planOf(), islandFigure = await p.$eval('[data-supports]', e => e.textContent).catch(() => null);
+  const dump = await p.evaluate(() => JSON.stringify(Object.fromEntries(Object.entries(localStorage).filter(([k]) => k !== 'someday-picture-v1'))));
+  const cx = await b.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2 }), h = await cx.newPage();
+  const herr = [], hreq = [];
+  h.on('pageerror', e => herr.push(e.message)); h.on('console', m => { if (m.type() === 'error' && !/404|favicon/i.test(m.text())) herr.push(m.text()); });
+  h.on('request', r => { const u = r.url(); if (!u.startsWith(URL) && !/^(data|blob|about):/.test(u)) hreq.push(u); });
+  await h.goto(URL); await h.evaluate(d => { for (const [k, v] of Object.entries(JSON.parse(d))) localStorage.setItem(k, v); }, dump);
+  await h.goto(URL, { waitUntil: 'networkidle' });
+  const gl = await h.evaluate(() => { const c = document.createElement('canvas'); return !!(c.getContext('webgl2') || c.getContext('webgl')); });
+  const hw = ms => h.waitForTimeout(ms);
+  const H = k => h.$eval('[data-lantern]', (e, k) => e.getAttribute(k), k);
+  const reading = () => h.$eval('[data-lantern-text]', e => e.textContent);
+  const legend = () => h.$$eval('[data-lantern-home] [data-lantern-legend] li', els => els.map(e => e.textContent.trim()));
+  const engineOf = (pl) => { const q0 = E.migratePlan(pl), q = { ...q0, growth: q0.growthBase ?? q0.growth }, seed = q.mcSeed || 42;
+    const lit = m => m.perAgePaid.ages.map(r => r.q.filter(v => v >= 0.99).length);
+    return { q, rows: E.drawdown(q).rows, base: () => lit(E.runMonteCarlo(q, 2000, seed)), hit: () => lit(E.runMonteCarlo(q, 2000, seed, { shock: { year: 1, size: 0.3 } })) }; };
+  if (!gl) {
+    await check('174 lantern home: without WebGL the home shows the island instead', async () => (await h.$('[data-island]')) != null);
+  } else {
+    await h.waitForSelector('[data-lantern-home] [data-lantern][data-ready="1"]', { timeout: 40000 }).catch(() => {});
+    const X = engineOf(stored), base = X.base();
+    await check('174 lantern home: a visitor\'s home opens on the Lantern, not the island', async () => (await h.$('[data-simple-home] [data-lantern-home]')) != null && (await h.$('[data-island]')) == null && (await H('data-ready')) === '1');
+    await check('175 lantern home: the answer sits in the panel, and is the figure the island shows for the same plan', async () => {
+      const t = await h.$eval('[data-lantern-home]', e => e.innerText);
+      return (await h.$('[data-lantern-home] [data-status]')) != null && /Your plan can pay/.test(t) && /You ask for £/.test(t)
+        && (await h.$eval('[data-lantern-home] [data-supports]', e => e.textContent)) === islandFigure && (await h.$('[data-lantern-home] [data-futures]')) != null; });
+    await check('176 lantern home: one floor a year, and the lit windows on every floor are the engine\'s count', async () => (await H('data-floors')) === String(X.rows.length) && (await H('data-lit')) === base.join(',') && (await H('data-model-ok')) === '1');
+    await check('177 lantern home: a key beside the tower names each mark, and it changes with the face', async () => {
+      const a = await legend();
+      await h.locator('[data-lantern-home] [data-lens="1"]').click(); await hw(700); const b1 = await legend(), cap1 = await h.$eval('[data-lantern-caption]', e => e.textContent);
+      await h.locator('[data-lantern-home] [data-lens="2"]').click(); await hw(700); const c = await legend(), cap2 = await h.$eval('[data-lantern-caption]', e => e.textContent);
+      await h.locator('[data-lantern-home] [data-lens="0"]').click(); await hw(700);
+      const sources = ['Pensions', 'ISAs', 'Cash', 'Scheme pensions', 'Work', 'State Pension', 'Partner’s State Pension'];
+      return a.join('|') === 'Pays your plan in full|Less, essentials covered|Falls short'
+        && b1.length >= 1 && b1.every(x => sources.includes(x)) && /where that year’s spending comes from/.test(cap1)
+        && c.join('|') === 'The middle future|10th to 90th of 100 futures' && /money left, from nothing to £/.test(cap2)
+        && (await h.$$eval('[data-lantern-home] [data-lantern-legend] li span[aria-hidden]', els => els.length)) === 3; });
+    await check('178 lantern home: "How to read this" explains how the tower is built and each of its four faces', async () => {
+      await h.locator('[data-lantern-key-open]').click(); await hw(700);
+      const t = await h.$eval('[data-lantern-key-sheet]', e => e.innerText).catch(() => '');
+      const heads = await h.$$eval('[data-lantern-key-sheet] h3', els => els.map(e => e.textContent));
+      const ok = heads.join('|') === 'How the tower is built|Will it pay?|Sources|What\'s left|Stress'
+        && /Each floor is one year/.test(t) && /as wide as what you plan to spend/.test(t) && /Each window is 5 of every 100/.test(t) && /worst on the left to the best on the right/.test(t)
+        && /Dark with a red foot/.test(t) && /same scale/.test(t) && /fall by 30% in the year you stop/.test(t)
+        && (await h.$$eval('[data-lantern-key-sheet] li span[aria-hidden]', els => els.length)) >= 12;
+      await h.keyboard.press('Escape'); await hw(600);
+      return ok && (await h.$('[data-lantern-key-sheet]')) == null; });
+    await check('179 lantern home: tapping a floor opens it and reads that year with the engine\'s count; tapping it again closes it', async () => {
+      const rest = await reading(), box = await h.locator('[data-lantern]').boundingBox();
+      const x = box.x + box.width * 0.66, y = box.y + box.height * 0.5;
+      await h.mouse.click(x, y); await hw(700);
+      const sel = +(await H('data-selected')), t = await reading();
+      const opened = sel >= 0 && t.startsWith(`At ${X.rows[sel].ageA} (${X.rows[sel].year}): ${base[sel]} of 20 futures pay your full £`);
+      await h.mouse.click(x, y); await hw(700);
+      return opened && (await H('data-selected')) === '-1' && (await reading()) === rest; });
+    await check('180 lantern home: the keyboard reaches it: arrows open and move the floor, Escape closes it', async () => {
+      await h.locator('[data-lantern]').focus(); await h.keyboard.press('ArrowUp'); await hw(300); await h.keyboard.press('ArrowUp'); await hw(500);
+      const sel = +(await H('data-selected')), vt = await H('aria-valuetext');
+      await h.keyboard.press('Escape'); await hw(500);
+      return sel === 1 && vt.startsWith(`At ${X.rows[1].ageA} (`) && (await H('role')) === 'slider' && (await H('data-selected')) === '-1'; });
+    await check('181 lantern home: the stress face is worked out when asked for, and its windows are the engine\'s after a 30% fall in year 1', async () => {
+      await h.locator('[data-lantern-home] [data-lens="3"]').click();
+      await h.waitForSelector('[data-lantern-home][data-stress-ready="1"]', { timeout: 30000 }).catch(() => {}); await hw(500);
+      const ok = (await H('data-lit-stress')) === X.hit().join(',') && (await legend()).join('|') === 'Pays your plan in full|Less, essentials covered|Falls short|A light the fall put out'
+        && /after a 30% fall in year 1/.test(await h.$eval('[data-lantern-caption]', e => e.textContent));
+      await h.locator('[data-lantern-home] [data-lens="0"]').click(); await hw(700);
+      return ok; });
+    await check('182 lantern home: changing the plan redraws the same tower in place, to the engine\'s new counts', async () => {
+      await h.$eval('[data-lantern] canvas', c => { c.dataset.mark = 'same'; });
+      await h.getByRole('button', { name: 'Take home: £100 a month more' }).click(); await hw(400);
+      const now = await h.evaluate(() => JSON.parse(localStorage.getItem('horizon-plan-v1')));
+      const Y = engineOf(now), want = Y.base().join(',');
+      const ok = await h.waitForFunction(w => document.querySelector('[data-lantern]')?.getAttribute('data-lit') === w, want, { timeout: 30000 }).then(() => true, () => false);
+      const same = (await h.$eval('[data-lantern] canvas', c => c.dataset.mark)) === 'same';
+      await h.getByRole('button', { name: 'Take home: £100 a month less' }).click(); await hw(400);
+      await h.waitForFunction(w => document.querySelector('[data-lantern]')?.getAttribute('data-lit') === w, base.join(','), { timeout: 30000 }).catch(() => {});
+      return now.targetNet !== E.migratePlan(stored).targetNet && ok && same; });
+    await check('183 lantern home: at 390×844, 390×660, 375×667 and 360×640 everything stays above the tab bar, nothing scrolls sideways and the key is whole on every face', async () => {
+      const bad = [];
+      for (const [w, hh] of [[390, 844], [390, 660], [375, 667], [360, 640]]) {
+        await h.setViewportSize({ width: w, height: hh }); await hw(700);
+        const r = await h.evaluate(() => { const nav = document.querySelector('nav').getBoundingClientRect(), home = document.querySelector('[data-simple-home]');
+          const q = [...home.querySelectorAll('button')].find(x => /What could go wrong/.test(x.textContent)).getBoundingClientRect();
+          return { slack: Math.round(nav.top - q.bottom), hscroll: home.scrollWidth > home.clientWidth + 1 }; });
+        // The key must be whole on every face: its last line above the caption, its first below the answer.
+        const keys = [];
+        for (const k of [0, 1, 2]) {
+          await h.locator(`[data-lantern-home] [data-lens="${k}"]`).click(); await hw(500);
+          keys.push(await h.evaluate(() => { const li = [...document.querySelectorAll('[data-lantern-home] [data-lantern-legend] li')], cap = document.querySelector('[data-lantern-caption]').getBoundingClientRect();
+            const head = document.querySelector('[data-lantern-home] [data-ask]').getBoundingClientRect();
+            return li.length > 0 && li[li.length - 1].getBoundingClientRect().bottom <= cap.top + 1 && li[0].getBoundingClientRect().top >= head.bottom - 1; }));
+        }
+        await h.locator('[data-lantern-home] [data-lens="0"]').click(); await hw(500);
+        if (r.slack < 0 || r.hscroll || keys.includes(false)) bad.push(`${w}×${hh} ${JSON.stringify(r)} key whole on faces 0,1,2: ${keys.join(',')}`);
+      }
+      await h.setViewportSize({ width: 390, height: 844 }); await hw(500);
+      if (bad.length) console.log('  lantern fit: ' + bad.join('; '));
+      return bad.length === 0; });
+    const ax = await axeScan('Lantern home', h);
+    await check(`184 lantern home: no critical or serious WCAG 2.2 AA violations${ax.bad.length ? ' — ' + ax.detail : ''}`, () => ax.bad.length === 0);
+    await check('185 lantern home: Explore switches the home picture to the island and back, and remembers it', async () => {
+      await h.getByRole('button', { name: 'Explore' }).last().click(); await hw(900);
+      await h.locator('[data-picture-choice="island"]').click(); await hw(400);
+      const k1 = await h.evaluate(() => localStorage.getItem('someday-picture-v1'));
+      await h.keyboard.press('Escape'); await hw(700);
+      const island = (await h.$('[data-island]')) != null && (await h.$('[data-lantern-home]')) == null;
+      await h.reload({ waitUntil: 'networkidle' }); await hw(900);
+      const kept = (await h.$('[data-island]')) != null;
+      await h.getByRole('button', { name: 'Explore' }).last().click(); await hw(900);
+      await h.locator('[data-picture-choice="lantern"]').click(); await hw(400); await h.keyboard.press('Escape'); await hw(900);
+      return k1 === 'island' && island && kept && (await h.evaluate(() => localStorage.getItem('someday-picture-v1'))) === 'lantern' && (await h.$('[data-lantern-home]')) != null; });
+  }
+  await check('186 lantern home: nothing left the device, and zero page errors' + (herr.length ? ' — ' + herr.slice(0, 2).join(' | ') : ''), () => hreq.length === 0 && herr.length === 0);
+  await cx.close();
 }
 
 console.log(`\n═══ Horizon UAT: ${pass}/${pass + fail} passed ═══`);

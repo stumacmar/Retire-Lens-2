@@ -122,6 +122,7 @@ a third party.
 | 1 | The tower from dummy data at `?lantern=1` | Done (#65) |
 | 2a | Engine outputs: `perAgePaid`, `perAgeWealth`, the shock option | Done (#66, engine 2026.11.18) |
 | 2b | Adapter (`lantern/adapter.js`, tested by hand calculation) and wiring to the plan on the device, read only | Done |
+| 5 (early) | The Lantern is the home's picture, with a key for each face and "How to read this"; the island is the switch-back in Explore and the fallback without WebGL (owner, 18 November 2026) | Done |
 | 3 | Dials, chips, bottom sheet | Not started |
 | 4 | The "now" band, Play, Flat view, table, reduced motion | Not started (reduced motion already cross-fades and stops the dust) |
 | 5 | Polish, performance stepping, replace the home behind a setting | Not started |

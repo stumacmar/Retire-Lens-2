@@ -20,6 +20,8 @@ import HowWeChecked from './components/HowWeChecked';
 import { PlusPill, Locked, PlusSheetBody } from './components/Plus';
 import { EntitlementContext, useEntitlement, useEntitlementState } from './lib/entitlement';
 import { PRODUCT } from './config/product';
+import { usePicture } from './lib/picture';
+import type { Picture } from './lib/picture';
 
 // Confidence, said honestly: rounded to five, never "100%", with the
 // sampling range alongside. A simulation cannot promise certainty.
@@ -53,6 +55,7 @@ function Horizon() {
   const [detailsPage, setDetailsPage] = useState(0);
   const [yearSel, setYearSel] = useState<number | null>(null);
   const [onboarded, setOnboarded] = useState(hasSavedPlan());
+  const [picture, setPicture] = usePicture();
   const [disclaimerOk, setDisclaimerOk] = useState(disclaimerAccepted());
   const openPlus = () => setSheet('plus');
 
@@ -102,7 +105,7 @@ function Horizon() {
             <span className="flex-1 serif text-[1.35rem] leading-none" style={{ color: 'var(--color-ink)' }}>Someday</span>
             {PRODUCT.plusOffered && <PlusPill plus={plus} onClick={openPlus} />}
           </div>);
-        return <SimpleHome plan={plan} update={update} dd={dd} mc={mc} onDetails={() => setSheet('details')} header={header} />;
+        return <SimpleHome plan={plan} update={update} dd={dd} mc={mc} onDetails={() => setSheet('details')} header={header} picture={picture} />;
       })()}
 
       <nav className="fixed bottom-0 left-0 right-0 z-40"
@@ -123,7 +126,7 @@ function Horizon() {
           index={detailsPage} onIndex={setDetailsPage} saved={S.saved} />
       </Sheet>
       <Sheet open={sheet === 'explore'} onClose={() => setSheet(null)} title="Explore">
-        <ExploreBody plan={planL} dd={dd} estate={estate} mc={mc} plus={plus} onUpgrade={openPlus} update={update} />
+        <ExploreBody plan={planL} dd={dd} estate={estate} mc={mc} plus={plus} onUpgrade={openPlus} update={update} picture={picture} setPicture={setPicture} />
       </Sheet>
       <Sheet open={sheet === 'peace'} onClose={() => setSheet(null)} title="Peace of mind">
         <PeaceBody plus={plus} onUpgrade={openPlus} plan={plan} mc={mc} />
@@ -308,7 +311,7 @@ function McFan({ mc, retireYear }: { mc: MC; retireYear: number }) {
   );
 }
 
-function ExploreBody({ plan, dd, estate, mc, plus, onUpgrade, update }: { plan: any; dd: Drawdown; estate: any; mc: MC | null; plus: boolean; onUpgrade: () => void; update: (p: any) => void }) {
+function ExploreBody({ plan, dd, estate, mc, plus, onUpgrade, update, picture, setPicture }: { plan: any; dd: Drawdown; estate: any; mc: MC | null; plus: boolean; onUpgrade: () => void; update: (p: any) => void; picture: Picture; setPicture: (p: Picture) => void }) {
   const today = (v: number, year: number) => deflate(v, year, plan.startYear, plan.inflation);
   const lifeTax = (dd as any).lifetimeTaxReal ?? dd.lifetimeTax;
   const mix = fundingMix(dd);
@@ -372,16 +375,26 @@ function ExploreBody({ plan, dd, estate, mc, plus, onUpgrade, update }: { plan: 
         </nav>
       </div>
 
-      {/* A way in to the Lantern preview from inside the app: installed on a
-          Home Screen there is no address bar to type ?lantern=1 into. */}
-      <a href="./?lantern=1" data-lantern-link className="flex items-center justify-between gap-3 rounded-2xl p-4 min-h-[56px] no-underline"
-        style={{ background: 'var(--color-canvas)', border: '1px solid var(--color-hairline)', color: 'var(--color-ink)' }}>
-        <span>
-          <span className="block font-bold">Preview: the Lantern</span>
-          <span className="block text-[0.82rem] leading-snug mt-0.5" style={{ color: 'var(--color-ink-dim)' }}>A tower of your years, one floor each, with a light on for every future that pays. Your plan, read only.</span>
-        </span>
-        <span aria-hidden="true" className="text-[1.2rem] font-bold" style={{ color: 'var(--color-calm-strong)' }}>›</span>
-      </a>
+      {/* Which picture the home shows. The Lantern is the home since 18 November 2026;
+          the island stays here for a release, for anyone who prefers it. */}
+      <div data-picture className="rounded-2xl p-4" style={{ background: 'var(--color-canvas)', border: '1px solid var(--color-hairline)' }}>
+        <div className="font-bold">Home picture</div>
+        <p className="text-[0.82rem] leading-snug mt-0.5" style={{ color: 'var(--color-ink-dim)' }}>
+          The Lantern is a tower of your years with a light on for every future that pays. The island is the picture it replaced.
+        </p>
+        <div role="group" aria-label="Home picture" className="mt-2 grid grid-cols-2 gap-2">
+          {(['lantern', 'island'] as Picture[]).map(k => (
+            <button key={k} type="button" data-picture-choice={k} aria-pressed={picture === k} onClick={() => setPicture(k)}
+              className="min-h-[44px] rounded-xl text-[0.86rem] font-bold"
+              style={picture === k
+                ? { background: 'var(--color-calm)', color: 'var(--color-on-calm)', border: '1px solid var(--color-calm)' }
+                : { background: 'var(--color-surface)', color: 'var(--color-ink)', border: '1px solid var(--color-hairline)' }}>
+              {k === 'lantern' ? 'The Lantern' : 'The island'}
+            </button>
+          ))}
+        </div>
+        <a href="./?lantern=1" data-lantern-link className="mt-2 inline-flex items-center min-h-[44px] text-[0.84rem] font-semibold underline" style={{ color: 'var(--color-ink-dim)' }}>Open the Lantern full screen</a>
+      </div>
       {/* ── Every retirement you could choose ────────────────────── */}
       <DecisionMap plan={plan} update={update} />
       {/* ── How far it could fall: safe spending under real bad histories ── */}

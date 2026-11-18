@@ -1,48 +1,13 @@
 import { useEffect, useState } from 'react';
 import LanternCanvas from './LanternCanvas';
 import { useLantern } from './useLantern';
-import { SOURCE_NAME } from './model';
-import type { Floor, LanternModel } from './model';
-import { countWindows } from './adapter';
+import { LENSES, Swatch, captionFor, gbp, legendFor, readout } from './words';
 
 /**
- * The Lantern preview at ?lantern=1 (docs/LANTERN_PLAN.md, Stage 2): the
- * tower drawn from the plan on this device through the engine. Read only,
- * and it does not replace the home.
+ * The Lantern full screen at ?lantern=1: the tower drawn from the plan on
+ * this device through the engine, read only. The home shows the same tower
+ * in a panel; this is the larger view of it.
  */
-const LENSES = ['Will it pay?', 'Sources', "What's left", 'Stress'];
-
-const gbp = (v: number) => `£${Math.round(v).toLocaleString('en-GB')}`;
-const gbpK = (v: number) => (v < 500 ? 'nothing' : v >= 1e6 ? `£${(v / 1e6).toFixed(2).replace(/\.?0+$/, '')}m` : `£${Math.round(v / 1000)}k`);
-const lower = (s: string) => s.charAt(0).toLowerCase() + s.slice(1);
-
-function windowsLine(f: Floor, w: Floor['windows'], lead: string) {
-  const c = countWindows(w);
-  const parts = [`${c.full} of 20 futures pay your full ${gbp(f.spend)}.`];
-  if (c.floor) parts.push(`${c.floor} pay${c.floor === 1 ? 's' : ''} less than the plan but cover${c.floor === 1 ? 's' : ''} the essentials.`);
-  if (c.short) parts.push(`${c.short} fall${c.short === 1 ? 's' : ''} short.`);
-  return `${lead} ${parts.join(' ')}`;
-}
-
-function readout(m: LanternModel, f: Floor, lens: number) {
-  const at = `At ${f.age} (${f.year}):`;
-  if (lens === 1) {
-    if (!f.sources.length) return `${at} nothing was paid in the central case.`;
-    const parts = [...f.sources].sort((a, b) => b.amount - a.amount).map(s => `${SOURCE_NAME[s.key]} ${gbp(s.amount)}`);
-    return `${at} ${parts.join(', ')}.`;
-  }
-  if (lens === 2) return `${at} about ${gbpK(f.wealth.p50)} left in the middle future; ${gbpK(f.wealth.p10)} to ${gbpK(f.wealth.p90)} across most futures.`;
-  if (lens === 3) return windowsLine(f, f.stress, `At ${f.age}, after ${lower(m.stressName || 'the stress')}:`);
-  return windowsLine(f, f.windows, at);
-}
-
-const keyFor = (m: LanternModel, lens: number) => [
-  `Tap a floor to open it. Tall gold: pays your plan in full. Half-height white: less than the plan, but the essentials (${gbp(m.essential)} a year) are covered. Dark: falls short. Each window is 5 of 100 futures that year; the outline marks the middle one.`,
-  'The central case: where each year’s spending comes from, after tax. A gap at the right would be a shortfall. The strips of light up the corners are the State Pensions, from the year each starts.',
-  'Money left at the end of each year, in today’s money. Bright bar: the middle future. Halo: the 10th to the 90th of 100 futures.',
-  `The same futures after ${lower(m.stressName || 'the stress')}. An outline marks a light the fall dimmed or put out.`,
-][lens];
-
 export default function LanternPreview() {
   const { model, own, failed } = useLantern();
   const [lens, setLens] = useState(0);
@@ -55,7 +20,7 @@ export default function LanternPreview() {
   }, [model]);
   const f = model && sel >= 0 ? model.floors[Math.min(sel, model.floors.length - 1)] : null;
   const last = model ? model.floors[model.floors.length - 1] : null;
-  const line = model && f ? readout(model, f, lens) : '';
+  const line = model && f ? readout(model, f, lens) : model ? 'Tap a floor to read that year.' : '';
   const summary = model && last ? `The Lantern: a tower of ${model.floors.length} years, age ${model.floors[0].age} to ${last.age}. ${line}` : 'The Lantern';
 
   return (
@@ -63,13 +28,13 @@ export default function LanternPreview() {
       style={{ background: 'linear-gradient(180deg, #060B1A, #0B1430)', color: '#E6ECFF',
         paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'calc(env(safe-area-inset-bottom) + 10px)' }}>
       <header className="flex items-center justify-between gap-3 px-4 pt-2">
-        <h1 className="text-[1rem] font-extrabold tracking-tight">The Lantern <span data-lantern-whose className="font-semibold text-[0.78rem]" style={{ color: '#9FB0D9' }}>preview · {own ? 'your plan' : 'example figures'}</span></h1>
+        <h1 className="text-[1rem] font-extrabold tracking-tight">The Lantern <span data-lantern-whose className="font-semibold text-[0.78rem]" style={{ color: '#9FB0D9' }}>{own ? 'your plan' : 'example figures'}</span></h1>
         <a href="./" className="text-[0.8rem] font-semibold underline min-h-[44px] flex items-center" style={{ color: '#B9C8F5' }}>Back to Someday</a>
       </header>
 
-      <div className="flex-1 min-h-[280px] relative">
+      <div className="flex-1 min-h-[260px] relative">
         {model
-          ? <LanternCanvas model={model} lens={lens} selected={sel} summary={summary} onLens={setLens} onSelect={setSel} />
+          ? <LanternCanvas model={model} lens={lens} selected={sel} summary={summary} onLens={setLens} onSelect={i => setSel(s => (i === s ? -1 : i))} />
           : <p data-lantern-wait className="absolute inset-0 flex items-center justify-center px-8 text-center text-[0.9rem]" style={{ color: '#C9D4F2' }}>
               {failed ? 'The futures could not be worked out for this plan. Check your figures in Details.' : 'Working out 2,000 futures…'}
             </p>}
@@ -90,7 +55,17 @@ export default function LanternPreview() {
             </button>
           ))}
         </div>
-        <p data-lantern-key className="mt-2 text-[0.74rem] leading-snug min-h-[5.6em]" style={{ color: '#9FB0D9' }}>{model ? keyFor(model, lens) : ''}</p>
+        {/* The key for the face that is showing: a drawn sample beside each meaning. */}
+        <div data-lantern-key className="mt-2 min-h-[5.4em]">
+          <p className="text-[0.74rem] leading-snug" style={{ color: '#9FB0D9' }}>{model ? captionFor(model, lens) : ''}</p>
+          <ul data-lantern-legend className="mt-1 flex flex-wrap gap-x-3 gap-y-1">
+            {model && legendFor(model, lens).map(it => (
+              <li key={it.label} className="flex items-center gap-1.5 text-[0.74rem] leading-tight" style={{ color: '#C9D4F2' }}>
+                <Swatch kind={it.kind} colour={it.colour} tile={false} />{it.label}
+              </li>
+            ))}
+          </ul>
+        </div>
       </div>
     </main>
   );

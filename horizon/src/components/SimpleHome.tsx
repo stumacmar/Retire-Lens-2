@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { Suspense, lazy, useEffect, useMemo, useRef, useState } from 'react';
 import { Minus, Plus } from 'lucide-react';
 import type { Drawdown, MC } from '../engine/engine';
 import { E } from '../lib/usePlan';
@@ -10,6 +10,13 @@ import { deepestTrim } from '../lib/insights';
 import { planCounts } from '../lib/counts';
 import { valuesFor, clampVal, type Val } from '../lib/planValues';
 import Sheet from './Sheet';
+import LanternKey from '../lantern/LanternKey';
+import { essentialOf } from '../lantern/adapter';
+import { canDraw3d } from '../lib/picture';
+import type { Picture } from '../lib/picture';
+
+// The Lantern brings Three.js with it, so it loads in its own chunk, only when the home shows it.
+const LanternHome = lazy(() => import('../lantern/LanternHome'));
 import RiskPanel from './RiskPanel';
 import Island from './Island';
 import { lifeEvents } from '../lib/lifeEvents';
@@ -46,8 +53,8 @@ import TrancheSheet from './TrancheSheet';
  */
 type Driver = { id: string; label: string; val: Val; step: number; show: (n: number) => string; sub: string; less: string; more: string };
 
-export default function SimpleHome({ plan, update, dd, mc, onDetails, header }: {
-  plan: any; update: (p: any) => void; dd: Drawdown; mc: MC | null; onDetails: () => void; header?: React.ReactNode;
+export default function SimpleHome({ plan, update, dd, mc, onDetails, header, picture = 'lantern' }: {
+  plan: any; update: (p: any) => void; dd: Drawdown; mc: MC | null; onDetails: () => void; header?: React.ReactNode; picture?: Picture;
 }) {
   const single = plan.household === 'single';
   const A = plan.partnerA, B = plan.partnerB;
@@ -100,7 +107,10 @@ export default function SimpleHome({ plan, update, dd, mc, onDetails, header }: 
   const [typing, setTyping] = useState<{ id: string; text: string } | null>(null);
   const commit = () => { if (!typing) return; const n = parseFloat(typing.text.replace(/[,£\s]/g, '')); if (Number.isFinite(n)) write(typing.id, () => n); setTyping(null); };
 
-  const [panel, setPanel] = useState<null | 'help' | 'risk'>(null);
+  const [panel, setPanel] = useState<null | 'help' | 'risk' | 'key'>(null);
+  // The Lantern needs WebGL; without it (or if the context is lost) the home shows the island instead.
+  const [no3d, setNo3d] = useState(() => !canDraw3d());
+  const lantern = picture === 'lantern' && !no3d;
   const events = useMemo(() => lifeEvents(plan, dd), [plan, dd]);
   const central = useMemo(() => { try { return (E as any).coverByAge(plan) as { age: number; cover: number }[]; } catch { return []; } }, [plan]);
   const endAge = held.length ? held[held.length - 1].age : plan.horizonAge;
@@ -109,6 +119,25 @@ export default function SimpleHome({ plan, update, dd, mc, onDetails, header }: 
   const openTranche = tranches.find(t => t.key === open?.key);
   const figure = status.sustainable ?? month;
   const gap = status.gap;
+
+  // The answer, written once and placed in whichever picture the home shows.
+  const head = <>
+                <p data-status={status.key} className="flex items-center gap-1.5 text-[0.82rem] font-semibold leading-tight" style={{ color: status.colour }} aria-live="polite">
+                  <span aria-hidden className="inline-block w-2 h-2 rounded-full shrink-0" style={{ background: status.colour }} />{status.label}
+                </p>
+                {/* The figure: what the plan can pay, labelled so it is never mistaken for what
+                    you ask (review, 17 November 2026), with what you ask and the gap. */}
+                <span data-figure-label className="mt-1 block text-[0.7rem] font-semibold leading-tight" style={{ color: 'var(--color-ink-dim)' }}>Your plan can pay</span>
+                <h1 className="serif tnum leading-none" style={{ fontSize: 'clamp(1.9rem, 8.5vw, 2.5rem)', letterSpacing: '-0.04em', color: 'var(--color-ink)' }} data-supports>{fmt(figure)}</h1>
+                <span className="block text-[0.74rem] leading-tight mt-0.5" style={{ color: 'var(--color-ink-dim)' }}>a month after tax · <span data-ask>You ask for {fmt(month)}</span></span>
+                {gap != null && (
+                  <span data-gap className="block text-[0.78rem] font-semibold leading-tight whitespace-nowrap" style={{ color: gap < 0 ? 'var(--color-slate)' : 'var(--color-ring)' }}>
+                    {Math.abs(gap) < 25 ? <>Just what you ask</>
+                      : gap < 0 ? <>{fmt(-gap)} short</>
+                        : <>{fmt(gap)} to spare</>}
+                  </span>)}
+              </>;
+  const answer = <span data-futures style={{ color: 'var(--color-ink)' }}>{futuresSentence(status)}</span>;
 
   return (<>
     <div data-simple-home className="fixed inset-0 overflow-y-auto"
@@ -129,27 +158,17 @@ export default function SimpleHome({ plan, update, dd, mc, onDetails, header }: 
           </section>
         ) : (
           <section className="flex-1 flex flex-col mt-1" data-answer data-ready={rails && mc ? '1' : '0'}>
-            {/* ── Your island: the picture is the screen; the answer floats in its sky ── */}
-            <Island mc={mc} structured={structured} fromAge={stopAge} toAge={plan.horizonAge} ask={month} central={central} events={events} tranches={tranches}
+            {/* ── The picture is the screen, and the answer sits in it: the Lantern, or the island ── */}
+            {lantern ? (
+              <Suspense fallback={<div data-lantern-loading className="flex-1 min-h-[320px] -mx-4 sm:mx-0 sm:rounded-3xl" style={{ background: 'linear-gradient(180deg, #060B1A, #0B1430)' }} />}>
+                <LanternHome plan={plan} rows={dd.rows as any[]} mc={mc} head={head} answer={answer} resting={resting}
+                  spoken={`${spokenAnswer(status, stopAge, typicalShort)} ${resting}`} onKey={() => setPanel('key')} onFailed={() => setNo3d(true)} />
+              </Suspense>
+            ) : <Island mc={mc} structured={structured} fromAge={stopAge} toAge={plan.horizonAge} ask={month} central={central} events={events} tranches={tranches}
               onOpen={(key, at) => setOpen({ key, at })} onAsk={m => update((p: any) => ({ ...p, targetNet: m * 12 }))}
               summary={`${spokenAnswer(status, stopAge, typicalShort)} ${resting}`} resting={resting}
-              head={<>
-                <p data-status={status.key} className="flex items-center gap-1.5 text-[0.82rem] font-semibold leading-tight" style={{ color: status.colour }} aria-live="polite">
-                  <span aria-hidden className="inline-block w-2 h-2 rounded-full shrink-0" style={{ background: status.colour }} />{status.label}
-                </p>
-                {/* The figure: what the plan can pay, labelled so it is never mistaken for what
-                    you ask (review, 17 November 2026), with what you ask and the gap. */}
-                <span data-figure-label className="mt-1 block text-[0.7rem] font-semibold leading-tight" style={{ color: 'var(--color-ink-dim)' }}>Your plan can pay</span>
-                <h1 className="serif tnum leading-none" style={{ fontSize: 'clamp(1.9rem, 8.5vw, 2.5rem)', letterSpacing: '-0.04em', color: 'var(--color-ink)' }} data-supports>{fmt(figure)}</h1>
-                <span className="block text-[0.74rem] leading-tight mt-0.5" style={{ color: 'var(--color-ink-dim)' }}>a month after tax · <span data-ask>You ask for {fmt(month)}</span></span>
-                {gap != null && (
-                  <span data-gap className="block text-[0.78rem] font-semibold leading-tight whitespace-nowrap" style={{ color: gap < 0 ? 'var(--color-slate)' : 'var(--color-ring)' }}>
-                    {Math.abs(gap) < 25 ? <>Just what you ask</>
-                      : gap < 0 ? <>{fmt(-gap)} short</>
-                        : <>{fmt(gap)} to spare</>}
-                  </span>)}
-              </>}
-              answer={<span data-futures style={{ color: 'var(--color-ink)' }}>{futuresSentence(status)}</span>} />
+              head={head}
+              answer={answer} />}
           </section>
         )}
 
@@ -225,6 +244,9 @@ export default function SimpleHome({ plan, update, dd, mc, onDetails, header }: 
     </Sheet>
     <Sheet open={!!openTranche} onClose={() => setOpen(null)} title={openTranche?.name || ''}>
       {openTranche && <TrancheSheet plan={plan} tranche={openTranche} first={stopAge} last={endAge} at={open?.at ?? null} />}
+    </Sheet>
+    <Sheet open={panel === 'key'} onClose={() => setPanel(null)} title="How to read the Lantern">
+      {panel === 'key' && <LanternKey essential={fmt(essentialOf(plan))} couple={!single} structured={structured} />}
     </Sheet>
     <Sheet open={panel === 'risk'} onClose={() => setPanel(null)} title="What could go wrong">
       {panel === 'risk' && <RiskPanel plan={plan} mc={mc} rails={rails} />}

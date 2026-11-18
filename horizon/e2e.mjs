@@ -269,6 +269,9 @@ function chrome() { const c = [process.env.CHROME_PATH, '/opt/pw-browsers/chromi
 const ex = chrome();
 const b = await chromium.launch(ex ? { executablePath: ex } : {});
 const p = await (await b.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2 })).newPage();
+// Existing checks were written against the island; the home now opens on the Lantern, so they pin the island
+// (only where nothing is set). The Lantern home has its own block, in its own page, with no pin.
+await p.addInitScript(() => { try { if (!localStorage.getItem('someday-picture-v1')) localStorage.setItem('someday-picture-v1', 'island'); } catch { /* private mode */ } });
 const ce = [], pe = [];
 p.on('console', m => { if (m.type() === 'error' && !/404|favicon/i.test(m.text())) ce.push(m.text()); });
 p.on('pageerror', e => pe.push(e.message));

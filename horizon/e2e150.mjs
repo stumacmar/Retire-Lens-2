@@ -213,6 +213,9 @@ let next = 0;
 async function worker() {
   const ctx = await b.newContext({ viewport: { width: 390, height: 844 } });
   const page = await ctx.newPage();
+  // Existing checks were written against the island; the home now opens on the Lantern, so they pin the island
+  // (only where nothing is set). The Lantern home has its own block, in its own page, with no pin.
+  await page.addInitScript(() => { try { if (!localStorage.getItem('someday-picture-v1')) localStorage.setItem('someday-picture-v1', 'island'); } catch { /* private mode */ } });
   const errs = []; page.on('pageerror', e => errs.push('page: ' + e.message)); page.on('console', m => { if (m.type() === 'error' && !/404|favicon/i.test(m.text())) errs.push('console: ' + m.text()); });
   for (;;) {
     const i = next++; if (i >= N) break;

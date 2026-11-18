@@ -64,6 +64,8 @@ type Layer = 'quads' | 'frames' | 'glass' | 'rims' | 'strips' | 'stone' | 'amber
 
 export type SceneOpts = {
   reducedMotion: boolean;
+  /** The home's panel: the left 43% is kept clear for the answer and the key, so the tower stands in the right 57% with its age labels on its right. */
+  compact?: boolean;
   /** The face nearest the camera; `settled` once the tower is at rest on it. */
   onFace: (face: number, settled: boolean) => void;
   onSelect: (floor: number) => void;
@@ -83,7 +85,7 @@ export class LanternScene {
   private edges: THREE.LineSegments | null = null;
   private labels: { el: HTMLSpanElement; floor: number }[] = [];
   private selLabel: HTMLSpanElement;
-  private n: number;
+  private n = 0;
   private w: number[] = [];
   private maxSpend = 1;
   private h: number[] = []; private y: number[] = []; private total = 0;
@@ -101,10 +103,7 @@ export class LanternScene {
   private disposed = false;
 
   constructor(private host: HTMLElement, private overlay: HTMLElement, private model: LanternModel, private opts: SceneOpts) {
-    this.n = model.floors.length;
-    this.maxSpend = Math.max(1, ...model.floors.map(f => f.spend));
-    this.w = model.floors.map(f => Math.max(4, (W0 * f.spend) / this.maxSpend));
-    this.setHeights(new Array(this.n).fill(1));
+    this.load(model);
 
     this.renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
@@ -142,6 +141,35 @@ export class LanternScene {
       if (document.hidden || this.raf || !this.dust) return;
       this.dust.rotation.y += 0.0012; this.invalidate();
     }, 100);
+  }
+
+  // ── The model ───────────────────────────────────────────────────────────
+  private load(model: LanternModel) {
+    this.model = model;
+    this.n = model.floors.length;
+    this.maxSpend = Math.max(1, ...model.floors.map(f => f.spend));
+    this.w = model.floors.map(f => Math.max(4, (W0 * f.spend) / this.maxSpend));
+    if (this.selected >= this.n) this.selected = -1;
+    this.setHeights(this.heightsFor(this.selected));
+  }
+
+  /** A new plan or new futures: the same renderer, a rebuilt tower. The open floor stays open where it still exists. */
+  setModel(model: LanternModel) {
+    if (this.disposed || model === this.model) return;
+    this.meshes.forEach(m => { this.tower.remove(m); m.geometry.dispose(); (m.material as THREE.Material).dispose(); });
+    this.meshes.clear();
+    if (this.edges) { this.tower.remove(this.edges); this.edges.geometry.dispose(); (this.edges.material as THREE.Material).dispose(); this.edges = null; }
+    for (const l of this.labels) l.el.remove();
+    this.labels = []; this.grow = null;
+    this.load(model);
+    this.buildLabels(); this.nameSelected();
+    this.apply(); this.fit(); this.invalidate();
+  }
+
+  private nameSelected() {
+    const f = this.selected >= 0 ? this.model.floors[this.selected] : null;
+    if (f) { this.selLabel.textContent = f.partnerAge != null ? `${f.age} · ${f.partnerAge}` : String(f.age); this.selLabel.style.display = ''; }
+    else this.selLabel.style.display = 'none';
   }
 
   // ── Layout: how tall each floor is ──────────────────────────────────────
@@ -325,11 +353,16 @@ export class LanternScene {
     const t = Math.tan((FOV * Math.PI) / 360);
     const halfH = ((top - bottom) / 2) * 1.14, halfW = W0 / 2 + 2.3;   // the near face stands taller than the axis
     // Room on both sides for the age labels, so the tower stays centred.
-    const room = Math.max(0.2, (this.cw - 108) / this.ch);
+    const compact = !!this.opts.compact, LEFT = 0.43, LABELS = 50;
+    const region = compact ? this.cw * (1 - LEFT) : this.cw;
+    const room = Math.max(0.2, (region - (compact ? LABELS + 8 : 108)) / this.ch);
     const d = Math.max(halfH / t, halfW / (t * room)) / this.zoom;
     const cy = (top + bottom) / 2;
-    this.camera.position.set(0, cy - d * Math.sin(TILT), d * Math.cos(TILT));
-    this.camera.lookAt(0, cy, 0);
+    // Compact: the tower is centred in what is left of the right-hand region once its labels have their room.
+    const centrePx = compact ? this.cw * LEFT + (region - LABELS) / 2 : this.cw / 2;
+    const shift = -((centrePx - this.cw / 2) * 2 * d * t) / this.ch;
+    this.camera.position.set(shift, cy - d * Math.sin(TILT), d * Math.cos(TILT));
+    this.camera.lookAt(shift, cy, 0);
     this.camera.updateProjectionMatrix();
   }
 
@@ -352,7 +385,9 @@ export class LanternScene {
 
   private place(el: HTMLSpanElement, i: number) {
     const p = this.floorOnScreen(i);
-    el.style.transform = `translate(${Math.round(p.minX - 6)}px, ${Math.round(p.y)}px) translate(-100%, -50%)`;
+    el.style.transform = this.opts.compact
+      ? `translate(${Math.round(p.maxX + 5)}px, ${Math.round(p.y)}px) translate(0, -50%)`
+      : `translate(${Math.round(p.minX - 6)}px, ${Math.round(p.y)}px) translate(-100%, -50%)`;
   }
 
   private draw() {
@@ -416,11 +451,7 @@ export class LanternScene {
     const next = i >= 0 && i < this.n ? i : -1;
     if (next === this.selected && !this.grow) return;
     this.selected = next;
-    if (next >= 0) {
-      const f = this.model.floors[next];
-      this.selLabel.textContent = f.partnerAge != null ? `${f.age} · ${f.partnerAge}` : String(f.age);
-      this.selLabel.style.display = '';
-    } else this.selLabel.style.display = 'none';
+    this.nameSelected();
     const to = this.heightsFor(next);
     if (this.opts.reducedMotion) { this.grow = null; this.setHeights(to); this.apply(); }
     else this.grow = { from: this.h.slice(), to, t0: performance.now(), dur: 260 };

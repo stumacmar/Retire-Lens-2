@@ -12,6 +12,7 @@ import { Locked } from './Plus';
 import { Card, MoneyField, NumField, PctField, TextField, Toggle, Segmented } from './Field';
 import { E, exportPlanJson, importPlanJson } from '../lib/usePlan';
 import { fmt, fmtK, pct } from '../lib/format';
+import { extraRelief } from '../lib/relief';
 
 /**
  * The whole form, as a carousel.
@@ -91,7 +92,9 @@ function Pots({ plan, who, set, adv }: { plan: any; who: any; set: (patch: any) 
           Life); relief at source adds 25% to what leaves a bank account. */}
       <MoneyField label="Paying into pension monthly" value={who.monthlyPension} onChange={v => set({ monthlyPension: v })}
         hint={who.contribGrossUp
-          ? `What you pay; with basic-rate tax relief added, ${fmt((Number(who.monthlyPension) || 0) * 1.25)} a month goes in. Higher-rate relief comes back to you through your tax, not into the pot.`
+          ? `What you pay; with basic-rate tax relief added, ${fmt((Number(who.monthlyPension) || 0) * 1.25)} a month goes in. ${extraRelief(E, plan, who) > 0
+            ? `On a salary of ${fmt(who.income)} you pay more than 20% tax on part of your pay, so you can claim about ${fmt(extraRelief(E, plan, who))} a year more back through Self Assessment (or by asking HMRC; claims go back four years). It comes to you, not into the pension, so the plan does not count it.`
+            : 'Higher-rate relief comes back to you through your tax, not into the pot; enter your salary under "Still working, charges and relief" to see it.'}`
           : 'The total going in, tax relief included: the figure on a payslip for a workplace scheme (net pay or salary sacrifice), or your pension statement. If you pay a personal pension or SIPP from your bank account, switch on the line below.'} />
       <Toggle label="Paid from my bank account (the provider adds 25% basic-rate tax relief)" checked={!!who.contribGrossUp} onChange={v => set({ contribGrossUp: v })} />
       <MoneyField label="ISAs today" value={who.isa} onChange={v => set({ isa: v })} />

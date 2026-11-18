@@ -1,6 +1,7 @@
 import type { MC } from '../engine/engine';
 import type { Rail } from '../lib/insights';
 import { fmt } from '../lib/format';
+import { stillHere, stillHereWords } from '../lib/stillHere';
 
 /**
  * "What could go wrong": the central case, a poor run and three real bad
@@ -50,6 +51,10 @@ export default function RiskPanel({ plan, mc, rails }: { plan: any; mc: MC | nul
             {mc.shortAgeP10 != null ? <>In the unluckiest 1 in 10 the money has run short by <b className="tnum">{mc.shortAgeP10}</b>.</> : <>Even the unluckiest 1 in 10 are paid in full to {plan.horizonAge}.</>}</>
             : 'Working out the futures.'}
         </span>
+        {/* Running short matters most while you are still here to feel it: the two risks, side by side. */}
+        {mc && mc.successProb < 0.995 && (
+          <span data-still-here className="block text-[0.76rem] mt-1" style={{ color: 'var(--color-ink-dim)' }}>{stillHereWords(stillHere(plan, mc))}</span>
+        )}
       </div>
       <p className="text-[0.7rem] mt-2 px-1" style={{ color: 'var(--color-ink-faint)' }}>
         Scenarios, not predictions. The histories are real sequences of returns replayed on your plan; the future will not repeat any of them. Tax rules, inflation and your own life will differ too.

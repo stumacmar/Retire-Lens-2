@@ -876,6 +876,14 @@ const openMap = async () => { await closeSheet(); await tap('Explore'); await wa
 {
   const stored = await planOf();
   const q0 = E.migratePlan(stored), q = { ...q0, growth: q0.growthBase ?? q0.growth };
+  // The way in from inside the app (installed on a Home Screen there is no address bar).
+  await tap('Explore'); await wait(900);
+  await check('163a lantern: Explore has a link to the preview, at least 44 px tall', async () => (await p.getAttribute('[data-lantern-link]', 'href')) === './?lantern=1' && (await p.$eval('[data-lantern-link]', e => e.getBoundingClientRect().height)) >= 44);
+  await check('163b lantern: tapping it opens the preview, and "Back to Someday" returns to the home', async () => {
+    await p.locator('[data-lantern-link]').click(); await p.waitForSelector('[data-lantern-preview]', { timeout: 15000 }).catch(() => {});
+    const there = (await p.$('[data-lantern-preview]')) != null && /[?&]lantern=1/.test(p.url());
+    await p.getByRole('link', { name: 'Back to Someday' }).click(); await p.waitForSelector('[data-simple-home]', { timeout: 15000 }).catch(() => {});
+    return there && (await p.$('[data-simple-home]')) != null && !/lantern/.test(p.url()); });
   await p.goto(URL + '?lantern=1', { waitUntil: 'networkidle' }); await wait(700);
   const gl = await p.evaluate(() => { const c = document.createElement('canvas'); return !!(c.getContext('webgl2') || c.getContext('webgl')); });
   const L = k => p.$eval('[data-lantern]', (e, k) => e.getAttribute(k), k);

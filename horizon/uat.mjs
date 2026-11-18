@@ -834,6 +834,16 @@ const openMap = async () => { await closeSheet(); await tap('Explore'); await wa
   await reliefSwitch.click(); await wait(600);
   await check('158c3 switching it on adds 25% basic-rate relief: the plan records it and the field says what goes in', async () => { const q = await planOf();
     return q.partnerA.contribGrossUp === true && (await p.locator('[data-active]').innerText()).includes(`with basic-rate tax relief added, ${gbp(q.partnerA.monthlyPension * 1.25)} a month goes in`); });
+  // Higher-rate relief (Scout, 17 November 2026): with no salary the field invites one; with a salary it
+  // names the extra relief to claim back, from the engine's own tax tables: tax(S) − tax(S − G) − 20% of G.
+  await check('158c3b with no salary entered, the field says where higher-rate relief goes and asks for the salary', async () =>
+    /Higher-rate relief comes back to you through your tax, not into the pot; enter your salary/.test(await p.locator('[data-active]').innerText()));
+  await p.locator('[data-active] button:has-text("Still working, charges and relief")').first().click(); await wait(400);
+  await p.locator('[data-active] label:has-text("Salary a year while still working") input').first().fill('60000'); await p.keyboard.press('Tab'); await wait(700);
+  await check('158c3c with a £60,000 salary the field names the extra relief to claim, from the engine', async () => { const q = await planOf(); const T = E.taxFor(q, q.startYear);
+    const G = Math.min(q.partnerA.monthlyPension * 12 * 1.25, 60000); const x = Math.round((E.taxOn(60000, T) - E.taxOn(60000 - G, T) - 0.2 * G) / 10) * 10;
+    return q.partnerA.income === 60000 && x > 0 && (await p.locator('[data-active]').innerText()).includes(`you can claim about ${gbp(x)} a year more back through Self Assessment`); });
+  await p.locator('[data-active] label:has-text("Salary a year while still working") input').first().fill('0'); await p.keyboard.press('Tab'); await wait(500);
   await check('158c4 and the pot on the day work stops is larger', async () => { const q = await planOf(); return E.accumulate({ ...q, growth: q.growthBase }, q.growthBase).atRetirement.pensionA > potsBefore; });
   await closeSheet();
   await check('158c5 the counts line says what you pay and what relief adds', async () => { const m = (await planOf()).partnerA.monthlyPension;

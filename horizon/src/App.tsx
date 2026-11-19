@@ -17,6 +17,7 @@ import Disclaimer, { disclaimerAccepted } from './components/Disclaimer';
 import Dates from './components/Dates';
 import Assumptions from './components/Assumptions';
 import HowWeChecked from './components/HowWeChecked';
+import FuturesTable from './components/FuturesTable';
 import { PlusPill, Locked, PlusSheetBody } from './components/Plus';
 import { EntitlementContext, useEntitlement, useEntitlementState } from './lib/entitlement';
 import { PRODUCT } from './config/product';
@@ -430,6 +431,7 @@ function ExploreBody({ plan, dd, estate, mc, plus, onUpgrade, update, picture, s
               : <>Even the unluckiest <b>1 in 10</b> futures pay every year in full to {plan.horizonAge}{mc.shortAgeP5 != null ? <>; the unluckiest 1 in 20 run short by <b className="tnum">{mc.shortAgeP5}</b></> : null}.</>}
             {' '}<span style={{ color: 'var(--color-ink-dim)' }}>The {confText(mc).range} range is sampling error on {mc.nPaths.toLocaleString()} paths only. It says nothing about whether the growth, inflation, charge or tax assumptions are right, and those matter more.</span>
           </p>
+          <FuturesTable plan={plan} rows={dd.rows as any[]} mc={mc} />
         </div>
       )}
 

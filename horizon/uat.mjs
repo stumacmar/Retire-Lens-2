@@ -475,6 +475,29 @@ await check('65 income percentages', async () => /%/.test(await bodyT()));
 // The bad tail in plain words, and what the sampling range does not cover (audit F-04).
 await check('65b futures: the unluckiest 1 in 10 is stated in pounds-and-age terms', async () => /unluckiest 1 in 10 futures/.test(await p.$eval('[data-tail]', e => e.innerText).catch(() => '')));
 await check('65c futures: the range is named as sampling error only, not assumption risk', async () => /sampling error on [\d,]+ paths only/.test(await p.$eval('[data-tail]', e => e.innerText).catch(() => '')));
+// Scout, 19 November 2026: the futures year by year as a table (the tower's numbers as text).
+// Counts and the plan are compared exactly. Money left is compared within 2% and a rounding step: the same
+// plan differs by up to 0.4% between the browser's JavaScript engine and node's (e2e150 check J), and at a
+// percentile that can move the pick to the neighbouring future (1.07% seen at a 10th percentile).
+await check('65d futures: "Show every year as a table" gives one row a year, and every figure is the engine\'s', async () => {
+  const q0 = E.migratePlan(await planOf()), q = { ...q0, growth: q0.growthBase ?? q0.growth }, m = E.runMonteCarlo(q, 2000, q.mcSeed || 42), rows = E.drawdown(q).rows;
+  await p.locator('[data-futures-table-toggle]').click(); await wait(500);
+  const got = await p.$$eval('[data-futures-table] tbody tr', trs => trs.map(tr => [...tr.children].map(c => c.textContent.trim())));
+  const ess = Math.round((0.75 * q.targetNet) / 500) * 500;
+  const pounds = t => { const n = parseFloat(t.replace(/[£,]/g, '')); return /m$/.test(t) ? n * 1e6 : /k$/.test(t) ? n * 1e3 : n; };
+  const near = (shown, v, tol = 0.02) => Math.abs(pounds(shown) - v) <= Math.max(tol * v, v >= 1e6 ? 6000 : 600);
+  const bad = [];
+  rows.forEach((r, i) => { const g = got[i] || [], spend = Math.round(r.planTarget / Math.pow(1 + q.inflation, r.year - q.startYear)), qs = m.perAgePaid.ages[i].q, w = m.perAgeWealth[i];
+    const full = qs.filter(v => v >= 0.99).length, less = qs.filter(v => v < 0.99 && v * spend >= ess - 0.5).length;
+    const ok = String(g[0]).startsWith(String(r.ageA)) && pounds(g[1]) === spend && g[2] === String(full * 5) && g[3] === String(less * 5) && g[4] === String((20 - full - less) * 5)
+      && near(g[5], Math.max(0, w.p10)) && near(g[6], Math.max(0, w.p50)) && near(g[7], Math.max(0, w.p90));
+    if (!ok) bad.push(`${r.ageA}: ${JSON.stringify(g)} want plan ${spend}, ${full * 5}/${less * 5}, left ${Math.round(w.p10)} ${Math.round(w.p50)} ${Math.round(w.p90)}`); });
+  const region = await p.$eval('[data-futures-table]', e => ({ tab: e.getAttribute('tabindex'), role: e.getAttribute('role'), label: e.getAttribute('aria-label') }));
+  if (bad.length) console.log('  65d: ' + bad.slice(0, 3).join(' ; '));
+  const ok = got.length === rows.length && bad.length === 0 && region.tab === '0' && region.role === 'region' && !!region.label
+    && (await p.$eval('[data-futures-table] caption', e => e.textContent.length)) > 40;
+  await p.locator('[data-futures-table-toggle]').click(); await wait(300);
+  return ok && (await p.$('[data-futures-table]')) == null; });
 await closeSheet();
 
 await tap('Peace'); await wait(600);

@@ -19,9 +19,9 @@ import { MEDIAN_WINDOW, WINDOWS } from './adapter';
  *
  * The floor you tap opens up: it and its neighbours grow taller, so its 20
  * windows are large enough to count and their states can be told apart by
- * shape as well as colour (full height, half height, dark with an ember
- * foot). The other floors stay slim: texture that shows where the lights go
- * out, not marks to be read one by one.
+ * shape and lightness as well as hue (tall and gold, half height and blue,
+ * an unlit slate pane). The other floors stay slim: texture that shows where
+ * the lights go out, not marks to be read one by one.
  *
  * Framework-free: it is given a host element, an overlay for text labels and
  * a view model, and knows nothing about React or the engine.
@@ -42,19 +42,27 @@ const CORNERS: Record<'sp' | 'partnerSp', [number, number][]> = { sp: [[-1, 1], 
 
 const hex = (h: number, k = 1) => new THREE.Color(h).multiplyScalar(k);
 const WHITE = new THREE.Color(1, 1, 1);
+/*
+ * The palette (colour review, 20 November 2026; the same hues are in words.tsx for the key).
+ * The three window states are ordered, so lightness carries the order: gold (L* 83) pays in
+ * full, mid blue (L* 62) pays less, slate (L* 34) falls short, and the gaps between are the
+ * navy of the panel. Gold means "paid in full" and nothing else. No red and no green for
+ * good or bad. The seven sources are spread in lightness as well as hue, so every pair stays
+ * apart (CIEDE2000 of 14 or more) for the common kinds of colour blindness.
+ */
 const COL = {
-  full: hex(0xffb02e, 0.95),
-  floor: hex(0xcfe0ff, 0.62),
-  short: hex(0x0b1226, 1),
-  ember: hex(0xe2553a, 0.85),
+  full: hex(0xffc53d, 0.92),
+  floor: hex(0x7c97cf, 0.95),
+  short: hex(0x3d4e80, 1),
+  ghost: hex(0xf4f6ff, 0.8),
   median: hex(0xffffff, 0.9),
-  halo: hex(0x4f74d8, 0.62),
-  wealth: hex(0x8fdcff, 0.95),
+  halo: hex(0x2e6fa8, 0.8),
+  wealth: hex(0xc4ecff, 0.92),
   marker: hex(0xffffff, 1.0),
 };
 const SOURCE_COL: Record<SourceKey, THREE.Color> = {
-  pension: hex(0x3fd8ff, 0.8), isa: hex(0xf2d06b, 0.8), cash: hex(0xb9c2d0, 0.7), scheme: hex(0xffa62e, 0.9),
-  work: hex(0x55e08a, 0.85), sp: hex(0x9a6bff, 0.95), partnerSp: hex(0xcdb4ff, 0.8),
+  pension: hex(0x3fa3a6, 0.92), isa: hex(0xf1ec5e, 0.85), cash: hex(0xeef2f7, 0.82), scheme: hex(0xc8742a, 0.95),
+  work: hex(0x93d3a0, 0.85), sp: hex(0x9160f8, 0.95), partnerSp: hex(0xcdb6ff, 0.82),
 };
 const STRIP_COL = { sp: SOURCE_COL.sp.clone().multiplyScalar(0.8), partnerSp: SOURCE_COL.partnerSp.clone().multiplyScalar(0.75) };
 const RANK: Record<WindowState, number> = { short: 0, floor: 1, full: 2 };
@@ -80,7 +88,6 @@ export class LanternScene {
   private scene = new THREE.Scene();
   private camera = new THREE.PerspectiveCamera(FOV, 1, 1, 600);
   private tower = new THREE.Group();
-  private dust: THREE.Points | null = null;
   private meshes = new Map<Layer, THREE.InstancedMesh>();
   private edges: THREE.LineSegments | null = null;
   private labels: { el: HTMLSpanElement; floor: number }[] = [];
@@ -93,7 +100,7 @@ export class LanternScene {
   private cw = 1; private ch = 1;
   private rot = 0; private zoom = 1;
   private turn: { from: number; to: number; t0: number; dur: number } | null = null;
-  private raf = 0; private idle = 0;
+  private raf = 0;
   private selected = -1;
   private pointers = new Map<number, { x: number; y: number }>();
   private drag: { x: number; y: number; rot: number; moved: boolean; lastX: number; lastT: number; v: number } | null = null;
@@ -116,7 +123,6 @@ export class LanternScene {
     this.scene.add(new THREE.AmbientLight(0xffffff, 0.5));
     const sun = new THREE.DirectionalLight(0xffe2b8, 1.2); sun.position.set(-10, 24, 30); this.scene.add(sun);
     this.scene.add(this.tower);
-    this.buildDust();
     this.buildLabels();
     this.selLabel = this.makeLabel(true);
     this.selLabel.style.display = 'none';
@@ -124,7 +130,7 @@ export class LanternScene {
 
     this.composer = new EffectComposer(this.renderer);
     this.composer.addPass(new RenderPass(this.scene, this.camera));
-    this.composer.addPass(new UnrealBloomPass(new THREE.Vector2(256, 256), 0.38, 0.28, 0.34));
+    this.composer.addPass(new UnrealBloomPass(new THREE.Vector2(256, 256), 0.22, 0.2, 0.55));
     this.composer.addPass(new OutputPass());
 
     el.addEventListener('pointerdown', this.onDown);
@@ -136,11 +142,6 @@ export class LanternScene {
     this.ro = new ResizeObserver(() => this.resize());
     this.ro.observe(host);
     this.resize();
-    // Dust drifts very slowly while nothing else moves; reduced motion keeps it still.
-    if (!opts.reducedMotion) this.idle = window.setInterval(() => {
-      if (document.hidden || this.raf || !this.dust) return;
-      this.dust.rotation.y += 0.0012; this.invalidate();
-    }, 100);
   }
 
   // ── The model ───────────────────────────────────────────────────────────
@@ -210,17 +211,17 @@ export class LanternScene {
       const cw = this.w[i] / WINDOWS, body = this.h[i] - GAP, yb = this.y[i] + GAP / 2, mid = yb + body / 2;
       states.forEach((s, j) => {
         const u = (j - (WINDOWS - 1) / 2) * cw;
-        // Never colour alone: an essentials-only window is half the height and narrower; a dark one has an ember foot.
+        // Never colour alone: an essentials-only window is half the height and narrower; an unlit one is a
+        // slate pane, a clear step darker than either and a clear step lighter than the gaps, so it reads
+        // as a window that is out and not as shadow.
         if (s === 'full') L.quads.push(this.quad(face, i, u, mid, cw * 0.68, body, COL.full));
         else if (s === 'floor') L.quads.push(this.quad(face, i, u, yb + body * 0.25, cw * 0.5, body * 0.5, COL.floor));
-        else {
-          L.quads.push(this.quad(face, i, u, mid, cw * 0.68, body, COL.short));
-          L.quads.push(this.quad(face, i, u, yb + 0.04, cw * 0.68, 0.08, COL.ember, 0.005));
-        }
-        // The ghost of the base plan: an outline where a light that was on has dimmed or gone out.
-        if (base && RANK[s] < RANK[base[j]]) L.frames.push(this.quad(face, i, u, mid, cw * 0.82, (body + 0.08) / 0.962, (base[j] === 'full' ? COL.full : COL.floor).clone().multiplyScalar(0.7), 0.012));
-        // The middle future, marked on the open floor only.
-        if (i === this.selected && j === MEDIAN_WINDOW) L.frames.push(this.quad(face, i, u, mid, cw * 0.99, (body + 0.26) / 0.962, COL.median, 0.016));
+        else L.quads.push(this.quad(face, i, u, mid, cw * 0.68, body, COL.short));
+        // The ghost of the base plan: a white outline where a light that was on has dimmed or gone out
+        // (white, because gold means paid and this marks a loss).
+        if (base && RANK[s] < RANK[base[j]]) L.frames.push(this.quad(face, i, u, mid, cw * 0.82, (body + 0.08) / 0.962, COL.ghost, 0.012));
+        // The middle future, marked on the open floor of the first face only (on Stress an outline means a light put out).
+        if (!base && i === this.selected && j === MEDIAN_WINDOW) L.frames.push(this.quad(face, i, u, mid, cw * 0.99, (body + 0.26) / 0.962, COL.median, 0.016));
       });
     };
 
@@ -296,22 +297,12 @@ export class LanternScene {
     if (!this.edges) {
       const g = new THREE.BufferGeometry();
       g.setAttribute('position', new THREE.Float32BufferAttribute(edge, 3));
-      this.edges = new THREE.LineSegments(g, new THREE.LineBasicMaterial({ color: 0x8fb0ff, transparent: true, opacity: 0.6 }));
+      this.edges = new THREE.LineSegments(g, new THREE.LineBasicMaterial({ color: 0x8fb0ff, transparent: true, opacity: 0.3 }));
       this.edges.frustumCulled = false; this.tower.add(this.edges);
     } else {
       const a = this.edges.geometry.getAttribute('position') as THREE.BufferAttribute;
       (a.array as Float32Array).set(edge); a.needsUpdate = true;
     }
-  }
-
-  private buildDust() {
-    if (this.opts.reducedMotion) return;
-    const p: number[] = []; let seed = 7;
-    const rnd = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
-    for (let i = 0; i < 240; i++) p.push((rnd() - 0.5) * 70, -8 + rnd() * (this.n + 16), (rnd() - 0.5) * 70);
-    const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(p, 3));
-    this.dust = new THREE.Points(g, new THREE.PointsMaterial({ color: 0x8ea4e6, size: 1.1 * Math.min(window.devicePixelRatio || 1, 2), sizeAttenuation: false, transparent: true, opacity: 0.3, depthWrite: false }));
-    this.scene.add(this.dust);
   }
 
   /** Age labels (text stays in the page, so it is crisp and the glow never touches it). */
@@ -521,7 +512,6 @@ export class LanternScene {
   dispose() {
     this.disposed = true;
     if (this.raf) cancelAnimationFrame(this.raf);
-    if (this.idle) clearInterval(this.idle);
     this.ro.disconnect();
     document.removeEventListener('visibilitychange', this.onVisible);
     const el = this.renderer.domElement;

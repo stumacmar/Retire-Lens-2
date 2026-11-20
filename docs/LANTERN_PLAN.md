@@ -180,3 +180,69 @@ legend. The Sources face is the clearest of the four.
 is reading one year at a time in countable units, which the island does not
 do; the island is better at the whole shape at a glance. It has not yet
 earned the home screen.
+
+## 10. Three reviews (20 November 2026)
+
+The owner asked for "theoretical feedback on the candle": could the colours be
+better, and could it be simplified? Three reviewers were each given the
+screenshots, the palette and what the picture encodes, and nothing else: one on
+colour (CIEDE2000 differences, colour-blindness simulated with Machado 2009 and
+cross-checked with Viénot 1999, contrast measured from the renders), one on
+simplification, and one reading it as a 60-year-old who has never seen it.
+
+What all three found:
+
+1. **The picture looked safer than the words.** The unlit windows were the navy
+   of the panel, so the part of the tower where the plan fails read as shadow,
+   and the red foot that was meant to mark them was half a CSS pixel thick.
+2. **Gold meant four things**: paid in full, a cautious status, the selected
+   button, and (as an outline) a light the stress put out.
+3. **The middle state was not in the middle.** "Less, essentials covered" was
+   drawn as bright as gold (and brighter in the key), with only hue and one
+   pixel of height to tell them apart.
+4. **Two sources could not be told apart by red-green colour-blind readers**
+   (pensions cyan and the partner's lilac: a difference of 0.5 where 10 is the
+   least that works for small marks); three more pairs were under 7.
+5. **The glow cost most of the contrast** (gold against the gaps: 9.9 to 1 on
+   paper, 2.9 to 1 on screen), and the dust shared the data's blue-grey.
+6. Text contrast was already good (8 to 1 or better everywhere).
+
+Changed the same day (the palette is in `scene.ts` and `words.tsx`):
+
+| Was | Now |
+|---|---|
+| Unlit window: panel navy with a red foot | A slate pane, a clear step lighter than the gaps; no red |
+| Essentials only: pale blue-white, as bright as gold | Mid blue, between gold and slate in lightness |
+| Gold status line, gold selected button, gold stress outline | White status beside its dot, pale blue button, white outline |
+| "To spare" in gold whatever the status | Gold only when the status is on track |
+| Seven sources at one lightness | Spread in lightness as well as hue; worst pair 17 for red-green, 14 for blue-yellow |
+| Money left: cyan bar on a blue band | A paler bar on a deeper band (4.2 to 1, was 2.9) |
+| Dust, bloom 0.38 | No dust, bloom 0.22 with a higher threshold; glass edges at half the strength |
+| The caption did not say the tower can be tapped | "Tap one to read it." |
+
+Not changed, for the owner to decide (the simplification reviewer's option B,
+which the lay reader's notes support):
+
+- **One face on the home.** Nothing in the third dimension carries data: the
+  depth is there so the tower can turn. The home could show "Will it pay?"
+  only, with no lens buttons, and keep Sources, What's left and Stress in the
+  full-screen view (or move Stress into "What could go wrong?", where it
+  belongs). That removes four buttons, three keys and the turning from the
+  first screen, and leaves room for larger text.
+- **Two states, not three.** "Essentials" is three quarters of the plan, a
+  line nobody chose. Until there is a control for it, the windows could be
+  simply lit or unlit.
+- **One count.** A floor is read as "14 of 20" while the answer says "58 of
+  100", and the floor is in pounds a year while the answer is in pounds a
+  month. Ten windows a floor (each 10 of 100) and monthly figures in the
+  reading would make the two agree.
+- **The count on the picture.** The share of futures that pay in full each
+  year could be printed beside the age labels ("85 · 15 of 20"), so the
+  picture can be read without tapping.
+
+What the reviews could not judge: the new palette on a real phone outdoors,
+ageing eyes (a yellowing lens weakens blue against violet, which is one more
+reason the palette now separates by lightness), and whether five people who
+have never seen it read the right answer. The reviewer's five questions for
+that test: what is this a picture of; is this plan fine or not; where is the
+risk; what does one window mean; what would you tap.

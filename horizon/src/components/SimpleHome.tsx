@@ -122,7 +122,7 @@ export default function SimpleHome({ plan, update, dd, mc, onDetails, header, pi
 
   // The answer, written once and placed in whichever picture the home shows.
   const head = <>
-                <p data-status={status.key} className="flex items-center gap-1.5 text-[0.82rem] font-semibold leading-tight" style={{ color: status.colour }} aria-live="polite">
+                <p data-status={status.key} className="flex items-center gap-1.5 text-[0.82rem] font-semibold leading-tight" style={{ color: `var(--status-ink, ${status.colour})` }} aria-live="polite">
                   <span aria-hidden className="inline-block w-2 h-2 rounded-full shrink-0" style={{ background: status.colour }} />{status.label}
                 </p>
                 {/* The figure: what the plan can pay, labelled so it is never mistaken for what
@@ -131,7 +131,7 @@ export default function SimpleHome({ plan, update, dd, mc, onDetails, header, pi
                 <h1 className="serif tnum leading-none" style={{ fontSize: 'clamp(1.9rem, 8.5vw, 2.5rem)', letterSpacing: '-0.04em', color: 'var(--color-ink)' }} data-supports>{fmt(figure)}</h1>
                 <span className="block text-[0.74rem] leading-tight mt-0.5" style={{ color: 'var(--color-ink-dim)' }}>a month after tax · <span data-ask>You ask for {fmt(month)}</span></span>
                 {gap != null && (
-                  <span data-gap className="block text-[0.78rem] font-semibold leading-tight whitespace-nowrap" style={{ color: gap < 0 ? 'var(--color-slate)' : 'var(--color-ring)' }}>
+                  <span data-gap className="block text-[0.78rem] font-semibold leading-tight whitespace-nowrap" style={{ color: gap < 0 ? 'var(--color-slate)' : status.key === 'on' ? 'var(--color-ring)' : 'var(--color-ink-dim)' }}>
                     {Math.abs(gap) < 25 ? <>Just what you ask</>
                       : gap < 0 ? <>{fmt(-gap)} short</>
                         : <>{fmt(gap)} to spare</>}

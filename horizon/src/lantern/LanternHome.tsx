@@ -24,7 +24,9 @@ import { LENSES, Swatch, captionFor, legendFor, readout } from './words';
 const PANEL_VARS = {
   // The home's answer is written with theme tokens; inside the navy panel they are given light values.
   '--color-ink': '#F4F6FF', '--color-ink-dim': '#B9C8F5', '--color-ink-faint': '#9FB0D9',
-  '--color-ring': '#FFC24A', '--color-slate': '#B7C6E0',
+  '--color-ring': '#FFC53D', '--color-slate': '#B7C6E0',
+  // Gold means "paid in full" and nothing else: the status is said in white beside its dot (colour review, 20 November 2026).
+  '--status-ink': '#F4F6FF',
 } as React.CSSProperties;
 
 export default function LanternHome({ plan, rows, mc, head, answer, resting, spoken, onKey, onFailed }: {
@@ -79,7 +81,7 @@ export default function LanternHome({ plan, rows, mc, head, answer, resting, spo
             <p data-lantern-caption className="flex-1 min-w-0 text-[0.68rem] leading-tight" style={{ color: '#9FB0D9' }}>{model ? captionFor(model, lens) : ''}</p>
             <button type="button" data-lantern-key-open onClick={onKey}
               className="shrink-0 min-h-[30px] rounded-full px-3 text-[0.72rem] font-semibold whitespace-nowrap"
-              style={{ background: '#16224A', color: '#F4F6FF', border: '1px solid #3A4C8C' }}>
+              style={{ background: '#16224A', color: '#F4F6FF', border: '1px solid #6177BD' }}>
               How to read this <span aria-hidden="true">›</span>
             </button>
           </div>
@@ -88,8 +90,8 @@ export default function LanternHome({ plan, rows, mc, head, answer, resting, spo
               <button key={name} type="button" data-lens={k} aria-pressed={lens === k} onClick={() => setLens(k)}
                 className="min-h-[38px] rounded-xl px-0.5 text-[0.74rem] font-bold leading-tight"
                 style={lens === k
-                  ? { background: '#FFC24A', color: '#141B33', border: '1px solid #FFC24A' }
-                  : { background: '#111B3D', color: '#F4F6FF', border: '1px solid #3A4C8C' }}>
+                  ? { background: '#DCE6FF', color: '#0B1430', border: '1px solid #DCE6FF' }
+                  : { background: '#111B3D', color: '#F4F6FF', border: '1px solid #6177BD' }}>
                 {name}
               </button>
             ))}

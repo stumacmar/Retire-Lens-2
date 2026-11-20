@@ -111,6 +111,9 @@ export interface Engine {
   LIVING_STANDARDS: LivingStandards;
   livingStandards(P: Plan): LivingStandardSet;
   livingStandardOf(P: Plan, net: number): LivingTier | null;
+  /** What you have over what you still need. With `ahead`, both are valued as the plan schedules them. */
+  fundedRatio(AR: any, a: { wealthReal: number; spendReal: number; guaranteedNetReal: number; ageA: number; ahead?: { plan: number[]; guar: number[]; from: number; mult: number } | null }): number;
+  fundedParts(AR: any, a: { wealthReal: number; spendReal: number; guaranteedNetReal: number; ageA: number; ahead?: { plan: number[]; guar: number[]; from: number; mult: number } | null }): { needPV: number; guarPV: number; ratio: number };
   lifeOdds(P: Plan, horizonAge?: number): LifeOdds;
   coverByAge(P: Plan): { age: number; cover: number }[];
   trancheBenefits(P: Plan, who: Partner, t: DbTranche): TrancheBenefits;

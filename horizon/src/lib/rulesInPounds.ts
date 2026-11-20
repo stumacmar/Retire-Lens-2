@@ -9,10 +9,11 @@ import { fmt } from './format';
  * about £612,000 in the year you stop, spending is trimmed from £5,000 to
  * £4,500 a month".
  *
- * Nothing is recalculated: the trigger is the engine's own `fundedRatio`
- * turned round. For a year of the central case the engine reports the ratio,
- * the money and the spending, which fixes the guaranteed income it counted;
- * the money at which the ratio would equal the rule's threshold follows.
+ * Nothing is recalculated. For each year the engine reports the two sides of
+ * its ratio as it measured them: what the plan still needs (`fundedNeed`,
+ * the planned spending still to come) and the guaranteed income still to
+ * come (`fundedGuar`), both valued at the gilt yield to the cautious age. The
+ * money at which the ratio would equal a rule's threshold follows directly.
  * Everything is in today's money.
  *
  * (Scout, 20 November 2026. Income Lab states its guardrails as money: "If
@@ -43,20 +44,17 @@ export function rulesInPounds(plan: any): RulesInPounds | null {
   if (!AR.on || AR.rulesOn === false) return null;
   let rows: any[];
   try { rows = E.drawdown({ ...plan, growth: plan.growthBase ?? plan.growth }).rows as any[]; } catch { return null; }
-  const infl = plan.inflation || 0, r = Math.max(0.001, AR.giltReal ?? 0.015);
+  const infl = plan.inflation || 0;
   const year = (i: number): RuleYear | null => {
     const row = rows[i];
-    if (!row || row.fundedRatio == null || row.fundedRatio > 50) return null;
+    if (!row || row.fundedRatio == null || row.fundedRatio > 50 || !(row.fundedNeed > 0)) return null;
     const f = Math.pow(1 + infl, row.year - plan.startYear);
     const age = row.aliveA === false ? row.ageB : row.ageA;
-    const n = Math.max(1, (AR.longevityAge ?? 95) - age), af = (1 - Math.pow(1 + r, -n)) / r;
-    const spend = row.planTarget / f, money = row.wealth / f;
-    // The rule was measured against the spending in force that year (the plan times any earlier trim or raise).
-    const inForce = row.target / f;
-    const guaranteed = row.fundedRatio * inForce - money / af;
-    const at = (ratio: number) => (ratio * spend - guaranteed) * af;
+    // The need was measured at the spending in force that year; the plan's own need is that over the multiplier.
+    const need = row.fundedNeed / (row.fundedMult || 1);
+    const at = (ratio: number) => ratio * need - row.fundedGuar;
     const trim = at(AR.cutBelow ?? 0.9);
-    return { age, spend: spend / 12, money, trimBelow: trim > 1000 ? trim : null, raiseAbove: Math.max(0, at(AR.raiseAbove ?? 1.25)) };
+    return { age, spend: row.planTarget / f / 12, money: row.wealth / f, trimBelow: trim > 1000 ? trim : null, raiseAbove: Math.max(0, at(AR.raiseAbove ?? 1.25)) };
   };
   const first = year(0);
   if (!first) return null;
@@ -74,7 +72,7 @@ export function rulesWords(R: RulesInPounds): string {
   const m = (v: number) => fmt(Math.round(v / 10) * 10);
   const a = R.first;
   const trim = a.trimBelow == null
-    ? `In the year you stop work (age ${a.age}) your guaranteed income alone keeps the plan above the trigger, so the rules would not trim.`
+    ? `In the year you stop work (age ${a.age}) the guaranteed income you have coming keeps the plan above the trigger whatever your pots hold, so the rules would not trim.`
     : `In the year you stop work (age ${a.age}), the rules trim spending by ${pc(R.cutBy)}, from ${m(a.spend)} to ${m(R.trimTo)} a month, if your money is below about ${fmt(k(a.trimBelow))}. ${a.money < a.trimBelow ? `The central case has about ${fmt(k(a.money))} then, which is below it: on these figures spending is trimmed from the start.` : `The central case has about ${fmt(k(a.money))} then.`}`;
   const later = R.later && R.later.trimBelow != null ? ` Ten years on, at ${R.later.age}, the trigger is about ${fmt(k(R.later.trimBelow))}.` : '';
   const raise = ` Spending rises by ${pc(R.raiseBy)}, to ${m(R.raiseTo)} a month, once your money has stayed above about ${fmt(k(a.raiseAbove))} for ${R.lag} year${R.lag === 1 ? '' : 's'} running.`;

@@ -23,7 +23,7 @@ export function createEngine() {
   // The engine's own version: bumped on any change to the maths, a rule or a
   // default. Shown in Assumptions and the report and saved with every plan,
   // so a figure can always be traced to the engine that produced it.
-  const ENGINE_VERSION = '2026.11.18';
+  const ENGINE_VERSION = '2026.11.20';
   // The rule pack behind the constants below: what each rests on, where it
   // came from, when it was read and when it takes effect. Reviewed every
   // April and on any fiscal event; see docs/MODEL_SPEC.md.
@@ -685,14 +685,40 @@ export function createEngine() {
 
   // Funded ratio: everything you have, over everything you still need, both
   // discounted at the ladder's real rate to a conservative longevity age.
-  function fundedRatio(AR, { wealthReal, spendReal, guaranteedNetReal, ageA }) {
+  // What you have over what you still need, to a cautious age, at the gilt
+  // real yield. Given `ahead` (the plan's own schedule of spending and of
+  // guaranteed income, year by year in today's money), both sides are valued
+  // as they are actually expected to fall: a State Pension that starts in
+  // three years counts from the year it starts, and spending that steps down
+  // at 75 counts as lower from 75. Without `ahead`, this year's spending and
+  // guaranteed income are assumed to continue level (the form before engine
+  // 2026.11.20, which treated a State Pension not yet in payment as if it
+  // would never arrive, and so trimmed every early retirement from the start).
+  function fundedParts(AR, { wealthReal, spendReal, guaranteedNetReal, ageA, ahead }) {
     const n = Math.max(1, AR.longevityAge - ageA);
     const r = Math.max(0.001, AR.giltReal);
     const af = (1 - Math.pow(1 + r, -n)) / r;          // annuity factor
-    const needPV = clamp0(spendReal) * af;
-    const havePV = clamp0(wealthReal) + clamp0(guaranteedNetReal) * af;
-    return needPV > 1 ? havePV / needPV : 99;
+    let needPV, guarPV;
+    if (ahead && ahead.plan && ahead.plan.length) {
+      const S = ahead.plan, G = ahead.guar, last = S.length - 1, i0 = Math.min(Math.max(0, ahead.from | 0), last), m = num(ahead.mult, 1);
+      // Guaranteed income this path has that the schedule does not (an annuity bought on the way) is taken to continue.
+      const extra = clamp0(clamp0(guaranteedNetReal) - clamp0(G[i0]));
+      needPV = 0; guarPV = 0;
+      let d = 1;
+      for (let k = 0; k < n; k++) {
+        d /= (1 + r);
+        const j = Math.min(i0 + k, last);
+        needPV += (k === 0 ? clamp0(spendReal) : clamp0(S[j]) * m) * d;
+        guarPV += (k === 0 ? clamp0(guaranteedNetReal) : clamp0(G[j]) + extra) * d;
+      }
+    } else {
+      needPV = clamp0(spendReal) * af;
+      guarPV = clamp0(guaranteedNetReal) * af;
+    }
+    const havePV = clamp0(wealthReal) + guarPV;
+    return { needPV, guarPV, ratio: needPV > 1 ? havePV / needPV : 99 };
   }
+  const fundedRatio = (AR, a) => fundedParts(AR, a).ratio;
 
   // One year of the architecture: spend from the envelopes first (never sell
   // the growth engine into a fallen market), grow each sleeve on its own
@@ -993,6 +1019,15 @@ export function createEngine() {
     const couple = !single;
     const rows = want === 'rows' ? [] : null;
     const track = want === 'track' ? [] : null;
+    // The rules value what is still to come against the plan's own schedule of
+    // spending and guaranteed income. Neither depends on markets, so it is
+    // read once from a dry pass of this same routine and kept on the context.
+    if (archOn && AR.rulesOn && !X.dry && !X.ahead) {
+      const g = num(P.growth, 0.05) - X.fee;
+      const dry = runPath({ ...X, dry: true, ahead: null }, acc, () => ({ r: g, rGrowth: g, rGilt: g }), 'lite');
+      X.ahead = { plan: dry.st.planReal, guar: dry.st.guarReal };
+    }
+    const aheadSched = X.dry ? null : X.ahead || null;
     let potA = acc.pensionA, potB = acc.pensionB;
     let isaA = acc.isaA, isaB = acc.isaB;
     let cash = acc.cash || 0, gia = acc.gia || 0;
@@ -1014,6 +1049,7 @@ export function createEngine() {
     const st = { spend: 0, years: 0, worstRatio: 1, leanYears: 0, utilSum: 0, utilN: 0,
       solvent: [], okFull: true, okRules: true, minCoverage: 1, failIndex: null, leanIndex: null,
       pen: [], oth: [],     // each year's pots at the year end (nominal): pensions, and ISAs, cash and the general account
+      planReal: [], guarReal: [],   // each year's planned spend and guaranteed income after tax, today's money (the rules' schedule)
       paid: [] };           // each year's spending delivered as a share of the plan for that year
     const gamma = X.gamma, SPEND_FLOOR = 2000;
 
@@ -1070,7 +1106,7 @@ export function createEngine() {
 
       // Planned annuity review: convert part of A's pot into guaranteed,
       // taxable income for life. Bought at the start of the year.
-      if (archOn && AR.annuityOn && !annuityBought && year >= AR.annuityYear && canA) {
+      if (archOn && AR.annuityOn && !X.dry && !annuityBought && year >= AR.annuityYear && canA) {
         const cost = Math.min(clamp0(AR.annuityAmount) * infl, potA);
         potA -= cost; uncrysA = clamp0(uncrysA - cost);
         annuityToday = (cost * AR.annuityRate) / infl;   // held in today's money
@@ -1132,6 +1168,7 @@ export function createEngine() {
       const survivorFactor = couple && aliveA !== aliveB ? X.survivorSpend : 1;
       const planTarget = targetForYear(P, year) * survivorFactor;
       const target = planTarget * spendMult;
+      st.planReal[i] = planTarget / infl; st.guarReal[i] = guaranteedNet / infl;
       let eventCost = 0, eventIncome = 0, eventInvested = 0;
       // Care: a late-life cost block, funded like any other spending.
       let careCost = 0;
@@ -1161,6 +1198,12 @@ export function createEngine() {
       ({ potA, potB, isaA, isaB, cash, gia, uncrysA, uncrysB, pclsUsedA, pclsUsedB } = S);
       const { grossA, grossB, tfcA, tfcB, isaDraw, isaDrawA, isaDrawB, cashDraw, giaDraw } = F;
       const shortfall = clamp0(need - F.served);
+      // A raise is a bonus, not a promise (engine 2026.11.20). In a year the
+      // rules had raised spending above the plan, falling short of the raise
+      // while still paying the plan is not a year short: only what is missing
+      // from the plan itself counts. Without this a future that paid the plan
+      // in full every year could be counted as failing "with the rules".
+      const miss = target > planTarget ? clamp0(shortfall - (target - planTarget)) : shortfall;
 
       const taxA = taxOn(baseA + grossA, T);
       const taxB = taxOn(baseB + grossB, T);
@@ -1171,8 +1214,8 @@ export function createEngine() {
       // their own tax, so only the income tax is deducted here.
       const netIncome = baseA + baseB + grossA + grossB + tfcA + tfcB - taxA - taxB
         + isaDraw + cashDraw + giaDraw + eventIncome - payCostA - payCostB;
-      if (shortfall > 1) {
-        shortfallTotal += shortfall; shortfallTotalReal += shortfall / infl;
+      if (miss > 1) {
+        shortfallTotal += miss; shortfallTotalReal += miss / infl;
         if (shortfallYear == null) shortfallYear = year;
       }
 
@@ -1189,10 +1232,10 @@ export function createEngine() {
       const cu = Math.max(SPEND_FLOOR, deliveredReal);
       st.utilSum += gamma === 1 ? Math.log(cu) : Math.pow(cu, 1 - gamma) / (1 - gamma);
       st.utilN++;
-      if (shortfall > 1) {
+      if (miss > 1) {
         st.okRules = false;
         if (st.failIndex == null) st.failIndex = i;
-        const covered = clamp0(target - shortfall) / Math.max(1, target);
+        const covered = clamp0(target - shortfall) / Math.max(1, Math.min(target, planTarget));
         if (covered < st.minCoverage) st.minCoverage = covered;
         st.solvent.push(false);
       } else st.solvent.push(true);
@@ -1239,14 +1282,17 @@ export function createEngine() {
       let wealth = potA + potB + isaA + isaB + cash + gia;
 
       // The written rules: measure the funded ratio, then act on it.
-      let ratioF = null, ruleMove = null;
+      let ratioF = null, ruleMove = null, fundedNeed = null, fundedGuar = null;
+      const fundedMult = spendMult;   // the spending in force when the ratio is measured
       if (archOn && AR.rulesOn) {
-        ratioF = fundedRatio(AR, {
+        const parts = fundedParts(AR, {
           wealthReal: wealth / infl,
           spendReal: target / infl,
           guaranteedNetReal: guaranteedNet / infl,
           ageA: ageRef,
+          ahead: aheadSched ? { plan: aheadSched.plan, guar: aheadSched.guar, from: i, mult: spendMult } : null,
         });
+        ratioF = parts.ratio; fundedNeed = parts.needPV; fundedGuar = parts.guarPV;
         if (ratioF < AR.cutBelow) {
           const nextM = Math.max(AR.floorMult, spendMult * (1 - AR.cutBy));
           if (nextM < spendMult - 1e-9) ruleMove = 'cut';
@@ -1274,7 +1320,7 @@ export function createEngine() {
           }
         }
       }
-      if (exhaustedYear == null && wealth < 100 && shortfall > 1) exhaustedYear = year;
+      if (exhaustedYear == null && wealth < 100 && miss > 1) exhaustedYear = year;
       if (track) track.push(wealth);
       st.pen.push(potA + potB); st.oth.push(isaA + isaB + cash + gia);
 
@@ -1287,13 +1333,13 @@ export function createEngine() {
         taxA, taxB, tax: totalTax,
         isaDraw, isaDrawA, isaDrawB, cashDraw, giaDraw, dbLump, lumpTax, earnedA, earnedB,
         eventCost, eventInflow: eventIncome + eventInvested, eventLabels, inherited,
-        target, planTarget, netIncome, banked, shortfall, paid: ratio,
+        target, planTarget, netIncome, banked, shortfall: miss, paid: ratio,
         potA, potB, isaA, isaB, cash, gia, wealth,
         marginalA: marginalRate(baseA + grossA, T),
         marginalB: marginalRate(baseB + grossB, T),
         personalAllowance: T.personalAllowance,
         // Architecture (null / 0 when the overlay is off)
-        fundedRatio: ratioF, spendMult, ruleMove,
+        fundedRatio: ratioF, spendMult, ruleMove, fundedNeed, fundedGuar, fundedMult, guaranteedNet,
         ladder: ladderNow, engine: engineNow,
         careCost, annuity: annuityNom, blendedGrowth: gYear,
       });
@@ -2543,6 +2589,49 @@ export function createEngine() {
       check('Pre-retirement risk: pots at retirement spread P10 < P50 < P90', mc.potsAtRetirementP10 < mc.potsAtRetirementP50 && mc.potsAtRetirementP50 < mc.potsAtRetirementP90 ? 0 : 1, 0, 0.1);
       const archMc = runMonteCarlo({ ...D, architecture: { ...D.architecture, on: true } }, 200, 3);
       check('Structure overlay: success at full spending is below success after cuts', archMc.successProb <= archMc.successProbWithCuts ? 0 : 1, 0, 0.1);
+      {
+        // A raise is a bonus: rules that raise spending readily must not turn a future that paid the plan in full into a failure.
+        const eager = { ...D, targetNet: D.targetNet * 0.8, architecture: { ...D.architecture, on: true, rulesOn: true, raiseAbove: 1.0, raiseBy: 0.2, capMult: 2 } };
+        const em = runMonteCarlo(eager, 400, 11), ed = drawdown(eager);
+        check('Rules: with spending raised readily, the futures that last with the rules are still at least those paid in full', em.successProb <= em.successProbWithCuts ? 0 : 1, 0, 0.1);
+        check('…and in the central case a year paid above the plan is never a year short', ed.rows.some(r => r.spendMult > 1) && ed.rows.every(r => !(r.paid >= 1 && r.shortfall > 1)) ? 0 : 1, 0, 0.1);
+      }
+      // R7c The written rules value what is still to come (engine 2026.11.20).
+      {
+        const ARt = { longevityAge: 95, giltReal: 0.015 }, r = 0.015, n = 30;
+        const af = (1 - Math.pow(1 + r, -n)) / r;
+        const level = fundedRatio(ARt, { wealthReal: 500000, spendReal: 40000, guaranteedNetReal: 10000, ageA: 65 });
+        check('Funded ratio, level form: (500,000 + 10,000 × annuity factor) ÷ (40,000 × annuity factor)', level, (500000 + 10000 * af) / (40000 * af), 1e-9);
+        const flat = fundedRatio(ARt, { wealthReal: 500000, spendReal: 40000, guaranteedNetReal: 10000, ageA: 65, ahead: { plan: new Array(30).fill(40000), guar: new Array(30).fill(10000), from: 0, mult: 1 } });
+        check('Funded ratio: a level schedule gives the level answer', flat, level, 1e-9);
+        // A £12,000 State Pension that starts in three years, and spending that falls to £30,000 from year ten.
+        const plan = Array.from({ length: 30 }, (_v, k) => (k < 10 ? 40000 : 30000)), guar = Array.from({ length: 30 }, (_v, k) => (k < 3 ? 0 : 12000));
+        let need = 0, have = 0, d = 1;
+        for (let k = 0; k < n; k++) { d /= 1 + r; need += plan[k] * d; have += guar[k] * d; }
+        const ahead = fundedParts(ARt, { wealthReal: 500000, spendReal: 40000, guaranteedNetReal: 0, ageA: 65, ahead: { plan, guar, from: 0, mult: 1 } });
+        check('Funded ratio: a State Pension three years off and a step down in spending are valued from the years they start (by hand)', ahead.ratio, (500000 + have) / need, 1e-9);
+        check('…which is far above the level form, where a pension not yet in payment counted for nothing', ahead.ratio > fundedRatio(ARt, { wealthReal: 500000, spendReal: 40000, guaranteedNetReal: 0, ageA: 65 }) + 0.3 ? 0 : 1, 0, 0.1);
+        const trimmed = fundedParts(ARt, { wealthReal: 500000, spendReal: 36000, guaranteedNetReal: 0, ageA: 65, ahead: { plan, guar, from: 0, mult: 0.9 } });
+        check('Funded ratio: a trim in force scales every year still to come', trimmed.needPV, need * 0.9, 1e-6);
+        const bought = fundedParts(ARt, { wealthReal: 500000, spendReal: 40000, guaranteedNetReal: 5000, ageA: 65, ahead: { plan, guar, from: 0, mult: 1 } });
+        check('Funded ratio: guaranteed income the schedule does not hold (an annuity bought on the way) is taken to continue', bought.guarPV, have + 5000 * af, 1e-6);
+        // In a real structured plan that stops before State Pension age.
+        const E0 = example();
+        const Ps = { ...E0, growth: E0.growthBase, architecture: { ...E0.architecture, on: true, rulesOn: true } };
+        const rs = drawdown(Ps).rows, r0 = rs[0], ARs = prepare(Ps).AR;
+        const nn = Math.max(1, ARs.longevityAge - r0.ageA), rr = Math.max(0.001, ARs.giltReal);
+        let nPV = 0, gPV = 0, dd2 = 1;
+        for (let k = 0; k < nn; k++) { dd2 /= 1 + rr; const row = rs[Math.min(k, rs.length - 1)], f = inflFactor(Ps, row.year); nPV += (row.planTarget / f) * dd2; gPV += (row.guaranteedNet / f) * dd2; }
+        check('Rules: the first year\'s need is the plan\'s own spending still to come, by hand from the rows', r0.fundedNeed, nPV, Math.max(1, nPV * 1e-9));
+        check('Rules: and its guaranteed income is the plan\'s own, still to come, by hand from the rows', r0.fundedGuar, gPV, Math.max(1, gPV * 1e-9));
+        check('Rules: the ratio is the money plus that income, over that need', r0.fundedRatio, (r0.wealth / inflFactor(Ps, r0.year) + gPV) / nPV, 1e-9);
+        check('Rules: stopping before State Pension age is no longer trimmed from the start where the pensions to come cover it', r0.spA === 0 && r0.fundedRatio > ARs.cutBelow && r0.ruleMove !== 'cut' ? 0 : 1, 0, 0.1);
+        const later = drawdown({ ...Ps, partnerA: { ...Ps.partnerA, spAge: 70 }, partnerB: { ...Ps.partnerB, spAge: 70 } }).rows[0];
+        check('Rules: a later State Pension lowers the first year\'s ratio', later.fundedRatio < r0.fundedRatio ? 0 : 1, 0, 0.1);
+        const z = { ...Ps, mcSd: 0, architecture: { ...Ps.architecture, equitySd: 0, goldSd: 0 } };
+        const zd = drawdown(z), zm = runMonteCarlo(z, 2, 7);
+        check('Rules: at zero volatility the simulated futures still equal the plan', Math.abs(zm.finalP50 - zd.endWealth) / Math.max(1, Math.abs(zd.endWealth)) < 0.001 ? 0 : 1, 0, 0.1);
+      }
       // R8 Lump sum allowance in payment order: a scheme lump first, upfront cash after.
       const up = drawdown({ ...big, pclsMode: 'upfront' });
       check('Scheme lump sum uses the allowance before upfront personal cash', r0(up).tfcA, 0, 0.01);
@@ -2625,7 +2714,7 @@ export function createEngine() {
     spendingAnnual, phaseFactor, targetForYear, effectiveEvents, eventNominal,
     accumulate, drawdown, compareStrategies,
     stressTests, sensitivityGrid, tornado, lifetimeTotals, estate,
-    runMonteCarlo, runAssertions, compareArchitecture, assessStructure, archOf, fundedRatio,
+    runMonteCarlo, runAssertions, compareArchitecture, assessStructure, archOf, fundedRatio, fundedParts,
     TAX_DEFAULTS,
     DB_SCHEMES, DB_SCHEMES_ASOF, trancheBenefits, trancheNpa, trancheMinAge, maxCommute, dbSchedule, hasAnyDb, compareDbTiming,
     LIVING_STANDARDS, livingStandards, livingStandardOf,

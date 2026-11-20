@@ -49,8 +49,8 @@ export default function LanternPreview() {
             <button key={name} type="button" data-lens={k} aria-pressed={lens === k} onClick={() => setLens(k)}
               className="min-h-[44px] rounded-xl px-1 text-[0.78rem] font-bold leading-tight"
               style={lens === k
-                ? { background: '#FFC24A', color: '#141B33', border: '1px solid #FFC24A' }
-                : { background: '#111B3D', color: '#E6ECFF', border: '1px solid #2A3A70' }}>
+                ? { background: '#DCE6FF', color: '#0B1430', border: '1px solid #DCE6FF' }
+                : { background: '#111B3D', color: '#E6ECFF', border: '1px solid #6177BD' }}>
               {name}
             </button>
           ))}

@@ -1,6 +1,6 @@
 # Someday · Horizon — model specification
 
-**Engine version:** 2026.11.18 (`ENGINE_VERSION` in `horizon/src/engine/engine.js`)
+**Engine version:** 2026.11.20 (`ENGINE_VERSION` in `horizon/src/engine/engine.js`)
 **Plan schema:** 2 (`SCHEMA_VERSION`)
 **Tax rules:** UK 2026/27, in force from 6 April 2026, read on 14 November 2026 (`TAX_RULES`)
 
@@ -131,7 +131,11 @@ statements; the product uses the second.
 In the Monte Carlo, `successProb` is the share of paths that **paid the full
 planned spending in every year** (a year delivered below 99% of plan counts as
 a failure, however much is left). `successProbWithCuts` is the share that
-stayed solvent after the written rules trimmed spending. `successLifetime`
+stayed solvent after the written rules trimmed spending. A raise is a bonus,
+not a promise: in a year the rules had raised spending above the plan, only
+what is missing from the plan itself is a shortfall, so a path that paid the
+plan in full every year always counts as lasting with the rules
+(engine 2026.11.20). `successLifetime`
 weights each path by the chance the household is still here (§8).
 
 ### 3.4 The status in words, and the three numbers (`lib/status.ts`)
@@ -359,6 +363,34 @@ house parachute. The sleeves are modelled at household level; the blended
 household return is then applied to every wrapper so tax accounting is
 unchanged and totals reconcile. `assessStructure` judges it on spending
 delivered (certainty-equivalent), never on survival alone.
+
+**The funded ratio (`fundedParts`, `fundedRatio`).** The written rules act on
+one number: what you have over what you still need. Both are present values
+at the gilt real yield (`giltReal`), from this year to the cautious age
+(`longevityAge`), in today's money:
+
+* **need** = the plan's own spending still to come, year by year
+  (`targetForYear`, so a step-down at 75 counts as lower from 75; the
+  survivor's lower spending after a first death is in it too), times the
+  trim or raise in force;
+* **have** = the money now (all pots) plus the guaranteed income still to
+  come after its own tax, year by year: a State Pension, a scheme pension or
+  a survivor's pension counts from the year it starts.
+
+The schedule of spending and of guaranteed income does not depend on
+markets, so it is read once from a dry pass of `runPath` and reused by every
+path (`X.ahead`). An annuity bought under the plan is not in the schedule
+(its cost is still in the pots until it is bought); once bought, its income
+is taken to continue. Beyond the plan's last year the last year's figures are
+held to the cautious age. Each row carries the two sides as measured
+(`fundedNeed`, `fundedGuar`, `fundedMult`) and that year's `guaranteedNet`.
+
+Until engine 2026.11.20 both sides were this year's figure assumed level: a
+State Pension not yet in payment counted for nothing and a later step-down
+in spending was ignored, so any plan that stopped before State Pension age
+looked underfunded and was trimmed from the first year. `fundedRatio` without
+a schedule still gives that level form, and a level schedule gives the same
+answer (asserted).
 
 ## 12. Decision support
 

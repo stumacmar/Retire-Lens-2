@@ -647,6 +647,31 @@ if (!plusOffered) {
   await check('114 plus off: advanced detail unlocked', async () => (await p.locator('[role=switch]:has-text("Advanced")').count()) === 1);
   await goPage('Safe ladder');
   await check('115 plus off: structure page unlocked', async () => !(await has('See what Plus adds')));
+  // Scout, 20 November 2026: the safe ladder's spending rules stated in pounds (after Income Lab's guardrails).
+  {
+    const before = await p.evaluate(() => localStorage.getItem('horizon-plan-v1'));
+    await check('115b the rules are hidden while the ladder is off', async () => (await p.$('[data-rules-pounds]')) == null);
+    await p.locator('[role=dialog] [role=switch]:has-text("Use a safe ladder")').first().click(); await wait(900);
+    await check('115c with the ladder on, the rules are stated in pounds, and the trigger is the engine\'s own ratio turned round', async () => {
+      const q0 = E.migratePlan(await planOf()), q = { ...q0, growth: q0.growthBase ?? q0.growth }, AR = q.architecture, row = E.drawdown(q).rows[0];
+      const t = (await p.$eval('[data-rules-pounds]', e => e.innerText)).replace(/\s+/g, ' ');
+      const f = Math.pow(1 + q.inflation, row.year - q.startYear), spend = row.planTarget / f, money = row.wealth / f;
+      const num = re => { const m = t.match(re); return m ? Number(m[1].replace(/,/g, '')) : NaN; };
+      const month = v => '£' + (Math.round(v / 10) * 10).toLocaleString('en-GB');
+      // What the screen says the trigger is, put back through the engine's own funded ratio, must give the rule's threshold.
+      const n = Math.max(1, AR.longevityAge - row.ageA), r = Math.max(0.001, AR.giltReal), af = (1 - Math.pow(1 + r, -n)) / r;
+      const guaranteed = row.fundedRatio * (row.target / f) - money / af;
+      const shown = num(/if your money is below about £([\d,]+)/), raise = num(/stayed above about £([\d,]+)/);
+      const okWords = t.startsWith('On your figures.') && t.includes(`age ${row.ageA}`) && t.includes(`from ${month(spend / 12)} to ${month((spend / 12) * (1 - AR.cutBy))} a month`)
+        && t.includes(`never taken below ${month((spend / 12) * AR.floorMult)} a month`) && /All in today’s money\.$/.test(t);
+      if (!Number.isFinite(shown)) return okWords && /would not trim/.test(t);
+      const back = E.fundedRatio(AR, { wealthReal: shown, spendReal: spend, guaranteedNetReal: guaranteed, ageA: row.ageA });
+      const up = E.fundedRatio(AR, { wealthReal: raise, spendReal: spend, guaranteedNetReal: guaranteed, ageA: row.ageA });
+      return okWords && Math.abs(back - AR.cutBelow) < 0.01 && Math.abs(up - AR.raiseAbove) < 0.012 && raise > shown
+        && (money < shown) === /trimmed from the start/.test(t); });
+    // Put the plan back exactly as it was, so the rest of the sweep runs on the same figures.
+    await p.evaluate(v => localStorage.setItem('horizon-plan-v1', v), before); await p.reload({ waitUntil: 'networkidle' }); await wait(900);
+  }
   await closeSheet();
   await tap('Peace'); await wait(500);
   await check('116 plus off: no Plus card, no "· Plus" on the report button', async () => !/· Plus|Someday Plus/.test(await bodyT()));

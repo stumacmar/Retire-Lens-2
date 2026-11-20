@@ -1,5 +1,6 @@
 import { MoneyField, NumField, PctField, Toggle, Segmented } from './Field';
 import Group from './Group';
+import { rulesInPounds, rulesWords } from '../lib/rulesInPounds';
 
 
 // ── Plan structure: the architecture controls ───────────────────────────
@@ -80,6 +81,11 @@ export default function ArchitectureSection({ plan, update }: { plan: any; updat
         <PctField label="Allow a treat when the ratio is above" value={A.raiseAbove ?? 1.25} onChange={v => set({ raiseAbove: v })} />
         <NumField label="…only after this many good years (the lag)" value={A.raiseLagYears ?? 2} onChange={v => set({ raiseLagYears: v })} />
         <PctField label="Never trim below this share of plan spending" value={A.floorMult ?? 0.75} onChange={v => set({ floorMult: v })} />
+        {/* The same rules in pounds: what to watch for on a statement, and what changes when it happens. */}
+        {(() => { const R = A.rulesOn !== false ? rulesInPounds(plan) : null; return R && (
+          <p data-rules-pounds className="text-[0.82rem] leading-relaxed rounded-xl px-3 py-2" style={{ background: 'var(--color-canvas)', color: 'var(--color-ink)' }}>
+            <b>On your figures.</b> {rulesWords(R)}
+          </p>); })()}
       </Group>
 
       <Group title="The annuity review">

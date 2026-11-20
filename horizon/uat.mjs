@@ -1039,7 +1039,7 @@ const openMap = async () => { await closeSheet(); await tap('Explore'); await wa
       const heads = await h.$$eval('[data-lantern-key-sheet] h3', els => els.map(e => e.textContent));
       const ok = heads.join('|') === 'How the tower is built|Will it pay?|Sources|What\'s left|Stress'
         && /Each floor is one year/.test(t) && /as wide as what you plan to spend/.test(t) && /Each window is 5 of every 100/.test(t) && /worst on the left to the best on the right/.test(t)
-        && /Dark with a red foot/.test(t) && /same scale/.test(t) && /fall by 30% in the year you stop/.test(t)
+        && /Unlit, a slate pane/.test(t) && !/red foot|gold outline/i.test(t) && /same scale/.test(t) && /fall by 30% in the year you stop/.test(t)
         && (await h.$$eval('[data-lantern-key-sheet] li span[aria-hidden]', els => els.length)) >= 12;
       await h.keyboard.press('Escape'); await hw(600);
       return ok && (await h.$('[data-lantern-key-sheet]')) == null; });

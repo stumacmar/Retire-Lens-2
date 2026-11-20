@@ -44,8 +44,8 @@ export default function LanternKey({ essential, couple, structured }: { essentia
         <P>Every floor has 20 windows. Each window is 5 of every 100 simulated futures for that year, sorted from the worst on the left to the best on the right. So a floor with 15 gold windows means 75 of 100 futures pay your plan in full that year.</P>
         <ul className="mt-2">
           <Row kind="full">Tall and gold: that year’s plan is paid in full.</Row>
-          <Row kind="floor">Half height and white: less than the plan is paid, but the essentials ({essential} a year) are covered.</Row>
-          <Row kind="short">Dark with a red foot: less than the essentials is paid.</Row>
+          <Row kind="floor">Half height and blue: less than the plan is paid, but the essentials ({essential} a year) are covered.</Row>
+          <Row kind="short">Unlit, a slate pane: less than the essentials is paid.</Row>
           <Row kind="outline">A white outline on the open floor: the middle future.</Row>
         </ul>
         <P>Where the lights go out, up and to the left, is where the plan is at risk: late in life, in the worst futures.</P>
@@ -69,7 +69,7 @@ export default function LanternKey({ essential, couple, structured }: { essentia
       <Section title={LENSES[3]}>
         <P>The same windows as “{LENSES[0]}”, after markets fall by 30% in the year you stop. Every other year of every future is unchanged, so the difference is the fall alone.</P>
         <ul className="mt-2">
-          <Row kind="ghost">A gold outline: a light that was on in your plan and that the fall dimmed or put out.</Row>
+          <Row kind="ghost">A white outline: a light that was on in your plan and that the fall dimmed or put out.</Row>
         </ul>
       </Section>
 

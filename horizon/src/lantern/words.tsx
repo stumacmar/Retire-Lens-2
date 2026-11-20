@@ -13,9 +13,9 @@ export const gbpK = (v: number) => (v < 500 ? 'nothing' : v >= 1e6 ? `£${(v / 1
 const lower = (s: string) => s.charAt(0).toLowerCase() + s.slice(1);
 
 /** The colours the scene draws with, for the key (scene.ts holds the same hues). */
-export const TONE = { full: '#FFB02E', floor: '#CFE0FF', short: '#111A36', ember: '#E2553A', outline: '#FFFFFF', bar: '#8FDCFF', halo: '#4F74D8', stone: '#8A6A42' };
+export const TONE = { full: '#FFC53D', floor: '#7C97CF', short: '#3D4E80', edge: '#6D7FB3', outline: '#FFFFFF', ghost: '#F4F6FF', bar: '#C4ECFF', halo: '#2E6FA8', stone: '#8A6A42' };
 export const SOURCE_TONE: Record<SourceKey, string> = {
-  pension: '#3FD8FF', isa: '#F2D06B', cash: '#B9C2D0', scheme: '#FFA62E', work: '#55E08A', sp: '#9A6BFF', partnerSp: '#CDB4FF',
+  pension: '#3FA3A6', isa: '#F1EC5E', cash: '#EEF2F7', scheme: '#C8742A', work: '#93D3A0', sp: '#9160F8', partnerSp: '#CDB6FF',
 };
 export const SOURCE_LABEL: Record<SourceKey, string> = {
   pension: 'Pensions', isa: 'ISAs', cash: 'Cash', scheme: 'Scheme pensions', work: 'Work', sp: 'State Pension', partnerSp: 'Partner’s State Pension',
@@ -71,7 +71,7 @@ export function captionFor(m: LanternModel, lens: number) {
   if (lens === 1) return 'Each floor: where that year’s spending comes from.';
   if (lens === 2) return `Each floor: money left, from nothing to ${gbpK(Math.max(...m.floors.map(f => f.wealth.p90)))}.`;
   if (lens === 3) return m.stressName ? `The same futures after ${lower(m.stressName)}.` : 'Working out the fall…';
-  return 'Each floor is a year. Worst futures left, best right.';
+  return 'Each floor is a year: worst futures left, best right. Tap one to read it.';
 }
 
 /** A small drawn sample of a mark, on the tower's own navy so every colour reads. */
@@ -80,9 +80,9 @@ export function Swatch({ kind, colour, tile = true }: { kind: SwatchKind; colour
     switch (kind) {
       case 'full': return <span style={{ width: 6, height: 12, background: TONE.full }} />;
       case 'floor': return <span style={{ width: 5, height: 6, background: TONE.floor, alignSelf: 'flex-end' }} />;
-      case 'short': return <span style={{ width: 6, height: 12, background: TONE.short, borderBottom: `2px solid ${TONE.ember}`, outline: '1px solid #33427A' }} />;
+      case 'short': return <span style={{ width: 6, height: 12, background: TONE.short, outline: `1px solid ${TONE.edge}` }} />;
       case 'outline': return <span style={{ width: 8, height: 13, border: `1.5px solid ${TONE.outline}` }} />;
-      case 'ghost': return <span style={{ width: 7, height: 12, border: `1.5px solid ${TONE.full}` }} />;
+      case 'ghost': return <span style={{ width: 7, height: 12, background: TONE.short, border: `1.5px solid ${TONE.ghost}` }} />;
       case 'bar': return <span style={{ width: 12, height: 4, background: TONE.bar, alignSelf: 'center' }} />;
       case 'halo': return <span style={{ width: 12, height: 9, background: TONE.halo, alignSelf: 'center' }} />;
       case 'strip': return <span style={{ width: 3, height: 13, background: colour }} />;

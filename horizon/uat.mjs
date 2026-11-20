@@ -653,22 +653,31 @@ if (!plusOffered) {
     await check('115b the rules are hidden while the ladder is off', async () => (await p.$('[data-rules-pounds]')) == null);
     await p.locator('[role=dialog] [role=switch]:has-text("Use a safe ladder")').first().click(); await wait(900);
     await check('115c with the ladder on, the rules are stated in pounds, and the trigger is the engine\'s own ratio turned round', async () => {
-      const q0 = E.migratePlan(await planOf()), q = { ...q0, growth: q0.growthBase ?? q0.growth }, AR = q.architecture, row = E.drawdown(q).rows[0];
+      const q0 = E.migratePlan(await planOf()), q = { ...q0, growth: q0.growthBase ?? q0.growth }, AR = q.architecture, rows = E.drawdown(q).rows, row = rows[0];
       const t = (await p.$eval('[data-rules-pounds]', e => e.innerText)).replace(/\s+/g, ' ');
-      const f = Math.pow(1 + q.inflation, row.year - q.startYear), spend = row.planTarget / f, money = row.wealth / f;
+      const fOf = r => Math.pow(1 + q.inflation, r.year - q.startYear), spend = row.planTarget / fOf(row), money = row.wealth / fOf(row);
       const num = re => { const m = t.match(re); return m ? Number(m[1].replace(/,/g, '')) : NaN; };
       const month = v => '£' + (Math.round(v / 10) * 10).toLocaleString('en-GB');
-      // What the screen says the trigger is, put back through the engine's own funded ratio, must give the rule's threshold.
-      const n = Math.max(1, AR.longevityAge - row.ageA), r = Math.max(0.001, AR.giltReal), af = (1 - Math.pow(1 + r, -n)) / r;
-      const guaranteed = row.fundedRatio * (row.target / f) - money / af;
+      // By hand, from the central case's own rows: what the plan still needs and the guaranteed income still to come,
+      // year by year to the cautious age at the gilt yield (the engine's rule since 2026.11.20).
+      const n = Math.max(1, AR.longevityAge - row.ageA), r = Math.max(0.001, AR.giltReal);
+      let need = 0, guar = 0, d = 1;
+      for (let k = 0; k < n; k++) { d /= 1 + r; const y = rows[Math.min(k, rows.length - 1)]; need += (y.planTarget / fOf(y)) * d; guar += (y.guaranteedNet / fOf(y)) * d; }
       const shown = num(/if your money is below about £([\d,]+)/), raise = num(/stayed above about £([\d,]+)/);
-      const okWords = t.startsWith('On your figures.') && t.includes(`age ${row.ageA}`) && t.includes(`from ${month(spend / 12)} to ${month((spend / 12) * (1 - AR.cutBy))} a month`)
-        && t.includes(`never taken below ${month((spend / 12) * AR.floorMult)} a month`) && /All in today’s money\.$/.test(t);
-      if (!Number.isFinite(shown)) return okWords && /would not trim/.test(t);
-      const back = E.fundedRatio(AR, { wealthReal: shown, spendReal: spend, guaranteedNetReal: guaranteed, ageA: row.ageA });
-      const up = E.fundedRatio(AR, { wealthReal: raise, spendReal: spend, guaranteedNetReal: guaranteed, ageA: row.ageA });
-      return okWords && Math.abs(back - AR.cutBelow) < 0.01 && Math.abs(up - AR.raiseAbove) < 0.012 && raise > shown
-        && (money < shown) === /trimmed from the start/.test(t); });
+      const okWords = t.startsWith('On your figures.') && t.includes(`age ${row.ageA}`) && t.includes(`never taken below ${month((spend / 12) * AR.floorMult)} a month`) && /All in today’s money\.$/.test(t);
+      const near = (a, b) => Math.abs(a - b) <= Math.max(1500, 0.01 * Math.abs(b));
+      const raiseOk = near(raise, Math.max(0, AR.raiseAbove * need - guar));
+      if (!Number.isFinite(shown)) return okWords && /would not trim/.test(t) && AR.cutBelow * need - guar <= 1500 && raiseOk;
+      return okWords && t.includes(`from ${month(spend / 12)} to ${month((spend / 12) * (1 - AR.cutBy))} a month`) && near(shown, AR.cutBelow * need - guar) && raiseOk && raise > shown
+        && Math.abs((shown + guar) / need - AR.cutBelow) < 0.01 && (money < shown) === /trimmed from the start/.test(t); });
+    await check('115d the rules count State Pension still to come: the first year\'s ratio is the money plus the income to come, over the spending to come', async () => {
+      const q0 = E.migratePlan(await planOf()), q = { ...q0, growth: q0.growthBase ?? q0.growth }, AR = q.architecture, rows = E.drawdown(q).rows, row = rows[0];
+      const fOf = r => Math.pow(1 + q.inflation, r.year - q.startYear), n = Math.max(1, AR.longevityAge - row.ageA), r = Math.max(0.001, AR.giltReal);
+      let need = 0, guar = 0, d = 1;
+      for (let k = 0; k < n; k++) { d /= 1 + r; const y = rows[Math.min(k, rows.length - 1)]; need += (y.planTarget / fOf(y)) * d; guar += (y.guaranteedNet / fOf(y)) * d; }
+      const af = (1 - Math.pow(1 + r, -n)) / r, level = (row.wealth / fOf(row) + (row.guaranteedNet / fOf(row)) * af) / ((row.planTarget / fOf(row)) * af);
+      const laterIncome = rows.some(y => y.guaranteedNet / fOf(y) > row.guaranteedNet / fOf(row) + 100);
+      return Math.abs(row.fundedRatio - (row.wealth / fOf(row) + guar) / need) < 1e-6 && (!laterIncome || row.fundedRatio > level + 0.01); });
     // Put the plan back exactly as it was, so the rest of the sweep runs on the same figures.
     await p.evaluate(v => localStorage.setItem('horizon-plan-v1', v), before); await p.reload({ waitUntil: 'networkidle' }); await wait(900);
   }

@@ -48,7 +48,9 @@ import { createEngine } from './src/engine/engine.js';
 const __dir = path.dirname(fileURLToPath(import.meta.url));
 const DIST = path.join(__dir, 'dist');
 const E = createEngine();
-const N = 150, PARALLEL = 4;
+// 150 households is the CI gate. E2E_N=300 (npm run e2e300) adds 150 more: NHS and other public-sector scheme
+// pensions, couples up to sixteen years apart, and combinations of the two (owner, 20 November 2026).
+const N = Math.max(1, Math.round(Number(process.env.E2E_N) || 150)), BASE = 150, PARALLEL = 4;
 
 // ── Scenarios ──────────────────────────────────────────────────────────
 function mulberry32(seed) { let s = seed >>> 0; return () => { s = (s + 0x6D2B79F5) | 0; let t = Math.imul(s ^ (s >>> 15), 1 | s); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
@@ -103,7 +105,73 @@ function generated(i) {
   Q = E.sanitisePlan(Q);
   return [`${couple ? 'couple' : 'single'} ${F.startYear - Q.partnerA.birthYear}, stop ${Q.retireYear - Q.partnerA.birthYear}, asks £${Math.round(Q.targetNet / 12).toLocaleString('en-GB')}${tag}`, Q];
 }
-const scenarios = [...named, ...Array.from({ length: N - named.length }, (_, i) => generated(i))];
+// ── The wider set: scheme pensions and couples of different ages ────────
+// The published rules, restated here so the check below does not read them from the engine: normal pension age
+// (a number, or State Pension age), the automatic lump sum as a multiple of the pension, and the reduction for
+// each year taken early.
+const SCHEME_RULES = {
+  nhs1995: { npa: 60, lump: 3, early: 0.045 }, nhs2008: { npa: 65, lump: 0, early: 0.045 }, nhs2015: { npa: 'spa', lump: 0, early: 0.046 },
+  tps60: { npa: 60, lump: 3, early: 0.045 }, tpsCare: { npa: 'spa', lump: 0, early: 0.045 },
+  lgps80: { npa: 65, lump: 3, early: 0.045 }, lgpsCare: { npa: 'spa', lump: 0, early: 0.045 },
+  csClassic: { npa: 60, lump: 3, early: 0.05 }, csAlpha: { npa: 'spa', lump: 0, early: 0.043 },
+};
+const NHS = ['nhs1995', 'nhs2008', 'nhs2015'], OTHER = ['tps60', 'tpsCare', 'lgps80', 'lgpsCare', 'csClassic', 'csAlpha'];
+const tranche = (id, scheme, pension, takeAge) => ({ id, scheme, pension, takeAge });
+const person = (base, name, birthYear, over) => ({ ...base, name, birthYear, spAmount: 12548, ...over });
+const wideNamed = [
+  ['NHS nurse 58, 1995 and 2015 sections, single, stops at 60', E.sanitisePlan({ ...F, approach: 'traditional', household: 'single', retireYear: 2028, targetNet: 30000,
+    partnerA: person(F.partnerA, 'You', 1968, { spAge: 67, pension: 40000, isa: 30000, monthlyPension: 200, dbSchemes: [tranche('a1', 'nhs1995', 9000, 60), tranche('a2', 'nhs2015', 7000, 67)] }) })],
+  ['NHS 2015 taken five years early at 62', E.sanitisePlan({ ...F, approach: 'traditional', household: 'single', retireYear: 2032, targetNet: 26000,
+    partnerA: person(F.partnerA, 'You', 1970, { spAge: 67, pension: 90000, isa: 20000, dbSchemes: [tranche('a1', 'nhs2015', 16000, 62)] }) })],
+  ['NHS 1995 lump sum arrives after stopping at 58', E.sanitisePlan({ ...F, approach: 'traditional', household: 'single', retireYear: 2030, targetNet: 28000,
+    partnerA: person(F.partnerA, 'You', 1972, { spAge: 67, pension: 150000, isa: 60000, dbSchemes: [tranche('a1', 'nhs1995', 14000, 60)] }) })],
+  ['NHS couple nine years apart: consultant 61 and nurse 52', E.sanitisePlan({ ...F, approach: 'traditional', household: 'couple', retireYear: 2028, targetNet: 60000,
+    partnerA: person(F.partnerA, 'You', 1965, { spAge: 67, pension: 300000, isa: 80000, dbSchemes: [tranche('a1', 'nhs1995', 30000, 60), tranche('a2', 'nhs2015', 12000, 67)] }),
+    partnerB: person(F.partnerB, 'Partner', 1974, { spAge: 67, pension: 60000, dbSchemes: [tranche('b1', 'nhs2015', 11000, 67)] }) })],
+  ['couple fifteen years apart, the older stops at 66', E.sanitisePlan({ ...F, approach: 'traditional', household: 'couple', retireYear: 2028, targetNet: 42000,
+    partnerA: person(F.partnerA, 'You', 1962, { spAge: 66, pension: 420000, isa: 90000 }), partnerB: person(F.partnerB, 'Partner', 1977, { spAge: 67, pension: 80000, isa: 20000 }) })],
+  ['couple twelve years apart, the younger is the planner', E.sanitisePlan({ ...F, approach: 'traditional', household: 'couple', retireYear: 2034, targetNet: 48000,
+    partnerA: person(F.partnerA, 'You', 1974, { spAge: 67, pension: 380000, isa: 50000, monthlyPension: 600 }), partnerB: person(F.partnerB, 'Partner', 1962, { spAge: 66, pension: 200000, isa: 60000 }) })],
+  ['teacher and civil servant, six years apart', E.sanitisePlan({ ...F, approach: 'traditional', household: 'couple', retireYear: 2029, targetNet: 46000,
+    partnerA: person(F.partnerA, 'You', 1967, { spAge: 67, pension: 70000, isa: 40000, dbSchemes: [tranche('a1', 'tps60', 15000, 60), tranche('a2', 'tpsCare', 6000, 67)] }),
+    partnerB: person(F.partnerB, 'Partner', 1973, { spAge: 67, pension: 50000, dbSchemes: [tranche('b1', 'csAlpha', 9000, 67)] }) })],
+  ['NHS couple on the safe ladder, eight years apart', E.sanitisePlan({ ...F, approach: 'derisking', household: 'couple', retireYear: 2030, targetNet: 50000, architecture: { ...F.architecture, ...STRUCT },
+    partnerA: person(F.partnerA, 'You', 1968, { spAge: 67, pension: 350000, isa: 70000, dbSchemes: [tranche('a1', 'nhs2008', 10000, 65)] }),
+    partnerB: person(F.partnerB, 'Partner', 1976, { spAge: 68, pension: 90000, isa: 30000, dbSchemes: [tranche('b1', 'nhs2015', 8000, 68)] }) })],
+];
+function wide(i) {
+  const r = mulberry32(5000 + i), pick = (a) => a[Math.floor(r() * a.length)], between = (lo, hi, step = 1) => Math.round((lo + r() * (hi - lo)) / step) * step;
+  const kind = i % 4;   // 0 NHS · 1 a wide age gap · 2 other public sector · 3 NHS and a wide gap together
+  const couple = kind === 1 || kind === 3 || r() < 0.6;
+  const byA = between(1958, 1980), ageA = F.startYear - byA, retAge = Math.max(ageA + 1, between(56, 68));
+  const gap = kind === 1 || kind === 3 ? pick([-16, -13, -11, -9, 9, 11, 13, 16]) : between(-7, 7);
+  const byB = byA + gap;
+  const schemes = (who, prefix, list) => { const spAge = who.spAge, out = [], count = r() < 0.45 ? 2 : 1, used = new Set();
+    for (let k = 0; k < count; k++) { const sc = pick(list.filter(x => !used.has(x))); used.add(sc); const rule = SCHEME_RULES[sc], npa = rule.npa === 'spa' ? spAge : rule.npa;
+      out.push(tranche(prefix + (k + 1), sc, between(3000, 26000, 500), Math.max(57, npa - pick([0, 0, 0, 1, 3, 5])))); }
+    return out; };
+  const A = person(F.partnerA, 'You', byA, { spAge: pick([66, 67, 67, 68]), pension: pick([0, 20000, 60000, 150000, 300000, 500000]), isa: pick([0, 15000, 40000, 90000]),
+    monthlyPension: ageA >= 66 ? 0 : pick([0, 100, 300, 600]), spAmount: pick([12548, 12548, 10200]) });
+  const B = couple ? person(F.partnerB, 'Partner', byB, { spAge: pick([66, 67, 67, 68]), pension: pick([0, 30000, 80000, 200000]), isa: pick([0, 20000, 60000]), spAmount: pick([12548, 12548, 8000]) }) : { ...F.partnerB };
+  if (kind === 0 || kind === 3) { A.dbSchemes = schemes(A, 'a', NHS); if (couple && r() < 0.45) B.dbSchemes = schemes(B, 'b', NHS); }
+  if (kind === 2) { A.dbSchemes = schemes(A, 'a', OTHER); if (couple && r() < 0.4) B.dbSchemes = schemes(B, 'b', [...OTHER, ...NHS]); }
+  const P = { ...F, approach: 'traditional', household: couple ? 'couple' : 'single', partnerA: A, partnerB: B, retireYear: byA + retAge,
+    targetNet: between(20000, 80000, 1000), cash: pick([0, 0, 10000, 40000]), horizonAge: Math.max(retAge + 5, pick([88, 90, 92, 95, 100])),
+    inflation: pick([0.02, 0.02, 0.025, 0.03]), fee: pick([0.002, 0.005, 0.0075]), phase1On: r() < 0.4, phase2On: r() < 0.25,
+    pclsMode: pick(['phased', 'phased', 'upfront']), tax: { region: r() < 0.15 ? 'scotland' : 'ruk' }, survivorSpend: pick([0.75, 0.6, 0.9]) };
+  let Q = E.applyRiskPreset(P, pick(['cautious', 'balanced', 'balanced', 'adventurous']));
+  Q.fee = P.fee;
+  const twist = r(); let tag = '';
+  if (twist < 0.15) { Q = { ...Q, approach: 'derisking', architecture: { ...Q.architecture, ...STRUCT } }; tag = ' · safe ladder'; }
+  else if (twist < 0.25 && couple) { const older = byB < byA ? 'partnerB' : 'partnerA'; Q[older] = { ...Q[older], deathAge: between(76, 88) }; tag = ' · the older dies first'; }
+  Q = E.sanitisePlan(Q);
+  const fam = (w) => [...new Set((w.dbSchemes || []).map(t => (NHS.includes(t.scheme) ? 'NHS' : 'scheme')))].join('+');
+  const sA = fam(Q.partnerA), sB = couple ? fam(Q.partnerB) : '';
+  return [`${couple ? `couple ${F.startYear - Q.partnerA.birthYear} and ${F.startYear - Q.partnerB.birthYear}` : `single ${F.startYear - Q.partnerA.birthYear}`}, stop ${Q.retireYear - Q.partnerA.birthYear}, asks £${Math.round(Q.targetNet / 12).toLocaleString('en-GB')}${sA ? ` · ${sA} pension` : ''}${sB ? ` · partner ${sB} pension` : ''}${tag}`, Q];
+}
+const scenarios = [...named, ...Array.from({ length: BASE - named.length }, (_, i) => generated(i)),
+  ...(N > BASE ? [...wideNamed, ...Array.from({ length: Math.max(0, N - BASE - wideNamed.length), }, (_, i) => wide(i))] : [])].slice(0, N);
+const namedCount = named.length;
 
 // ── What the screen should say (the rule, restated here) ───────────────
 const n = (v) => (Number.isFinite(Number(v)) ? Number(v) : 0);
@@ -131,6 +199,7 @@ const expectInPage = async (P) => {
   const key = isFull ? (pUse >= 0.8 ? 'on' : 'thin') : dd.holds ? 'trim' : (sus != null && sus / target >= 0.9 ? 'close' : 'not');
   const a = acc.atRetirement;
   return { key, sus, target, capYear, futures: Math.round(pUse * 100), futuresFull: Math.round(mc.successProb * 100), structured,
+    lit: mc.perAgePaid.ages.map(r => r.q.filter(v => v >= 0.99).length).join(','),
     pots: a.pensionA + a.pensionB + a.isaA + a.isaB + (a.cash || 0) + (a.gia || 0) };
 };
 /** The same supportable figure, worked out here in Node: only to measure how far two JavaScript engines drift apart. */
@@ -180,6 +249,64 @@ function ceilingYear(P) {
 }
 const ceilingApplies = (P) => formulaApplies(P) && !P.architecture?.on && ![P.partnerA, P.partnerB].some(w => n(w.deathAge) > 0 || n(w.stopYear) > P.retireYear);
 
+// ── Scheme pensions, State Pension dates and the plan's end, by hand ────
+/** What a scheme tranche pays a year and as a lump sum, in today's money, from the published rules restated above. */
+function schemeByHand(who, t) {
+  const rule = SCHEME_RULES[t.scheme]; if (!rule) return null;
+  const npa = rule.npa === 'spa' ? who.spAge : rule.npa, minAge = who.birthYear + 55 >= 2028 ? 57 : 55;
+  const takeAge = Math.max(minAge, Math.round(t.takeAge || npa));
+  if (takeAge > npa) return null;                       // late-retirement factors are not restated here
+  const pension = t.pension * Math.pow(1 - rule.early, npa - takeAge);
+  return { takeYear: who.birthYear + takeAge, pension, lump: rule.lump * pension };
+}
+function wideChecks(plan) {
+  const out = [], single = plan.household === 'single', g = plan.growthBase;
+  const rows = E.drawdown({ ...plan, growth: g }).rows, f = (y) => Math.pow(1 + plan.inflation, y - plan.startYear);
+  const last = rows[rows.length - 1], people = single ? [['A', plan.partnerA]] : [['A', plan.partnerA], ['B', plan.partnerB]];
+  const diesAt = (w) => (n(w.deathAge) > 0 ? w.birthYear + n(w.deathAge) : Infinity);
+  // M scheme pensions: the yearly amount once every tranche is in payment, and each lump sum in the year it is taken
+  const lumps = {};
+  for (const [k, w] of people) {
+    const ts = (w.dbSchemes || []); if (!ts.length) continue;
+    const hand = ts.map(t => schemeByHand(w, t)); if (hand.some(h => !h)) continue;
+    const from = Math.max(plan.retireYear, ...hand.map(h => h.takeYear)), row = rows.find(x => x.year === from);
+    if (row && from < diesAt(w)) {
+      const shown = (k === 'A' ? row.dbA : row.dbB) / f(row.year), want = hand.reduce((a, h) => a + h.pension, 0) + (n(w.db) > 0 && from >= n(w.dbStartYear) ? n(w.db) : 0);
+      if (Math.abs(shown - want) > Math.max(5, want * 0.005)) out.push(`M ${k}'s scheme pensions pay £${Math.round(shown)} a year from ${from}; the published rules give £${Math.round(want)}`);
+    }
+    for (const h of hand) if (h.lump > 0 && h.takeYear >= plan.retireYear && h.takeYear < diesAt(w)) lumps[h.takeYear] = (lumps[h.takeYear] || 0) + h.lump;
+  }
+  for (const [y, want] of Object.entries(lumps)) {
+    const row = rows.find(x => x.year === +y); if (!row) continue;
+    const shown = n(row.dbLump) / f(row.year);
+    if (Math.abs(shown - want) > Math.max(5, want * 0.005)) out.push(`M the scheme lump sum in ${y} is £${Math.round(shown)}; three times the pension is £${Math.round(want)}`);
+  }
+  // N the State Pension starts in the year each person reaches the age on their plan
+  for (const [k, w] of people) {
+    if (!(n(w.spAmount) > 0) || !(n(w.spAge) > 0)) continue;
+    const due = Math.max(plan.retireYear, w.birthYear + w.spAge), first = rows.find(x => (k === 'A' ? x.spA : x.spB) > 0);
+    if (due <= last.year && due < diesAt(w)) { if (!first || first.year !== due) out.push(`N ${k}'s State Pension starts in ${first ? first.year : 'no year'}; age ${w.spAge} falls in ${due}`); }
+    else if (first && due >= diesAt(w)) out.push(`N ${k}'s State Pension is paid from ${first.year}, after the death age on the plan`);
+  }
+  // O the plan runs until the last person's last year: the year they reach the plan age, or the death age set for them
+  const end = Math.max(plan.retireYear, ...people.map(([, w]) => (n(w.deathAge) > 0 ? w.birthYear + n(w.deathAge) : w.birthYear + plan.horizonAge)));
+  if (rows[0].year !== plan.retireYear || last.year !== end) out.push(`O the plan runs ${rows[0].year} to ${last.year}; it should run ${plan.retireYear} to ${end}`);
+  // Q each partner's age on every row is the year less their birth year
+  if (!rows.every(x => x.ageA === x.year - plan.partnerA.birthYear && (single || x.ageB === x.year - plan.partnerB.birthYear))) out.push('Q a row carries the wrong age for a partner');
+  return out;
+}
+const hasScheme = (P) => [P.partnerA, P.partnerB].some(w => (w.dbSchemes || []).length);
+const hasNhs = (P) => [P.partnerA, P.partnerB].some(w => (w.dbSchemes || []).some(t => NHS.includes(t.scheme)));
+const ageGap = (P) => (P.household === 'single' ? 0 : Math.abs(P.partnerA.birthYear - P.partnerB.birthYear));
+
+// E2E_DRY=1: the hand checks alone, in node, without a browser (seconds; for writing new scenarios).
+if (process.env.E2E_DRY) {
+  let bad = 0;
+  scenarios.forEach(([name, plan], i) => { let f; try { f = wideChecks(plan); } catch (e) { f = ['could not run: ' + e.message]; } if (f.length) { bad++; console.log(`${String(i + 1).padStart(3, '0')} ✗ ${name}\n      ` + f.join('\n      ')); } });
+  console.log(`${scenarios.length - bad}/${scenarios.length} households pass the hand checks · NHS ${scenarios.filter(x => hasNhs(x[1])).length} · any scheme ${scenarios.filter(x => hasScheme(x[1])).length} · nine or more years apart ${scenarios.filter(x => ageGap(x[1]) >= 9).length}`);
+  process.exit(bad ? 1 : 0);
+}
+
 // ── Serve dist and drive it ────────────────────────────────────────────
 if (!fs.existsSync(path.join(DIST, 'index.html'))) { console.error('No dist/ — run `npm run build` first.'); process.exit(2); }
 const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.svg': 'image/svg+xml', '.png': 'image/png', '.webmanifest': 'application/manifest+json', '.woff2': 'font/woff2' };
@@ -209,7 +336,7 @@ async function readHome(page, plan) {
 }
 
 const results = new Array(N);
-let next = 0;
+let next = 0, lanternChecked = 0;
 async function worker() {
   const ctx = await b.newContext({ viewport: { width: 390, height: 844 } });
   const page = await ctx.newPage();
@@ -261,7 +388,7 @@ async function worker() {
       }
       // F the counts line
       const single = plan.household === 'single', A = plan.partnerA, B = plan.partnerB;
-      const pens = n(A.pension) + (single ? 0 : n(B.pension)), sav = n(A.isa) + (single ? 0 : n(B.isa)) + n(plan.cash), gua = n(A.spAmount) + n(A.db) + (single ? 0 : n(B.spAmount) + n(B.db));
+      const pens = n(A.pension) + (single ? 0 : n(B.pension)), sav = n(A.isa) + (single ? 0 : n(B.isa)) + n(plan.cash), sch = (w) => (w.dbSchemes || []).reduce((a, t) => a + n(E.trancheBenefits(plan, w, t).pension), 0), gua = n(A.spAmount) + n(A.db) + sch(A) + (single ? 0 : n(B.spAmount) + n(B.db) + sch(B));
       if (pens > 0 && !ui.counts.includes(`${fmtK(pens)} in pensions`)) fails.push(`F counts: pensions ${fmtK(pens)} not in "${ui.counts}"`);
       if (sav > 0 && !ui.counts.includes(`${fmtK(sav)} in ISAs and cash`)) fails.push(`F counts: savings ${fmtK(sav)} not in "${ui.counts}"`);
       if (gua > 0 && !ui.counts.includes(`${fmtK(gua)} a year guaranteed`)) fails.push(`F counts: guaranteed ${fmtK(gua)} not in "${ui.counts}"`);
@@ -289,6 +416,24 @@ async function worker() {
         if (atStart[0] !== ui.sun.first || !atStart[1].startsWith(`Age ${ui.sun.first}: ${firstBar} of 100`)) fails.push(`L the island at ${ui.sun.first} reads "${atStart[1]}", its own count is ${firstBar}`);
         if (lastBar !== x.futuresFull) fails.push(`L the island's paid-in-full count at the last age is ${lastBar}, the engine gives ${x.futuresFull}`);
       }
+      // M N O Q scheme pensions, State Pension dates, the plan's end and the ages, by hand (every household)
+      fails.push(...wideChecks(plan));
+      // P the Lantern, which is what the home opens on: its lit windows are the engine's count, floor for floor
+      if (i % 10 === 0 || i >= BASE && i % 5 === 0) {
+        const gl = await page.evaluate(() => { const c = document.createElement('canvas'); return !!(c.getContext('webgl2') || c.getContext('webgl')); });
+        if (gl) {
+          await page.evaluate(() => localStorage.setItem('someday-picture-v1', 'lantern'));
+          await page.reload({ waitUntil: 'domcontentloaded' });
+          const ok = await page.waitForFunction((want) => document.querySelector('[data-lantern-home] [data-lantern]')?.getAttribute('data-lit') === want, x.lit, { timeout: 60000 }).then(() => true, () => false);
+          if (!ok) fails.push(`P the Lantern's lit windows are "${await page.$eval('[data-lantern]', e => e.getAttribute('data-lit')).catch(() => 'not drawn')}", the engine counts "${x.lit}"`);
+          else {
+            const fig = Number((await page.$eval('[data-lantern-home] [data-supports]', e => e.innerText)).replace(/[£,]/g, ''));
+            if (fig !== ui.figure) fails.push(`P the Lantern home shows £${fig}, the island home £${ui.figure}`);
+            lanternChecked++;
+          }
+          await page.evaluate(() => localStorage.setItem('someday-picture-v1', 'island'));
+        }
+      }
       // I errors
       if (errs.length) fails.push('I ' + [...new Set(errs)].slice(0, 2).join(' | '));
     } catch (e) { fails.push('could not run: ' + String(e && e.message || e).split('\n')[0]); }
@@ -307,13 +452,14 @@ const LABEL = { on: 'On track', thin: 'Enough in most futures, not all', trim: '
 if (process.argv.includes('-v') || process.env.E2E150_VERBOSE) {
   results.forEach((r, i) => console.log(`${String(i + 1).padStart(3, '0')} ${r.fails.length ? '✗' : '✓'} ${r.name}${r.x ? ` → ${LABEL[r.x.key]} · supports £${(r.x.sus ?? r.x.target).toLocaleString('en-GB')} · ${r.x.futures} of 100` : ''}`));
 } else {
-  results.slice(0, named.length).forEach((r, i) => console.log(`${String(i + 1).padStart(3, '0')} ${r.fails.length ? '✗' : '✓'} ${r.name}${r.x ? ` → ${LABEL[r.x.key]} · supports £${(r.x.sus ?? r.x.target).toLocaleString('en-GB')} · ${r.x.futures} of 100` : ''}`));
+  results.slice(0, namedCount).forEach((r, i) => console.log(`${String(i + 1).padStart(3, '0')} ${r.fails.length ? '✗' : '✓'} ${r.name}${r.x ? ` → ${LABEL[r.x.key]} · supports £${(r.x.sus ?? r.x.target).toLocaleString('en-GB')} · ${r.x.futures} of 100` : ''}`));
 }
 console.log(`\nStatuses across the ${N}: ` + Object.entries(by).map(([k, v]) => `${LABEL[k]} ${v}`).join(' · '));
 const drifts = results.filter(r => r.x && r.x.drift != null).map(r => r.x.drift).sort((a, b) => a - b);
 console.log(`Same plan, two JavaScript engines (Chromium and Node): figure identical in ${drifts.filter(d => d === 0).length} of ${drifts.length}; largest difference ${(drifts[drifts.length - 1] * 100).toFixed(2)}%`);
-console.log(`Independent checks applied: pots formula ${scenarios.filter(s => formulaApplies(s[1])).length} of ${N} · tax-free ceiling ${scenarios.filter(s => ceilingApplies(s[1])).length} of ${N} · needle cross-check ${Math.ceil(N / 5)}`);
-console.log(`\n═══ Horizon 150 END-TO-END SCENARIOS: ${passed}/${N} passed (${Math.round((Date.now() - t0) / 1000)} s) ═══`);
+console.log(`Independent checks applied: pots formula ${scenarios.filter(s => formulaApplies(s[1])).length} of ${N} · tax-free ceiling ${scenarios.filter(s => ceilingApplies(s[1])).length} of ${N} · needle cross-check ${Math.ceil(N / 5)} · the Lantern's windows ${lanternChecked}`);
+console.log(`Households: couples ${scenarios.filter(s => s[1].household !== 'single').length} · partners nine or more years apart ${scenarios.filter(s => ageGap(s[1]) >= 9).length} · NHS pensions ${scenarios.filter(s => hasNhs(s[1])).length} · any scheme pension ${scenarios.filter(s => hasScheme(s[1])).length} · safe ladder ${scenarios.filter(s => s[1].architecture?.on).length} · a death age set ${scenarios.filter(s => [s[1].partnerA, s[1].partnerB].some(w => n(w.deathAge) > 0)).length}`);
+console.log(`\n═══ Horizon ${N} END-TO-END SCENARIOS: ${passed}/${N} passed (${Math.round((Date.now() - t0) / 1000)} s) ═══`);
 const bad = results.map((r, i) => [i, r]).filter(([, r]) => r.fails.length);
 if (bad.length) console.log('\nFAILURES:\n' + bad.map(([i, r]) => `  ${String(i + 1).padStart(3, '0')} ${r.name}\n` + r.fails.map(f => '      ✗ ' + f).join('\n')).join('\n'));
 if (process.env.E2E150_OUT) fs.writeFileSync(process.env.E2E150_OUT, JSON.stringify(results.map((r, i) => ({ n: i + 1, name: r.name, pass: !r.fails.length, fails: r.fails, status: r.x && LABEL[r.x.key], supports: r.x && (r.x.sus ?? r.x.target), ask: r.x && r.x.target, futures: r.x && r.x.futures })), null, 1));

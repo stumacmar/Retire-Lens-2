@@ -291,6 +291,28 @@ for (const [name, P0] of Object.entries(shapes)) {
   check('A-lantern engine: each year’s sources add up to what the central case spent (to £5)', M.floors.every((fl, i) => Math.abs(fl.sources.reduce((a, x) => a + x.amount, 0) - rows[i].paid * fl.spend) <= 5 + 50 * 7));
 }
 
+// ── 5d. The safe ladder's rules value what is still to come (engine 2026.11.20) ──
+{
+  const STD = { on: true, ladderYears: 7, refill: 'whenUp', refillMin: 0, equityReal: 0.05, equitySd: 0.16, goldReal: 0.01, goldSd: 0.14, goldPct: 0.15, giltReal: 0.015,
+    rulesOn: true, longevityAge: 95, cutBelow: 0.90, cutBy: 0.10, raiseAbove: 1.25, raiseBy: 0.05, raiseLagYears: 2, floorMult: 0.75, capMult: 1.25 };
+  const S = { ...owner, architecture: { ...owner.architecture, ...STD } }, rows = E.drawdown(S).rows, r0 = rows[0];
+  const fOf = r => Math.pow(1 + S.inflation, r.year - S.startYear), n = Math.max(1, 95 - r0.ageA);
+  let need = 0, guar = 0, d = 1;
+  for (let k = 0; k < n; k++) { d /= 1.015; const y = rows[Math.min(k, rows.length - 1)]; need += (y.planTarget / fOf(y)) * d; guar += (y.guaranteedNet / fOf(y)) * d; }
+  check('R the first year\'s ratio is the money plus the guaranteed income to come, over the spending to come, by hand', Math.abs(r0.fundedRatio - (r0.wealth / fOf(r0) + guar) / need) < 1e-6);
+  const af = (1 - Math.pow(1.015, -n)) / 0.015, level = (r0.wealth / fOf(r0) + (r0.guaranteedNet / fOf(r0)) * af) / ((r0.planTarget / fOf(r0)) * af);
+  check(`R stopping before State Pension age, the ratio counts the pensions to come (level form ${level.toFixed(2)}, now ${r0.fundedRatio.toFixed(2)})`, r0.spA === 0 && r0.fundedRatio > level + 0.05);
+  const stepped = E.drawdown({ ...S, phase1On: true, phase1Age: 75, phase1Cut: 0.15, phase2On: true, phase2Age: 80, phase2Cut: 0.25 }).rows[0];
+  const flatSpend = E.drawdown({ ...S, phase1On: false, phase2On: false }).rows[0];
+  check('R planning to spend less later raises the first year\'s ratio', stepped.fundedRatio > flatSpend.fundedRatio);
+  const laterSp = E.drawdown({ ...S, partnerA: { ...S.partnerA, spAge: 70 } }).rows[0];
+  check('R a later State Pension lowers it', laterSp.fundedRatio < r0.fundedRatio);
+  const plain = { ...owner, architecture: { ...owner.architecture, on: false } };
+  check('R a plan without the ladder carries no ratio and is untouched by the rule', E.drawdown(plain).rows.every(r => r.fundedRatio == null && r.spendMult === 1));
+  const a = E.runMonteCarlo(S, 400, 42), b = E.runMonteCarlo(S, 400, 42);
+  check('R the dry pass does not disturb reproducibility: the same seed gives the same futures', a.successProb === b.successProb && a.finalP50 === b.finalP50 && a.successProbWithCuts === b.successProbWithCuts);
+}
+
 // ── 6. Migration: a v1 saved plan ───────────────────────────────────────
 {
   const v1 = { startYear: 2025, retireYear: 2030, horizonAge: 90, targetNet: 40000,

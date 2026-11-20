@@ -10,7 +10,8 @@
     "uat": "npm run build && node uat.mjs",
     "e2e": "npm run build && node e2e.mjs",
     "verify": "node verify.mjs",
-    "e2e150": "node e2e150.mjs"
+    "e2e150": "node e2e150.mjs",
+    "e2e300": "E2E_N=300 node e2e150.mjs"
   },
   "dependencies": {
     "framer-motion": "^11.18.2",

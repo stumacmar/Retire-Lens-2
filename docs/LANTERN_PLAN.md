@@ -123,6 +123,7 @@ a third party.
 | 2a | Engine outputs: `perAgePaid`, `perAgeWealth`, the shock option | Done (#66, engine 2026.11.18) |
 | 2b | Adapter (`lantern/adapter.js`, tested by hand calculation) and wiring to the plan on the device, read only | Done |
 | 5 (early) | The Lantern is the home's picture, with a key for each face and "How to read this"; the island is the switch-back in Explore and the fallback without WebGL (owner, 18 November 2026) | Done |
+| 5 (simplified) | After three reviews: new colours; then one face on the home, two window states, ten windows a floor counted "of 100", and the count beside the ages (owner, 20 November 2026; §10) | Done |
 | 3 | Dials, chips, bottom sheet | Not started |
 | 4 | The "now" band, Play, Flat view, table, reduced motion | Not started (reduced motion already cross-fades and stops the dust) |
 | 5 | Polish, performance stepping, replace the home behind a setting | Not started |
@@ -220,25 +221,27 @@ Changed the same day (the palette is in `scene.ts` and `words.tsx`):
 | Dust, bloom 0.38 | No dust, bloom 0.22 with a higher threshold; glass edges at half the strength |
 | The caption did not say the tower can be tapped | "Tap one to read it." |
 
-Not changed, for the owner to decide (the simplification reviewer's option B,
-which the lay reader's notes support):
+Then the four simplifications, the same day (owner: "Do 1 through to 4"):
 
-- **One face on the home.** Nothing in the third dimension carries data: the
-  depth is there so the tower can turn. The home could show "Will it pay?"
-  only, with no lens buttons, and keep Sources, What's left and Stress in the
-  full-screen view (or move Stress into "What could go wrong?", where it
-  belongs). That removes four buttons, three keys and the turning from the
-  first screen, and leaves room for larger text.
-- **Two states, not three.** "Essentials" is three quarters of the plan, a
-  line nobody chose. Until there is a control for it, the windows could be
-  simply lit or unlit.
-- **One count.** A floor is read as "14 of 20" while the answer says "58 of
-  100", and the floor is in pounds a year while the answer is in pounds a
-  month. Ten windows a floor (each 10 of 100) and monthly figures in the
-  reading would make the two agree.
-- **The count on the picture.** The share of futures that pay in full each
-  year could be printed beside the age labels ("85 · 15 of 20"), so the
-  picture can be read without tapping.
+1. **One face on the home.** The home shows "Will it pay?" only: no lens
+   buttons, a key of two marks, and the tower does not turn there. Sources,
+   What's left and Stress are in the full-screen view, one tap away
+   ("Sources, money left, stress" in the panel's foot).
+2. **Two states, not three.** A window is lit (that year's plan paid in full,
+   99% or more) or unlit. The "essentials" tier, three quarters of the plan,
+   a line nobody chose, is gone from the picture, the words and the table.
+3. **One count.** Ten windows a floor, each 10 of every 100 futures; the
+   engine's 20 levels are drawn two to a window, so a window can be half lit
+   (5). The reading says "70 of 100 futures pay your full £3,250 a month",
+   the same count and the same unit as the answer above the tower.
+4. **The count on the picture.** Beside the floors, in one column: the age,
+   and under it "75 of 100", for the first and last year, the years spending
+   steps and the fifth birthdays, as many as fit without touching. A couple's
+   second age moved into the reading ("At 88 (2056; your partner is 86)").
+
+Still open: Stress could move into "What could go wrong?"; text on the panel
+is 10 to 12 px in places (the count labels are 10 px); nothing here has been
+tested on people.
 
 What the reviews could not judge: the new palette on a real phone outdoors,
 ageing eyes (a yellowing lens weakens blue against violet, which is one more

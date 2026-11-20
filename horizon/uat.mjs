@@ -483,15 +483,14 @@ await check('65d futures: "Show every year as a table" gives one row a year, and
   const q0 = E.migratePlan(await planOf()), q = { ...q0, growth: q0.growthBase ?? q0.growth }, m = E.runMonteCarlo(q, 2000, q.mcSeed || 42), rows = E.drawdown(q).rows;
   await p.locator('[data-futures-table-toggle]').click(); await wait(500);
   const got = await p.$$eval('[data-futures-table] tbody tr', trs => trs.map(tr => [...tr.children].map(c => c.textContent.trim())));
-  const ess = Math.round((0.75 * q.targetNet) / 500) * 500;
   const pounds = t => { const n = parseFloat(t.replace(/[£,]/g, '')); return /m$/.test(t) ? n * 1e6 : /k$/.test(t) ? n * 1e3 : n; };
   const near = (shown, v, tol = 0.02) => Math.abs(pounds(shown) - v) <= Math.max(tol * v, v >= 1e6 ? 6000 : 600);
   const bad = [];
   rows.forEach((r, i) => { const g = got[i] || [], spend = Math.round(r.planTarget / Math.pow(1 + q.inflation, r.year - q.startYear)), qs = m.perAgePaid.ages[i].q, w = m.perAgeWealth[i];
-    const full = qs.filter(v => v >= 0.99).length, less = qs.filter(v => v < 0.99 && v * spend >= ess - 0.5).length;
-    const ok = String(g[0]).startsWith(String(r.ageA)) && pounds(g[1]) === spend && g[2] === String(full * 5) && g[3] === String(less * 5) && g[4] === String((20 - full - less) * 5)
-      && near(g[5], Math.max(0, w.p10)) && near(g[6], Math.max(0, w.p50)) && near(g[7], Math.max(0, w.p90));
-    if (!ok) bad.push(`${r.ageA}: ${JSON.stringify(g)} want plan ${spend}, ${full * 5}/${less * 5}, left ${Math.round(w.p10)} ${Math.round(w.p50)} ${Math.round(w.p90)}`); });
+    const full = qs.filter(v => v >= 0.99).length;
+    const ok = String(g[0]).startsWith(String(r.ageA)) && pounds(g[1]) === spend && g[2] === String(full * 5) && g[3] === String(100 - full * 5) && g.length === 7
+      && near(g[4], Math.max(0, w.p10)) && near(g[5], Math.max(0, w.p50)) && near(g[6], Math.max(0, w.p90));
+    if (!ok) bad.push(`${r.ageA}: ${JSON.stringify(g)} want plan ${spend}, ${full * 5} in full, left ${Math.round(w.p10)} ${Math.round(w.p50)} ${Math.round(w.p90)}`); });
   const region = await p.$eval('[data-futures-table]', e => ({ tab: e.getAttribute('tabindex'), role: e.getAttribute('role'), label: e.getAttribute('aria-label') }));
   if (bad.length) console.log('  65d: ' + bad.slice(0, 3).join(' ; '));
   const ok = got.length === rows.length && bad.length === 0 && region.tab === '0' && region.role === 'region' && !!region.label
@@ -948,20 +947,21 @@ const openMap = async () => { await closeSheet(); await tap('Explore'); await wa
   const gl = await p.evaluate(() => { const c = document.createElement('canvas'); return !!(c.getContext('webgl2') || c.getContext('webgl')); });
   const L = k => p.$eval('[data-lantern]', (e, k) => e.getAttribute(k), k);
   const readout = () => p.$eval('[data-lantern-readout]', e => e.textContent);
-  const nums = t => [...t.matchAll(/(\d+) (?:of 20 futures pay|pays? less than the plan|falls? short)/g)].map(m => +m[1]);
+  const nums = t => [...t.matchAll(/(\d+) (?:of 100 futures pay|fall short)/g)].map(m => +m[1]);
+  const at = (r, n) => new RegExp(`^At ${r.ageA} \\(${r.year}(; your partner is ${r.ageB})?\\): ${n * 5} of 100 futures pay your full £[\\d,]+ a month\\.`);
   await check('163 lantern: it says whose figures these are (the plan on this device)', async () => /your plan/.test(await p.$eval('[data-lantern-whose]', e => e.textContent)));
   if (gl) {
     await p.waitForSelector('[data-lantern][data-ready="1"]', { timeout: 40000 }).catch(() => {});
     const rows = E.drawdown(q).rows, seed = q.mcSeed || 42;
     const lit = m => m.perAgePaid.ages.map(r => r.q.filter(v => v >= 0.99).length);
     const base = lit(E.runMonteCarlo(q, 2000, seed)), hit = lit(E.runMonteCarlo(q, 2000, seed, { shock: { year: 1, size: 0.3 } }));
-    await check('164 lantern: the tower renders, one floor for every year of the plan, 20 windows a floor sorted worst to best', async () =>
+    await check('164 lantern: the tower renders, one floor for every year of the plan, 10 windows a floor sorted worst to best', async () =>
       (await L('data-ready')) === '1' && (await p.$eval('[data-lantern] canvas', c => c.width > 100 && c.height > 100))
-      && (await L('data-floors')) === String(rows.length) && (await L('data-windows')) === '20' && (await L('data-model-ok')) === '1' && (await L('data-first-age')) === String(rows[0].ageA));
+      && (await L('data-floors')) === String(rows.length) && (await L('data-windows')) === '10' && (await L('data-model-ok')) === '1' && (await L('data-first-age')) === String(rows[0].ageA));
     await check('165 lantern: the lit windows on every floor are the engine\'s own count of futures paid in full that year', async () => (await L('data-lit')) === base.join(','));
-    await check('166 lantern: the readout counts the open floor\'s 20 windows in words, and the count is the engine\'s', async () => {
+    await check('166 lantern: the readout counts the open floor of 100 and a month, and the count is the engine\'s', async () => {
       const t = await readout(), sel = +(await L('data-selected')), n = nums(t);
-      return new RegExp(`^At ${rows[sel].ageA} \\(${rows[sel].year}\\): ${base[sel]} of 20 futures pay your full £`).test(t) && n.reduce((a, b) => a + b, 0) === 20; });
+      return at(rows[sel], base[sel]).test(t) && (n.length === 1 ? n[0] === 100 : n[0] + n[1] === 100) && !/essentials|of 20/.test(t); });
     await check('167 lantern: each lens button turns the tower to its face', async () => {
       for (const k of [1, 2, 3, 0]) {
         await p.locator(`[data-lens="${k}"]`).click();
@@ -973,16 +973,16 @@ const openMap = async () => { await closeSheet(); await tap('Explore'); await wa
       const box = await p.locator('[data-lantern]').boundingBox(), before = +(await L('data-selected'));
       await p.mouse.click(box.x + box.width / 2, box.y + box.height * 0.78); await wait(600);
       const sel = +(await L('data-selected')), t = await readout();
-      return sel !== before && sel >= 0 && t.startsWith(`At ${rows[sel].ageA} (${rows[sel].year}): ${base[sel]} of 20 futures`); });
+      return sel !== before && sel >= 0 && at(rows[sel], base[sel]).test(t); });
     await check('169 lantern: the stress face is the same futures after a 30% fall in year 1, counted by the engine; every target is at least 44 px', async () => {
       await p.locator('[data-lens="3"]').click(); await wait(700);
       const sel = +(await L('data-selected')), t = await readout();
       const small = await p.$$eval('[data-lantern-preview] button, [data-lantern-preview] a', els => els.filter(e => e.getBoundingClientRect().height < 44).length);
-      return (await L('data-lit-stress')) === hit.join(',') && t.startsWith(`At ${rows[sel].ageA}, after a 30% fall in year 1: ${hit[sel]} of 20 futures`) && small === 0; });
+      return (await L('data-lit-stress')) === hit.join(',') && t.startsWith(`At ${rows[sel].ageA}, after a 30% fall in year 1: ${hit[sel] * 5} of 100 futures`) && small === 0; });
     await check('170 lantern: sources and money left are read in words, and the picture is described for a screen reader', async () => {
       await p.locator('[data-lens="1"]').click(); await wait(600); const a = await readout();
       await p.locator('[data-lens="2"]').click(); await wait(600); const b = await readout();
-      return /^At \d+ \(\d{4}\): .*£/.test(a) && /left in the middle future/.test(b) && new RegExp(`^The Lantern: a tower of ${rows.length} years`).test(await L('aria-valuetext')) && (await L('role')) === 'slider'; });
+      return /^At \d+ \(\d{4}\): each month, .*£/.test(a) && /left in the middle future/.test(b) && new RegExp(`^The Lantern: a tower of ${rows.length} years`).test(await L('aria-valuetext')) && (await L('role')) === 'slider'; });
   } else {
     await check('164 lantern: without WebGL the preview says so', () => has('This preview needs WebGL'));
   }
@@ -1023,24 +1023,36 @@ const openMap = async () => { await closeSheet(); await tap('Explore'); await wa
       return (await h.$('[data-lantern-home] [data-status]')) != null && /Your plan can pay/.test(t) && /You ask for £/.test(t)
         && (await h.$eval('[data-lantern-home] [data-supports]', e => e.textContent)) === islandFigure && (await h.$('[data-lantern-home] [data-futures]')) != null; });
     await check('176 lantern home: one floor a year, and the lit windows on every floor are the engine\'s count', async () => (await H('data-floors')) === String(X.rows.length) && (await H('data-lit')) === base.join(',') && (await H('data-model-ok')) === '1');
-    await check('177 lantern home: a key beside the tower names each mark, and it changes with the face', async () => {
-      const a = await legend();
-      await h.locator('[data-lantern-home] [data-lens="1"]').click(); await hw(700); const b1 = await legend(), cap1 = await h.$eval('[data-lantern-caption]', e => e.textContent);
-      await h.locator('[data-lantern-home] [data-lens="2"]').click(); await hw(700); const c = await legend(), cap2 = await h.$eval('[data-lantern-caption]', e => e.textContent);
-      await h.locator('[data-lantern-home] [data-lens="0"]').click(); await hw(700);
-      const sources = ['Pensions', 'ISAs', 'Cash', 'Scheme pensions', 'Work', 'State Pension', 'Partner’s State Pension'];
-      return a.join('|') === 'Pays your plan in full|Less, essentials covered|Falls short'
-        && b1.length >= 1 && b1.every(x => sources.includes(x)) && /where that year’s spending comes from/.test(cap1)
-        && c.join('|') === 'The middle future|10th to 90th of 100 futures' && /money left, from nothing to £/.test(cap2)
-        && (await h.$$eval('[data-lantern-home] [data-lantern-legend] li span[aria-hidden]', els => els.length)) === 3; });
-    await check('178 lantern home: "How to read this" explains how the tower is built and each of its four faces', async () => {
+    const at = (r, n) => new RegExp(`^At ${r.ageA} \\(${r.year}(; your partner is ${r.ageB})?\\): ${n * 5} of 100 futures pay your full £[\\d,]+ a month\\.`);
+    await check('177 lantern home: one face only (no lens buttons), a key of two marks, and a caption that says what a window is and that a floor can be tapped', async () => {
+      const a = await legend(), cap = await h.$eval('[data-lantern-caption]', e => e.textContent);
+      return a.join('|') === 'Pays in full|Falls short' && (await h.$$('[data-lantern-home] [data-lens]')).length === 0 && (await H('data-windows')) === '10'
+        && /Each window is 10 of 100 futures/.test(cap) && /Tap a floor/.test(cap)
+        && (await h.$$eval('[data-lantern-home] [data-lantern-legend] li span[aria-hidden]', els => els.length)) === 2; });
+    await check('177b lantern home: beside the floors, the age and the engine\'s count of 100 futures that pay that year in full; labels never touch or leave the picture', async () => {
+      const got = await h.$$eval('[data-lantern] [data-floor-label]', els => { const box = document.querySelector('[data-lantern]').getBoundingClientRect();
+        return els.filter(e => getComputedStyle(e).visibility !== 'hidden' && getComputedStyle(e).display !== 'none').map(e => { const r = e.getBoundingClientRect();
+          return { floor: +e.dataset.floorLabel, age: e.children[0].textContent, count: e.children[1].textContent, top: r.top, bottom: r.bottom, inside: r.left >= box.left && r.right <= box.right + 0.5 && r.top >= box.top - 0.5 && r.bottom <= box.bottom + 0.5 }; }); });
+      const sorted = [...got].sort((x, y) => x.top - y.top), apart = sorted.every((g, i) => i === 0 || g.top >= sorted[i - 1].bottom - 0.5);
+      const right = got.every(g => g.age === String(X.rows[g.floor].ageA) && g.count === `${base[g.floor] * 5} of 100`);
+      const ends = got.some(g => g.floor === 0) && got.some(g => g.floor === X.rows.length - 1);
+      if (!(right && apart && ends && got.every(g => g.inside))) console.log('  177b: ' + JSON.stringify(got).slice(0, 400));
+      return got.length >= 4 && right && apart && ends && got.every(g => g.inside); });
+    await check('177c lantern home: the tower does not turn on the home (a sideways drag leaves the first face showing)', async () => {
+      const box = await h.locator('[data-lantern]').boundingBox(), y = box.y + box.height * 0.5;
+      await h.mouse.move(box.x + box.width * 0.85, y); await h.mouse.down(); await h.mouse.move(box.x + box.width * 0.55, y, { steps: 6 }); await h.mouse.up(); await hw(600);
+      const face = await H('data-face');
+      if ((await H('data-selected')) !== '-1') { await h.locator('[data-lantern]').focus(); await h.keyboard.press('Escape'); await hw(500); }
+      return face === '0'; });
+    await check('178 lantern home: "How to read this" explains how the tower is built, what a window and the numbers mean, and the three more views', async () => {
       await h.locator('[data-lantern-key-open]').click(); await hw(700);
       const t = await h.$eval('[data-lantern-key-sheet]', e => e.innerText).catch(() => '');
       const heads = await h.$$eval('[data-lantern-key-sheet] h3', els => els.map(e => e.textContent));
-      const ok = heads.join('|') === 'How the tower is built|Will it pay?|Sources|What\'s left|Stress'
-        && /Each floor is one year/.test(t) && /as wide as what you plan to spend/.test(t) && /Each window is 5 of every 100/.test(t) && /worst on the left to the best on the right/.test(t)
-        && /Unlit, a slate pane/.test(t) && !/red foot|gold outline/i.test(t) && /same scale/.test(t) && /fall by 30% in the year you stop/.test(t)
-        && (await h.$$eval('[data-lantern-key-sheet] li span[aria-hidden]', els => els.length)) >= 12;
+      const ok = heads.join('|') === 'How the tower is built|Will it pay?|Three more views'
+        && /Each floor is one year/.test(t) && /as wide as what you plan to spend/.test(t) && /Each window is 10 of every 100/.test(t) && /half lit is 5/.test(t) && /worst on the left to the best on the right/.test(t)
+        && /Unlit, a slate pane/.test(t) && /“75 of 100” means seven and a half windows/.test(t) && !/red foot|gold outline|essentials/i.test(t) && /same scale/.test(t) && /fall by 30% in the year you stop/.test(t)
+        && (await h.getAttribute('[data-lantern-key-more]', 'href')) === './?lantern=1'
+        && (await h.$$eval('[data-lantern-key-sheet] li span[aria-hidden]', els => els.length)) >= 6;
       await h.keyboard.press('Escape'); await hw(600);
       return ok && (await h.$('[data-lantern-key-sheet]')) == null; });
     await check('179 lantern home: tapping a floor opens it and reads that year with the engine\'s count; tapping it again closes it', async () => {
@@ -1048,7 +1060,7 @@ const openMap = async () => { await closeSheet(); await tap('Explore'); await wa
       const x = box.x + box.width * 0.66, y = box.y + box.height * 0.5;
       await h.mouse.click(x, y); await hw(700);
       const sel = +(await H('data-selected')), t = await reading();
-      const opened = sel >= 0 && t.startsWith(`At ${X.rows[sel].ageA} (${X.rows[sel].year}): ${base[sel]} of 20 futures pay your full £`);
+      const opened = sel >= 0 && at(X.rows[sel], base[sel]).test(t) && (await h.$eval(`[data-lantern] [data-floor-label="${sel}"]`, e => e.textContent)) === `${X.rows[sel].ageA}${base[sel] * 5} of 100`;
       await h.mouse.click(x, y); await hw(700);
       return opened && (await H('data-selected')) === '-1' && (await reading()) === rest; });
     await check('180 lantern home: the keyboard reaches it: arrows open and move the floor, Escape closes it', async () => {
@@ -1056,13 +1068,15 @@ const openMap = async () => { await closeSheet(); await tap('Explore'); await wa
       const sel = +(await H('data-selected')), vt = await H('aria-valuetext');
       await h.keyboard.press('Escape'); await hw(500);
       return sel === 1 && vt.startsWith(`At ${X.rows[1].ageA} (`) && (await H('role')) === 'slider' && (await H('data-selected')) === '-1'; });
-    await check('181 lantern home: the stress face is worked out when asked for, and its windows are the engine\'s after a 30% fall in year 1', async () => {
-      await h.locator('[data-lantern-home] [data-lens="3"]').click();
-      await h.waitForSelector('[data-lantern-home][data-stress-ready="1"]', { timeout: 30000 }).catch(() => {}); await hw(500);
-      const ok = (await H('data-lit-stress')) === X.hit().join(',') && (await legend()).join('|') === 'Pays your plan in full|Less, essentials covered|Falls short|A light the fall put out'
-        && /after a 30% fall in year 1/.test(await h.$eval('[data-lantern-caption]', e => e.textContent));
-      await h.locator('[data-lantern-home] [data-lens="0"]').click(); await hw(700);
-      return ok; });
+    await check('181 lantern home: the other three views are one tap away, full screen, and "Back to Someday" returns to the Lantern home', async () => {
+      const more = h.locator('[data-lantern-more]'), tall = (await more.boundingBox()).height >= 40 && (await h.locator('[data-lantern-key-open]').boundingBox()).height >= 40;
+      const oneLine = await h.$$eval('[data-lantern-more], [data-lantern-key-open]', els => els.every(e => e.getBoundingClientRect().height < 48));
+      await more.click(); await h.waitForSelector('[data-lantern-preview] [data-lantern][data-ready="1"]', { timeout: 40000 }).catch(() => {});
+      const there = /[?&]lantern=1/.test(h.url()) && (await h.$$('[data-lantern-preview] [data-lens]')).length === 4;
+      await h.locator('[data-lens="3"]').click(); await hw(900);
+      const stress = (await H('data-lit-stress')) === X.hit().join(',') && (await h.$$eval('[data-lantern-preview] [data-lantern-legend] li', els => els.map(e => e.textContent.trim()).join('|'))) === 'Pays in full|Falls short|A light the fall put out';
+      await h.getByRole('link', { name: 'Back to Someday' }).click(); await h.waitForSelector('[data-lantern-home] [data-lantern][data-ready="1"]', { timeout: 40000 }).catch(() => {}); await hw(500);
+      return tall && oneLine && there && stress && (await h.$('[data-lantern-home]')) != null && (await H('data-lit')) === base.join(','); });
     await check('182 lantern home: changing the plan redraws the same tower in place, to the engine\'s new counts', async () => {
       await h.$eval('[data-lantern] canvas', c => { c.dataset.mark = 'same'; });
       await h.getByRole('button', { name: 'Take home: £100 a month more' }).click(); await hw(400);
@@ -1073,23 +1087,18 @@ const openMap = async () => { await closeSheet(); await tap('Explore'); await wa
       await h.getByRole('button', { name: 'Take home: £100 a month less' }).click(); await hw(400);
       await h.waitForFunction(w => document.querySelector('[data-lantern]')?.getAttribute('data-lit') === w, base.join(','), { timeout: 30000 }).catch(() => {});
       return now.targetNet !== E.migratePlan(stored).targetNet && ok && same; });
-    await check('183 lantern home: at 390×844, 390×660, 375×667 and 360×640 everything stays above the tab bar, nothing scrolls sideways and the key is whole on every face', async () => {
+    await check('183 lantern home: at 390×844, 390×660, 375×667 and 360×640 everything stays above the tab bar, nothing scrolls sideways and the key and the foot are whole', async () => {
       const bad = [];
       for (const [w, hh] of [[390, 844], [390, 660], [375, 667], [360, 640]]) {
         await h.setViewportSize({ width: w, height: hh }); await hw(700);
         const r = await h.evaluate(() => { const nav = document.querySelector('nav').getBoundingClientRect(), home = document.querySelector('[data-simple-home]');
           const q = [...home.querySelectorAll('button')].find(x => /What could go wrong/.test(x.textContent)).getBoundingClientRect();
           return { slack: Math.round(nav.top - q.bottom), hscroll: home.scrollWidth > home.clientWidth + 1 }; });
-        // The key must be whole on every face: its last line above the caption, its first below the answer.
-        const keys = [];
-        for (const k of [0, 1, 2]) {
-          await h.locator(`[data-lantern-home] [data-lens="${k}"]`).click(); await hw(500);
-          keys.push(await h.evaluate(() => { const li = [...document.querySelectorAll('[data-lantern-home] [data-lantern-legend] li')], cap = document.querySelector('[data-lantern-caption]').getBoundingClientRect();
-            const head = document.querySelector('[data-lantern-home] [data-ask]').getBoundingClientRect();
-            return li.length > 0 && li[li.length - 1].getBoundingClientRect().bottom <= cap.top + 1 && li[0].getBoundingClientRect().top >= head.bottom - 1; }));
-        }
-        await h.locator('[data-lantern-home] [data-lens="0"]').click(); await hw(500);
-        if (r.slack < 0 || r.hscroll || keys.includes(false)) bad.push(`${w}×${hh} ${JSON.stringify(r)} key whole on faces 0,1,2: ${keys.join(',')}`);
+        // The key must be whole: its last line above the caption, its first below the answer; and the foot's two buttons side by side on one line each.
+        const keys = [await h.evaluate(() => { const li = [...document.querySelectorAll('[data-lantern-home] [data-lantern-legend] li')], cap = document.querySelector('[data-lantern-caption]').getBoundingClientRect();
+          const head = document.querySelector('[data-lantern-home] [data-ask]').getBoundingClientRect(), a = document.querySelector('[data-lantern-key-open]').getBoundingClientRect(), b = document.querySelector('[data-lantern-more]').getBoundingClientRect();
+          return li.length === 2 && li[li.length - 1].getBoundingClientRect().bottom <= cap.top + 1 && li[0].getBoundingClientRect().top >= head.bottom - 1 && Math.abs(a.top - b.top) < 1 && a.height < 48 && b.height < 48 && b.right <= innerWidth; })];
+        if (r.slack < 0 || r.hscroll || keys.includes(false)) bad.push(`${w}×${hh} ${JSON.stringify(r)} key and foot whole: ${keys.join(',')}`);
       }
       await h.setViewportSize({ width: 390, height: 844 }); await hw(500);
       if (bad.length) console.log('  lantern fit: ' + bad.join('; '));

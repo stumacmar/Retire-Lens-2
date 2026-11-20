@@ -181,7 +181,13 @@ const fmtK = (v) => { const a = Math.abs(v); return a >= 1e6 ? '£' + (a / 1e6).
 // gives answers up to about 0.4% apart in Chromium and in Node: see the
 // cross-runtime check below.)
 const expectInPage = async (P) => {
-  if (!window.__E) window.__E = (await import('/__engine.js')).createEngine();
+  if (!window.__E) {
+    // The engine source is fetched from the test's own server; with four pages working at once a fetch can fail, so it is tried three times.
+    let m = null, err = null;
+    for (let k = 0; k < 3 && !m; k++) { try { m = await import('/__engine.js' + (k ? '?try=' + k : '')); } catch (e) { err = e; await new Promise(r => setTimeout(r, 400)); } }
+    if (!m) throw err;
+    window.__E = m.createEngine();
+  }
   const E = window.__E;
   const full = (dd) => dd.holds && dd.rows.every(x => x.spendMult == null || x.spendMult >= 0.999);
   const g = P.growthBase, Pg = { ...P, growth: g };

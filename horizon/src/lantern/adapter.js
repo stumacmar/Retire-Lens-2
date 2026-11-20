@@ -5,26 +5,26 @@
  *
  *   engine (drawdown rows, runMonteCarlo) -> lanternModel() -> the scene
  */
-export const WINDOWS = 20;
+/**
+ * The engine reads each year's futures at 20 levels, worst first, each level
+ * 5 of every 100 futures. The tower draws them as 10 windows a floor: a
+ * window is two levels, 10 of every 100 futures, and a window with one level
+ * lit is drawn half lit (owner, 20 November 2026: "Do 1 through to 4", after
+ * three reviews: one count, "of 100", on the picture and in the words).
+ */
+export const LEVELS = 20;
+export const WINDOWS = 10;
 
 /** The engine's own line for "paid in full": a year at 99% of the plan or more. */
 export const FULL = 0.99;
 
-/** The window that marks the middle future (the more cautious of the two middle windows). */
-export const MEDIAN_WINDOW = WINDOWS / 2 - 1;
-
-/** Until it is set by hand: three quarters of the plan, to the nearest £500. */
-export const essentialOf = (plan) => Math.round((0.75 * (Number(plan && plan.targetNet) || 0)) / 500) * 500;
-
 /**
- * One window. `paid` is the share of that year's plan that future delivered,
- * `spend` the plan that year and `essential` the floor, both in today's money.
- * full: pays the plan. floor: pays the essentials but not the plan. short: neither.
+ * One level. `paid` is the share of that year's plan that future delivered.
+ * Two states only: full pays the plan, short pays less. (Until 20 November
+ * 2026 there was a third, "less, but the essentials are covered", against a
+ * line of three quarters of the plan that nobody had chosen.)
  */
-export function windowState(paid, spend, essential) {
-  if (paid >= FULL) return 'full';
-  return paid * spend >= essential - 0.5 ? 'floor' : 'short';
-}
+export const windowState = (paid) => (paid >= FULL ? 'full' : 'short');
 
 const n0 = (v) => (Number.isFinite(Number(v)) ? Number(v) : 0);
 
@@ -56,24 +56,23 @@ export function sourcesOf(row, delivered) {
  * `runMonteCarlo(plan, …)`, `stress` the same run with a shock (or null).
  * Everything is in today's money.
  */
-export function lanternModel({ plan, rows, mc, stress, essential }) {
+export function lanternModel({ plan, rows, mc, stress }) {
   const single = plan.household === 'single';
   const infl = n0(plan.inflation), start = n0(plan.startYear);
   const paid = (mc && mc.perAgePaid && mc.perAgePaid.ages) || [];
   const left = (mc && mc.perAgeWealth) || [];
   const hit = (stress && stress.perAgePaid && stress.perAgePaid.ages) || null;
   const n = Math.min(rows.length, paid.length, left.length);
-  const ess = essential == null ? essentialOf(plan) : essential;
   const real = (i) => Math.pow(1 + infl, rows[i].year - start);
 
   const floors = [];
   for (let i = 0; i < n; i++) {
     const r = rows[i], f = real(i), spend = Math.round(n0(r.planTarget) / f);
-    const windows = paid[i].q.map((v) => windowState(v, spend, ess));
+    const windows = paid[i].q.map(windowState);
     floors.push({
       age: r.ageA, partnerAge: single ? null : r.ageB, year: r.year, spend,
       windows,
-      stress: hit && hit[i] ? hit[i].q.map((v) => windowState(v, spend, ess)) : windows,
+      stress: hit && hit[i] ? hit[i].q.map(windowState) : windows,
       sources: sourcesOf(r, Math.max(0, n0(r.paid == null ? 1 : r.paid)) * spend),
       wealth: { p10: Math.max(0, Math.round(left[i].p10)), p50: Math.max(0, Math.round(left[i].p50)), p90: Math.max(0, Math.round(left[i].p90)) },
     });
@@ -88,23 +87,26 @@ export function lanternModel({ plan, rows, mc, stress, essential }) {
   const AR = plan.architecture || {};
   const sh = stress && stress.shock;
   return {
-    floors, essential: ess,
+    floors,
     ladderFloors: AR.on ? Math.max(0, Math.min(n, Math.round(n0(AR.ladderYears)))) : 0,
     spines,
     stressName: sh ? `a ${Math.round(sh.size * 100)}% fall in year ${sh.year}` : null,
   };
 }
 
-/** How many of a floor's windows are in each state. */
+/** How many of a floor's 20 levels are in each state. */
 export function countWindows(w) {
-  const c = { full: 0, floor: 0, short: 0 };
+  const c = { full: 0, short: 0 };
   for (const s of w) c[s]++;
   return c;
 }
 
-/** True when every floor has exactly 20 windows, sorted worst to best. */
+/** Of 100 futures, how many pay that year's plan in full (to the nearest 5). */
+export const of100 = (w) => countWindows(w).full * (100 / LEVELS);
+
+/** True when every floor has exactly 20 levels, sorted worst to best. */
 export function modelOk(m) {
-  const rank = { short: 0, floor: 1, full: 2 };
-  const sorted = (w) => w.length === WINDOWS && w.every((s, i) => i === 0 || rank[w[i - 1]] <= rank[s]);
+  const rank = { short: 0, full: 1 };
+  const sorted = (w) => w.length === LEVELS && w.every((s, i) => i === 0 || rank[w[i - 1]] <= rank[s]);
   return m.floors.length > 0 && m.floors.every((f) => sorted(f.windows) && sorted(f.stress));
 }

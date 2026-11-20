@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { E, MC_PATHS, loadPlan } from '../lib/usePlan';
-import { essentialOf, lanternModel } from './adapter';
+import { lanternModel } from './adapter';
 import type { LanternModel } from './model';
 
 /** The stress the fourth face shows until there is a control for it. */
@@ -57,7 +57,7 @@ export function useLantern(): { model: LanternModel | null; own: boolean; plan: 
   }, [plan]);
 
   const model = useMemo(
-    () => (runs.base && runs.stress ? lanternModel({ plan, rows, mc: runs.base, stress: runs.stress, essential: essentialOf(plan) }) : null),
+    () => (runs.base && runs.stress ? lanternModel({ plan, rows, mc: runs.base, stress: runs.stress }) : null),
     [plan, rows, runs]);
   return { model, own, plan, failed };
 }

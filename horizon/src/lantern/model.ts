@@ -4,8 +4,8 @@
  * this and nothing else. All money is today's money.
  */
 
-/** full: pays the planned spend that year. floor: pays the essentials but not the plan. short: falls below the essentials. */
-export type WindowState = 'full' | 'floor' | 'short';
+/** full: pays the planned spend that year. short: pays less. */
+export type WindowState = 'full' | 'short';
 
 export type SourceKey = 'pension' | 'isa' | 'cash' | 'scheme' | 'work' | 'sp' | 'partnerSp';
 
@@ -15,9 +15,9 @@ export type Floor = {
   year: number;
   /** Planned spend that year. */
   spend: number;
-  /** 20 windows, worst future on the left to best on the right; each is 5% of that year's futures. */
+  /** 20 levels, worst future first; each is 5 of every 100 of that year's futures. The tower draws them two to a window. */
   windows: WindowState[];
-  /** The same 20 windows under the stress. */
+  /** The same 20 levels under the stress. */
   stress: WindowState[];
   /** The central case's spending that year by source; a total below `spend` is a shortfall. */
   sources: { key: SourceKey; amount: number }[];
@@ -27,8 +27,6 @@ export type Floor = {
 
 export type LanternModel = {
   floors: Floor[];
-  /** The essential floor, a year. */
-  essential: number;
   /** A structured plan's safe ladder, in years of spending: the height of the plinth. 0 without one. */
   ladderFloors: number;
   spines: { key: 'sp' | 'partnerSp'; fromFloor: number; income: number }[];

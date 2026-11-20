@@ -13,8 +13,8 @@ import { WINDOWS, countWindows, modelOk } from './adapter';
  * move the open floor up and down the years, Home and End jump to the ends,
  * Escape closes it, and the reading for the open floor is its value text.
  */
-export default function LanternCanvas({ model, lens, selected, summary, compact = false, onLens, onSelect, onFailed }: {
-  model: LanternModel; lens: number; selected: number; summary: string; compact?: boolean;
+export default function LanternCanvas({ model, lens, selected, summary, compact = false, locked = false, onLens, onSelect, onFailed }: {
+  model: LanternModel; lens: number; selected: number; summary: string; compact?: boolean; locked?: boolean;
   onLens: (k: number) => void; onSelect: (i: number) => void; onFailed?: () => void;
 }) {
   const host = useRef<HTMLDivElement>(null), overlay = useRef<HTMLDivElement>(null);
@@ -33,7 +33,7 @@ export default function LanternCanvas({ model, lens, selected, summary, compact 
     let s: LanternScene | null = null;
     try {
       s = new LanternScene(host.current, overlay.current, model, {
-        reducedMotion: reduced, compact,
+        reducedMotion: reduced, compact, lockFace: locked,
         onFace: (k, done) => { setFace(k); setSettled(done); if (done) cb.current.onLens(k); },
         onSelect: i => cb.current.onSelect(i),
         onLost: fail,

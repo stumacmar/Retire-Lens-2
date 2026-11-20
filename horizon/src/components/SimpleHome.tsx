@@ -11,7 +11,6 @@ import { planCounts } from '../lib/counts';
 import { valuesFor, clampVal, type Val } from '../lib/planValues';
 import Sheet from './Sheet';
 import LanternKey from '../lantern/LanternKey';
-import { essentialOf } from '../lantern/adapter';
 import { canDraw3d } from '../lib/picture';
 import type { Picture } from '../lib/picture';
 
@@ -246,7 +245,7 @@ export default function SimpleHome({ plan, update, dd, mc, onDetails, header, pi
       {openTranche && <TrancheSheet plan={plan} tranche={openTranche} first={stopAge} last={endAge} at={open?.at ?? null} />}
     </Sheet>
     <Sheet open={panel === 'key'} onClose={() => setPanel(null)} title="How to read the Lantern">
-      {panel === 'key' && <LanternKey essential={fmt(essentialOf(plan))} couple={!single} structured={structured} />}
+      {panel === 'key' && <LanternKey couple={!single} structured={structured} />}
     </Sheet>
     <Sheet open={panel === 'risk'} onClose={() => setPanel(null)} title="What could go wrong">
       {panel === 'risk' && <RiskPanel plan={plan} mc={mc} rails={rails} />}

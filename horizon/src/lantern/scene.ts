@@ -4,7 +4,7 @@ import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import type { LanternModel, SourceKey, WindowState } from './model';
-import { MEDIAN_WINDOW, WINDOWS } from './adapter';
+import { LEVELS, WINDOWS, of100 } from './adapter';
 
 /**
  * The Lantern, drawn: a four-sided glass tower of retirement years. One
@@ -12,16 +12,18 @@ import { MEDIAN_WINDOW, WINDOWS } from './adapter';
  * tower steps in where spending steps down. Each face is a flat chart read
  * square-on, and turning the tower is how the lens changes:
  *
- *   0 front  "Will it pay?"         20 windows a floor, worst future to best
+ *   0 front  "Will it pay?"         10 windows a floor, worst future to best
  *   1 right  "Where it comes from"  the central case's spending by source
  *   2 back   "What's left"          money left: middle bar, 10th to 90th halo
  *   3 left   "Stress"               the windows again, under the stress
  *
- * The floor you tap opens up: it and its neighbours grow taller, so its 20
- * windows are large enough to count and their states can be told apart by
- * shape and lightness as well as hue (tall and gold, half height and blue,
- * an unlit slate pane). The other floors stay slim: texture that shows where
- * the lights go out, not marks to be read one by one.
+ * A window is 10 of every 100 futures for that year (two of the engine's 20
+ * levels), lit gold where the plan is paid in full and an unlit slate pane
+ * where it is not; a window with one level lit is half lit. The share that
+ * pays in full is printed beside the age labels, "75 of 100". The floor you
+ * tap opens up: it and its neighbours grow taller, so its windows are large
+ * enough to count. On the home the tower shows its first face only and does
+ * not turn (`lockFace`); the other three are in the full-screen view.
  *
  * Framework-free: it is given a host element, an overlay for text labels and
  * a view model, and knows nothing about React or the engine.
@@ -44,18 +46,15 @@ const hex = (h: number, k = 1) => new THREE.Color(h).multiplyScalar(k);
 const WHITE = new THREE.Color(1, 1, 1);
 /*
  * The palette (colour review, 20 November 2026; the same hues are in words.tsx for the key).
- * The three window states are ordered, so lightness carries the order: gold (L* 83) pays in
- * full, mid blue (L* 62) pays less, slate (L* 34) falls short, and the gaps between are the
- * navy of the panel. Gold means "paid in full" and nothing else. No red and no green for
+ * Lightness carries the two window states: gold (L* 83) pays in full, slate (L* 34) falls
+ * short, and the gaps between are the navy of the panel. Gold means "paid in full" and nothing else. No red and no green for
  * good or bad. The seven sources are spread in lightness as well as hue, so every pair stays
  * apart (CIEDE2000 of 14 or more) for the common kinds of colour blindness.
  */
 const COL = {
   full: hex(0xffc53d, 0.92),
-  floor: hex(0x7c97cf, 0.95),
   short: hex(0x3d4e80, 1),
   ghost: hex(0xf4f6ff, 0.8),
-  median: hex(0xffffff, 0.9),
   halo: hex(0x2e6fa8, 0.8),
   wealth: hex(0xc4ecff, 0.92),
   marker: hex(0xffffff, 1.0),
@@ -65,15 +64,18 @@ const SOURCE_COL: Record<SourceKey, THREE.Color> = {
   work: hex(0x93d3a0, 0.85), sp: hex(0x9160f8, 0.95), partnerSp: hex(0xcdb6ff, 0.82),
 };
 const STRIP_COL = { sp: SOURCE_COL.sp.clone().multiplyScalar(0.8), partnerSp: SOURCE_COL.partnerSp.clone().multiplyScalar(0.75) };
-const RANK: Record<WindowState, number> = { short: 0, floor: 1, full: 2 };
+const RANK: Record<WindowState, number> = { short: 0, full: 1 };
 
 type Inst = { m: THREE.Matrix4; c: THREE.Color };
+type Label = { el: HTMLSpanElement; age: HTMLSpanElement; count: HTMLSpanElement; floor: number; rank: number };
 type Layer = 'quads' | 'frames' | 'glass' | 'rims' | 'strips' | 'stone' | 'amber';
 
 export type SceneOpts = {
   reducedMotion: boolean;
   /** The home's panel: the left 43% is kept clear for the answer and the key, so the tower stands in the right 57% with its age labels on its right. */
   compact?: boolean;
+  /** The home shows the first face only: the tower does not turn, and a finger moving up or down scrolls the page. */
+  lockFace?: boolean;
   /** The face nearest the camera; `settled` once the tower is at rest on it. */
   onFace: (face: number, settled: boolean) => void;
   onSelect: (floor: number) => void;
@@ -90,8 +92,9 @@ export class LanternScene {
   private tower = new THREE.Group();
   private meshes = new Map<Layer, THREE.InstancedMesh>();
   private edges: THREE.LineSegments | null = null;
-  private labels: { el: HTMLSpanElement; floor: number }[] = [];
-  private selLabel: HTMLSpanElement;
+  private labels: Label[] = [];
+  private selLabel: Label;
+  private labelFace = -1;
   private n = 0;
   private w: number[] = [];
   private maxSpend = 1;
@@ -115,7 +118,7 @@ export class LanternScene {
     this.renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
     const el = this.renderer.domElement;
-    el.style.cssText = 'display:block;width:100%;height:100%;touch-action:none;';
+    el.style.cssText = `display:block;width:100%;height:100%;touch-action:${opts.lockFace ? 'pan-y' : 'none'};`;
     el.setAttribute('aria-hidden', 'true');
     host.appendChild(el);
 
@@ -124,8 +127,8 @@ export class LanternScene {
     const sun = new THREE.DirectionalLight(0xffe2b8, 1.2); sun.position.set(-10, 24, 30); this.scene.add(sun);
     this.scene.add(this.tower);
     this.buildLabels();
-    this.selLabel = this.makeLabel(true);
-    this.selLabel.style.display = 'none';
+    this.selLabel = this.makeLabel(true, -1, 0);
+    this.selLabel.el.style.display = 'none';
     this.apply();
 
     this.composer = new EffectComposer(this.renderer);
@@ -168,9 +171,9 @@ export class LanternScene {
   }
 
   private nameSelected() {
-    const f = this.selected >= 0 ? this.model.floors[this.selected] : null;
-    if (f) { this.selLabel.textContent = f.partnerAge != null ? `${f.age} · ${f.partnerAge}` : String(f.age); this.selLabel.style.display = ''; }
-    else this.selLabel.style.display = 'none';
+    this.selLabel.floor = this.selected; this.selLabel.el.dataset.floorLabel = String(this.selected);
+    this.selLabel.el.style.display = this.selected >= 0 ? 'flex' : 'none';
+    this.labelFace = -1;   // written again on the next draw
   }
 
   // ── Layout: how tall each floor is ──────────────────────────────────────
@@ -207,22 +210,21 @@ export class LanternScene {
     const wMin = Math.min(...this.w);
     const maxP90 = Math.max(1, ...F.map(f => f.wealth.p90)), wScale = (wMin * 0.94) / maxP90, u0 = -(wMin * 0.94) / 2;
 
+    // Ten windows a floor, each two of the engine's 20 levels (10 of every 100 futures). A window whose two
+    // levels differ is half lit: the worse level, on the left, is slate and the better one gold.
     const windowsOn = (face: number, i: number, states: WindowState[], base?: WindowState[]) => {
-      const cw = this.w[i] / WINDOWS, body = this.h[i] - GAP, yb = this.y[i] + GAP / 2, mid = yb + body / 2;
-      states.forEach((s, j) => {
-        const u = (j - (WINDOWS - 1) / 2) * cw;
-        // Never colour alone: an essentials-only window is half the height and narrower; an unlit one is a
-        // slate pane, a clear step darker than either and a clear step lighter than the gaps, so it reads
-        // as a window that is out and not as shadow.
-        if (s === 'full') L.quads.push(this.quad(face, i, u, mid, cw * 0.68, body, COL.full));
-        else if (s === 'floor') L.quads.push(this.quad(face, i, u, yb + body * 0.25, cw * 0.5, body * 0.5, COL.floor));
-        else L.quads.push(this.quad(face, i, u, mid, cw * 0.68, body, COL.short));
-        // The ghost of the base plan: a white outline where a light that was on has dimmed or gone out
+      const cw = this.w[i] / LEVELS, body = this.h[i] - GAP, mid = this.y[i] + GAP / 2 + body / 2, pane = 2 * cw * 0.8;
+      for (let k = 0; k < WINDOWS; k++) {
+        const a = states[2 * k], b = states[2 * k + 1], u = (k - (WINDOWS - 1) / 2) * 2 * cw;
+        if (a === b) L.quads.push(this.quad(face, i, u, mid, pane, body, a === 'full' ? COL.full : COL.short));
+        else {
+          L.quads.push(this.quad(face, i, u - pane / 4, mid, pane / 2, body, a === 'full' ? COL.full : COL.short));
+          L.quads.push(this.quad(face, i, u + pane / 4, mid, pane / 2, body, b === 'full' ? COL.full : COL.short));
+        }
+        // The ghost of the base plan: a white outline round a window the fall dimmed or put out
         // (white, because gold means paid and this marks a loss).
-        if (base && RANK[s] < RANK[base[j]]) L.frames.push(this.quad(face, i, u, mid, cw * 0.82, (body + 0.08) / 0.962, COL.ghost, 0.012));
-        // The middle future, marked on the open floor of the first face only (on Stress an outline means a light put out).
-        if (!base && i === this.selected && j === MEDIAN_WINDOW) L.frames.push(this.quad(face, i, u, mid, cw * 0.99, (body + 0.26) / 0.962, COL.median, 0.016));
-      });
+        if (base && (RANK[a] < RANK[base[2 * k]] || RANK[b] < RANK[base[2 * k + 1]])) L.frames.push(this.quad(face, i, u, mid, pane * 1.12, (body + 0.08) / 0.962, COL.ghost, 0.012));
+      }
     };
 
     F.forEach((f, i) => {
@@ -274,7 +276,7 @@ export class LanternScene {
   private apply() {
     const { L, edge } = this.compose();
     const make = (layer: Layer): THREE.InstancedMesh => {
-      const cap = L[layer].length + (layer === 'frames' ? 2 : 0);
+      const cap = L[layer].length;
       const geo = layer === 'quads' ? new THREE.PlaneGeometry(1, 1) : layer === 'frames' ? new THREE.RingGeometry(0.6, 0.68, 4, 1, Math.PI / 4) : new THREE.BoxGeometry(1, 1, 1);
       const mat = layer === 'glass' ? new THREE.MeshBasicMaterial({ color: 0x1c2f66, transparent: true, opacity: 0.16, depthWrite: false })
         : layer === 'rims' ? new THREE.MeshBasicMaterial({ color: 0x3a52a0 })
@@ -305,26 +307,43 @@ export class LanternScene {
     }
   }
 
-  /** Age labels (text stays in the page, so it is crisp and the glow never touches it). */
+  /**
+   * Labels beside the floors (text stays in the page, so it is crisp and the glow never touches it): the age,
+   * and under it how many of 100 futures pay that year in full, so the picture can be read without a tap.
+   * Every candidate is made here (the first and last year, each year spending steps, every fifth birthday);
+   * `draw` shows as many as fit without touching, the most important first.
+   */
   private buildLabels() {
     const F = this.model.floors;
     F.forEach((f, i) => {
-      const step = i > 0 && f.spend !== F[i - 1].spend;
-      if (!(f.age % 5 === 0 || step || i === 0 || i === this.n - 1)) return;
-      if (i > 0 && this.labels.length && this.labels[this.labels.length - 1].floor === i - 1) return;   // never two on adjacent floors
-      const el = this.makeLabel(false);
-      el.textContent = f.partnerAge != null ? `${f.age} · ${f.partnerAge}` : String(f.age);
-      this.labels.push({ el, floor: i });
+      const rank = i === 0 || i === this.n - 1 ? 0 : f.spend !== F[i - 1].spend ? 1 : f.age % 5 === 0 ? 2 : -1;
+      if (rank >= 0) this.labels.push(this.makeLabel(false, i, rank));
     });
+    this.labels.sort((a, b) => a.rank - b.rank || a.floor - b.floor);
+    this.labelFace = -1;
   }
 
-  private makeLabel(strong: boolean) {
-    const el = document.createElement('span');
-    el.setAttribute('aria-hidden', 'true');
-    el.style.cssText = `position:absolute;left:0;top:0;white-space:nowrap;pointer-events:none;font-variant-numeric:tabular-nums;line-height:1;` +
-      (strong ? 'font-size:11px;font-weight:700;color:#ffffff;background:#16224a;border-radius:6px;padding:3px 5px;' : 'font-size:10px;font-weight:600;color:#9fb0d9;');
+  private makeLabel(strong: boolean, floor: number, rank: number): Label {
+    const el = document.createElement('span'), age = document.createElement('span'), count = document.createElement('span');
+    el.setAttribute('aria-hidden', 'true'); el.dataset.floorLabel = String(floor);
+    el.style.cssText = `position:absolute;left:0;top:0;display:flex;flex-direction:column;align-items:${this.opts.compact ? 'flex-start' : 'flex-end'};white-space:nowrap;pointer-events:none;font-variant-numeric:tabular-nums;line-height:1.05;` +
+      (strong ? 'background:#16224a;border-radius:6px;padding:3px 5px;' : '');
+    age.style.cssText = strong ? 'font-size:12px;font-weight:700;color:#ffffff;' : 'font-size:11px;font-weight:700;color:#dce6ff;';
+    count.style.cssText = strong ? 'font-size:10.5px;font-weight:600;color:#dce6ff;' : 'font-size:10px;font-weight:600;color:#9fb0d9;';
+    el.append(age, count);
     this.overlay.appendChild(el);
-    return el;
+    return { el, age, count, floor, rank };
+  }
+
+  /** What a label says on the face that is showing: the age, and on the two window faces the count of 100. */
+  private writeLabels(face: number) {
+    const say = (l: Label) => {
+      const f = this.model.floors[l.floor]; if (!f) return;
+      l.age.textContent = String(f.age);
+      l.count.textContent = face === 0 ? `${of100(f.windows)} of 100` : face === 3 ? `${of100(f.stress)} of 100` : '';
+      l.count.style.display = face === 0 || face === 3 ? '' : 'none';
+    };
+    this.labels.forEach(say); say(this.selLabel);
   }
 
   // ── Camera and drawing ──────────────────────────────────────────────────
@@ -342,11 +361,11 @@ export class LanternScene {
     // Framed for the tallest the tower gets (a floor open), so opening a floor never rescales it.
     const top = this.n + EXTRA + 0.4, bottom = -0.5;
     const t = Math.tan((FOV * Math.PI) / 360);
-    const halfH = ((top - bottom) / 2) * 1.14, halfW = W0 / 2 + 2.3;   // the near face stands taller than the axis
+    const halfH = ((top - bottom) / 2) * 1.14, halfW = W0 / 2 + (this.model.ladderFloors > 0 ? 3.6 : 2.3);   // the near face stands taller than the axis; a ladder's posts stand outside it
     // Room on both sides for the age labels, so the tower stays centred.
-    const compact = !!this.opts.compact, LEFT = 0.43, LABELS = 50;
+    const compact = !!this.opts.compact, LEFT = 0.43, LABELS = 62;
     const region = compact ? this.cw * (1 - LEFT) : this.cw;
-    const room = Math.max(0.2, (region - (compact ? LABELS + 8 : 108)) / this.ch);
+    const room = Math.max(0.2, (region - (compact ? LABELS + 8 : 136)) / this.ch);
     const d = Math.max(halfH / t, halfW / (t * room)) / this.zoom;
     const cy = (top + bottom) / 2;
     // Compact: the tower is centred in what is left of the right-hand region once its labels have their room.
@@ -374,22 +393,30 @@ export class LanternScene {
     return { minX, maxX, top, bot, y: (top + bot) / 2 };
   }
 
-  private place(el: HTMLSpanElement, i: number) {
-    const p = this.floorOnScreen(i);
-    el.style.transform = this.opts.compact
-      ? `translate(${Math.round(p.maxX + 5)}px, ${Math.round(p.y)}px) translate(0, -50%)`
-      : `translate(${Math.round(p.minX - 6)}px, ${Math.round(p.y)}px) translate(-100%, -50%)`;
+  /** Labels stand in one column beside the widest floor, level with their own floor and never off the picture. */
+  private place(el: HTMLSpanElement, y: number, col: number, half: number) {
+    const yy = Math.round(Math.min(this.ch - half - 1, Math.max(half + 1, y)));
+    el.style.transform = this.opts.compact ? `translate(${Math.round(col + 5)}px, ${yy}px) translate(0, -50%)` : `translate(${Math.round(col - 6)}px, ${yy}px) translate(-100%, -50%)`;
   }
 
   private draw() {
     this.tower.rotation.y = this.rot;
     this.tower.updateMatrixWorld(true);
     this.composer.render();
+    const face = this.face;
+    if (face !== this.labelFace) { this.labelFace = face; this.writeLabels(face); }
+    // Labels never touch: the open floor's first, then the first and last year, the years spending steps, the fifth birthdays.
+    const two = face === 0 || face === 3, need = two ? 24 : 14, taken: number[] = [];
+    const on = this.model.floors.map((_f, i) => this.floorOnScreen(i)), half = need / 2;
+    // Beside the widest floor, and never so far out that a label is cut off by the edge of the picture.
+    const widest = two ? 60 : 22;
+    const col = this.opts.compact ? Math.min(this.cw - widest - 7, Math.max(...on.map(p => p.maxX))) : Math.max(widest + 8, Math.min(...on.map(p => p.minX)));
+    if (this.selected >= 0) { const y = on[this.selected].y; this.place(this.selLabel.el, y, col, half + 3); taken.push(y - 3, y + 3); }
     for (const l of this.labels) {
-      const near = this.selected >= 0 && Math.abs(l.floor - this.selected) <= 1;
-      l.el.style.visibility = near ? 'hidden' : 'visible'; this.place(l.el, l.floor);
+      const y = Math.min(this.ch - half - 1, Math.max(half + 1, on[l.floor].y)), show = l.floor !== this.selected && !taken.some(t => Math.abs(t - y) < need);
+      l.el.style.visibility = show ? 'visible' : 'hidden';
+      if (show) { this.place(l.el, y, col, half); taken.push(y); }
     }
-    if (this.selected >= 0) this.place(this.selLabel, this.selected);
   }
 
   private frame = (t: number) => {
@@ -474,6 +501,7 @@ export class LanternScene {
     const dx = e.clientX - d.x;
     if (!d.moved && Math.abs(dx) < 6) return;
     d.moved = true;
+    if (this.opts.lockFace) return;   // a swipe is not a tap, and on the home the tower does not turn
     // The surface follows the finger: 60% of the width turns one face.
     this.rot = d.rot + dx * (QUARTER / (this.cw * 0.6));
     const dt = Math.max(1, e.timeStamp - d.lastT);
@@ -487,13 +515,14 @@ export class LanternScene {
     if (this.pinch) { if (this.pointers.size < 2) this.pinch = null; this.drag = null; return; }
     const d = this.drag; this.drag = null;
     if (!had || !d || e.type === 'pointercancel') { if (d?.moved) this.turnTo(Math.round(this.rot / QUARTER) * QUARTER); return; }
+    if (d.moved && this.opts.lockFace) return;
     if (d.moved) {
       // Snap to the nearest face, leaning the way the finger was going.
       this.turnTo(Math.round((this.rot + d.v * 120) / QUARTER) * QUARTER);
       return;
     }
     const now = e.timeStamp;
-    if (now - this.lastTap < 320) { this.lastTap = 0; this.zoom = 1; this.fit(); this.setLens(0); this.invalidate(); return; }
+    if (!this.opts.lockFace && now - this.lastTap < 320) { this.lastTap = 0; this.zoom = 1; this.fit(); this.setLens(0); this.invalidate(); return; }
     this.lastTap = now;
     const r = this.host.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top;
     let best = -1, bd = Infinity;

@@ -131,7 +131,11 @@ statements; the product uses the second.
 In the Monte Carlo, `successProb` is the share of paths that **paid the full
 planned spending in every year** (a year delivered below 99% of plan counts as
 a failure, however much is left). `successProbWithCuts` is the share that
-stayed solvent after the written rules trimmed spending. `successLifetime`
+stayed solvent after the written rules trimmed spending. A raise is a bonus,
+not a promise: in a year the rules had raised spending above the plan, only
+what is missing from the plan itself is a shortfall, so a path that paid the
+plan in full every year always counts as lasting with the rules
+(engine 2026.11.20). `successLifetime`
 weights each path by the chance the household is still here (§8).
 
 ### 3.4 The status in words, and the three numbers (`lib/status.ts`)

@@ -1198,6 +1198,12 @@ export function createEngine() {
       ({ potA, potB, isaA, isaB, cash, gia, uncrysA, uncrysB, pclsUsedA, pclsUsedB } = S);
       const { grossA, grossB, tfcA, tfcB, isaDraw, isaDrawA, isaDrawB, cashDraw, giaDraw } = F;
       const shortfall = clamp0(need - F.served);
+      // A raise is a bonus, not a promise (engine 2026.11.20). In a year the
+      // rules had raised spending above the plan, falling short of the raise
+      // while still paying the plan is not a year short: only what is missing
+      // from the plan itself counts. Without this a future that paid the plan
+      // in full every year could be counted as failing "with the rules".
+      const miss = target > planTarget ? clamp0(shortfall - (target - planTarget)) : shortfall;
 
       const taxA = taxOn(baseA + grossA, T);
       const taxB = taxOn(baseB + grossB, T);
@@ -1208,8 +1214,8 @@ export function createEngine() {
       // their own tax, so only the income tax is deducted here.
       const netIncome = baseA + baseB + grossA + grossB + tfcA + tfcB - taxA - taxB
         + isaDraw + cashDraw + giaDraw + eventIncome - payCostA - payCostB;
-      if (shortfall > 1) {
-        shortfallTotal += shortfall; shortfallTotalReal += shortfall / infl;
+      if (miss > 1) {
+        shortfallTotal += miss; shortfallTotalReal += miss / infl;
         if (shortfallYear == null) shortfallYear = year;
       }
 
@@ -1226,10 +1232,10 @@ export function createEngine() {
       const cu = Math.max(SPEND_FLOOR, deliveredReal);
       st.utilSum += gamma === 1 ? Math.log(cu) : Math.pow(cu, 1 - gamma) / (1 - gamma);
       st.utilN++;
-      if (shortfall > 1) {
+      if (miss > 1) {
         st.okRules = false;
         if (st.failIndex == null) st.failIndex = i;
-        const covered = clamp0(target - shortfall) / Math.max(1, target);
+        const covered = clamp0(target - shortfall) / Math.max(1, Math.min(target, planTarget));
         if (covered < st.minCoverage) st.minCoverage = covered;
         st.solvent.push(false);
       } else st.solvent.push(true);
@@ -1314,7 +1320,7 @@ export function createEngine() {
           }
         }
       }
-      if (exhaustedYear == null && wealth < 100 && shortfall > 1) exhaustedYear = year;
+      if (exhaustedYear == null && wealth < 100 && miss > 1) exhaustedYear = year;
       if (track) track.push(wealth);
       st.pen.push(potA + potB); st.oth.push(isaA + isaB + cash + gia);
 
@@ -1327,7 +1333,7 @@ export function createEngine() {
         taxA, taxB, tax: totalTax,
         isaDraw, isaDrawA, isaDrawB, cashDraw, giaDraw, dbLump, lumpTax, earnedA, earnedB,
         eventCost, eventInflow: eventIncome + eventInvested, eventLabels, inherited,
-        target, planTarget, netIncome, banked, shortfall, paid: ratio,
+        target, planTarget, netIncome, banked, shortfall: miss, paid: ratio,
         potA, potB, isaA, isaB, cash, gia, wealth,
         marginalA: marginalRate(baseA + grossA, T),
         marginalB: marginalRate(baseB + grossB, T),
@@ -2583,6 +2589,13 @@ export function createEngine() {
       check('Pre-retirement risk: pots at retirement spread P10 < P50 < P90', mc.potsAtRetirementP10 < mc.potsAtRetirementP50 && mc.potsAtRetirementP50 < mc.potsAtRetirementP90 ? 0 : 1, 0, 0.1);
       const archMc = runMonteCarlo({ ...D, architecture: { ...D.architecture, on: true } }, 200, 3);
       check('Structure overlay: success at full spending is below success after cuts', archMc.successProb <= archMc.successProbWithCuts ? 0 : 1, 0, 0.1);
+      {
+        // A raise is a bonus: rules that raise spending readily must not turn a future that paid the plan in full into a failure.
+        const eager = { ...D, targetNet: D.targetNet * 0.8, architecture: { ...D.architecture, on: true, rulesOn: true, raiseAbove: 1.0, raiseBy: 0.2, capMult: 2 } };
+        const em = runMonteCarlo(eager, 400, 11), ed = drawdown(eager);
+        check('Rules: with spending raised readily, the futures that last with the rules are still at least those paid in full', em.successProb <= em.successProbWithCuts ? 0 : 1, 0, 0.1);
+        check('…and in the central case a year paid above the plan is never a year short', ed.rows.some(r => r.spendMult > 1) && ed.rows.every(r => !(r.paid >= 1 && r.shortfall > 1)) ? 0 : 1, 0, 0.1);
+      }
       // R7c The written rules value what is still to come (engine 2026.11.20).
       {
         const ARt = { longevityAge: 95, giltReal: 0.015 }, r = 0.015, n = 30;

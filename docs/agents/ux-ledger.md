@@ -9,6 +9,7 @@ Word for word, newest first. These outrank any score.
 
 | Date | About | The owner said |
 |---|---|---|
+| 2026-11-21 | the first draft of version 2 (subtract, subtract) | "Don't ruin the UX in warn something visually stunning and different but simplicity is importantly" (read as: don't ruin the UX; I want something visually stunning and different, but simplicity is important) |
 | 2026-11-21 | the whole app | "The UX is now too complex. Create or revise the agent to create a world class UX by reviewing the best in the market and then using AI development to paradym shift" |
 | 2026-11-20 | the Lantern | "Do 1 through to 4" (one face on the home, two window states, one count, the count on the picture) |
 | 2026-11-20 | the Lantern | "could the colours be better visually , could it be simplified ?" |
@@ -28,7 +29,10 @@ November. The ones rejected fastest were made of many small marks or needed
 explaining. The one kept longest (the Lantern) was kept on the condition that
 it came with a key, was then simplified four ways in one day, and the verdict
 the next day was still "too complex". The complaint is now about the whole
-app, not the picture. Another picture is unlikely to be the answer.
+app, and the same day the owner asked for "something visually stunning and
+different". Read together: the picture is wanted, and wanted bolder. What is
+not wanted is everything that has grown up around it to explain it. The
+answer is a picture that needs no explaining, with almost nothing beside it.
 
 ## The budget
 
@@ -56,7 +60,7 @@ Not yet judged: the first Subtract cycle gives each a rung (manual §3.1).
 | "Your plan can pay £4,470" | How much could I have? | 0 | A second answer to a question the visitor did not ask. They asked "can I stop at 64 on £3,333" |
 | "a month after tax · You ask for £3,333" | What did I ask for? | 0 | Needed only because the big figure is not the ask |
 | "£1,137 to spare" | By how much? | 0 | Third figure about the same thing |
-| The tower | When does it get risky? | 1 | Answers a second-layer question on the first screen |
+| The tower | When does it get risky? | 1 | The hero, and it stays a hero. Today it answers a second-layer question (which years, which futures) and leaves the first-layer answer (can I?) to the words beside it. The aim: a picture whose overall look is the answer |
 | Age and count labels ("94 / 95 of 100", five of them) | How sure, each year? | 0 | 10 figures, 10 px |
 | Key ("Pays in full", "Falls short") | What do the marks mean? | 0 | Manual §1: if it needs a key |
 | Caption ("Each floor is a year. Each window…") | How do I read it? | 0 | Same |
@@ -85,7 +89,8 @@ screen.)
 To be filled from Benchmark cycles. Starting hypotheses, each to be tested,
 not believed:
 
-1. The first screen is one sentence and one control. Everything else is a tap.
+1. The first screen is one stunning picture that is itself the answer, one
+   sentence and one control. Everything else is a tap.
 2. Uncertainty is said the way a forecast says it, in words a person acts on,
    with the picture behind a tap.
 3. The app decides more and asks less: defaults in place of settings.
@@ -99,6 +104,10 @@ None yet. The first Leap cycle is due within the first week.
 | Date | Kind | What shipped | Pull request | The owner's reaction |
 |---|---|---|---|---|
 | 2026-11-21 | setup (owner-driven) | Version 2 of the manual; `horizon/ux-metrics.mjs` and the baseline above; this ledger with a first inventory of the home | see the pull request | — |
+
+**Standing instruction (owner, 21 November 2026):** do not ruin the UX. The
+result must be visually stunning and different as well as simple. Subtract
+the scaffolding, never the picture.
 
 **Next:** a Subtract cycle on the home. Give every row of the inventory its
 rung, run the panel on the home as it is (the baseline score), then ship the

@@ -23,7 +23,8 @@ import { verdictFor } from '../lib/status';
  * of how many are still paying at each age (`mc.perAgeHeld`, whose last year
  * is the headline count), so the moon, the row and the words cannot differ.
  */
-export type MoonYear = { age: number; p: number; full: number };
+/** `unlucky`: what the unluckiest 10 of 100 futures pay that year, a month (or 'full' when even they are paid in full). */
+export type MoonYear = { age: number; p: number; full: number; unlucky?: number | 'full' | null };
 export type MoonStep = {
   id: string; label: string; value: string; raw: number; less: string; more: string; canLess: boolean; canMore: boolean;
   onLess: () => void; onMore: () => void; onType?: (n: number) => void;
@@ -87,6 +88,7 @@ export default function MoonHome({ header, held, structured, pending, front, ste
     return { p: held[n - 1].p, years };
   }, [held, n]);
   const fullOf = useMemo(() => new Map(held.map(y => [y.age, Math.round(y.full * 100)])), [held]);
+  const unluckyOf = useMemo(() => new Map(held.map(y => [y.age, y.unlucky ?? null])), [held]);
   const count = last ? Math.round(last.p * 100) : null, inFull = last ? Math.round(last.full * 100) : null;
   const v = count != null ? verdictFor(count) : null;
 
@@ -124,6 +126,9 @@ export default function MoonHome({ header, held, structured, pending, front, ste
   const yearLine = year == null ? '' : structured && yearFull != null && yearFull !== yearCount
     ? `${yearCount} times in 100, the money lasts this long with your spending rules; ${yearFull} times in full.`
     : `${yearCount} times in 100, the money lasts this long.`;
+  // What the count leaves unsaid: in the futures where the money has not lasted, the guaranteed income still comes in.
+  const un = year ? unluckyOf.get(year.age) ?? null : null;
+  const unluckyLine = un == null ? '' : un === 'full' ? 'Even the unluckiest 10 are paid in full that year.' : `In the unluckiest 10, it pays about £${un.toLocaleString('en-GB')} a month or less.`;
   const rules = structured && inFull != null && inFull !== count ? `with your spending rules; ${inFull} times in full` : null;
   const ages = data ? data.years.map(y => y.age) : [];
   const key = (e: React.KeyboardEvent) => {
@@ -155,9 +160,9 @@ export default function MoonHome({ header, held, structured, pending, front, ste
             ? <div ref={box} data-moon-box className="flex-1 min-h-[168px]" aria-hidden="true" />
             : <div ref={box} data-moon-box className="flex-1 min-h-[168px] rounded-2xl outline-none focus-visible:ring-2 focus-visible:ring-[#9DB8FF]" role="slider" tabIndex={0} onKeyDown={key}
                 aria-label="The years ahead" aria-valuemin={ages[0]} aria-valuemax={ages[ages.length - 1]} aria-valuenow={year ? year.age : ages[0]}
-                aria-valuetext={year ? `At ${year.age}: ${yearLine}` : 'No year chosen. Use the arrow keys to choose one.'} />}
+                aria-valuetext={year ? `At ${year.age}: ${yearLine}${unluckyLine ? ' ' + unluckyLine : ''}` : 'No year chosen. Use the arrow keys to choose one.'} />}
 
-          <section data-answer data-ready={has && !pending && drawn ? '1' : '0'} aria-live="polite" className="text-center flex flex-col justify-center" style={{ minHeight: rules ? '9.9rem' : '8.5rem' }}>
+          <section data-answer data-ready={has && !pending && drawn ? '1' : '0'} aria-live="polite" className="text-center flex flex-col justify-center -mx-2" style={{ minHeight: rules ? '9.9rem' : '8.5rem' }}>
             {!has && <p data-moon-wait className="text-[1rem]" style={{ color: '#C9D4F2' }}>Working out 2,000 futures…</p>}
             {has && level === 0 && <>
               <h1 className="font-normal">
@@ -166,7 +171,7 @@ export default function MoonHome({ header, held, structured, pending, front, ste
                 <span aria-hidden="true" className="block tnum tracking-tight" style={{ fontSize: '4.5rem', lineHeight: 0.95, fontWeight: 400, letterSpacing: '-0.045em', color: pending ? '#9FB0D9' : '#FFFFFF' }}>{shown}</span>
                 <span data-moon-count className="sr-only">{count}</span>
                 {/* "Times in 100", not "futures": nine of twelve readers stumbled on "futures" ("I have only one future"). */}
-                <span data-moon-line className="block mt-0.5 text-[1rem] font-medium leading-snug" style={{ color: '#F4F6FF' }}>times in 100, the money lasts to {last!.age}</span>
+                <span data-moon-line className="block mt-0.5 text-[1rem] font-medium leading-snug whitespace-nowrap" style={{ color: '#F4F6FF' }}>times in 100, the money lasts until you are {last!.age}</span>
               </h1>
               {rules && <p data-moon-rules className="text-[1rem] leading-snug" style={{ color: '#C9D4F2' }}>{rules}</p>}
               <p data-status={v!.key} className="mt-1.5 text-[1.35rem] font-bold leading-tight tracking-tight">{v!.label}</p>
@@ -179,7 +184,7 @@ export default function MoonHome({ header, held, structured, pending, front, ste
             {has && level >= 1 && <ul className="sr-only" data-moon-list>{data!.years.map(y => <li key={y.age}>To {y.age}: {Math.round(y.p * 100)} times in 100.</li>)}</ul>}
             {year && <>
               <h1 data-moon-title className="text-[1.35rem] font-extrabold leading-tight tracking-tight">At {year.age}</h1>
-              <p data-moon-line className="mt-2 text-[1rem] leading-snug" style={{ color: '#C9D4F2' }}>{yearLine}</p>
+<p data-moon-line className="mt-2 text-[1rem] leading-snug" style={{ color: '#C9D4F2' }}>{yearLine}{unluckyLine && <> <span data-moon-unlucky>{unluckyLine}</span></>}</p>
             </>}
           </section>
 

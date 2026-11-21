@@ -53,7 +53,7 @@ export class MoonStage extends Stage {
       transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, uniforms: { uK: { value: 0 }, uP: { value: 0 } },
       vertexShader: 'varying vec2 vU; void main(){ vU = uv * 2.0 - 1.0; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
       // It comes off the lit side only: all round a full moon, to the right of a half one, almost nothing from a dark one.
-      fragmentShader: 'uniform float uK; uniform float uP; varying vec2 vU; void main(){ float d = length(vU); float a = pow(max(0.0, 1.0 - d), 3.6); float side = vU.x / max(d, 0.001), cover = 2.0 * uP - 1.0; float w = smoothstep(-cover - 0.9, -cover + 0.1, side); gl_FragColor = vec4(vec3(1.0, 0.93, 0.78) * a * w * uK, 1.0); }',
+      fragmentShader: 'uniform float uK; uniform float uP; varying vec2 vU; void main(){ float d = length(vU); float a = pow(max(0.0, 1.0 - d), 3.0); float side = vU.x / max(d, 0.001), cover = 2.0 * uP - 1.0; float w = smoothstep(-cover - 0.9, -cover + 0.1, side); gl_FragColor = vec4(vec3(1.0, 0.93, 0.78) * a * w * uK, 1.0); }',
     }));
     this.halo.position.z = -0.5; this.scene.add(this.halo);
     // A few faint stars, far behind, thinning out toward the middle of the sky, so none sits beside a label or a word (a critic: "stars land beside the numerals and read as punctuation"). The same sky every time.
@@ -106,7 +106,7 @@ export class MoonStage extends Stage {
   private at(px: number, py: number) { const u = this.u; return new THREE.Vector3((px - this.w / 2) * u, (this.h / 2 - py) * u, 0); }
   private get rowPx() { return Math.min(26, (this.box.w * 0.94) / Math.max(1, this.years.length) / 2.2); }
   /** The one moon at rest: room above it for the name and below it for the count. */
-  private get restPx() { return Math.min(this.box.w * 0.31, this.box.h * 0.45); }
+  private get restPx() { return Math.min(this.box.w * 0.36, this.box.h * 0.45); }
   private get chosenPx() { return Math.min(this.box.w * 0.2, this.box.h * 0.24); }
   /**
    * Where a year's moon sits: a level row, the day you stop on the left. (It was a shallow arc; three of four
@@ -137,12 +137,14 @@ export class MoonStage extends Stage {
     this.mainAt.set(this.ease(this.mainAt.x, goal.x, dt, 6), this.ease(this.mainAt.y, goal.y, dt, 6), 0.02);
     if (!this.placed) { this.mainAt.set(goal.x, goal.y, 0.02); this.placed = this.box.w > 1; }
     this.main.scale.setScalar(this.mainR); this.main.position.copy(this.mainAt);
+    // How lit the large moon is drawn this frame, of 100: the tests wait for it before they photograph the screen.
+    const drawn = String(Math.round(this.pNow * 100)); if (this.host.dataset.lit !== drawn) this.host.dataset.lit = drawn;
     this.main.rotation.y = this.reduced ? 0 : Math.sin(t * 0.05) * 0.25;
     // In the row, once it has arrived, the last year's own moon stands in for it.
     const arrived = this.level === 1 && n > 0 && Math.abs(this.mainR - goalR) < goalR * 0.06 && this.mainAt.distanceTo(goal) < goalR * 0.3;
     this.main.visible = !arrived;
-    this.halo.position.set(this.main.position.x, this.main.position.y, -0.5); this.halo.scale.setScalar(this.mainR * 1.75); this.halo.visible = this.main.visible;
-    const hu = (this.halo.material as THREE.ShaderMaterial).uniforms; hu.uK.value = 0.04 + 0.5 * this.pNow; hu.uP.value = this.pNow;
+    this.halo.position.set(this.main.position.x, this.main.position.y, -0.5); this.halo.scale.setScalar(this.mainR * 2.2); this.halo.visible = this.main.visible;
+    const hu = (this.halo.material as THREE.ShaderMaterial).uniforms; hu.uK.value = 0.03 + 0.36 * this.pNow; hu.uP.value = this.pNow;
     (this.stars.material as THREE.ShaderMaterial).uniforms.uT.value = this.reduced ? 0 : t;
     this.years.forEach((y, i) => {
       const open = this.level >= 1, chosen = this.level === 2 && i === this.sel, h = this.homePx(i);

@@ -67,7 +67,9 @@ export abstract class Stage {
 
   private frame = (now: number) => {
     if (this.gone) return;
-    const dt = Math.min(0.05, (now - this.last) / 1000); this.last = now;
+    // Real time, even where frames are slow (an old phone, software drawing): the eases are exact at any step, so a
+    // quarter of a second is safe, and the light arrives when it should instead of crawling.
+    const dt = Math.min(0.25, (now - this.last) / 1000); this.last = now;
     if (!document.hidden && !this.paused) { this.update(now / 1000, dt); this.composer.render(); this.layout(); }
     this.raf = requestAnimationFrame(this.frame);
   };
@@ -181,7 +183,7 @@ export function bakeMoon(renderer: THREE.WebGLRenderer): THREE.WebGLRenderTarget
 export function phaseMaterial(p: number, surface: THREE.Texture, o: { gain?: number; bump?: number } = {}) {
   const m = new THREE.ShaderMaterial({
     uniforms: { uLight: { value: new THREE.Vector3() }, uMap: { value: surface },
-      uHigh: { value: new THREE.Color(0xfff6de) }, uSea: { value: new THREE.Color(0xc8a25c) }, uDark: { value: new THREE.Color(0x0d1226) }, uRim: { value: new THREE.Color(0x27335a) },
+      uHigh: { value: new THREE.Color(0xfbf6ea) }, uSea: { value: new THREE.Color(0xc4b08a) }, uDark: { value: new THREE.Color(0x0d1226) }, uRim: { value: new THREE.Color(0x27335a) },
       uGain: { value: o.gain ?? 1.0 }, uBump: { value: o.bump ?? 1.0 }, uDim: { value: 1 } },
     vertexShader: `varying vec3 vN; varying vec3 vE; varying vec3 vT; varying vec3 vP;
       void main(){ vec3 n = normalize(position), e = normalize(cross(vec3(0.0, 1.0, 0.0), n) + vec3(1e-5, 0.0, 0.0));
@@ -197,10 +199,10 @@ export function phaseMaterial(p: number, surface: THREE.Texture, o: { gain?: num
         // The shadow's edge is soft, a penumbra a few hundredths of the disc wide, and the ground's slopes show most
         // beside it, where the light is low: crater rims catch it there. Out in full light the ground is calm.
         float low = 1.0 - smoothstep(0.0, 0.55, dM);
-        float lit = smoothstep(-0.05, 0.11, dM + (dB - dM) * 0.22);
+        float lit = smoothstep(-0.05, 0.11, dM + (dB - dM) * 0.09);
         float limb = pow(facing, 0.5);
         vec3 ground = mix(uSea, uHigh, t.r);
-        vec3 bright = ground * uGain * (0.62 + 0.38 * limb) * clamp(1.0 + (0.5 + 2.2 * low) * (dB - dM), 0.5, 1.4) * (0.9 + 0.1 * smoothstep(0.0, 0.45, dM));
+        vec3 bright = ground * uGain * (0.62 + 0.38 * limb) * clamp(1.0 + (0.45 + 1.6 * low) * (dB - dM), 0.55, 1.4) * (0.9 + 0.1 * smoothstep(0.0, 0.45, dM));
         // Night: a little above the sky, the seas just showing by earthshine, and a faint rim so the whole disc still reads.
         vec3 shade = uDark * (0.55 + 0.75 * t.r) * (0.45 + 0.55 * limb) + uRim * pow(1.0 - facing, 3.0) * 0.45;
         gl_FragColor = vec4(mix(shade, bright, lit) * uDim, 1.0); }`,

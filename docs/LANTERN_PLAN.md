@@ -250,3 +250,15 @@ reason the palette now separates by lightness), and whether five people who
 have never seen it read the right answer. The reviewer's five questions for
 that test: what is this a picture of; is this plan fine or not; where is the
 risk; what does one window mean; what would you tap.
+
+## 11. Off the home (21 November 2026)
+
+Blind tests on 21 November (twelve readers, with and without the key) found
+that one reader could say what the tower meant. The owner: "Yes the tower is
+not intuitive. You can remove it but only to replace with something better
+and non standard." Three replacements were built and tested the same day and
+the owner chose the moon ("Moon - do it"); it is the home from that date
+(`horizon/src/moon/`, `CLAUDE.md`). The Lantern stays as the full-screen
+view of the years at `?lantern=1`, reached from Explore, with all four faces
+and their keys, and its adapter still feeds "Show every year as a table".
+`LanternHome.tsx` was deleted. Stages 3 and 4 above are not planned.

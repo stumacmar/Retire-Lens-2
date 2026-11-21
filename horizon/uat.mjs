@@ -1011,130 +1011,187 @@ const openMap = async () => { await closeSheet(); await tap('Explore'); await wa
   await check('173 lantern: zero page errors', () => pe.length === 0);
 }
 
-// ── The Lantern on the home (owner, 18 November 2026: "move the candle to the main screen… a key
-// or other way to understand how it's constructed in each example") ─────────────────────────────
-// In its own page with nothing pinned, so it opens as a visitor's does: on the Lantern.
+// ── The moon is the home (owner, 21 November 2026, on the three concepts built in the lab: "Moon - do it").
+// One night-blue screen: a moon lit by how often the money lasts, the count, a verdict the count alone decides,
+// two steppers, and the years one press deeper. In its own page with nothing pinned, so it opens as a visitor's does.
 {
-  const stored = await planOf(), islandFigure = await p.$eval('[data-supports]', e => e.textContent).catch(() => null);
+  const stored = await planOf();
   const dump = await p.evaluate(() => JSON.stringify(Object.fromEntries(Object.entries(localStorage).filter(([k]) => k !== 'someday-picture-v1'))));
   const cx = await b.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2 }), h = await cx.newPage();
   const herr = [], hreq = [];
   h.on('pageerror', e => herr.push(e.message)); h.on('console', m => { if (m.type() === 'error' && !/404|favicon/i.test(m.text())) herr.push(m.text()); });
   h.on('request', r => { const u = r.url(); if (!u.startsWith(URL) && !/^(data|blob|about):/.test(u)) hreq.push(u); });
-  await h.goto(URL); await h.evaluate(d => { for (const [k, v] of Object.entries(JSON.parse(d))) localStorage.setItem(k, v); }, dump);
+  await h.goto(URL); await h.evaluate(d => { for (const [k, v] of Object.entries(JSON.parse(d))) localStorage.setItem(k, v); localStorage.setItem('someday-picture-v1', 'lantern'); }, dump);
   await h.goto(URL, { waitUntil: 'networkidle' });
   const gl = await h.evaluate(() => { const c = document.createElement('canvas'); return !!(c.getContext('webgl2') || c.getContext('webgl')); });
   const hw = ms => h.waitForTimeout(ms);
-  const H = k => h.$eval('[data-lantern]', (e, k) => e.getAttribute(k), k);
-  const reading = () => h.$eval('[data-lantern-text]', e => e.textContent);
-  const legend = () => h.$$eval('[data-lantern-home] [data-lantern-legend] li', els => els.map(e => e.textContent.trim()));
-  const engineOf = (pl) => { const q0 = E.migratePlan(pl), q = { ...q0, growth: q0.growthBase ?? q0.growth }, seed = q.mcSeed || 42;
-    const lit = m => m.perAgePaid.ages.map(r => r.q.filter(v => v >= 0.99).length);
-    return { q, rows: E.drawdown(q).rows, base: () => lit(E.runMonteCarlo(q, 2000, seed)), hit: () => lit(E.runMonteCarlo(q, 2000, seed, { shock: { year: 1, size: 0.3 } })) }; };
+  const M = k => h.$eval('[data-moon-home]', (e, k) => e.getAttribute(k), k);
+  const settled = () => h.waitForFunction(() => document.querySelector('[data-moon-home] [data-answer]')?.getAttribute('data-ready') === '1', null, { timeout: 40000 }).catch(() => {});
+  const words = v => (v >= 80 ? 'Yes, on track' : v >= 60 ? 'Probably' : v >= 40 ? 'It could go either way' : v >= 20 ? 'Probably not' : 'Not as it stands');
+  // What the engine says the moon should show, worked out here in node (so a count may differ by one from the browser's).
+  const engineOf = (pl) => { const q0 = E.migratePlan(pl), q = { ...q0, growth: q0.growthBase ?? q0.growth }, m = E.runMonteCarlo(q, 2000, q.mcSeed || 42), st = !!q.architecture?.on;
+    const held = m.perAgeHeld.map(v => ({ age: v.age, n: Math.round((st ? Math.max(v.full, v.rules) : v.full) * 100) })), n = held.length;
+    const pick = e => held.filter((y, i) => i === 0 || i === n - 1 || (y.age % e === 0 && i >= 3 && i <= n - 4)), five = pick(5);
+    return { count: held[n - 1].n, toAge: held[n - 1].age, years: five.length > 8 ? pick(10) : five, mc: m }; };
+  const yearsShown = async () => ((await M('data-years')) || '').split(' ').filter(Boolean).map(s => s.split(':').map(Number));
+  const near = (got, want) => got.length === want.length && got.every(([a, n], i) => a === want[i].age && Math.abs(n - want[i].n) <= 1);
+  // The share of the moon's disc that is lit, measured from a photograph of the screen: gold against slate.
+  const litShare = async () => { const box = await h.locator('[data-moon-box]').boundingBox(), png = (await h.screenshot({ clip: box })).toString('base64');
+    return h.evaluate(async b64 => { const img = new Image(); img.src = 'data:image/png;base64,' + b64; await img.decode();
+      const c = document.createElement('canvas'); c.width = img.width; c.height = img.height; const x = c.getContext('2d'); x.drawImage(img, 0, 0);
+      const d = x.getImageData(0, 0, c.width, c.height).data; let gold = 0, slate = 0;
+      for (let i = 0; i < d.length; i += 4) { const r = d[i], bl = d[i + 2]; if (r > 110 && r > bl + 30) gold++; else if (bl >= 55 && bl > r + 25 && r < 80) slate++; }
+      return gold + slate > 2000 ? gold / (gold + slate) : null; }, png); };
   if (!gl) {
-    await check('174 lantern home: without WebGL the home shows the island instead', async () => (await h.$('[data-island]')) != null);
+    await check('174 moon home: without WebGL the home shows the island instead', async () => (await h.$('[data-island]')) != null);
   } else {
-    await h.waitForSelector('[data-lantern-home] [data-lantern][data-ready="1"]', { timeout: 40000 }).catch(() => {});
-    const X = engineOf(stored), base = X.base();
-    await check('174 lantern home: a visitor\'s home opens on the Lantern, not the island', async () => (await h.$('[data-simple-home] [data-lantern-home]')) != null && (await h.$('[data-island]')) == null && (await H('data-ready')) === '1');
-    await check('175 lantern home: the answer sits in the panel, and is the figure the island shows for the same plan', async () => {
-      const t = await h.$eval('[data-lantern-home]', e => e.innerText);
-      return (await h.$('[data-lantern-home] [data-status]')) != null && /Your plan can pay/.test(t) && /a month after tax/.test(t) && !/You ask for/.test(t)
-        && (await h.$eval('[data-lantern-home] [data-supports]', e => e.textContent)) === islandFigure && (await h.$('[data-lantern-home] [data-futures]')) != null; });
-    await check('176 lantern home: one floor a year, and the lit windows on every floor are the engine\'s count', async () => (await H('data-floors')) === String(X.rows.length) && (await H('data-lit')) === base.join(',') && (await H('data-model-ok')) === '1');
-    const at = (r, n) => new RegExp(`^At ${r.ageA} \\(${r.year}(; your partner is ${r.ageB})?\\): ${n * 5} of 100 futures pay your full £[\\d,]+ a month\\.`);
-    // Scout, 21 November 2026 (the owner: "The UX is now too complex"; "visually stunning and different but simplicity is important"):
-    // the picture without its scaffolding. No key, no caption, no buttons, no counts beside the floors: the tower and the answer.
-    await check('177 lantern home: the panel holds the tower and the answer and nothing else: no key, caption, buttons or lens switches, and one thing to tap', async () => {
-      const r = await h.evaluate(() => { const panel = document.querySelector('[data-lantern-home] > div');
-        const controls = [...panel.querySelectorAll('button, a[href], input, [role="button"], [role="slider"], [role="switch"]')].filter(e => e.getBoundingClientRect().width > 0);
-        const words = (panel.innerText || '').split(/\s+/).filter(Boolean).length;
-        return { controls: controls.map(c => c.getAttribute('role') || c.tagName).join(','), words, text: panel.innerText }; });
-      const gone = !(await h.$('[data-lantern-legend]')) && !(await h.$('[data-lantern-caption]')) && !(await h.$('[data-lantern-key-open]')) && !(await h.$('[data-lantern-more]')) && (await h.$$('[data-lantern-home] [data-lens]')).length === 0;
-      if (!(gone && r.controls === 'slider' && r.words <= 22)) console.log('  177: ' + JSON.stringify(r).slice(0, 300));
-      return gone && r.controls === 'slider' && r.words <= 22 && !/How to read|Each floor|of 100/.test(r.text) && (await H('data-windows')) === '10'; });
-    await check('177b lantern home: beside the tower, the first and last age only, 13 px or larger, inside the picture; nothing on the home\'s first screen is set under 12 px in the panel', async () => {
-      const got = await h.$$eval('[data-lantern] [data-floor-label]', els => { const box = document.querySelector('[data-lantern]').getBoundingClientRect();
-        return els.filter(e => getComputedStyle(e).visibility !== 'hidden' && getComputedStyle(e).display !== 'none').map(e => { const r = e.getBoundingClientRect();
-          return { floor: +e.dataset.floorLabel, text: e.textContent, px: parseFloat(getComputedStyle(e.children[0]).fontSize), inside: r.left >= box.left && r.right <= box.right + 0.5 && r.top >= box.top - 0.5 && r.bottom <= box.bottom + 0.5 }; }); });
-      const smallest = await h.evaluate(() => { let m = 99; const w = document.createTreeWalker(document.querySelector('[data-lantern-home] > div'), NodeFilter.SHOW_TEXT);
-        for (let n = w.nextNode(); n; n = w.nextNode()) { if (!n.nodeValue.trim()) continue; const el = n.parentElement, cs = getComputedStyle(el); if (cs.visibility === 'hidden' || cs.display === 'none') continue; m = Math.min(m, parseFloat(cs.fontSize)); } return m; });
-      const want = [[0, String(X.rows[0].ageA)], [X.rows.length - 1, String(X.rows[X.rows.length - 1].ageA)]];
-      const ok = got.length === 2 && want.every(([f, t]) => got.some(g => g.floor === f && g.text === t)) && got.every(g => g.inside && g.px >= 13) && smallest >= 13;
-      if (!ok) console.log('  177b: ' + JSON.stringify(got) + ' smallest ' + smallest);
+    await h.waitForSelector('[data-moon-home][data-drawn="1"]', { timeout: 40000 }).catch(() => {});
+    await settled(); await hw(1500);
+    const X = engineOf(stored);
+    await check('174 moon home: a visitor\'s home opens on the moon (also where the device had stored the Lantern), not the island or the tower', async () =>
+      (await h.$('[data-simple-home][data-moon-home] canvas')) != null && (await h.$('[data-island]')) == null && (await h.$('[data-lantern]')) == null && (await M('data-drawn')) === '1');
+    await check('175 moon home: the count is the engine\'s share of futures (to 1 of 100), the sentence names the last year, and the verdict is the one the count decides', async () => {
+      const shown = Number(await h.$eval('[data-moon-count]', e => e.textContent)), line = await h.$eval('[data-moon-line]', e => e.textContent), verdict = await h.$eval('[data-moon-home] [data-status]', e => e.textContent);
+      const ok = Math.abs(shown - X.count) <= 1 && line === `times in 100, the money lasts to ${X.toAge}` && verdict === words(shown) && String(shown) === (await M('data-count'));
+      if (!ok) console.log(`  175: shows ${shown} "${line}" "${verdict}", engine ${X.count} to ${X.toAge}`);
       return ok; });
-    await check('177c lantern home: the tower does not turn on the home (a sideways drag leaves the first face showing)', async () => {
-      const box = await h.locator('[data-lantern]').boundingBox(), y = box.y + box.height * 0.5;
-      await h.mouse.move(box.x + box.width * 0.85, y); await h.mouse.down(); await h.mouse.move(box.x + box.width * 0.55, y, { steps: 6 }); await h.mouse.up(); await hw(600);
-      const face = await H('data-face');
-      if ((await H('data-selected')) !== '-1') { await h.locator('[data-lantern]').focus(); await h.keyboard.press('Escape'); await hw(500); }
-      return face === '0'; });
-    await check('179 lantern home: tapping a floor opens it and reads that year with the engine\'s count; tapping it again closes it', async () => {
-      const rest = await reading(), box = await h.locator('[data-lantern]').boundingBox();
-      const x = box.x + box.width * 0.66, y = box.y + box.height * 0.5;
-      await h.mouse.click(x, y); await hw(700);
-      const sel = +(await H('data-selected')), t = await reading();
-      const opened = sel >= 0 && at(X.rows[sel], base[sel]).test(t) && (await h.$eval(`[data-lantern] [data-floor-label="${sel}"]`, e => e.textContent)) === String(X.rows[sel].ageA);
-      // The open floor is taller and has moved, so tap it where its own label says it is.
-      const mid = await h.$$eval(`[data-lantern] [data-floor-label="${sel}"]`, els => { const e = els.find(v => getComputedStyle(v).visibility !== 'hidden' && getComputedStyle(v).display !== 'none') || els[0], r = e.getBoundingClientRect(); return r.top + r.height / 2; });
-      await h.mouse.click(x, mid); await hw(700);
-      const after = await H('data-selected'), now = await reading();
-      if (!(opened && after === '-1' && now === rest)) console.log(`  179: sel ${sel} text "${t}" want /${at(X.rows[Math.max(0, sel)], base[Math.max(0, sel)]).source}/ after ${after} rest "${rest}" now "${now}"`);
-      return opened && after === '-1' && now === rest; });
-    await check('180 lantern home: the keyboard reaches it: arrows open and move the floor, Escape closes it', async () => {
-      await h.locator('[data-lantern]').focus(); await h.keyboard.press('ArrowUp'); await hw(300); await h.keyboard.press('ArrowUp'); await hw(500);
-      const sel = +(await H('data-selected')), vt = await H('aria-valuetext');
-      await h.keyboard.press('Escape'); await hw(500);
-      return sel === 1 && vt.startsWith(`At ${X.rows[1].ageA} (`) && (await H('role')) === 'slider' && (await H('data-selected')) === '-1'; });
-    await check('181 lantern home: under the picture, the answer in one sentence and nothing more until a floor is tapped; the other views are still reached from Explore', async () => {
-      const t = (await h.$eval('[data-lantern-reading]', e => e.innerText)).replace(/\s+/g, ' ').trim();
-      const sentence = /^In \d+ of 100 futures, £[\d,]+ a month lasts to \d+\. An estimate, not a guarantee\.$/.test(t) || /futures/.test(t) && t.split(' ').length <= 40;
-      await h.getByRole('button', { name: 'Explore' }).last().click(); await hw(900);
-      const link = (await h.getAttribute('[data-lantern-link]', 'href')) === './?lantern=1';
+    await check('176 moon home: the years in the row are the engine\'s (the day of stopping, each fifth birthday, the last year), and the last year is the headline count', async () => {
+      const got = await yearsShown(), ok = near(got, X.years) && got[got.length - 1][1] === Number(await M('data-count')) && got.every(([, n], i) => i === 0 || n <= got[i - 1][1]);
+      if (!ok) console.log('  176: ' + JSON.stringify(got) + ' engine ' + JSON.stringify(X.years));
+      return ok; });
+    await check('177 moon home: the first screen is the moon, the count, the verdict, two steppers and two questions: 60 words or fewer, and none of the old scaffolding', async () => {
+      const r = await h.evaluate(() => { const home = document.querySelector('[data-moon-home]'), nav = document.querySelector('nav');
+        const seen = e => { const b = e.getBoundingClientRect(), cs = getComputedStyle(e); return b.width > 0 && b.height > 0 && cs.visibility !== 'hidden'; };
+        const controls = [...home.querySelectorAll('button, a[href], input, [role="slider"], [role="switch"]')].filter(seen).length;
+        const text = home.innerText + ' ' + nav.innerText;
+        return { controls, words: text.split(/\s+/).filter(Boolean).length, text: home.innerText.replace(/\s+/g, ' ') }; });
+      const gone = !(await h.$('[data-step-down]')) && !(await h.$('[data-counts]')) && !(await h.$('[data-supports]')) && !(await h.$('[data-driver="monthly"]')) && !/Your plan can pay|futures|pay in/i.test(r.text);
+      const ok = gone && r.words <= 60 && r.controls <= 8 && /Stop work at/.test(r.text) && /Take home a month/.test(r.text) && /What would help\?/.test(r.text) && /What could go wrong\?/.test(r.text);
+      if (!ok) console.log('  177: ' + JSON.stringify(r).slice(0, 400));
+      return ok; });
+    await check('177b moon home: no text on the first screen is under 13 px, tab bar included, and it is set in four sizes', async () => {
+      const sizes = await h.evaluate(() => { const out = new Set();
+        for (const root of [document.querySelector('[data-moon-home]'), document.querySelector('nav')]) { const w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+          for (let n = w.nextNode(); n; n = w.nextNode()) { if (!n.nodeValue.trim()) continue; const el = n.parentElement, cs = getComputedStyle(el), b = el.getBoundingClientRect(); if (cs.visibility === 'hidden' || cs.display === 'none' || !b.width) continue; out.add(Math.round(parseFloat(cs.fontSize) * 10) / 10); } }
+        return [...out].sort((a, b) => a - b); });
+      const ok = sizes[0] >= 13 && sizes.length <= 4;
+      if (!ok) console.log('  177b: sizes ' + sizes.join(', '));
+      return ok; });
+    await check('177c moon home: the picture is honest: the share of the moon that is lit, measured from the screen, is the count (within 6 of 100)', async () => {
+      const lit = await litShare(), shown = Number(await M('data-count'));
+      const ok = lit != null && Math.abs(lit * 100 - shown) <= 6;
+      if (!ok) console.log(`  177c: lit share ${lit == null ? 'not measured' : (lit * 100).toFixed(1)}, count ${shown}`);
+      return ok; });
+    const tapYear = async i => { const bx = await h.locator('[data-moon-home] [data-year-age]').nth(i).boundingBox(); await h.mouse.click(bx.x + bx.width / 2, bx.y - 20); await hw(900); };
+    await check('179 moon home: "The years ahead" opens the moon into its years; pressing a year reads it with the engine\'s count; pressing it again, then Back, returns to the answer', async () => {
+      await h.locator('[data-moon-years]').click(); await hw(1200);
+      const l1 = await M('data-level'), t1 = (await h.$eval('[data-moon-home] [data-answer]', e => e.innerText)).replace(/\s+/g, ' ');
+      const labels = await h.$$eval('[data-moon-home] [data-year-age]', els => els.filter(e => getComputedStyle(e).visibility !== 'hidden').map(e => [Number(e.dataset.yearAge), Number(e.querySelector('[data-n]').textContent)]));
+      const k = Math.min(3, X.years.length - 1); await tapYear(k);
+      const l2 = await M('data-level'), sel = Number(await M('data-sel')), t2 = (await h.$eval('[data-moon-home] [data-answer]', e => e.innerText)).replace(/\s+/g, ' ');
+      const got = labels[k] || [], read = new RegExp(`^At ${got[0]} ${got[1]} times in 100, the money is still paying( in full\\.| with your spending rules; \\d+ times in full\\.)$`).test(t2);
+      // The chosen year has risen to the top of the box: press it there to put it back.
+      const bx = await h.locator('[data-moon-box]').boundingBox(); await h.mouse.click(bx.x + bx.width / 2, bx.y + Math.min(bx.width * 0.2, bx.height * 0.24) + 6); await hw(900);
+      const l3 = await M('data-level');
+      await h.locator('[data-moon-years]').click(); await hw(900);
+      const ok = l1 === '1' && /^The years ahead At each age, how many times in 100 the money is still paying\./.test(t1) && near(labels, X.years) && l2 === '2' && sel === got[0] && read && l3 === '1' && (await M('data-level')) === '0';
+      if (!ok) console.log(`  179: levels ${l1},${l2},${l3} sel ${sel} "${t1}" "${t2}" labels ${JSON.stringify(labels)}`);
+      return ok; });
+    await check('179b moon home: pressing the moon itself opens the years too', async () => {
+      const bx = await h.locator('[data-moon-box]').boundingBox(); await h.mouse.click(bx.x + bx.width / 2, bx.y + bx.height / 2); await hw(900);
+      const l = await M('data-level'); await h.locator('[data-moon-years]').click(); await hw(900);
+      return l === '1' && (await M('data-level')) === '0'; });
+    await check('180 moon home: the keyboard reaches it: Enter on "The years ahead", then the years are a slider stepped with the arrows, End and Escape', async () => {
+      await h.locator('[data-moon-years]').focus(); await h.keyboard.press('Enter'); await hw(700);
+      await h.locator('[data-moon-box]').focus(); await h.keyboard.press('ArrowRight'); await hw(300); await h.keyboard.press('ArrowRight'); await hw(500);
+      const role = await h.getAttribute('[data-moon-box]', 'role'), now = await h.getAttribute('[data-moon-box]', 'aria-valuenow'), vt = await h.getAttribute('[data-moon-box]', 'aria-valuetext');
+      await h.keyboard.press('End'); await hw(400); const end = await M('data-sel');
+      await h.keyboard.press('Escape'); await hw(400); const l1 = await M('data-level');
       await h.keyboard.press('Escape'); await hw(700);
-      if (!(sentence && link)) console.log('  181: ' + t);
-      return sentence && link && (await reading()) === ''; });
-    await check('182 lantern home: changing the plan redraws the same tower in place, to the engine\'s new counts', async () => {
-      await h.$eval('[data-lantern] canvas', c => { c.dataset.mark = 'same'; });
-      await h.getByRole('button', { name: 'Take home: £100 a month more' }).click(); await hw(400);
-      const now = await h.evaluate(() => JSON.parse(localStorage.getItem('horizon-plan-v1')));
-      const Y = engineOf(now), want = Y.base().join(',');
-      const ok = await h.waitForFunction(w => document.querySelector('[data-lantern]')?.getAttribute('data-lit') === w, want, { timeout: 30000 }).then(() => true, () => false);
-      const same = (await h.$eval('[data-lantern] canvas', c => c.dataset.mark)) === 'same';
-      await h.getByRole('button', { name: 'Take home: £100 a month less' }).click(); await hw(400);
-      await h.waitForFunction(w => document.querySelector('[data-lantern]')?.getAttribute('data-lit') === w, base.join(','), { timeout: 30000 }).catch(() => {});
-      return now.targetNet !== E.migratePlan(stored).targetNet && ok && same; });
-    await check('183 lantern home: at 390×844, 390×660, 375×667 and 360×640 everything stays above the tab bar, nothing scrolls sideways, the answer is whole and the tower has the whole panel', async () => {
+      const ok = role === 'slider' && now === String(X.years[1].age) && vt.startsWith(`At ${X.years[1].age}: `) && end === String(X.toAge) && l1 === '1' && (await M('data-level')) === '0';
+      if (!ok) console.log(`  180: role ${role} now ${now} "${vt}" end ${end} level ${l1}`);
+      return ok; });
+    await check('181 moon home: "What would help?" and "What could go wrong?" open their sheets over it, and the tab bar is night-blue only while the moon is in front', async () => {
+      const night0 = await h.getAttribute('nav', 'data-night');
+      await h.getByRole('button', { name: 'What could go wrong?' }).click(); await hw(900);
+      const risk = (await h.$('[data-risk-panel]')) != null, night1 = await h.getAttribute('nav', 'data-night');
+      await h.keyboard.press('Escape'); await hw(700);
+      await h.getByRole('button', { name: 'What would help?' }).click(); await hw(900);
+      const help = (await h.getByRole('dialog').count()) > 0 && /What would help most/.test(await h.getByRole('dialog').first().innerText());
+      await h.keyboard.press('Escape'); await hw(700);
+      await h.getByRole('button', { name: 'Explore' }).last().click(); await hw(900);
+      const night2 = await h.getAttribute('nav', 'data-night'), link = (await h.getAttribute('[data-lantern-link]', 'href')) === './?lantern=1';
+      await h.keyboard.press('Escape'); await hw(700);
+      const ok = night0 === '1' && risk && night1 == null && help && night2 == null && link && (await h.getAttribute('nav', 'data-night')) === '1';
+      if (!ok) console.log(`  181: night ${night0},${night1},${night2} risk ${risk} help ${help} link ${link}`);
+      return ok; });
+    await check('182 moon home: a stepper writes the plan, and the same moon moves to the engine\'s new count (no new canvas)', async () => {
+      await h.$eval('[data-moon-home] canvas', c => { c.dataset.mark = 'same'; });
+      await h.getByRole('button', { name: 'Take home: £100 a month more' }).click(); await hw(500); await settled(); await hw(300);
+      const now = await h.evaluate(() => JSON.parse(localStorage.getItem('horizon-plan-v1'))), Y = engineOf(now);
+      const shown = Number(await M('data-count')), years = await yearsShown(), same = (await h.$eval('[data-moon-home] canvas', c => c.dataset.mark)) === 'same';
+      await h.getByRole('button', { name: 'Stop work at: a year later' }).click(); await hw(500); await settled(); await hw(300);
+      const later = await h.evaluate(() => JSON.parse(localStorage.getItem('horizon-plan-v1'))), Z = engineOf(later), shown2 = Number(await M('data-count'));
+      await h.getByRole('button', { name: 'Stop work at: a year earlier' }).click(); await hw(300);
+      await h.getByRole('button', { name: 'Take home: £100 a month less' }).click(); await hw(500); await settled();
+      const back = await h.evaluate(() => JSON.parse(localStorage.getItem('horizon-plan-v1')));
+      const base = E.migratePlan(stored);
+      const ok = now.targetNet === base.targetNet + 1200 && Math.abs(shown - Y.count) <= 1 && near(years, Y.years) && same && later.retireYear === base.retireYear + 1 && Math.abs(shown2 - Z.count) <= 1
+        && back.targetNet === base.targetNet && back.retireYear === base.retireYear;
+      if (!ok) console.log(`  182: ask ${now.targetNet} (was ${base.targetNet}) shows ${shown}, engine ${Y.count}; a year later shows ${shown2}, engine ${Z.count}; same canvas ${same}`);
+      return ok; });
+    await check('182b moon home: the take-home figure can be typed, and the count follows', async () => {
+      const base = E.migratePlan(stored), want = Math.round(base.targetNet / 12 / 100) * 100 + 700;
+      await h.locator('[data-driver="targetNet"] button[data-value]').click(); await hw(200);
+      await h.keyboard.press('Control+A'); await h.keyboard.type(String(want)); await h.keyboard.press('Enter'); await hw(500); await settled(); await hw(300);
+      const now = await h.evaluate(() => JSON.parse(localStorage.getItem('horizon-plan-v1'))), Y = engineOf(now), shown = Number(await M('data-count')), lit = await (async () => { await hw(1500); return litShare(); })();
+      await h.locator('[data-driver="targetNet"] button[data-value]').click(); await hw(200);
+      await h.keyboard.press('Control+A'); await h.keyboard.type(String(base.targetNet / 12)); await h.keyboard.press('Enter'); await hw(500); await settled();
+      const back = await h.evaluate(() => JSON.parse(localStorage.getItem('horizon-plan-v1')));
+      const ok = now.targetNet === want * 12 && Math.abs(shown - Y.count) <= 1 && lit != null && Math.abs(lit * 100 - shown) <= 6 && Math.abs(back.targetNet - base.targetNet) < 1;
+      if (!ok) console.log(`  182b: asked ${want}, plan ${now.targetNet}, shows ${shown}, engine ${Y.count}, lit ${lit == null ? '?' : (lit * 100).toFixed(1)}, back ${back.targetNet}`);
+      return ok; });
+    await check('183 moon home: at 390×844, 390×660, 375×667, 360×780 and 360×640 it all fits one screen above the tab bar, nothing scrolls, no label touches a button, and the years stay apart', async () => {
       const bad = [];
-      for (const [w, hh] of [[390, 844], [390, 660], [375, 667], [360, 640]]) {
+      for (const [w, hh] of [[390, 844], [390, 660], [375, 667], [360, 780], [360, 640]]) {
         await h.setViewportSize({ width: w, height: hh }); await hw(700);
-        const r = await h.evaluate(() => { const nav = document.querySelector('nav').getBoundingClientRect(), home = document.querySelector('[data-simple-home]');
-          const q = [...home.querySelectorAll('button')].find(x => /What could go wrong/.test(x.textContent)).getBoundingClientRect();
-          return { slack: Math.round(nav.top - q.bottom), hscroll: home.scrollWidth > home.clientWidth + 1 }; });
-        // The answer must be whole inside the panel, and the tower must have the room the scaffolding used to take.
-        const keys = [await h.evaluate(() => { const panel = document.querySelector('[data-lantern-home] > div').getBoundingClientRect(), gap = document.querySelector('[data-lantern-home] [data-gap], [data-lantern-home] [data-supports]').getBoundingClientRect();
-          const c = document.querySelector('[data-lantern] canvas').getBoundingClientRect();
-          return gap.bottom <= panel.bottom && c.height >= panel.height - 1 && c.height >= 280; })];
-        if (r.slack < 0 || r.hscroll || keys.includes(false)) bad.push(`${w}×${hh} ${JSON.stringify(r)} answer whole and the tower has the panel: ${keys.join(',')}`);
+        const fit = () => h.evaluate(() => { const nav = document.querySelector('nav').getBoundingClientRect(), home = document.querySelector('[data-moon-home]');
+          const low = Math.max(...[...home.querySelectorAll('button')].map(x => x.getBoundingClientRect().bottom)), box = document.querySelector('[data-moon-box]').getBoundingClientRect();
+          const rows = [...home.querySelectorAll('[data-driver]')].every(d => { const l = d.querySelector('span').getBoundingClientRect(), m = d.querySelector('button').getBoundingClientRect(); return l.right <= m.left && l.height < 30; });
+          const labs = [...home.querySelectorAll('[data-year-age]')].filter(e => getComputedStyle(e).visibility !== 'hidden').map(e => e.getBoundingClientRect());
+          const apart = labs.every((r, i) => r.left >= 0 && r.right <= innerWidth && r.top >= box.top && r.bottom <= box.bottom + 1 && (i === 0 || r.left >= labs[i - 1].right));
+          return { slack: Math.round(nav.top - low), scrolls: home.scrollHeight > home.clientHeight + 1 || home.scrollWidth > home.clientWidth + 1, box: Math.round(box.height), rows, apart, labels: labs.length }; });
+        const a = await fit();
+        await h.locator('[data-moon-years]').click(); await hw(1000); const y = await fit();
+        await tapYear(1); const z = await fit();
+        await h.locator('[data-moon-years]').click(); await hw(300); await h.locator('[data-moon-years]').click(); await hw(600);
+        for (const [name, r] of [['answer', a], ['years', y], ['a year', z]]) if (r.slack < 0 || r.scrolls || r.box < 168 || !r.rows || !r.apart || (name !== 'answer' && r.labels < 3)) bad.push(`${w}×${hh} ${name} ${JSON.stringify(r)}`);
       }
-      await h.setViewportSize({ width: 390, height: 844 }); await hw(500);
-      if (bad.length) console.log('  lantern fit: ' + bad.join('; '));
-      return bad.length === 0; });
-    const ax = await axeScan('Lantern home', h);
-    await check(`184 lantern home: no critical or serious WCAG 2.2 AA violations${ax.bad.length ? ' — ' + ax.detail : ''}`, () => ax.bad.length === 0);
-    await check('185 lantern home: Explore switches the home picture to the island and back, and remembers it', async () => {
+      await h.setViewportSize({ width: 390, height: 844 }); await hw(600);
+      if (bad.length) console.log('  moon fit: ' + bad.join('; '));
+      return bad.length === 0 && (await M('data-level')) === '0'; });
+    const ax = await axeScan('Moon home', h);
+    await h.locator('[data-moon-years]').click(); await hw(900); await tapYear(2);
+    const ax2 = await axeScan('Moon home, a year open', h);
+    await h.locator('[data-moon-years]').click(); await hw(300); await h.locator('[data-moon-years]').click(); await hw(600);
+    await check(`184 moon home: no critical or serious WCAG 2.2 AA violations, closed or with a year open${ax.bad.length + ax2.bad.length ? ' — ' + [ax.detail, ax2.detail].filter(Boolean).join(' | ') : ''}`, () => ax.bad.length === 0 && ax2.bad.length === 0);
+    await check('185 moon home: Explore switches the home picture to the island and back, and remembers it', async () => {
       await h.getByRole('button', { name: 'Explore' }).last().click(); await hw(900);
       await h.locator('[data-picture-choice="island"]').click(); await hw(400);
       const k1 = await h.evaluate(() => localStorage.getItem('someday-picture-v1'));
       await h.keyboard.press('Escape'); await hw(700);
-      const island = (await h.$('[data-island]')) != null && (await h.$('[data-lantern-home]')) == null;
+      const island = (await h.$('[data-island]')) != null && (await h.$('[data-moon-home]')) == null && (await h.getAttribute('nav', 'data-night')) == null;
       await h.reload({ waitUntil: 'networkidle' }); await hw(900);
       const kept = (await h.$('[data-island]')) != null;
       await h.getByRole('button', { name: 'Explore' }).last().click(); await hw(900);
-      await h.locator('[data-picture-choice="lantern"]').click(); await hw(400); await h.keyboard.press('Escape'); await hw(900);
-      return k1 === 'island' && island && kept && (await h.evaluate(() => localStorage.getItem('someday-picture-v1'))) === 'lantern' && (await h.$('[data-lantern-home]')) != null; });
+      await h.locator('[data-picture-choice="moon"]').click(); await hw(400); await h.keyboard.press('Escape'); await hw(900);
+      return k1 === 'island' && island && kept && (await h.evaluate(() => localStorage.getItem('someday-picture-v1'))) === 'moon' && (await h.$('[data-moon-home]')) != null; });
   }
-  await check('186 lantern home: nothing left the device, and zero page errors' + (herr.length ? ' — ' + herr.slice(0, 2).join(' | ') : ''), () => hreq.length === 0 && herr.length === 0);
+  await check('186 moon home: nothing left the device, and zero page errors' + (herr.length ? ' — ' + herr.slice(0, 2).join(' | ') : ''), () => hreq.length === 0 && herr.length === 0);
+  await check('186b the lab\'s losing concepts are gone: no address in the app opens them, and nothing links to one', async () => {
+    await h.goto(URL + '?lab=scales', { waitUntil: 'networkidle' }); await hw(600);
+    const none = (await h.$('[data-lab]')) == null && (await h.$('[data-lab-index]')) == null;
+    return none && (await p.$$eval('a[href*="lab="]', els => els.length)) === 0; });
   await cx.close();
 }
 
@@ -1154,38 +1211,6 @@ const openMap = async () => { await closeSheet(); await tap('Explore'); await wa
   await o.waitForFunction(() => document.querySelectorAll('[data-risk-panel] [data-risk]').length >= 6, null, { timeout: 30000 }).catch(() => {}); await o.waitForTimeout(500);
   await check('187 a smaller State Pension is not offered once every State Pension is in payment: six cases, and no page errors', async () =>
     spToCome(fixed).length === 0 && (await o.locator('[data-risk-panel] [data-risk]').evaluateAll(els => els.map(e => e.getAttribute('data-risk')).join(' '))) === 'base poor japan stagflation crashflat futures' && oerr.length === 0);
-  await cx.close();
-}
-
-// ── The lab (Pension Scout, manual §3.3): concepts for the home on the real engine at ?lab=<name>.
-// Reached only by their address, and they change nothing on the device.
-{
-  const stored = await planOf(), q0 = E.migratePlan(stored), q = { ...q0, growth: q0.growthBase ?? q0.growth };
-  const of100 = pl => { const m = E.runMonteCarlo(pl, 2000, pl.mcSeed || 42); return Math.round((pl.architecture?.on && m.successProbWithCuts != null ? m.successProbWithCuts : m.successProb) * 100); };
-  const dump = await p.evaluate(() => JSON.stringify(Object.fromEntries(Object.entries(localStorage))));
-  const cx = await b.newContext({ viewport: { width: 390, height: 660 } }), l = await cx.newPage(), lerr = [], lreq = [];
-  l.on('pageerror', e => lerr.push(e.message)); l.on('console', m => { if (m.type() === 'error' && !/404|favicon|WebGL|GPU/i.test(m.text())) lerr.push(m.text()); });
-  l.on('request', r => { const u = r.url(); if (!u.startsWith(URL) && !/^(data|blob|about):/.test(u)) lreq.push(u); });
-  await l.goto(URL); await l.evaluate(d => { for (const [k, v] of Object.entries(JSON.parse(d))) localStorage.setItem(k, v); }, dump);
-  await l.goto(URL + '?lab=moon', { waitUntil: 'networkidle' });
-  await l.waitForSelector('[data-lab="moon"] [data-lab-count]', { timeout: 40000 }).catch(() => {});
-  const count = async () => Number((await l.$eval('[data-lab-count]', e => e.textContent)).match(/\d+/)[0]);
-  const settled = () => l.waitForFunction(() => document.querySelector('[data-lab="moon"]')?.dataset.pending === '0', null, { timeout: 40000 }).catch(() => {});
-  await check('188 lab: the moon runs on the plan on this device: its count is the engine\'s share of futures (to 1 of 100), in plain words', async () => {
-    await settled(); const shown = await count(), want = of100(q), t = (await l.$eval('[data-lab="moon"]', e => e.innerText)).replace(/\s+/g, ' ');
-    if (Math.abs(shown - want) > 1) console.log(`  188: shows ${shown}, engine ${want}`);
-    return Math.abs(shown - want) <= 1 && /times in 100, the money lasts to \d+/.test(t) && /Yes, on track|Probably|It could go either way|Probably not|Not as it stands/.test(t) && /Stop work at/.test(t) && /Take home a month/.test(t); });
-  await check('189 lab: stepping "Stop work at" moves the count to the engine\'s figure for that plan, and saves nothing', async () => {
-    await l.getByRole('button', { name: 'Stop work a year later' }).click(); await l.waitForTimeout(300); await settled();
-    const shown = await count(), want = of100({ ...q, retireYear: q.retireYear + 1 });
-    const saved = await l.evaluate(() => localStorage.getItem('horizon-plan-v1'));
-    if (Math.abs(shown - want) > 1) console.log(`  189: shows ${shown}, engine ${want}`);
-    return Math.abs(shown - want) <= 1 && saved === JSON.parse(dump)['horizon-plan-v1']; });
-  await check('190 lab: the scales and the core load on the same plan; nothing left the device and no page errors' + (lerr.length ? ' — ' + lerr.slice(0, 2).join(' | ') : ''), async () => {
-    const seen = [];
-    for (const n of ['scales', 'core']) { await l.goto(URL + '?lab=' + n, { waitUntil: 'networkidle' }); await l.waitForSelector(`[data-lab="${n}"] [data-lab-line]`, { timeout: 40000 }).catch(() => {}); seen.push((await l.$eval('[data-lab-line]', e => e.textContent).catch(() => '')).length > 20); }
-    return seen.every(Boolean) && lreq.length === 0 && lerr.length === 0; });
-  await check('191 lab: nothing in the app links to it', async () => (await p.$$eval('a[href*="lab="]', els => els.length)) === 0);
   await cx.close();
 }
 

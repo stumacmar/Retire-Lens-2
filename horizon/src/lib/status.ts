@@ -159,3 +159,21 @@ export function withDeadZone(prev: StatusKey | null, s: PlanStatus): PlanStatus 
   if (key === s.key) return s;
   return { ...s, key, label: STATUS_LABELS[key], colour: key === 'close' || key === 'not' ? 'var(--color-slate)' : 'var(--color-ring)' };
 }
+
+/**
+ * The verdict on the moon home: decided by the count it stands beside and by
+ * nothing else, so the words and the number can never disagree. (Every one of
+ * twelve blind readers saw "Enough in most futures, not all" beside "58 of
+ * 100" as a contradiction; Pension Scout, 21 November 2026.) Plain words, no
+ * idioms: "Touch and go" was read as an instruction to touch the screen.
+ * `count` is the futures of 100 in which the money lasts to the plan age:
+ * paid in full on a plain plan, lasting with its rules on a structured one.
+ */
+export type VerdictKey = 'yes' | 'probably' | 'either' | 'unlikely' | 'no';
+export function verdictFor(count: number): { key: VerdictKey; label: string } {
+  return count >= 80 ? { key: 'yes', label: 'Yes, on track' }
+    : count >= 60 ? { key: 'probably', label: 'Probably' }
+      : count >= 40 ? { key: 'either', label: 'It could go either way' }
+        : count >= 20 ? { key: 'unlikely', label: 'Probably not' }
+          : { key: 'no', label: 'Not as it stands' };
+}

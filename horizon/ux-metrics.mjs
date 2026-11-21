@@ -103,7 +103,7 @@ const p = await ctx.newPage();
 await p.goto(URL);
 await p.evaluate(([g, pl]) => { localStorage.setItem('someday-gate-v1', g); localStorage.setItem('horizon-plan-v1', pl); localStorage.setItem('someday-disclaimer-v1', '2026-10'); }, [GATE, PLAN]);
 await p.goto(URL, { waitUntil: 'networkidle' });
-await p.waitForSelector('[data-lantern][data-ready="1"], [data-island]', { timeout: 40000 }).catch(() => {});
+await p.waitForSelector('[data-moon-home][data-drawn="1"], [data-island]', { timeout: 40000 }).catch(() => {});
 await p.waitForFunction(() => document.querySelector('[data-answer]')?.getAttribute('data-ready') === '1', null, { timeout: 40000 }).catch(() => {});
 await p.waitForTimeout(1200);
 if (SHOTS) fs.mkdirSync(SHOTS, { recursive: true });

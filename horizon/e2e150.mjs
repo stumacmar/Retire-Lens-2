@@ -206,6 +206,10 @@ const expectInPage = async (P) => {
   const a = acc.atRetirement;
   return { key, sus, target, capYear, futures: Math.round(pUse * 100), futuresFull: Math.round(mc.successProb * 100), structured,
     lit: mc.perAgePaid.ages.map(r => r.q.filter(v => v >= 0.99).length).join(','),
+    // The moon home: the day of stopping, each fifth birthday (each tenth on a long retirement) and the last year, with how many of 100 futures are still paying.
+    moon: (() => { const held = mc.perAgeHeld.map(h => ({ age: h.age, n: Math.round((structured ? Math.max(h.full, h.rules) : h.full) * 100) })), n = held.length;
+      const pick = e => held.filter((y, i) => i === 0 || i === n - 1 || (y.age % e === 0 && i >= 3 && i <= n - 4)), five = pick(5);
+      return (five.length > 8 ? pick(10) : five).map(y => `${y.age}:${y.n}`).join(' '); })(),
     pots: a.pensionA + a.pensionB + a.isaA + a.isaB + (a.cash || 0) + (a.gia || 0) };
 };
 /** The same supportable figure, worked out here in Node: only to measure how far two JavaScript engines drift apart. */
@@ -342,12 +346,12 @@ async function readHome(page, plan) {
 }
 
 const results = new Array(N);
-let next = 0, lanternChecked = 0;
+let next = 0, moonChecked = 0;
 async function worker() {
   const ctx = await b.newContext({ viewport: { width: 390, height: 844 } });
   const page = await ctx.newPage();
-  // Existing checks were written against the island; the home now opens on the Lantern, so they pin the island
-  // (only where nothing is set). The Lantern home has its own block, in its own page, with no pin.
+  // Existing checks were written against the island; the home now opens on the moon, so they pin the island
+  // (only where nothing is set). The moon home has its own check (P), which unpins it for a sample.
   await page.addInitScript(() => { try { if (!localStorage.getItem('someday-picture-v1')) localStorage.setItem('someday-picture-v1', 'island'); } catch { /* private mode */ } });
   const errs = []; page.on('pageerror', e => errs.push('page: ' + e.message)); page.on('console', m => { if (m.type() === 'error' && !/404|favicon/i.test(m.text())) errs.push('console: ' + m.text()); });
   for (;;) {
@@ -424,18 +428,22 @@ async function worker() {
       }
       // M N O Q scheme pensions, State Pension dates, the plan's end and the ages, by hand (every household)
       fails.push(...wideChecks(plan));
-      // P the Lantern, which is what the home opens on: its lit windows are the engine's count, floor for floor
+      // P the moon, which is what the home opens on: its count, its verdict and every year in its row are the engine's
       if (i % 10 === 0 || i >= BASE && i % 5 === 0) {
         const gl = await page.evaluate(() => { const c = document.createElement('canvas'); return !!(c.getContext('webgl2') || c.getContext('webgl')); });
         if (gl) {
-          await page.evaluate(() => localStorage.setItem('someday-picture-v1', 'lantern'));
+          await page.evaluate(() => localStorage.setItem('someday-picture-v1', 'moon'));
           await page.reload({ waitUntil: 'domcontentloaded' });
-          const ok = await page.waitForFunction((want) => document.querySelector('[data-lantern-home] [data-lantern]')?.getAttribute('data-lit') === want, x.lit, { timeout: 60000 }).then(() => true, () => false);
-          if (!ok) fails.push(`P the Lantern's lit windows are "${await page.$eval('[data-lantern]', e => e.getAttribute('data-lit')).catch(() => 'not drawn')}", the engine counts "${x.lit}"`);
+          const ok = await page.waitForFunction((want) => { const m = document.querySelector('[data-moon-home]'); return !!m && m.getAttribute('data-years') === want && m.getAttribute('data-drawn') === '1' && m.getAttribute('data-pending') === '0'; }, x.moon, { timeout: 60000 }).then(() => true, () => false);
+          if (!ok) fails.push(`P the moon's years are "${await page.$eval('[data-moon-home]', e => e.getAttribute('data-years')).catch(() => 'not drawn')}", the engine counts "${x.moon}"`);
           else {
-            const fig = Number((await page.$eval('[data-lantern-home] [data-supports]', e => e.innerText)).replace(/[£,]/g, ''));
-            if (fig !== ui.figure) fails.push(`P the Lantern home shows £${fig}, the island home £${ui.figure}`);
-            lanternChecked++;
+            const m = await page.evaluate(() => { const h = document.querySelector('[data-moon-home]'); return { count: Number(h.querySelector('[data-moon-count]').textContent), line: h.querySelector('[data-moon-line]').textContent, verdict: h.querySelector('[data-status]').textContent, rules: h.querySelector('[data-moon-rules]')?.textContent || '' }; });
+            const want = m.count >= 80 ? 'Yes, on track' : m.count >= 60 ? 'Probably' : m.count >= 40 ? 'It could go either way' : m.count >= 20 ? 'Probably not' : 'Not as it stands';
+            if (m.count !== x.futures) fails.push(`P the moon home shows ${m.count} times in 100, the engine gives ${x.futures}`);
+            if (m.verdict !== want) fails.push(`P the moon home says "${m.verdict}" beside ${m.count}; the count alone decides the words: "${want}"`);
+            if (!m.line.endsWith(`the money lasts to ${x.moon.split(' ').pop().split(':')[0]}`)) fails.push(`P the moon home's sentence is "${m.line}", the last year drawn is ${x.moon.split(' ').pop()}`);
+            if (x.structured && x.futuresFull !== x.futures && !m.rules.includes(`${x.futuresFull} times in full`)) fails.push(`P structured plan: the moon home does not state the paid-in-full count ${x.futuresFull}: "${m.rules}"`);
+            moonChecked++;
           }
           await page.evaluate(() => localStorage.setItem('someday-picture-v1', 'island'));
         }
@@ -463,7 +471,7 @@ if (process.argv.includes('-v') || process.env.E2E150_VERBOSE) {
 console.log(`\nStatuses across the ${N}: ` + Object.entries(by).map(([k, v]) => `${LABEL[k]} ${v}`).join(' · '));
 const drifts = results.filter(r => r.x && r.x.drift != null).map(r => r.x.drift).sort((a, b) => a - b);
 console.log(`Same plan, two JavaScript engines (Chromium and Node): figure identical in ${drifts.filter(d => d === 0).length} of ${drifts.length}; largest difference ${(drifts[drifts.length - 1] * 100).toFixed(2)}%`);
-console.log(`Independent checks applied: pots formula ${scenarios.filter(s => formulaApplies(s[1])).length} of ${N} · tax-free ceiling ${scenarios.filter(s => ceilingApplies(s[1])).length} of ${N} · needle cross-check ${Math.ceil(N / 5)} · the Lantern's windows ${lanternChecked}`);
+console.log(`Independent checks applied: pots formula ${scenarios.filter(s => formulaApplies(s[1])).length} of ${N} · tax-free ceiling ${scenarios.filter(s => ceilingApplies(s[1])).length} of ${N} · needle cross-check ${Math.ceil(N / 5)} · the moon home ${moonChecked}`);
 console.log(`Households: couples ${scenarios.filter(s => s[1].household !== 'single').length} · partners nine or more years apart ${scenarios.filter(s => ageGap(s[1]) >= 9).length} · NHS pensions ${scenarios.filter(s => hasNhs(s[1])).length} · any scheme pension ${scenarios.filter(s => hasScheme(s[1])).length} · safe ladder ${scenarios.filter(s => s[1].architecture?.on).length} · a death age set ${scenarios.filter(s => [s[1].partnerA, s[1].partnerB].some(w => n(w.deathAge) > 0)).length}`);
 console.log(`\n═══ Horizon ${N} END-TO-END SCENARIOS: ${passed}/${N} passed (${Math.round((Date.now() - t0) / 1000)} s) ═══`);
 const bad = results.map((r, i) => [i, r]).filter(([, r]) => r.fails.length);

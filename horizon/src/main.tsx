@@ -8,15 +8,11 @@ import ErrorBoundary from './components/ErrorBoundary';
 // loads Three.js in its own chunk, so the app itself carries none of it.
 const lantern = new URLSearchParams(window.location.search).has('lantern');
 const LanternPreview = lazy(() => import('./lantern/LanternPreview'));
-// The lab (docs/agents/PENSION_SCOUT.md §3.3): concepts for the home on the real engine at ?lab=<name>.
-// Reached only by its address, never linked from the app, in its own chunk.
-const lab = new URLSearchParams(window.location.search).has('lab');
-const Lab = lazy(() => import('./lab/Lab'));
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <ErrorBoundary>
-      {lab ? <Suspense fallback={null}><Lab /></Suspense> : lantern ? <Suspense fallback={null}><LanternPreview /></Suspense> : <App />}
+      {lantern ? <Suspense fallback={null}><LanternPreview /></Suspense> : <App />}
     </ErrorBoundary>
   </StrictMode>,
 );

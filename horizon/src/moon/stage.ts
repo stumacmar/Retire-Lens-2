@@ -5,9 +5,10 @@ import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 
 /**
- * The lab's stage: one WebGL scene with a soft glow, a night backdrop, text
- * labels kept in the page (so they stay crisp), a tap, and a frame loop. Each
- * concept is a small class on top of it. Framework-free.
+ * The stage the moon is drawn on: one WebGL scene with a soft glow, a night
+ * backdrop, text labels kept in the page (so they stay crisp), a tap, and a
+ * frame loop. Framework-free. (It began in the lab, where each concept for
+ * the home was a small class on top of it.)
  */
 export abstract class Stage {
   protected renderer: THREE.WebGLRenderer;
@@ -19,6 +20,9 @@ export abstract class Stage {
   private raf = 0; private last = 0; private ro: ResizeObserver; private gone = false;
   private down: { x: number; y: number } | null = null;
   private ray = new THREE.Raycaster();
+  private paused = false;
+  /** Called if the browser takes the WebGL context away: the home then shows the island. */
+  onLost: (() => void) | null = null;
 
   constructor(protected host: HTMLElement, protected overlay: HTMLElement, o: { fov?: number; distance?: number; bloom?: [number, number, number] } = {}) {
     this.reduced = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
@@ -42,8 +46,12 @@ export abstract class Stage {
       if (!d || Math.hypot(e.clientX - d.x, e.clientY - d.y) > 10) return;
       const b = this.host.getBoundingClientRect(); this.onTap(e.clientX - b.left, e.clientY - b.top);
     });
+    el.addEventListener('webglcontextlost', e => { e.preventDefault(); this.onLost?.(); });
     this.ro = new ResizeObserver(() => this.resize()); this.ro.observe(host);
   }
+
+  /** Stop drawing while something covers the picture (a sheet over the home): nothing moves, nothing is spent. */
+  setPaused(p: boolean) { this.paused = p; }
 
   /** Call once the subclass has built its scene. */
   protected start() { this.resize(); this.last = performance.now(); this.raf = requestAnimationFrame(this.frame); }
@@ -60,7 +68,7 @@ export abstract class Stage {
   private frame = (now: number) => {
     if (this.gone) return;
     const dt = Math.min(0.05, (now - this.last) / 1000); this.last = now;
-    if (!document.hidden) { this.update(now / 1000, dt); this.composer.render(); this.layout(); }
+    if (!document.hidden && !this.paused) { this.update(now / 1000, dt); this.composer.render(); this.layout(); }
     this.raf = requestAnimationFrame(this.frame);
   };
 
@@ -138,7 +146,7 @@ export function phaseMaterial(p: number, o: { lit?: number; dark?: number; gain?
         float d = dot(n, normalize(uLight)) + (relief - 0.5) * 0.035;
         float lit = smoothstep(-0.012, 0.03, d);
         float limb = pow(max(n.z, 0.0), 0.45);
-        vec3 bright = uLit * uGain * (0.74 + 0.26 * limb) * (0.9 + 0.2 * (relief - 0.5)) * (1.0 - 0.1 * seas) * (0.82 + 0.18 * smoothstep(0.0, 0.5, d));
+        vec3 bright = uLit * uGain * (0.74 + 0.26 * limb) * (0.9 + 0.2 * (relief - 0.5)) * (1.0 - 0.2 * seas) * (0.82 + 0.18 * smoothstep(0.0, 0.5, d));
         vec3 shade = uDark * (0.5 + 0.5 * limb) * (0.92 + 0.16 * (relief - 0.5)) + vec3(0.02, 0.03, 0.07) * (1.0 - limb);
         gl_FragColor = vec4(mix(shade, bright, lit) * uDim, uAlpha); }`,
   });

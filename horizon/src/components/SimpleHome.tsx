@@ -13,8 +13,9 @@ import Sheet from './Sheet';
 import { canDraw3d } from '../lib/picture';
 import type { Picture } from '../lib/picture';
 
-// The Lantern brings Three.js with it, so it loads in its own chunk, only when the home shows it.
-const LanternHome = lazy(() => import('../lantern/LanternHome'));
+// The moon brings Three.js with it, so it loads in its own chunk, only when the home shows it.
+const MoonHome = lazy(() => import('../moon/MoonHome'));
+import type { MoonStep } from '../moon/MoonHome';
 import RiskPanel from './RiskPanel';
 import Island from './Island';
 import { lifeEvents } from '../lib/lifeEvents';
@@ -51,8 +52,14 @@ import TrancheSheet from './TrancheSheet';
  */
 type Driver = { id: string; label: string; val: Val; step: number; show: (n: number) => string; sub: string; less: string; more: string };
 
-export default function SimpleHome({ plan, update, dd, mc, onDetails, header, picture = 'lantern' }: {
+export default function SimpleHome({ plan, update, dd, mc, onDetails, header, picture = 'moon', pending = false, front = true, onNight }: {
   plan: any; update: (p: any) => void; dd: Drawdown; mc: MC | null; onDetails: () => void; header?: React.ReactNode; picture?: Picture;
+  /** A new simulation is on its way; `mc` is still the last one. */
+  pending?: boolean;
+  /** Nothing covers the home (no sheet is open over it). */
+  front?: boolean;
+  /** Told whether the home is the night-blue moon, so the tab bar can match it. */
+  onNight?: (night: boolean) => void;
 }) {
   const single = plan.household === 'single';
   const A = plan.partnerA, B = plan.partnerB;
@@ -76,7 +83,7 @@ export default function SimpleHome({ plan, update, dd, mc, onDetails, header, pi
   // State Pension and other guaranteed income, so it is never shown as nothing).
   const structured = !!plan.architecture?.on;
   const stopAge = plan.retireYear - A.birthYear;
-  const held = mc?.perAgeHeld || [];
+  const held = useMemo(() => mc?.perAgeHeld || [], [mc]);
   const countAt = (h: any) => Math.round((structured ? Math.max(h.full, h.rules) : h.full) * 100);
   const firstShort = held.find((h: any) => countAt(h) < 100)?.age;
   const endCount = held.length ? countAt(held[held.length - 1]) : 100;
@@ -106,9 +113,13 @@ export default function SimpleHome({ plan, update, dd, mc, onDetails, header, pi
   const commit = () => { if (!typing) return; const n = parseFloat(typing.text.replace(/[,£\s]/g, '')); if (Number.isFinite(n)) write(typing.id, () => n); setTyping(null); };
 
   const [panel, setPanel] = useState<null | 'help' | 'risk'>(null);
-  // The Lantern needs WebGL; without it (or if the context is lost) the home shows the island instead.
+  // The moon needs WebGL; without it (or if the context is lost) the home shows the island instead.
   const [no3d, setNo3d] = useState(() => !canDraw3d());
-  const lantern = picture === 'lantern' && !no3d;
+  const moon = picture === 'moon' && !no3d && hasMoney;
+  useEffect(() => { onNight?.(moon); return () => onNight?.(false); }, [moon, onNight]);
+  // What the moon draws: at each age, the share of futures still paying (in full on a plain plan, with its rules on
+  // a structured one), and the share still paying in full. The last year is the headline count.
+  const moonYears = useMemo(() => held.map((h: any) => ({ age: h.age as number, p: (structured ? Math.max(h.full, h.rules) : h.full) as number, full: h.full as number })), [held, structured]);
   const events = useMemo(() => lifeEvents(plan, dd), [plan, dd]);
   const central = useMemo(() => { try { return (E as any).coverByAge(plan) as { age: number; cover: number }[]; } catch { return []; } }, [plan]);
   const endAge = held.length ? held[held.length - 1].age : plan.horizonAge;
@@ -118,26 +129,49 @@ export default function SimpleHome({ plan, update, dd, mc, onDetails, header, pi
   const figure = status.sustainable ?? month;
   const gap = status.gap;
 
-  // The answer, written once and placed in whichever picture the home shows. In the Lantern it is lean
-  // (Scout, 21 November 2026: the picture without its scaffolding): the status, the one figure and the gap,
-  // nothing under 13 px. What you ask is already on the stepper below and in the sentence under the picture.
-  const headFor = (lean: boolean) => <>
-                <p data-status={status.key} className={`flex items-center gap-1.5 font-semibold leading-tight ${lean ? 'text-[0.94rem]' : 'text-[0.82rem]'}`} style={{ color: `var(--status-ink, ${status.colour})` }} aria-live="polite">
+  // The island's answer: the status, the one figure, what you ask and the gap. (The moon home says its own.)
+  const head = <>
+                <p data-status={status.key} className={`flex items-center gap-1.5 font-semibold leading-tight text-[0.82rem]`} style={{ color: `var(--status-ink, ${status.colour})` }} aria-live="polite">
                   <span aria-hidden className="inline-block w-2 h-2 rounded-full shrink-0" style={{ background: status.colour }} />{status.label}
                 </p>
                 {/* The figure: what the plan can pay, labelled so it is never mistaken for what
                     you ask (review, 17 November 2026), with what you ask and the gap. */}
-                <span data-figure-label className={`block font-semibold leading-tight ${lean ? 'text-[0.82rem] mt-2' : 'text-[0.7rem] mt-1'}`} style={{ color: 'var(--color-ink-dim)' }}>Your plan can pay</span>
-                <h1 className="serif tnum leading-none" style={{ fontSize: lean ? 'clamp(2.1rem, 9.5vw, 2.8rem)' : 'clamp(1.9rem, 8.5vw, 2.5rem)', letterSpacing: '-0.04em', color: 'var(--color-ink)' }} data-supports>{fmt(figure)}</h1>
-                <span className={`block leading-tight mt-0.5 ${lean ? 'text-[0.82rem]' : 'text-[0.74rem]'}`} style={{ color: 'var(--color-ink-dim)' }}>a month after tax{!lean && <> · <span data-ask>You ask for {fmt(month)}</span></>}</span>
+                <span data-figure-label className={`block font-semibold leading-tight text-[0.7rem] mt-1`} style={{ color: 'var(--color-ink-dim)' }}>Your plan can pay</span>
+                <h1 className="serif tnum leading-none" style={{ fontSize: 'clamp(1.9rem, 8.5vw, 2.5rem)', letterSpacing: '-0.04em', color: 'var(--color-ink)' }} data-supports>{fmt(figure)}</h1>
+                <span className={`block leading-tight mt-0.5 text-[0.74rem]`} style={{ color: 'var(--color-ink-dim)' }}>a month after tax · <span data-ask>You ask for {fmt(month)}</span></span>
                 {gap != null && (
-                  <span data-gap className={`block font-semibold leading-tight whitespace-nowrap ${lean ? 'text-[0.9rem] mt-1' : 'text-[0.78rem]'}`} style={{ color: gap < 0 ? 'var(--color-slate)' : status.key === 'on' ? 'var(--color-ring)' : 'var(--color-ink-dim)' }}>
+                  <span data-gap className={`block font-semibold leading-tight whitespace-nowrap text-[0.78rem]`} style={{ color: gap < 0 ? 'var(--color-slate)' : status.key === 'on' ? 'var(--color-ring)' : 'var(--color-ink-dim)' }}>
                     {Math.abs(gap) < 25 ? <>Just what you ask</>
                       : gap < 0 ? <>{fmt(-gap)} short</>
                         : <>{fmt(gap)} to spare</>}
                   </span>)}
               </>;
+  const sheets = <>
+    <Sheet open={panel === 'help'} onClose={() => setPanel(null)} title="What would help most">
+      {panel === 'help' && <HelpPanel plan={plan} update={update} onDone={() => setPanel(null)} />}
+    </Sheet>
+    <Sheet open={panel === 'risk'} onClose={() => setPanel(null)} title="What could go wrong">
+      {panel === 'risk' && <RiskPanel plan={plan} mc={mc} rails={rails} />}
+    </Sheet>
+  </>;
   const answer = <span data-futures style={{ color: 'var(--color-ink)' }}>{futuresSentence(status)}</span>;
+
+  if (moon) {
+    // The moon home: the count, the verdict and the two things most people change. Everything else is in Details.
+    const stepOf = (d: Driver, label: string, typed: boolean): MoonStep => {
+      const n = d.val.get();
+      return { id: d.id, label, value: d.show(n), raw: n, less: `${d.label}: ${d.less}`, more: `${d.label}: ${d.more}`, canLess: n > d.val.min, canMore: n < d.val.max,
+        onLess: () => write(d.id, (_v, cur) => cur - d.step), onMore: () => write(d.id, (_v, cur) => cur + d.step), onType: typed ? v => write(d.id, () => v) : undefined };
+    };
+    return (<>
+      <Suspense fallback={<div data-simple-home data-moon-loading className="fixed inset-0" style={{ background: '#070C1F' }} />}>
+        <MoonHome header={header} held={moonYears} structured={structured} pending={pending} front={front && panel == null}
+          steps={[stepOf(drivers[0], 'Stop work at', false), stepOf(drivers[1], 'Take home a month', true)]}
+          onHelp={() => setPanel('help')} onRisk={() => setPanel('risk')} onFailed={() => setNo3d(true)} />
+      </Suspense>
+      {sheets}
+    </>);
+  }
 
   return (<>
     <div data-simple-home className="fixed inset-0 overflow-y-auto"
@@ -158,16 +192,11 @@ export default function SimpleHome({ plan, update, dd, mc, onDetails, header, pi
           </section>
         ) : (
           <section className="flex-1 flex flex-col mt-1" data-answer data-ready={rails && mc ? '1' : '0'}>
-            {/* ── The picture is the screen, and the answer sits in it: the Lantern, or the island ── */}
-            {lantern ? (
-              <Suspense fallback={<div data-lantern-loading className="flex-1 min-h-[320px] -mx-4 sm:mx-0 sm:rounded-3xl" style={{ background: 'linear-gradient(180deg, #060B1A, #0B1430)' }} />}>
-                <LanternHome plan={plan} rows={dd.rows as any[]} mc={mc} head={headFor(true)} answer={answer}
-                  spoken={`${spokenAnswer(status, stopAge, typicalShort)} ${resting}`} onFailed={() => setNo3d(true)} />
-              </Suspense>
-            ) : <Island mc={mc} structured={structured} fromAge={stopAge} toAge={plan.horizonAge} ask={month} central={central} events={events} tranches={tranches}
+            {/* ── The picture is the screen, and the answer sits in it: the island ── */}
+            {<Island mc={mc} structured={structured} fromAge={stopAge} toAge={plan.horizonAge} ask={month} central={central} events={events} tranches={tranches}
               onOpen={(key, at) => setOpen({ key, at })} onAsk={m => update((p: any) => ({ ...p, targetNet: m * 12 }))}
               summary={`${spokenAnswer(status, stopAge, typicalShort)} ${resting}`} resting={resting}
-              head={headFor(false)}
+              head={head}
               answer={answer} />}
           </section>
         )}
@@ -239,14 +268,9 @@ export default function SimpleHome({ plan, update, dd, mc, onDetails, header, pi
 
     {/* Outside the fixed home: a fixed element is its own stacking context,
         and inside it a sheet would slide under the tab bar. */}
-    <Sheet open={panel === 'help'} onClose={() => setPanel(null)} title="What would help most">
-      {panel === 'help' && <HelpPanel plan={plan} update={update} onDone={() => setPanel(null)} />}
-    </Sheet>
+    {sheets}
     <Sheet open={!!openTranche} onClose={() => setOpen(null)} title={openTranche?.name || ''}>
       {openTranche && <TrancheSheet plan={plan} tranche={openTranche} first={stopAge} last={endAge} at={open?.at ?? null} />}
-    </Sheet>
-    <Sheet open={panel === 'risk'} onClose={() => setPanel(null)} title="What could go wrong">
-      {panel === 'risk' && <RiskPanel plan={plan} mc={mc} rails={rails} />}
     </Sheet>
   </>);
 }

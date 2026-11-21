@@ -2,11 +2,12 @@ import type { MC } from '../engine/engine';
 import type { Rail } from '../lib/insights';
 import { fmt } from '../lib/format';
 import { stillHere, stillHereWords } from '../lib/stillHere';
+import { SP_YEARS_FULL, SP_YEARS_SHORT } from '../lib/insights';
 
 /**
  * "What could go wrong": the central case, a poor run and three real bad
- * histories replayed from the day you stop, hardest first, then the simulated
- * futures. Each row is the most you could spend a month and still be paid
+ * histories replayed from the day you stop, hardest first, then a smaller
+ * State Pension (where one is still to start), then the simulated futures. Each row is the most you could spend a month and still be paid
  * every year, with one sentence on what the case means and the cut in
  * spending that would see it through. The 2008 path includes the bull decade
  * that followed it, so as a stress it is the mildest of the set; it stays in
@@ -17,7 +18,9 @@ const RISKS: { key: string; name: string; means: (plan: any) => string }[] = [
   { key: 'poor', name: 'A poor run', means: p => `Returns of ${Math.round(p.growthBear * 100)}% a year, every year.` },
   { key: 'japan', name: 'Japan from 1990', means: () => 'Two lost decades in the markets, starting the day you stop.' },
   { key: 'stagflation', name: 'The 1970s', means: () => 'High inflation and falling markets, from the day you stop.' },
-  { key: 'crashflat', name: 'A 30% fall, then flat', means: () => 'A crash the day you stop and five flat years after it.' }];
+  { key: 'crashflat', name: 'A 30% fall, then flat', means: () => 'A crash the day you stop and five flat years after it.' },
+  // Not a market: the one source of income most plans lean on hardest. Absent when every State Pension is already in payment.
+  { key: 'spLow', name: 'A smaller State Pension', means: p => `A fifth less than you have entered, for life, with returns of ${Math.round(p.growthBase * 100)}% a year: what ${SP_YEARS_SHORT} missing years of National Insurance do (the full rate needs ${SP_YEARS_FULL}), or a change in the rules.` }];
 
 export default function RiskPanel({ plan, mc, rails }: { plan: any; mc: MC | null; rails: Rail[] | null }) {
   const month = Math.round((plan.targetNet || 0) / 12);
@@ -36,7 +39,8 @@ export default function RiskPanel({ plan, mc, rails }: { plan: any; mc: MC | nul
                 <span className="block text-[0.9rem] font-semibold">{k.name}</span>
                 <span className="block text-[0.76rem] mt-0.5" style={{ color: 'var(--color-ink-dim)' }}>{k.means(plan)} {short
                   ? `Spending ${fmt(month - v)} a month less would see it through.`
-                  : 'What you ask would still be paid.'}</span>
+                  : 'What you ask would still be paid.'}
+                  {k.key === 'spLow' && ' Your own forecast is at gov.uk/check-state-pension.'}</span>
               </span>
               <span className="tnum shrink-0 text-right">
                 <span className="block text-[0.95rem] font-extrabold" style={{ color: short ? 'var(--color-hope)' : 'var(--color-sage-strong)' }}>{fmt(v)}</span>

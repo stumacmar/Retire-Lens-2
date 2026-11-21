@@ -55,8 +55,36 @@ export function capacity(E: Eng, plan: any, opts: { path?: string | null; growth
   return Math.floor(lo / 100) * 100;
 }
 
+/**
+ * A smaller State Pension (Scout, 21 November 2026). Every other case in
+ * "What could go wrong?" is about markets, yet for most plans the State
+ * Pension is the largest single source of income and the figure entered is
+ * the full new rate unless it has been changed. A fifth less is what seven
+ * missing qualifying years do: the full rate needs 35, and each year short
+ * takes off 1/35 (GOV.UK, "The new State Pension: what you'll get"). It also
+ * stands in for a change in the rules. A State Pension already in payment
+ * when the plan starts is a known amount and is left alone.
+ * (Moneysmart, the Australian government's planner, asks "Include the Age
+ * Pension?" so a plan can be seen without it; TPAW Planner: "Assume that your
+ * pension will be lower than expected", and test the plan against it.)
+ */
+export const SP_LOWER = 0.2;
+export const SP_YEARS_SHORT = 7, SP_YEARS_FULL = 35;
+
+/** The plan with each State Pension not yet in payment a fifth lower, or null when there is none to lower. */
+export function withLowerStatePension(E: Eng, plan: any): any | null {
+  const P = JSON.parse(JSON.stringify(plan)), single = E.isSingle(P);
+  let any = false;
+  for (const w of single ? [P.partnerA] : [P.partnerA, P.partnerB]) {
+    if (!w || !(Number(w.spAmount) > 0) || !(w.birthYear > 1900)) continue;
+    if (P.startYear - w.birthYear >= E.spAgeOf(w)) continue;   // already in payment: a known amount
+    w.spAmount = Math.round(Number(w.spAmount) * (1 - SP_LOWER)); any = true;
+  }
+  return any ? P : null;
+}
+
 export interface Rail { key: string; label: string; when?: string; year: number }
-/** Guardrails: safe yearly spending under four real bad histories and the three lenses. */
+/** Guardrails: safe yearly spending under four real bad histories and the three lenses, and (last, where it applies) with a smaller State Pension. */
 export function guardrails(E: Eng, plan: any): Rail[] {
   const histories: Rail[] = [
     { key: 'japan', label: 'Japan, 1990 on', when: 'a Japan-style lost two decades', year: 0 },
@@ -75,7 +103,10 @@ export function guardrails(E: Eng, plan: any): Rail[] {
   }
   lenses[0].year = capacity(E, plan, { growth: plan.growthBase });
   lenses[1].year = capacity(E, plan, { growth: plan.growthBull });
-  return [...histories, ...lenses];
+  // Not a market history: the central case's returns, with the State Pension a fifth lower.
+  const low = withLowerStatePension(E, plan);
+  const policy: Rail[] = low ? [{ key: 'spLow', label: 'A State Pension a fifth lower', when: 'a State Pension a fifth lower than entered', year: capacity(E, low, { growth: plan.growthBase }) }] : [];
+  return [...histories, ...lenses, ...policy];
 }
 
 export interface MonthRow { year: number; working: boolean; guaranteed: number; pots: number; unpaid: number }

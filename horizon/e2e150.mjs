@@ -207,7 +207,7 @@ const expectInPage = async (P) => {
   return { key, sus, target, capYear, futures: Math.round(pUse * 100), futuresFull: Math.round(mc.successProb * 100), structured,
     lit: mc.perAgePaid.ages.map(r => r.q.filter(v => v >= 0.99).length).join(','),
     // The moon home: the day of stopping, each fifth birthday (each tenth on a long retirement) and the last year, with how many of 100 futures are still paying.
-    moon: (() => { const held = mc.perAgeHeld.map(h => ({ age: h.age, n: Math.round((structured ? Math.max(h.full, h.rules) : h.full) * 100) })), n = held.length;
+    moon: (() => { const held = mc.perAgeHeld.map(h => ({ age: h.age, n: Math.round(h.full * 100) })), n = held.length;
       const pick = e => held.filter((y, i) => i === 0 || i === n - 1 || (y.age % e === 0 && i >= 3 && i <= n - 4)), five = pick(5);
       return (five.length > 8 ? pick(10) : five).map(y => `${y.age}:${y.n}`).join(' '); })(),
     pots: a.pensionA + a.pensionB + a.isaA + a.isaB + (a.cash || 0) + (a.gia || 0) };
@@ -439,10 +439,11 @@ async function worker() {
           else {
             const m = await page.evaluate(() => { const h = document.querySelector('[data-moon-home]'); return { count: Number(h.querySelector('[data-moon-count]').textContent), line: h.querySelector('[data-moon-line]').textContent, verdict: h.querySelector('[data-status]').textContent, rules: h.querySelector('[data-moon-rules]')?.textContent || '' }; });
             const want = m.count >= 80 ? 'Yes, on track' : m.count >= 60 ? 'Probably' : m.count >= 40 ? 'It could go either way' : m.count >= 20 ? 'Probably not' : 'Not as it stands';
-            if (m.count !== x.futures) fails.push(`P the moon home shows ${m.count} times in 100, the engine gives ${x.futures}`);
+            if (m.count !== x.futuresFull) fails.push(`P the moon home shows ${m.count} times in 100, the engine's paid-in-full count is ${x.futuresFull}`);
             if (m.verdict !== want) fails.push(`P the moon home says "${m.verdict}" beside ${m.count}; the count alone decides the words: "${want}"`);
             if (!m.line.endsWith(`the money lasts until you are ${x.moon.split(' ').pop().split(':')[0]}`)) fails.push(`P the moon home's sentence is "${m.line}", the last year drawn is ${x.moon.split(' ').pop()}`);
-            if (x.structured && x.futuresFull !== x.futures && !m.rules.includes(`${x.futuresFull} times in full`)) fails.push(`P structured plan: the moon home does not state the paid-in-full count ${x.futuresFull}: "${m.rules}"`);
+            if (x.structured && x.futuresFull !== x.futures && m.rules !== `or ${x.futures} times, trimmed by your rules`) fails.push(`P structured plan: the moon home does not state the count with the rules, ${x.futures}: "${m.rules}"`);
+            if (!(x.structured && x.futuresFull !== x.futures) && m.rules) fails.push(`P the moon home states a count with rules ("${m.rules}") where there is none to state`);
             moonChecked++;
           }
           await page.evaluate(() => localStorage.setItem('someday-picture-v1', 'island'));

@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { Stage, bakeMoon, phaseMaterial, setPhase } from './stage';
+import { Stage, bakeMoon, phaseMaterial, setChange, setPhase } from './stage';
 
 /**
  * The moon. The share of it that is lit is the share of your futures in
@@ -24,7 +24,7 @@ import { Stage, bakeMoon, phaseMaterial, setPhase } from './stage';
  * always sits clear of the words whatever the size of the screen.
  */
 export type MoonData = { p: number; years: { age: number; p: number }[] };
-type Year = { mesh: THREE.Mesh; age: number; p: number; label: HTMLSpanElement; pos: THREE.Vector3; r: number };
+type Year = { mesh: THREE.Mesh; age: number; p: number; label: HTMLSpanElement; pos: THREE.Vector3; r: number; flash: number };
 
 export class MoonStage extends Stage {
   private geo = new THREE.SphereGeometry(1, 96, 64);
@@ -35,6 +35,8 @@ export class MoonStage extends Stage {
   private level = 0; private sel = -1;
   private mainR = 0.0001; private pNow: number;
   private mainAt = new THREE.Vector3(); private placed = false;
+  private flash = 0; private rose = 1;
+  private spare = 0; private spareNow = 0;
   private box = { cx: 0, cy: 0, w: 1, h: 1 };
   private boxRo: ResizeObserver;
   private surface: THREE.WebGLRenderTarget;
@@ -83,15 +85,22 @@ export class MoonStage extends Stage {
       const label = this.label('visibility:hidden;text-align:center;');
       label.dataset.yearAge = String(y.age);
       label.innerHTML = `<b style="display:block;font-size:16px;font-weight:700">${y.age}</b><span data-n style="display:block;font-size:13px">${Math.round(y.p * 100)}</span>`;
-      return { mesh, age: y.age, p: y.p, label, pos: c.clone(), r: 0.0001 };
+      return { mesh, age: y.age, p: y.p, label, pos: c.clone(), r: 0.0001, flash: 0 };
     });
   }
+
+  /** How much is to spare beyond a full moon, 0 to 1: the glow widens and brightens with it. */
+  setSpare(v: number) { this.spare = Math.max(0, Math.min(1, v || 0)); }
 
   /** New figures (a stepper moved): the light moves across the moon; the years are rebuilt where they are. */
   setData(data: MoonData) {
     const same = data.years.length === this.data.years.length && data.years.every((y, i) => y.age === this.data.years[i].age);
+    // The change shows itself (see the shader): the large moon from what it is showing now, each year from what it showed.
+    if (!this.reduced && this.level === 0 && Math.abs(data.p - this.data.p) > 0.004) { this.flash = 1; this.rose = data.p > this.data.p ? 1 : -1; setChange(this.main.material as THREE.ShaderMaterial, this.pNow, 1); }
     this.data = data;
-    if (same) this.years.forEach((y, i) => { y.p = data.years[i].p; setPhase(y.mesh.material as THREE.ShaderMaterial, y.p); const n = y.label.querySelector('[data-n]'); if (n) n.textContent = String(Math.round(y.p * 100)); });
+    if (same) this.years.forEach((y, i) => { const was = y.p; y.p = data.years[i].p; const m = y.mesh.material as THREE.ShaderMaterial;
+      if (!this.reduced && Math.abs(y.p - was) > 0.004) { y.flash = 1; setChange(m, was, 1); }
+      setPhase(m, y.p); const n = y.label.querySelector('[data-n]'); if (n) n.textContent = String(Math.round(y.p * 100)); });
     else { if (this.level === 2) this.setLevel(1); this.build(); }
   }
 
@@ -143,8 +152,12 @@ export class MoonStage extends Stage {
     // In the row, once it has arrived, the last year's own moon stands in for it.
     const arrived = this.level === 1 && n > 0 && Math.abs(this.mainR - goalR) < goalR * 0.06 && this.mainAt.distanceTo(goal) < goalR * 0.3;
     this.main.visible = !arrived;
-    this.halo.position.set(this.main.position.x, this.main.position.y, -0.5); this.halo.scale.setScalar(this.mainR * 2.2); this.halo.visible = this.main.visible;
-    const hu = (this.halo.material as THREE.ShaderMaterial).uniforms; hu.uK.value = 0.03 + 0.36 * this.pNow; hu.uP.value = this.pNow;
+    this.halo.position.set(this.main.position.x, this.main.position.y, -0.5); this.spareNow = this.ease(this.spareNow, this.level === 0 ? this.spare : 0, dt, 3); this.halo.scale.setScalar(this.mainR * (2.2 + 0.9 * this.spareNow)); this.halo.visible = this.main.visible;
+    // The mark of a change fades over a couple of seconds; the glow swells with a gain and sinks with a loss while it does.
+    this.flash = this.flash < 0.01 ? 0 : this.flash * Math.exp(-dt * 0.9); setChange(this.main.material as THREE.ShaderMaterial, null, this.level === 0 ? this.flash : 0);
+    // The whole face answers too: a little brighter for a gain, a little dimmer for a loss, while the mark lasts.
+    (this.main.material as THREE.ShaderMaterial).uniforms.uGain.value = 1 + (this.level === 0 ? 0.22 * this.flash * this.rose : 0);
+    const hu = (this.halo.material as THREE.ShaderMaterial).uniforms; hu.uK.value = (0.03 + 0.36 * this.pNow) * (1 + 0.9 * this.flash * this.rose) * (1 + 0.7 * this.spareNow); hu.uP.value = this.pNow;
     (this.stars.material as THREE.ShaderMaterial).uniforms.uT.value = this.reduced ? 0 : t;
     this.years.forEach((y, i) => {
       const open = this.level >= 1, chosen = this.level === 2 && i === this.sel, h = this.homePx(i);
@@ -152,6 +165,7 @@ export class MoonStage extends Stage {
       y.pos.set(this.ease(y.pos.x, to.x, dt, 5), this.ease(y.pos.y, to.y, dt, 5), 0);
       y.r = this.ease(y.r, open ? this.rowPx * u : 0.0001, dt, 5);
       y.mesh.position.copy(y.pos); y.mesh.scale.setScalar(y.r); y.mesh.visible = y.r > 0.01 && (i < n - 1 || this.level !== 1 || !this.main.visible);
+      if (y.flash > 0) { y.flash = y.flash < 0.01 ? 0 : y.flash * Math.exp(-dt * 0.9); setChange(y.mesh.material as THREE.ShaderMaterial, null, y.flash); }
       const dim = (y.mesh.material as THREE.ShaderMaterial).uniforms.uDim;
       dim.value = this.ease(dim.value, this.level === 2 && !chosen ? 0.72 : 1, dt, 6);
     });
@@ -170,7 +184,8 @@ export class MoonStage extends Stage {
   }
 
   protected onTap(x: number, y: number) {
-    if (this.level === 0) { if (this.hit(x, y, [this.main])) this.setLevel(1); return; }
+    // A press anywhere in the moon's own space opens it: a finger need not land on the disc.
+    if (this.level === 0) { const b = this.box; if (Math.abs(x - b.cx) <= b.w / 2 && Math.abs(y - b.cy) <= b.h / 2) this.setLevel(1); return; }
     // A year's moon is small: take the nearest one within a thumb's width.
     let best = -1, bd = 34;
     this.years.forEach((v, i) => { const p = v.mesh.position.clone().project(this.camera), dx = (p.x * 0.5 + 0.5) * this.w - x, dy = (-p.y * 0.5 + 0.5) * this.h - y, d = Math.hypot(dx, dy) - v.r / this.u; if (d < bd) { bd = d; best = i; } });

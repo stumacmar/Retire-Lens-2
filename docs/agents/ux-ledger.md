@@ -9,6 +9,7 @@ Word for word, newest first. These outrank any score.
 
 | Date | About | The owner said |
 |---|---|---|
+| 2026-11-21 | the three concepts built in the lab, the moon recommended | "Moon - do it" (said twice) |
 | 2026-11-21 | the tower, on seeing the panel's finding that nobody can read it | "Yes the tower is not intuitive. You can remove it but only to replace with something better and non standard. Think of all the 3d spacial opportunities or 4D or button pressing to open more- don't know what I mean like visual levels of depth" |
 | 2026-11-21 | the first draft of version 2 (subtract, subtract) | "Don't ruin the UX in warn something visually stunning and different but simplicity is importantly" (read as: don't ruin the UX; I want something visually stunning and different, but simplicity is important) |
 | 2026-11-21 | the whole app | "The UX is now too complex. Create or revise the agent to create a world class UX by reviewing the best in the market and then using AI development to paradym shift" |
@@ -44,6 +45,13 @@ answer is a picture that needs no explaining, with almost nothing beside it.
 | target | 60 | 5 | 7 | 4 | 13 px | 0 | — | 150 | — / 12 | 300 / 20 | — | 1,600 / 80 |
 | 2026-11-21 (baseline) | 171 | 21 | 21 | 15 | 9.9 px | 71 | 91 | 305 | 909 / 86 | 1,419 / 219 | 184 | 3,250 / 156 |
 | 2026-11-21 (after the first Subtract cycle) | 107 | 17 | 19 | 13 | 9.9 px | 16 | 91 | 305 | 909 / 86 | 1,419 / 219 | 184 | 3,122 / 152 |
+| 2026-11-21 (the moon is the home) | 36 | 5 | 12 | 4 | 13 px | 0 | 91 | 305 | 909 / 86 | 1,424 / 219 | 184 | 2,985 / 138 |
+
+The moon home meets the home's targets for words, figures, sizes and smallest
+text. Controls are 12 against 7: four tabs, four stepper buttons, the typed
+figure, "The years ahead" and the two questions. (The tab labels went from
+9.9 to 13 px on every screen, which is where the app-wide "smallest" will
+move as each screen is worked on.)
 
 Notes on the baseline: Details and Explore are measured as they open; the
 pages inside Details are not yet counted (add them to `ux-metrics.mjs` in the
@@ -146,6 +154,94 @@ things"). Neither calls M's top half generic; both call its bottom half
     in the answer; seven bordered objects under the picture in three styles.
     Both suggested one annotation on the tower tying it to the sentence.
 
+### The moon as the home (21 November 2026)
+
+The owner chose the moon ("Moon - do it") and it replaced the Lantern on the
+home the same day. The same test plan as above: the example couple asking
+£4,333 a month. Truth from the engine: the money lasts to 94 in 57 of 100
+futures; stopping two years later, 76.
+
+**Readers** (six fresh agents, one screenshot at 390 × 660 each, the
+screen-reader persona given the accessibility tree; then the screen after two
+presses of "+" beside "Stop work at", then the years):
+
+| | Q1 what is it telling you | Q2 can they stop, how sure | Q3 which number matters | One word |
+|---|---|---|---|---|
+| The stripped tower (before) | 6 of 6 right | 6 of 6 right | 3 right, 3 partly | Smart, Slick, Smart, Slick, Pretty, Fiddly |
+| The moon home | 6 of 6 right | 6 of 6 right ("a coin toss"; "I wouldn't hand my notice in on that") | 6 of 6 right (the 57, and what it counts) | Calming, Slick, Calm, Slick, Sparse (screen reader), Beautiful |
+
+Could they say what the picture means? The tower: 1 of 12. The moon: 5 of 5
+sighted readers guessed right from the first screen and were sure after one
+press ("I watched it fill up as the number rose: fuller moon, better
+chances"). All five called the years view the most useful thing they had
+seen ("the trouble comes late, not early"). None had seen anything like it
+for money ("a weather app, or the moon phase on a calendar"; "nothing like
+the pension statements I get, which are forty pages of nothing").
+
+What the readers found, and what was done the same day:
+
+| Found | By | Done |
+|---|---|---|
+| The moon at the end of the row "marked 57 looks less than half lit" | the engineer | True: a wide lens showed an off-centre moon from its dark side. The lens is now long (6°), so every moon is lit as its count |
+| Pressing an age left a hole in the row: "I thought something had gone wrong" | 5 of 5 | The row stays whole; a large moon lifts out of the age, above it |
+| The row sat on an arc: "does the height mean anything?" | 3 of 5 | Level |
+| "Lasts", "still paying", "paying in full": "are those the same test?" | the engineer | One phrase at every level: "the money lasts" |
+| "Press a year": "they are ages, not years" | 2 | "Press one" |
+| Screen reader: "64" was a bare number between two buttons; the years were a picture only | 1 | Each stepper is a named group ("Stop work at: 64"); the years are also a list |
+
+**Still open, in the readers' order** (the next cycles' work list):
+
+1. **What happens the other 43 times?** (6 of 6.) "Broke at 93 and broke at 78
+   are very different problems." "Does it pay a bit less, or nothing?" The
+   year view should say what the unlucky futures pay at that age, and the
+   first screen's way to it ("What could go wrong?") should answer exactly
+   this.
+2. **The tabs** (6 of 6, again). "Horizon" and "Peace" "mean nothing to me";
+   "Peace? Sounds like they're selling funeral plans."
+3. **"Take home a month"**: now, or in retirement? After tax? (6 of 6.)
+4. **Why 94, and whose?** (6 of 6.) It is a couple and the screen never says so.
+5. **"Times in 100" of what?** (5 of 6 asked, all 6 understood it.) "I live
+   only one time."
+6. **What is counted** (the builder, the engineer, the screen reader): "I'm
+   asked to trust a 57 with nothing behind it." The assumptions are in Peace;
+   nothing on the first screen says so.
+7. The small numbers under the ages are unlabelled (4).
+
+**Critics** (two fresh pairs per round, each shown the moon home beside the
+stripped tower, unlabelled; again without three reference apps, which the
+first Benchmark cycle must collect). Overall, of 10:
+
+| Round | The moon home | The stripped tower | What they said |
+|---|---|---|---|
+| 1 (first build) | 6.5 and 6.5 | 5 and 5 | "One picture, one number and one verdict, and I understand it in two seconds." "The idea is distinctive; the rendering is not yet": "a two-tone mustard-and-navy ball" |
+| 2 (a baked, cratered surface; lighter count; quieter controls) | 6.5 and 6.5 | 4.5 and 5 | "A metaphor doing work." The shadow's edge was "ragged, like a displacement artefact"; the night side "a flat royal-blue disc" |
+| 3 (soft shadow edge, night side near the sky, ivory surface, tighter glow, the row at the foot) | 7 and 7 | 5 and 5 | "The better first screen by a distance." "It already looks better than almost anything in its category, and its flaws are polish, not concept." "Not award-grade yet" |
+
+All six would be prouder of the moon; all six say it is its own thing in
+finance ("the category runs on gauges, rings and fan charts") and that its
+relatives are sky and sleep apps; all six call the deeper level "a real idea"
+and the opening motion, the one moon travelling to the end of the row, "the
+best thing in the set". All six say the lower half is still "a form under a
+poster". The bar in the manual is 8. It shipped at 7 because the owner chose
+it; the difference is the next cycles' work:
+
+1. **The moon's render, once more** (both, every round): a higher-resolution
+   surface in a cooler pearl ivory, a clean edge to the shadow with long
+   crater shadows only beside it, a wider and softer glow, and the moon a
+   fifth larger.
+2. **One lockup for the answer**: the count larger and in a face with
+   character, "of 100" beside it, one caption line, the verdict the only bold
+   line; the moon itself as the way in, with a small mark on it, so "The
+   years ahead ›" can go.
+3. **The lower half**: a fixed column for the figures, the two questions as a
+   matched pair, the tab bar set apart.
+4. A moon lit on the right is waxing in northern skies, and the row runs from
+   full to half, which is waning: for anyone who knows the sky it runs
+   backwards. Consider lighting from the left.
+5. Nothing says it is an estimate (both critics in round 3; the caveat went
+   from the first screen with the old sentence). "That should be one tap
+   away, not more text on the screen."
+
 ## Benchmarks
 
 None yet under version 2. (The market's pension calculators are in
@@ -175,6 +271,17 @@ Learned on this product, from the panels (each with its evidence above):
 6. **People press the control, not the picture.** Depth that hangs off the
    picture alone will not be found; give it a visible way in.
 
+7. **A gap reads as a fault.** When the chosen year's moon left the row,
+   every reader thought something had broken. Show the detail beside the
+   thing, never in place of it.
+8. **Position is an encoding whether you meant it or not.** A row on an arc
+   made three of five ask what the height meant.
+9. **One test, one phrase.** "Lasts", "still paying" and "paying in full" on
+   three levels read as three tests.
+10. **Check the picture against the number at the edges.** Perspective made
+    a moon at the edge of the screen look less lit than its count, and a
+    reader caught it. The UAT now measures the lit share from a photograph.
+
 Still hypotheses: the app should decide more and ask less; uncertainty said
 the way a forecast says it.
 
@@ -187,7 +294,9 @@ with something better and non standard. Think of all the 3d spacial
 opportunities or 4D or button pressing to open more … visual levels of
 depth". Three concepts, each one object in the dark that is the answer at a
 glance and a press that goes a level deeper, on the real engine at
-`?lab=<name>` (`horizon/src/lab/`).
+`?lab=<name>` (`horizon/src/lab/`). (The owner chose the moon the same day; the
+scales, the core and the lab's route were then deleted, and the moon's stage
+moved to `horizon/src/moon/`.)
 
 | Concept | In one sentence | Address | Lay readers (3): what does the picture mean? | Critics (of 10) | Verdict |
 |---|---|---|---|---|---|
@@ -234,22 +343,21 @@ as it stands"; at 97 it is all but full and says "Yes, on track".
 | 2026-11-21 | Leap (owner-directed) | Three concepts at `?lab=moon`, `?lab=scales`, `?lab=core`; the moon taken to a second version with the count, plain words and two live steppers. Recommendation: build the home around the moon | see the pull request | — |
 | 2026-11-21 | Subtract (home) | The picture without its scaffolding: key, caption, two buttons, the count labels, the State Pension strips, "You ask for" and the resting line are off the first screen; the tower is a third taller. Panel: no worse on any question; critics 7 and 6 against 5 and 5 | #78 | "Yes the tower is not intuitive. You can remove it but only to replace with something better and non standard…" |
 
+| 2026-11-21 | Leap, shipped (owner-driven) | The moon is the home: one night screen, the count, a verdict the count decides, two steppers, the years a press deeper. The Lantern is off the home; the lab's losers are deleted. Readers 6 of 6 on every question; critics 7 and 7 against 5 and 5 | merged by the owner's standing instruction | "Moon - do it" |
+
 **Standing instruction (owner, 21 November 2026):** do not ruin the UX. The
 result must be visually stunning and different as well as simple. Subtract
 the scaffolding, never the picture.
 
-**Next, if the owner chooses the moon:** make it the home. That is several
-cycles, in this order: (1) the moon in `SimpleHome` in place of the Lantern,
-with the lockup, the plain verdict and the two steppers on the dark screen,
-writing to the plan as the home's steppers do; the island stays as the
-fallback without WebGL; the full six-reader panel and the critics with three
-reference apps beside it. (2) The wording goes app-wide: "times in 100", a
-verdict that cannot contradict the count (`lib/status.ts`, spec §3.4), one
-age for "lasts to". (3) What sits a level down from the moon: the years
-(built), what it is made of (the core's sentence: guaranteed for life against
-your pots), have against need, "What would help?" and "What could go
-wrong?", each with a visible way in. (4) Everything else under the picture
-goes or moves down: "You pay in", the two "less from" switches, the counts
-line, the tab names. (5) The render to benchmark quality on a real phone.
-
-**If the owner does not choose it:** another Leap, starting from pattern 1.
+**Next (the moon is the home):** the two work lists above, "Still open" from
+the readers and the five from the critics, in that order of weight: first
+what happens in the other futures (at the year level, and through "What
+could go wrong?"), then the tabs' names, then the moon's render and the
+lockup. Then the wording app-wide: "times in 100" and a verdict that cannot
+contradict its count everywhere `lib/status.ts` still says "futures" and
+"Enough in most futures, not all" (the island home, Explore, the report;
+spec §3.4), and one age for "lasts to". Then what sits a level down from the
+moon besides the years: what it is made of (guaranteed for life against your
+pots), and have against need. The island home still carries everything the
+moon home dropped; once the moon has been lived with, ask the owner whether
+the island should go.

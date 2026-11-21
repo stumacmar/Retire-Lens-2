@@ -4,7 +4,8 @@ import type { LabFacts, Tweak } from './useLabPlan';
 import { MoonStage } from './moon';
 import { ScalesStage } from './scales';
 import { CoreStage } from './core';
-import { readout } from '../lantern/words';
+import { aMonth, readout } from '../lantern/words';
+import { of100 } from '../lantern/adapter';
 
 /**
  * The lab: whole-experience concepts for the home, on the real engine, at
@@ -97,7 +98,7 @@ function Moon({ f, pending, want, onTweak }: { f: LabFacts; pending: boolean; wa
   const { host, overlay, stage } = useStage((h, o) => new MoonStage(h, o, data, (level, index) => setAt({ level, index })), []);
   useEffect(() => { stage.current?.setData(data); }, [data, stage]);
   const floor = at.level === 2 && at.index >= 0 ? f.model.floors[at.index] : null;
-  const answer = `${f.futures} of 100 futures last to ${f.toAge}. ${verdict(f)}.`;
+  const answer = `${f.futures} times in 100, the money lasts to ${f.toAge}. ${verdict(f)}.`;
   return (
     <main data-lab="moon" data-level={at.level} data-pending={pending ? '1' : '0'} className="fixed inset-0" style={{ background: '#070C1F', color: '#F4F6FF' }}>
       <div className="absolute inset-0" role="button" tabIndex={0} aria-label={`${answer} Press to see the years ahead.`} data-lab-stage
@@ -116,12 +117,16 @@ function Moon({ f, pending, want, onTweak }: { f: LabFacts; pending: boolean; wa
         {at.level === 0 && <>
           <p data-lab-count className="tnum leading-none transition-opacity" style={{ opacity: pending ? 0.5 : 1 }}>
             <span className="block font-extrabold tracking-tight" style={{ fontSize: '3.6rem' }}>{f.futures}</span>
-            <span className="block mt-1 text-[1rem]" style={{ color: '#C9D4F2' }}>of 100 futures last to {f.toAge}</span>
+            {/* "Times in 100", not "futures": nine of twelve readers stumbled on "futures" ("I have only one future"). */}
+            <span className="block mt-1 text-[1rem]" style={{ color: '#C9D4F2' }}>times in 100, the money lasts to {f.toAge}</span>
           </p>
           <p data-lab-title className="mt-2.5 text-[1.3rem] font-extrabold leading-tight tracking-tight">{verdict(f)}</p>
         </>}
-        {at.level === 1 && <p data-lab-title className="mt-6 text-[1.3rem] font-extrabold leading-tight tracking-tight">The years ahead</p>}
-        {floor && <p data-lab-line className="mt-16 text-[1.08rem] leading-snug font-semibold">{readout(f.model, floor, 0)}</p>}
+        {at.level === 1 && <>
+          <p data-lab-title className="mt-6 text-[1.3rem] font-extrabold leading-tight tracking-tight">The years ahead</p>
+          <p data-lab-line className="mt-2 text-[1rem] leading-snug" style={{ color: '#C9D4F2' }}>At each age, how many times in 100 you are still paid in full.</p>
+        </>}
+        {floor && <p data-lab-line className="mt-16 text-[1.08rem] leading-snug font-semibold">At {floor.age}{floor.partnerAge != null ? ` (your partner is ${floor.partnerAge})` : ''}: you are paid your full {aMonth(floor.spend)} a month {of100(floor.windows)} times in 100.</p>}
       </div>
 
       {at.level === 0 && (

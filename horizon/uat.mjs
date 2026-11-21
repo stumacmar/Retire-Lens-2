@@ -1159,6 +1159,38 @@ const openMap = async () => { await closeSheet(); await tap('Explore'); await wa
   await cx.close();
 }
 
+// ── The lab (Pension Scout, manual §3.3): concepts for the home on the real engine at ?lab=<name>.
+// Reached only by their address, and they change nothing on the device.
+{
+  const stored = await planOf(), q0 = E.migratePlan(stored), q = { ...q0, growth: q0.growthBase ?? q0.growth };
+  const of100 = pl => { const m = E.runMonteCarlo(pl, 2000, pl.mcSeed || 42); return Math.round((pl.architecture?.on && m.successProbWithCuts != null ? m.successProbWithCuts : m.successProb) * 100); };
+  const dump = await p.evaluate(() => JSON.stringify(Object.fromEntries(Object.entries(localStorage))));
+  const cx = await b.newContext({ viewport: { width: 390, height: 660 } }), l = await cx.newPage(), lerr = [], lreq = [];
+  l.on('pageerror', e => lerr.push(e.message)); l.on('console', m => { if (m.type() === 'error' && !/404|favicon|WebGL|GPU/i.test(m.text())) lerr.push(m.text()); });
+  l.on('request', r => { const u = r.url(); if (!u.startsWith(URL) && !/^(data|blob|about):/.test(u)) lreq.push(u); });
+  await l.goto(URL); await l.evaluate(d => { for (const [k, v] of Object.entries(JSON.parse(d))) localStorage.setItem(k, v); }, dump);
+  await l.goto(URL + '?lab=moon', { waitUntil: 'networkidle' });
+  await l.waitForSelector('[data-lab="moon"] [data-lab-count]', { timeout: 40000 }).catch(() => {});
+  const count = async () => Number((await l.$eval('[data-lab-count]', e => e.textContent)).match(/\d+/)[0]);
+  const settled = () => l.waitForFunction(() => document.querySelector('[data-lab="moon"]')?.dataset.pending === '0', null, { timeout: 40000 }).catch(() => {});
+  await check('188 lab: the moon runs on the plan on this device: its count is the engine\'s share of futures (to 1 of 100), in plain words', async () => {
+    await settled(); const shown = await count(), want = of100(q), t = (await l.$eval('[data-lab="moon"]', e => e.innerText)).replace(/\s+/g, ' ');
+    if (Math.abs(shown - want) > 1) console.log(`  188: shows ${shown}, engine ${want}`);
+    return Math.abs(shown - want) <= 1 && /times in 100, the money lasts to \d+/.test(t) && /Yes, on track|Probably|It could go either way|Probably not|Not as it stands/.test(t) && /Stop work at/.test(t) && /Take home a month/.test(t); });
+  await check('189 lab: stepping "Stop work at" moves the count to the engine\'s figure for that plan, and saves nothing', async () => {
+    await l.getByRole('button', { name: 'Stop work a year later' }).click(); await l.waitForTimeout(300); await settled();
+    const shown = await count(), want = of100({ ...q, retireYear: q.retireYear + 1 });
+    const saved = await l.evaluate(() => localStorage.getItem('horizon-plan-v1'));
+    if (Math.abs(shown - want) > 1) console.log(`  189: shows ${shown}, engine ${want}`);
+    return Math.abs(shown - want) <= 1 && saved === JSON.parse(dump)['horizon-plan-v1']; });
+  await check('190 lab: the scales and the core load on the same plan; nothing left the device and no page errors' + (lerr.length ? ' — ' + lerr.slice(0, 2).join(' | ') : ''), async () => {
+    const seen = [];
+    for (const n of ['scales', 'core']) { await l.goto(URL + '?lab=' + n, { waitUntil: 'networkidle' }); await l.waitForSelector(`[data-lab="${n}"] [data-lab-line]`, { timeout: 40000 }).catch(() => {}); seen.push((await l.$eval('[data-lab-line]', e => e.textContent).catch(() => '')).length > 20); }
+    return seen.every(Boolean) && lreq.length === 0 && lerr.length === 0; });
+  await check('191 lab: nothing in the app links to it', async () => (await p.$$eval('a[href*="lab="]', els => els.length)) === 0);
+  await cx.close();
+}
+
 console.log(`\n═══ Horizon UAT: ${pass}/${pass + fail} passed ═══`);
 if (fails.length) console.log('\nFAILURES:\n' + fails.map(f => '  ' + f).join('\n'));
 if (ce.length) console.log('\nCONSOLE ERRORS:\n' + [...new Set(ce)].slice(0, 10).map(e => '  • ' + e).join('\n'));

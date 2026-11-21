@@ -44,8 +44,9 @@ export class MoonStage extends Stage {
     this.years = this.data.years.map(y => {
       const mesh = new THREE.Mesh(this.geo, phaseMaterial(y.p));
       mesh.scale.setScalar(0.0001); mesh.position.set(0, TOP, 0); this.scene.add(mesh);
-      const label = this.label('opacity:0;font-size:14px;font-weight:700;');
-      label.textContent = String(y.age);
+      // The age, and under it how many times in 100 that year is paid in full: all three readers asked for the number.
+      const label = this.label('opacity:0;text-align:center;');
+      label.innerHTML = `<b style="display:block;font-size:14px;font-weight:700">${y.age}</b><span data-n style="display:block;font-size:13px;color:#B9C8F5">${Math.round(y.p * 100)}</span>`;
       return { mesh, age: y.age, p: y.p, index: y.index, label, pos: new THREE.Vector3(0, TOP, 0), r: 0.0001 };
     });
   }
@@ -54,7 +55,7 @@ export class MoonStage extends Stage {
   setData(data: MoonData) {
     const same = data.years.length === this.data.years.length && data.years.every((y, i) => y.age === this.data.years[i].age);
     this.data = data;
-    if (same) this.years.forEach((y, i) => { y.p = data.years[i].p; setPhase(y.mesh.material as THREE.ShaderMaterial, y.p); });
+    if (same) this.years.forEach((y, i) => { y.p = data.years[i].p; setPhase(y.mesh.material as THREE.ShaderMaterial, y.p); const n = y.label.querySelector('[data-n]'); if (n) n.textContent = String(Math.round(y.p * 100)); });
     else { if (this.level === 2) this.setLevel(1); this.build(); }
   }
 
@@ -89,7 +90,7 @@ export class MoonStage extends Stage {
     this.years.forEach((y, i) => {
       const show = this.level >= 1;
       y.label.style.opacity = show && y.r > this.rowR * 0.7 ? (this.level === 2 && i !== this.sel ? '0.55' : '1') : '0';
-      this.place(y.label, this.home(i), 0, this.pixels(this.home(i), this.rowR) + 13);
+      this.place(y.label, this.home(i), 0, this.pixels(this.home(i), this.rowR) + 22);
     });
   }
 

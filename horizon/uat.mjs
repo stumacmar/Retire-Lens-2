@@ -1075,8 +1075,12 @@ const openMap = async () => { await closeSheet(); await tap('Explore'); await wa
       await h.mouse.click(x, y); await hw(700);
       const sel = +(await H('data-selected')), t = await reading();
       const opened = sel >= 0 && at(X.rows[sel], base[sel]).test(t) && (await h.$eval(`[data-lantern] [data-floor-label="${sel}"]`, e => e.textContent)) === String(X.rows[sel].ageA);
-      await h.mouse.click(x, y); await hw(700);
-      return opened && (await H('data-selected')) === '-1' && (await reading()) === rest; });
+      // The open floor is taller and has moved, so tap it where its own label says it is.
+      const mid = await h.$$eval(`[data-lantern] [data-floor-label="${sel}"]`, els => { const e = els.find(v => getComputedStyle(v).visibility !== 'hidden' && getComputedStyle(v).display !== 'none') || els[0], r = e.getBoundingClientRect(); return r.top + r.height / 2; });
+      await h.mouse.click(x, mid); await hw(700);
+      const after = await H('data-selected'), now = await reading();
+      if (!(opened && after === '-1' && now === rest)) console.log(`  179: sel ${sel} text "${t}" want /${at(X.rows[Math.max(0, sel)], base[Math.max(0, sel)]).source}/ after ${after} rest "${rest}" now "${now}"`);
+      return opened && after === '-1' && now === rest; });
     await check('180 lantern home: the keyboard reaches it: arrows open and move the floor, Escape closes it', async () => {
       await h.locator('[data-lantern]').focus(); await h.keyboard.press('ArrowUp'); await hw(300); await h.keyboard.press('ArrowUp'); await hw(500);
       const sel = +(await H('data-selected')), vt = await H('aria-valuetext');

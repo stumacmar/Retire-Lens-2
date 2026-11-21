@@ -1030,12 +1030,13 @@ const openMap = async () => { await closeSheet(); await tap('Explore'); await wa
   const words = v => (v >= 80 ? 'Yes, on track' : v >= 60 ? 'Probably' : v >= 40 ? 'It could go either way' : v >= 20 ? 'Probably not' : 'Not as it stands');
   // What the engine says the moon should show, worked out here in node (so a count may differ by one from the browser's).
   const engineOf = (pl) => { const q0 = E.migratePlan(pl), q = { ...q0, growth: q0.growthBase ?? q0.growth }, m = E.runMonteCarlo(q, 2000, q.mcSeed || 42), st = !!q.architecture?.on;
-    const held = m.perAgeHeld.map(v => ({ age: v.age, n: Math.round((st ? Math.max(v.full, v.rules) : v.full) * 100) })), n = held.length;
+    // The moon counts paid in full on every plan; a safe-ladder plan states the count with its rules beside it.
+    const held = m.perAgeHeld.map(v => ({ age: v.age, n: Math.round(v.full * 100) })), n = held.length, lastH = m.perAgeHeld[n - 1], kept = st ? Math.round(Math.max(lastH.full, lastH.rules) * 100) : null;
     const pick = e => held.filter((y, i) => i === 0 || i === n - 1 || (y.age % e === 0 && i >= 3 && i <= n - 4)), five = pick(5);
     const rows = E.drawdown(q).rows;
     const unlucky = age => { const a = m.perAgePaid.ages.find(v => v.age === age), r = rows.find(v => v.ageA === age); if (!a || !r) return null; const share = (a.q[1] + a.q[2]) / 2;
       return share >= 0.99 ? 'full' : Math.round((share * r.planTarget / Math.pow(1 + (q.inflation || 0), r.year - q.startYear) / 12) / 50) * 50; };
-    return { count: held[n - 1].n, toAge: held[n - 1].age, years: five.length > 8 ? pick(10) : five, mc: m, unlucky }; };
+    return { count: held[n - 1].n, toAge: held[n - 1].age, years: five.length > 8 ? pick(10) : five, mc: m, unlucky, kept }; };
   const seenText = sel => h.$eval(sel, e => { const c = e.cloneNode(true); c.querySelectorAll('.sr-only').forEach(x => x.remove()); c.style.cssText = 'position:fixed;left:-9999px;top:0;width:360px'; document.body.appendChild(c); const t = c.innerText; c.remove(); return t.replace(/\s+/g, ' ').trim(); });
   const yearsShown = async () => ((await M('data-years')) || '').split(' ').filter(Boolean).map(s => s.split(':').map(Number));
   const near = (got, want) => got.length === want.length && got.every(([a, n], i) => a === want[i].age && Math.abs(n - want[i].n) <= 1);
@@ -1061,7 +1062,9 @@ const openMap = async () => { await closeSheet(); await tap('Explore'); await wa
       (await h.$('[data-simple-home][data-moon-home] canvas')) != null && (await h.$('[data-island]')) == null && (await h.$('[data-lantern]')) == null && (await M('data-drawn')) === '1');
     await check('175 moon home: the count is the engine\'s share of futures (to 1 of 100), the sentence names the last year, and the verdict is the one the count decides', async () => {
       const shown = Number(await h.$eval('[data-moon-count]', e => e.textContent)), line = await h.$eval('[data-moon-line]', e => e.textContent), verdict = await h.$eval('[data-moon-home] [data-status]', e => e.textContent);
-      const ok = Math.abs(shown - X.count) <= 1 && line === `times in 100, the money lasts until you are ${X.toAge}` && verdict === words(shown) && String(shown) === (await M('data-count'));
+      const rulesLine = await h.$eval('[data-moon-home] [data-moon-rules]', e => e.textContent).catch(() => null), keptShown = rulesLine ? Number((rulesLine.match(/^or (\d+) times, trimmed by your rules$/) || [])[1]) : null;
+      const lineOk = rulesLine ? line === `times in 100, it pays in full until you are ${X.toAge}` && X.kept != null && Math.abs(keptShown - X.kept) <= 1 : line === `times in 100, the money lasts until you are ${X.toAge}` && (X.kept == null || Math.abs(X.kept - X.count) <= 1);
+      const ok = Math.abs(shown - X.count) <= 1 && lineOk && verdict === words(shown) && String(shown) === (await M('data-count'));
       if (!ok) console.log(`  175: shows ${shown} "${line}" "${verdict}", engine ${X.count} to ${X.toAge}`);
       return ok; });
     await check('176 moon home: the years in the row are the engine\'s (the day of stopping, each fifth birthday, the last year), and the last year is the headline count', async () => {
@@ -1099,9 +1102,9 @@ const openMap = async () => { await closeSheet(); await tap('Explore'); await wa
       const labels = await h.$$eval('[data-moon-home] [data-year-age]', els => els.filter(e => getComputedStyle(e).visibility !== 'hidden').map(e => [Number(e.dataset.yearAge), Number(e.querySelector('[data-n]').textContent)]));
       const k = Math.min(3, X.years.length - 1); await tapYear(k);
       const l2 = await M('data-level'), sel = Number(await M('data-sel')), t2 = await seenText('[data-moon-home] [data-answer]');
-      const got = labels[k] || [], said = t2.match(new RegExp(`^At ${got[0]} ${got[1]} times in 100, the money lasts this long( with your spending rules; \\d+ times in full)?\\. (Even the unluckiest 10 are paid in full that year\\.|In the unluckiest 10, it pays about £([\\d,]+) a month or less\\.)$`));
+      const got = labels[k] || [], said = t2.match(new RegExp(`^At ${got[0]} ${got[1]} times in 100, (?:the money lasts this long|it pays in full this long; \\d+ times, trimmed by your rules)\\. (Even the unluckiest 10 are paid in full that year\\.|In the unluckiest 10, it pays about £([\\d,]+) a month or less\\.)$`));
       // What the unluckiest 10 of 100 are paid that year, from the engine: the 10th percentile of that year's share paid, times what the plan asks then.
-      const lucky = X.unlucky(got[0]), shownU = said && said[3] ? Number(said[3].replace(/,/g, '')) : null;
+      const lucky = X.unlucky(got[0]), shownU = said && said[2] ? Number(said[2].replace(/,/g, '')) : null;
       const read = !!said && (lucky === 'full' ? shownU == null : shownU != null && Math.abs(shownU - lucky) <= Math.max(50, lucky * 0.02));
       if (!read) console.log(`  179: the engine's unluckiest 10 at ${got[0]}: ${lucky}`);
       // A large moon has lifted out of the chosen year to the top of the box, and the row is still whole: press the large one to put it back.

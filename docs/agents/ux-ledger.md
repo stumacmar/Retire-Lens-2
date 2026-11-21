@@ -9,6 +9,7 @@ Word for word, newest first. These outrank any score.
 
 | Date | About | The owner said |
 |---|---|---|
+| 2026-11-21 | the moon home, live | "The moon isn't sensitive enough." |
 | 2026-11-21 | the three concepts built in the lab, the moon recommended | "Moon - do it" (said twice) |
 | 2026-11-21 | the tower, on seeing the panel's finding that nobody can read it | "Yes the tower is not intuitive. You can remove it but only to replace with something better and non standard. Think of all the 3d spacial opportunities or 4D or button pressing to open more- don't know what I mean like visual levels of depth" |
 | 2026-11-21 | the first draft of version 2 (subtract, subtract) | "Don't ruin the UX in warn something visually stunning and different but simplicity is importantly" (read as: don't ruin the UX; I want something visually stunning and different, but simplicity is important) |
@@ -297,6 +298,13 @@ Learned on this product, from the panels (each with its evidence above):
     a moon at the edge of the screen look less lit than its count, and a
     reader caught it. The UAT now measures the lit share from a photograph.
 
+11. **The picture must move when the plan does.** Three ways it did not: the
+    count for ladder plans was one that rules hold steady; the unlit part
+    was the colour of the sky, so 90 looked like 100; and a step of two in
+    100 moves the shadow four pixels. Count what was asked; keep both parts
+    of the picture visible; show a change where it happened; and give the
+    picture something to say past full.
+
 Still hypotheses: the app should decide more and ask less; uncertainty said
 the way a forecast says it.
 
@@ -361,6 +369,8 @@ as it stands"; at 97 it is all but full and says "Yes, on track".
 | 2026-11-21 | Leap, shipped (owner-driven) | The moon is the home: one night screen, the count, a verdict the count decides, two steppers, the years a press deeper. The Lantern is off the home; the lab's losers are deleted. Readers 6 of 6 on every question; critics 7 and 7 against 5 and 5 | merged by the owner's standing instruction | "Moon - do it" |
 
 | 2026-11-21 | Subtract and reword (owner: "Continue") | What the readers still asked: the unluckiest 10 at each age; "until you are 94"; "Live on each month"; tabs named Home and Workings. The moon retuned after the critics' third round, and its lit share measured against the count | merged by the owner's standing instruction | — |
+
+| 2026-11-21 | Fix (owner: "The moon isn't sensitive enough") | The moon counts paid in full on every plan (a ladder plan's "with rules" count hardly moved and could rise with the ask); the unlit sliver is visible; a change flashes where it happened; the glow widens with what is to spare past full | merged by the owner's standing instruction | — |
 
 **Standing instruction (owner, 21 November 2026):** do not ruin the UX. The
 result must be visually stunning and different as well as simple. Subtract

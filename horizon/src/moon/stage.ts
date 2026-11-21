@@ -183,13 +183,14 @@ export function bakeMoon(renderer: THREE.WebGLRenderer): THREE.WebGLRenderTarget
 export function phaseMaterial(p: number, surface: THREE.Texture, o: { gain?: number; bump?: number } = {}) {
   const m = new THREE.ShaderMaterial({
     uniforms: { uLight: { value: new THREE.Vector3() }, uMap: { value: surface },
-      uHigh: { value: new THREE.Color(0xfbf6ea) }, uSea: { value: new THREE.Color(0xc4b08a) }, uDark: { value: new THREE.Color(0x0d1226) }, uRim: { value: new THREE.Color(0x27335a) },
+      uHigh: { value: new THREE.Color(0xfbf6ea) }, uSea: { value: new THREE.Color(0xc4b08a) }, uDark: { value: new THREE.Color(0x1a2348) }, uRim: { value: new THREE.Color(0x7f98e6) },
+      uFrom: { value: new THREE.Vector3(0, 0, 1) }, uFlash: { value: 0 },
       uGain: { value: o.gain ?? 1.0 }, uBump: { value: o.bump ?? 1.0 }, uDim: { value: 1 } },
     vertexShader: `varying vec3 vN; varying vec3 vE; varying vec3 vT; varying vec3 vP;
       void main(){ vec3 n = normalize(position), e = normalize(cross(vec3(0.0, 1.0, 0.0), n) + vec3(1e-5, 0.0, 0.0));
         vN = normalize(normalMatrix * n); vE = normalMatrix * e; vT = normalMatrix * cross(n, e); vP = position;
         gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
-    fragmentShader: `uniform vec3 uLight; uniform sampler2D uMap; uniform vec3 uHigh; uniform vec3 uSea; uniform vec3 uDark; uniform vec3 uRim; uniform float uGain; uniform float uBump; uniform float uDim;
+    fragmentShader: `uniform vec3 uLight; uniform sampler2D uMap; uniform vec3 uHigh; uniform vec3 uSea; uniform vec3 uDark; uniform vec3 uRim; uniform float uGain; uniform float uBump; uniform float uDim; uniform vec3 uFrom; uniform float uFlash;
       varying vec3 vN; varying vec3 vE; varying vec3 vT; varying vec3 vP;
       void main(){ vec3 n = normalize(vN), q = normalize(vP), L = normalize(uLight);
         vec4 t = texture2D(uMap, vec2(atan(q.x, q.z) / 6.2831853 + 0.5, asin(clamp(q.y, -1.0, 1.0)) / 3.14159265 + 0.5));
@@ -204,13 +205,21 @@ export function phaseMaterial(p: number, surface: THREE.Texture, o: { gain?: num
         vec3 ground = mix(uSea, uHigh, t.r);
         vec3 bright = ground * uGain * (0.62 + 0.38 * limb) * clamp(1.0 + (0.45 + 1.6 * low) * (dB - dM), 0.55, 1.4) * (0.9 + 0.1 * smoothstep(0.0, 0.45, dM));
         // Night: a little above the sky, the seas just showing by earthshine, and a faint rim so the whole disc still reads.
-        vec3 shade = uDark * (0.55 + 0.75 * t.r) * (0.45 + 0.55 * limb) + uRim * pow(1.0 - facing, 3.0) * 0.45;
-        gl_FragColor = vec4(mix(shade, bright, lit) * uDim, 1.0); }`,
+        // (Owner, 21 November 2026: "The moon isn't sensitive enough." With the night side at the sky's own colour a
+        // moon at 90 or 96 looked full. The night side is now plainly darker than the lit and plainly lighter than the
+        // sky, and a thin bright rim closes the disc, so the unlit sliver is seen for what it is.)
+        vec3 shade = uDark * (0.6 + 0.7 * t.r) * (0.5 + 0.5 * limb) + uRim * pow(1.0 - facing, 5.0) * 0.9;
+        vec3 col = mix(shade, bright, lit);
+        // A change shows itself: for a moment after the count moves, the ground just gained blazes and the ground just
+        // lost glows like an ember, so even a step of two in 100 is seen where it happened.
+        float was = smoothstep(-0.05, 0.11, dot(n, normalize(uFrom)));
+        col += uFlash * (max(lit - was, 0.0) * vec3(1.0, 0.82, 0.45) * 0.9 + max(was - lit, 0.0) * vec3(0.5, 0.22, 0.08) * 0.55);
+        gl_FragColor = vec4(col * uDim, 1.0); }`,
   });
   setPhase(m, p); return m;
 }
 
-export function setPhase(m: THREE.ShaderMaterial, p: number) {
-  const phi = Math.acos(Math.max(-1, Math.min(1, 2 * Math.max(0, Math.min(1, p)) - 1)));
-  (m.uniforms.uLight.value as THREE.Vector3).set(Math.sin(phi), 0.1, Math.cos(phi));
-}
+const light = (p: number, out: THREE.Vector3) => { const phi = Math.acos(Math.max(-1, Math.min(1, 2 * Math.max(0, Math.min(1, p)) - 1))); return out.set(Math.sin(phi), 0.1, Math.cos(phi)); };
+export function setPhase(m: THREE.ShaderMaterial, p: number) { light(p, m.uniforms.uLight.value as THREE.Vector3); }
+/** Mark what the moon showed before a change (`from`), and how strongly the change still shows (1 just after it, fading to 0). */
+export function setChange(m: THREE.ShaderMaterial, from: number | null, flash: number) { if (from != null) light(from, m.uniforms.uFrom.value as THREE.Vector3); m.uniforms.uFlash.value = flash; }

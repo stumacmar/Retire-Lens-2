@@ -111,6 +111,10 @@ export default function SimpleHome({ plan, update, dd, mc, onDetails, header, he
     const cur = val.get(), next = clampVal(val, fn(val, cur));
     return next === cur ? p : { ...p, ...val.set(next) };
   });
+  // Past full, the moon cannot say more, so its glow does: how much is left at the end in the unluckiest 10 of 100
+  // futures, in years of what is asked (20 years or more is the most it shows). It falls to nothing as the moon starts to wane.
+  const leftAtEnd = (mc as any)?.perAgeWealth as { p10: number }[] | undefined;
+  const spare = leftAtEnd?.length && plan.targetNet > 0 ? Math.max(0, Math.min(1, (leftAtEnd[leftAtEnd.length - 1].p10 || 0) / plan.targetNet / 20)) : 0;
   const [typing, setTyping] = useState<{ id: string; text: string } | null>(null);
   const commit = () => { if (!typing) return; const n = parseFloat(typing.text.replace(/[,£\s]/g, '')); if (Number.isFinite(n)) write(typing.id, () => n); setTyping(null); };
 
@@ -119,8 +123,8 @@ export default function SimpleHome({ plan, update, dd, mc, onDetails, header, he
   const [no3d, setNo3d] = useState(() => !canDraw3d());
   const moon = picture === 'moon' && !no3d && hasMoney;
   useEffect(() => { onNight?.(moon && panel == null); return () => onNight?.(false); }, [moon, panel, onNight]);
-  // What the moon draws: at each age, the share of futures still paying (in full on a plain plan, with its rules on
-  // a structured one), and the share still paying in full. The last year is the headline count.
+  // What the moon draws: at each age, the share of futures still paying in full, and (for a safe-ladder plan) the share
+  // still paying once its rules have trimmed spending. The last year is the headline count.
   // With them, for each age, what the unluckiest 10 of 100 futures pay that year, a month in today's money: the answer
   // to the question every blind reader asked of the count ("and the other 43 times? a bit less, or nothing?").
   const moonYears = useMemo(() => {
@@ -130,7 +134,10 @@ export default function SimpleHome({ plan, update, dd, mc, onDetails, header, he
       const q = paid.get(h.age), want = asked.get(h.age);
       // The 10th percentile of that year's futures sits between the engine's 7.5% and 12.5% levels.
       const share = q && q.length > 2 ? (q[1] + q[2]) / 2 : null;
-      return { age: h.age as number, p: (structured ? Math.max(h.full, h.rules) : h.full) as number, full: h.full as number,
+      // The moon counts what was asked for, paid in full, on every plan (owner, 21 November 2026: "The moon isn't sensitive
+      // enough"). On a safe-ladder plan it used to count the futures that last once the rules have trimmed spending: that count
+      // hardly moves, and can rise when more is asked for, because the rules cut harder. It is now stated beside the moon.
+      return { age: h.age as number, p: h.full as number, kept: (structured ? Math.max(h.full, h.rules) : h.full) as number,
         unlucky: share == null || want == null ? null : share >= 0.99 ? 'full' as const : Math.round((share * want) / 50) * 50 };
     });
   }, [held, structured, mc, dd, plan.inflation, plan.startYear]);
@@ -181,7 +188,7 @@ export default function SimpleHome({ plan, update, dd, mc, onDetails, header, he
     };
     return (<>
       <Suspense fallback={<div data-simple-home data-moon-loading className="fixed inset-0" style={{ background: '#070C1F' }} />}>
-        <MoonHome header={headerNight ?? header} held={moonYears} structured={structured} pending={pending} front={front && panel == null}
+        <MoonHome header={headerNight ?? header} held={moonYears} structured={structured} spare={spare} pending={pending} front={front && panel == null}
           steps={[stepOf(drivers[0], 'Stop work at', false), stepOf(drivers[1], 'Live on each month', true)]}
           onHelp={() => setPanel('help')} onRisk={() => setPanel('risk')} onFailed={() => setNo3d(true)} />
       </Suspense>

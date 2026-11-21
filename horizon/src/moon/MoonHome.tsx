@@ -24,7 +24,7 @@ import { verdictFor } from '../lib/status';
  * is the headline count), so the moon, the row and the words cannot differ.
  */
 /** `unlucky`: what the unluckiest 10 of 100 futures pay that year, a month (or 'full' when even they are paid in full). */
-export type MoonYear = { age: number; p: number; full: number; unlucky?: number | 'full' | null };
+export type MoonYear = { age: number; p: number; kept: number; unlucky?: number | 'full' | null };
 export type MoonStep = {
   id: string; label: string; value: string; raw: number; less: string; more: string; canLess: boolean; canMore: boolean;
   onLess: () => void; onMore: () => void; onType?: (n: number) => void;
@@ -74,8 +74,8 @@ function Step({ s }: { s: MoonStep }) {
   );
 }
 
-export default function MoonHome({ header, held, structured, pending, front, steps, onHelp, onRisk, onFailed }: {
-  header?: ReactNode; held: MoonYear[]; structured: boolean; pending: boolean; front: boolean; steps: MoonStep[];
+export default function MoonHome({ header, held, structured, spare = 0, pending, front, steps, onHelp, onRisk, onFailed }: {
+  header?: ReactNode; held: MoonYear[]; structured: boolean; spare?: number; pending: boolean; front: boolean; steps: MoonStep[];
   onHelp: () => void; onRisk: () => void; onFailed: () => void;
 }) {
   const n = held.length, last = n ? held[n - 1] : null;
@@ -87,9 +87,9 @@ export default function MoonHome({ header, held, structured, pending, front, ste
     const five = pick(5), years = (five.length > 8 ? pick(10) : five).map(y => ({ age: y.age, p: y.p }));
     return { p: held[n - 1].p, years };
   }, [held, n]);
-  const fullOf = useMemo(() => new Map(held.map(y => [y.age, Math.round(y.full * 100)])), [held]);
+  const keptOf = useMemo(() => new Map(held.map(y => [y.age, Math.round(y.kept * 100)])), [held]);
   const unluckyOf = useMemo(() => new Map(held.map(y => [y.age, y.unlucky ?? null])), [held]);
-  const count = last ? Math.round(last.p * 100) : null, inFull = last ? Math.round(last.full * 100) : null;
+  const count = last ? Math.round(last.p * 100) : null, kept = last ? Math.round(last.kept * 100) : null;
   const v = count != null ? verdictFor(count) : null;
 
   const host = useRef<HTMLDivElement>(null), overlay = useRef<HTMLDivElement>(null), box = useRef<HTMLDivElement>(null);
@@ -108,6 +108,7 @@ export default function MoonHome({ header, held, structured, pending, front, ste
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [has]);
   useEffect(() => { if (data) stage.current?.setData(data); }, [data]);
+  useEffect(() => { stage.current?.setSpare(spare); }, [spare, drawn]);
   useEffect(() => { stage.current?.setPaused(!front); }, [front, drawn]);
 
   // The browser's own bar takes the night's colour while the moon is in front.
@@ -122,14 +123,14 @@ export default function MoonHome({ header, held, structured, pending, front, ste
   const shown = useCounted(count, drawn);
   const level = has ? at.level : 0;
   const year = data && level === 2 && at.sel >= 0 ? data.years[at.sel] : null;
-  const yearCount = year ? Math.round(year.p * 100) : null, yearFull = year ? fullOf.get(year.age) ?? null : null;
-  const yearLine = year == null ? '' : structured && yearFull != null && yearFull !== yearCount
-    ? `${yearCount} times in 100, the money lasts this long with your spending rules; ${yearFull} times in full.`
+  const yearCount = year ? Math.round(year.p * 100) : null, yearKept = year ? keptOf.get(year.age) ?? null : null;
+  const yearLine = year == null ? '' : structured && yearKept != null && yearKept !== yearCount
+    ? `${yearCount} times in 100, it pays in full this long; ${yearKept} times, trimmed by your rules.`
     : `${yearCount} times in 100, the money lasts this long.`;
   // What the count leaves unsaid: in the futures where the money has not lasted, the guaranteed income still comes in.
   const un = year ? unluckyOf.get(year.age) ?? null : null;
   const unluckyLine = un == null ? '' : un === 'full' ? 'Even the unluckiest 10 are paid in full that year.' : `In the unluckiest 10, it pays about £${un.toLocaleString('en-GB')} a month or less.`;
-  const rules = structured && inFull != null && inFull !== count ? `with your spending rules; ${inFull} times in full` : null;
+  const rules = structured && kept != null && kept !== count ? `or ${kept} times, trimmed by your rules` : null;
   const ages = data ? data.years.map(y => y.age) : [];
   const key = (e: React.KeyboardEvent) => {
     const s = stage.current; if (!s) return;
@@ -171,7 +172,7 @@ export default function MoonHome({ header, held, structured, pending, front, ste
                 <span aria-hidden="true" className="block tnum tracking-tight" style={{ fontSize: '4.5rem', lineHeight: 0.95, fontWeight: 400, letterSpacing: '-0.045em', color: pending ? '#9FB0D9' : '#FFFFFF' }}>{shown}</span>
                 <span data-moon-count className="sr-only">{count}</span>
                 {/* "Times in 100", not "futures": nine of twelve readers stumbled on "futures" ("I have only one future"). */}
-                <span data-moon-line className="block mt-0.5 text-[1rem] font-medium leading-snug whitespace-nowrap" style={{ color: '#F4F6FF' }}>times in 100, the money lasts until you are {last!.age}</span>
+                <span data-moon-line className="block mt-0.5 text-[1rem] font-medium leading-snug whitespace-nowrap" style={{ color: '#F4F6FF' }}>times in 100, {rules ? 'it pays in full' : 'the money lasts'} until you are {last!.age}</span>
               </h1>
               {rules && <p data-moon-rules className="text-[1rem] leading-snug" style={{ color: '#C9D4F2' }}>{rules}</p>}
               <p data-status={v!.key} className="mt-1.5 text-[1.35rem] font-bold leading-tight tracking-tight">{v!.label}</p>

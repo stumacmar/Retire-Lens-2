@@ -180,9 +180,15 @@ futures, not all" beside 58 of 100 as a contradiction):
 | 20 to 39 | "Probably not" |
 | under 20 | "Not as it stands" |
 
-The count is the last year of `perAgeHeld`: `successProb` on a plain plan,
-`successProbWithCuts` on a structured one, which then also states the
-paid-in-full count. The row of years under the moon is `perAgeHeld` at the
+The count is the last year of `perAgeHeld[].full`, which is `successProb`:
+the futures paid what was asked, in full, every year, on every kind of plan.
+A structured plan also states `successProbWithCuts` beside it ("or 78 times,
+trimmed by your rules"). The moon first used `successProbWithCuts` for
+structured plans, as `planStatus` does; it was changed on 21 November 2026
+because that count is not a measure of what was asked: it barely falls as
+the ask rises and can rise with it (the rules cut spending harder, so the
+money lasts), and a plan paid in full 6 times in 100 drew a moon three
+quarters lit. The row of years under the moon is `perAgeHeld` at the
 day of stopping, each fifth birthday and the last year. `planStatus` still
 decides the words on the island home and everywhere else; bringing the two
 into one rule is recorded as work to do in `docs/agents/ux-ledger.md`.

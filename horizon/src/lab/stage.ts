@@ -128,12 +128,18 @@ export function phaseMaterial(p: number, o: { lit?: number; dark?: number; gain?
       uGain: { value: o.gain ?? 1.0 }, uDim: { value: 1 }, uAlpha: { value: o.alpha ?? 1 } },
     vertexShader: 'varying vec3 vN; varying vec3 vP; void main(){ vN = normalize(normalMatrix * normal); vP = position; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
     fragmentShader: `uniform vec3 uLight; uniform vec3 uLit; uniform vec3 uDark; uniform float uGain; uniform float uDim; uniform float uAlpha; varying vec3 vN; varying vec3 vP;
-      void main(){ vec3 n = normalize(vN); float d = dot(n, normalize(uLight)); float lit = smoothstep(-0.035, 0.05, d);
-        float limb = pow(max(n.z, 0.0), 0.4);
-        float mott = sin(vP.x * 9.0 + sin(vP.y * 7.0) * 2.0) * sin(vP.y * 11.0 + sin(vP.z * 5.0) * 2.0);
-        float maria = 0.5 + 0.5 * sin(vP.x * 3.1 + 1.7 + sin(vP.y * 2.3) * 1.6) * sin(vP.y * 2.7 + sin(vP.z * 3.3 + vP.x) * 1.4);
-        vec3 bright = uLit * uGain * (0.7 + 0.3 * limb) * (0.86 + 0.14 * maria) * (1.0 + 0.04 * mott);
-        vec3 shade = uDark * (0.55 + 0.45 * limb);
+      float hash(vec3 p){ p = fract(p * 0.3183099 + 0.1); p *= 17.0; return fract(p.x * p.y * p.z * (p.x + p.y + p.z)); }
+      float noise(vec3 x){ vec3 i = floor(x), f = fract(x); f = f * f * (3.0 - 2.0 * f);
+        return mix(mix(mix(hash(i), hash(i + vec3(1,0,0)), f.x), mix(hash(i + vec3(0,1,0)), hash(i + vec3(1,1,0)), f.x), f.y),
+                   mix(mix(hash(i + vec3(0,0,1)), hash(i + vec3(1,0,1)), f.x), mix(hash(i + vec3(0,1,1)), hash(i + vec3(1,1,1)), f.x), f.y), f.z); }
+      float fbm(vec3 p){ float a = 0.5, s = 0.0; for (int i = 0; i < 5; i++) { s += a * noise(p); p *= 2.03; a *= 0.5; } return s; }
+      void main(){ vec3 n = normalize(vN);
+        float relief = fbm(vP * 3.2), seas = smoothstep(0.42, 0.62, fbm(vP * 1.15 + 4.0));
+        float d = dot(n, normalize(uLight)) + (relief - 0.5) * 0.035;
+        float lit = smoothstep(-0.012, 0.03, d);
+        float limb = pow(max(n.z, 0.0), 0.45);
+        vec3 bright = uLit * uGain * (0.74 + 0.26 * limb) * (0.9 + 0.2 * (relief - 0.5)) * (1.0 - 0.1 * seas) * (0.82 + 0.18 * smoothstep(0.0, 0.5, d));
+        vec3 shade = uDark * (0.5 + 0.5 * limb) * (0.92 + 0.16 * (relief - 0.5)) + vec3(0.02, 0.03, 0.07) * (1.0 - limb);
         gl_FragColor = vec4(mix(shade, bright, lit) * uDim, uAlpha); }`,
   });
   setPhase(m, p); return m;

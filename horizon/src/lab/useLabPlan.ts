@@ -12,7 +12,7 @@ import { planCounts } from '../lib/counts';
 export type LabFacts = {
   own: boolean;
   month: number;            // what is asked, a month, after tax
-  toAge: number;            // the plan age the answer sentence names
+  toAge: number;            // your age when the plan ends (the last year drawn), so the words and the picture name the same age
   stopAge: number;
   p: number;                // share of futures in which it is paid every year (with the rules, on a structured plan)
   futures: number;          // the same, of 100
@@ -29,13 +29,20 @@ const hasMoney = (p: any) => {
   return ((A.pension || 0) + (A.isa || 0) + (single ? 0 : (B.pension || 0) + (B.isa || 0)) + (p.cash || 0) + (A.monthlyPension || 0)) > 0;
 };
 
-export function useLabPlan(): { facts: LabFacts | null; failed: boolean } {
-  const [{ plan, own }] = useState(() => {
+/** What a concept may change while you look at it. Nothing is saved: the lab reads the plan and never writes it. */
+export type Tweak = { stopAge?: number; month?: number };
+
+export function useLabPlan(tweak: Tweak = {}): { facts: LabFacts | null; failed: boolean; pending: boolean } {
+  const [{ base, own }] = useState(() => {
     const saved: any = loadPlan(), mine = hasMoney(saved), q: any = mine ? saved : E.example();
-    return { plan: { ...q, growth: q.growthBase ?? q.growth }, own: mine };
+    return { base: { ...q, growth: q.growthBase ?? q.growth }, own: mine };
   });
+  const plan = useMemo(() => ({ ...base,
+    retireYear: tweak.stopAge != null ? base.partnerA.birthYear + tweak.stopAge : base.retireYear,
+    targetNet: tweak.month != null ? tweak.month * 12 : base.targetNet }), [base, tweak.stopAge, tweak.month]);
   const dd = useMemo(() => E.drawdown(plan) as any, [plan]);
-  const [mc, setMc] = useState<any>(null);
+  const [run, setRun] = useState<{ plan: any; mc: any } | null>(null);
+  const mc = run?.mc ?? null, setMc = (m: any) => setRun({ plan, mc: m });
   const [failed, setFailed] = useState(false);
 
   useEffect(() => {
@@ -50,8 +57,9 @@ export function useLabPlan(): { facts: LabFacts | null; failed: boolean } {
     return () => { live = false; worker?.terminate(); };
   }, [plan]);
 
-  const facts = useMemo<LabFacts | null>(() => {
-    if (!mc || !mc.perAgePaid) return null;
+  // The facts are built only from a simulation of this very plan; while a new one runs the last picture stays up.
+  const fresh = useMemo<LabFacts | null>(() => {
+    if (!mc || !mc.perAgePaid || run?.plan !== plan) return null;
     const rows = dd.rows as any[], model = lanternModel({ plan, rows, mc, stress: null }), F = model.floors, n = F.length;
     if (!n) return null;
     const structured = !!plan.architecture?.on;
@@ -64,11 +72,13 @@ export function useLabPlan(): { facts: LabFacts | null; failed: boolean } {
     rows.forEach((r, i) => { const v = (r.guaranteedNet || 0) / real(r); if (v > best.v * 1.01) best = { v, i }; });
     const at = rows[best.i], ask = (at?.planTarget || plan.targetNet) / real(at);
     return {
-      own, month: Math.round((plan.targetNet || 0) / 12), toAge: plan.horizonAge, stopAge: F[0].age, p, futures: Math.round(p * 100), pays: !!dd.holds, years, cover,
+      own, month: Math.round((plan.targetNet || 0) / 12), toAge: F[n - 1].age, stopAge: F[0].age, p, futures: Math.round(p * 100), pays: !!dd.holds, years, cover,
       guaranteed: { month: Math.round(best.v / 12), fromAge: at?.ageA ?? F[0].age, share: ask > 0 ? Math.min(1, best.v / ask) : 0 },
       counts: planCounts(plan), model,
     };
-  }, [plan, dd, mc, own]);
+  }, [plan, dd, mc, own, run]);
+  const [facts, setFacts] = useState<LabFacts | null>(null);
+  useEffect(() => { if (fresh) setFacts(fresh); }, [fresh]);
 
-  return { facts, failed };
+  return { facts, failed, pending: !fresh };
 }

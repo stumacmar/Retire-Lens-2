@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLabPlan } from './useLabPlan';
-import type { LabFacts } from './useLabPlan';
+import type { LabFacts, Tweak } from './useLabPlan';
 import { MoonStage } from './moon';
 import { ScalesStage } from './scales';
 import { CoreStage } from './core';
@@ -22,8 +22,12 @@ const gbp = (v: number) => `£${Math.round(v).toLocaleString('en-GB')}`;
 const NAMES = ['moon', 'scales', 'core'] as const;
 type Name = typeof NAMES[number];
 
-/** Plain words for how sure it is. A lab wording, not the app's status rules. */
-const verdict = (f: LabFacts) => (f.futures >= 80 ? 'On track' : f.futures >= 60 ? 'Likely, not certain' : f.futures >= 40 ? 'Touch and go' : f.futures >= 20 ? 'Unlikely as it stands' : 'Not enough yet');
+/**
+ * Plain words for how sure it is. A lab wording, not the app's status rules. No idioms: the reader with English
+ * as a second language took "Touch and go" as an instruction to touch the screen, and every reader asked for
+ * "probably yes" or "risky".
+ */
+const verdict = (f: LabFacts) => (f.futures >= 80 ? 'Yes, on track' : f.futures >= 60 ? 'Probably' : f.futures >= 40 ? 'It could go either way' : f.futures >= 20 ? 'Probably not' : 'Not as it stands');
 
 function useStage<T extends { dispose(): void }>(make: (host: HTMLDivElement, overlay: HTMLDivElement) => T | null, deps: unknown[]) {
   const host = useRef<HTMLDivElement>(null), overlay = useRef<HTMLDivElement>(null), stage = useRef<T | null>(null);
@@ -65,16 +69,72 @@ function Frame({ name, title, line, sub, back, onBack, host, overlay, onKey, des
   );
 }
 
-function Moon({ f }: { f: LabFacts }) {
+/** A value you step, on the dark screen itself: a label, the figure, and a minus and a plus you can hit with a thumb. */
+function Step({ label, value, less, more, onLess, onMore }: { label: string; value: string; less: string; more: string; onLess: () => void; onMore: () => void }) {
+  const b = 'pointer-events-auto w-[46px] h-[46px] rounded-full text-[1.5rem] leading-none font-medium flex items-center justify-center';
+  return (
+    <div className="flex items-center justify-between py-1.5">
+      <span className="text-[1rem]" style={{ color: '#C9D4F2' }}>{label}</span>
+      <span className="flex items-center gap-1">
+        <button type="button" aria-label={less} onClick={onLess} className={b} style={{ color: '#DCE6FF', border: '1px solid #3A4C8C' }}>−</button>
+        <span className="tnum text-[1.3rem] font-extrabold text-center" style={{ minWidth: '5.2ch' }}>{value}</span>
+        <button type="button" aria-label={more} onClick={onMore} className={b} style={{ color: '#DCE6FF', border: '1px solid #3A4C8C' }}>+</button>
+      </span>
+    </div>
+  );
+}
+
+/**
+ * The moon, second version, after the panel and the critics: the count is locked up with the picture, the verdict
+ * is in plain words, and the two things you would change sit on the same dark screen, so the light moves across
+ * the moon as you step them. Nothing is saved from here.
+ */
+function Moon({ f, pending, want, onTweak }: { f: LabFacts; pending: boolean; want: Tweak; onTweak: (t: Tweak) => void }) {
+  // The steppers show what you have asked for at once; the moon and the count follow when the futures are in.
+  const stopAge = want.stopAge ?? f.stopAge, month = want.month ?? f.month;
   const [at, setAt] = useState<{ level: number; index: number }>({ level: 0, index: -1 });
-  const { host, overlay, stage } = useStage((h, o) => new MoonStage(h, o, { p: f.p, years: f.years }, (level, index) => setAt({ level, index })), [f]);
-  const floor = at.index >= 0 ? f.model.floors[at.index] : null;
-  const answer = `In ${f.futures} of 100 futures, ${gbp(f.month)} a month lasts to ${f.toAge}.`;
-  return <Frame name="moon" title={verdict(f)} back={at.level > 0} onBack={() => stage.current?.back()} host={host} overlay={overlay}
-    line={floor ? readout(f.model, floor, 0) : answer}
-    sub={at.level === 1 ? 'The years ahead, from the day you stop.' : undefined}
-    describe={`${answer} Press to see the years ahead.`}
-    onKey={e => { if (e.key === 'Enter' || e.key === ' ' || e.key === 'ArrowUp') { e.preventDefault(); stage.current?.step(1); } else if (e.key === 'Escape' || e.key === 'ArrowDown') { e.preventDefault(); stage.current?.step(-1); } }} />;
+  const data = useMemo(() => ({ p: f.p, years: f.years }), [f]);
+  const { host, overlay, stage } = useStage((h, o) => new MoonStage(h, o, data, (level, index) => setAt({ level, index })), []);
+  useEffect(() => { stage.current?.setData(data); }, [data, stage]);
+  const floor = at.level === 2 && at.index >= 0 ? f.model.floors[at.index] : null;
+  const answer = `${f.futures} of 100 futures last to ${f.toAge}. ${verdict(f)}.`;
+  return (
+    <main data-lab="moon" data-level={at.level} data-pending={pending ? '1' : '0'} className="fixed inset-0" style={{ background: '#070C1F', color: '#F4F6FF' }}>
+      <div className="absolute inset-0" role="button" tabIndex={0} aria-label={`${answer} Press to see the years ahead.`} data-lab-stage
+        onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ' || e.key === 'ArrowUp') { e.preventDefault(); stage.current?.step(1); } else if (e.key === 'Escape' || e.key === 'ArrowDown') { e.preventDefault(); stage.current?.step(-1); } }}>
+        <div ref={host} className="absolute inset-0" />
+        <div ref={overlay} className="absolute inset-0 pointer-events-none overflow-hidden" />
+      </div>
+      <header className="absolute inset-x-0 top-0 flex items-center justify-between px-4 pointer-events-none" style={{ paddingTop: 'calc(env(safe-area-inset-top) + 8px)' }}>
+        {at.level > 0
+          ? <button type="button" data-lab-back onClick={() => stage.current?.back()} className="pointer-events-auto min-h-[44px] min-w-[44px] -ml-2 px-2 text-[1rem] font-semibold" style={{ color: '#DCE6FF' }}><span aria-hidden="true">‹</span> Back</button>
+          : <span className="min-h-[44px] flex items-center text-[1.05rem] font-extrabold tracking-tight">Someday</span>}
+        <a href="./" aria-label="Close" className="pointer-events-auto w-[44px] h-[44px] flex items-center justify-center text-[1.5rem] leading-none" style={{ color: '#9FB0D9', textDecoration: 'none' }}>×</a>
+      </header>
+
+      <div className="absolute inset-x-0 px-6 text-center pointer-events-none" style={{ top: '50%' }} aria-live="polite">
+        {at.level === 0 && <>
+          <p data-lab-count className="tnum leading-none transition-opacity" style={{ opacity: pending ? 0.5 : 1 }}>
+            <span className="block font-extrabold tracking-tight" style={{ fontSize: '3.6rem' }}>{f.futures}</span>
+            <span className="block mt-1 text-[1rem]" style={{ color: '#C9D4F2' }}>of 100 futures last to {f.toAge}</span>
+          </p>
+          <p data-lab-title className="mt-2.5 text-[1.3rem] font-extrabold leading-tight tracking-tight">{verdict(f)}</p>
+        </>}
+        {at.level === 1 && <p data-lab-title className="mt-6 text-[1.3rem] font-extrabold leading-tight tracking-tight">The years ahead</p>}
+        {floor && <p data-lab-line className="mt-16 text-[1.08rem] leading-snug font-semibold">{readout(f.model, floor, 0)}</p>}
+      </div>
+
+      {at.level === 0 && (
+        <div className="absolute inset-x-0 bottom-0 px-6 pointer-events-none" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 14px)' }}>
+          <Step label="Stop work at" value={String(stopAge)} less="Stop work a year earlier" more="Stop work a year later"
+            onLess={() => onTweak({ stopAge: Math.max(50, stopAge - 1) })} onMore={() => onTweak({ stopAge: Math.min(75, stopAge + 1) })} />
+          <div style={{ height: 1, background: '#1E2A55' }} />
+          <Step label="Take home a month" value={gbp(month)} less="£100 a month less" more="£100 a month more"
+            onLess={() => onTweak({ month: Math.max(500, Math.ceil(month / 100) * 100 - 100) })} onMore={() => onTweak({ month: Math.floor(month / 100) * 100 + 100 })} />
+        </div>
+      )}
+    </main>
+  );
 }
 
 function Scales({ f }: { f: LabFacts }) {
@@ -105,7 +165,8 @@ function Core({ f }: { f: LabFacts }) {
 
 export default function Lab() {
   const name = new URLSearchParams(window.location.search).get('lab') as Name | null;
-  const { facts, failed } = useLabPlan();
+  const [tweak, setTweak] = useState<Tweak>({});
+  const { facts, failed, pending } = useLabPlan(tweak);
   if (!name || !NAMES.includes(name)) {
     return (
       <main data-lab-index className="fixed inset-0 p-6" style={{ background: '#050916', color: '#F4F6FF' }}>
@@ -117,5 +178,5 @@ export default function Lab() {
     );
   }
   if (!facts) return <main data-lab-wait className="fixed inset-0 flex items-center justify-center" style={{ background: '#050916', color: '#C9D4F2' }}><p className="text-[0.95rem]">{failed ? 'The futures could not be worked out for this plan.' : 'Working out 2,000 futures…'}</p></main>;
-  return name === 'moon' ? <Moon f={facts} /> : name === 'scales' ? <Scales f={facts} /> : <Core f={facts} />;
+  return name === 'moon' ? <Moon f={facts} pending={pending} want={tweak} onTweak={t => setTweak(v => ({ ...v, ...t }))} /> : name === 'scales' ? <Scales f={facts} /> : <Core f={facts} />;
 }

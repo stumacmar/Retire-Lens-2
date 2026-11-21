@@ -57,6 +57,8 @@ function Horizon() {
   const [yearSel, setYearSel] = useState<number | null>(null);
   const [onboarded, setOnboarded] = useState(hasSavedPlan());
   const [picture, setPicture] = usePicture();
+  // The moon home is night-blue; while it is in front, the tab bar takes the same night.
+  const [night, setNight] = useState(false);
   const [disclaimerOk, setDisclaimerOk] = useState(disclaimerAccepted());
   const openPlus = () => setSheet('plus');
 
@@ -106,14 +108,25 @@ function Horizon() {
             <span className="flex-1 serif text-[1.35rem] leading-none" style={{ color: 'var(--color-ink)' }}>Someday</span>
             {PRODUCT.plusOffered && <PlusPill plus={plus} onClick={openPlus} />}
           </div>);
-        return <SimpleHome plan={plan} update={update} dd={dd} mc={mc} onDetails={() => setSheet('details')} header={header} picture={picture} />;
+        // On the night screen the name is small and quiet: the moon has the top of the screen.
+        const headerNight = (
+          <div className="flex items-center min-h-[28px]">
+            <span className="flex-1 text-[1rem] font-semibold tracking-tight" style={{ color: '#B9C8F5' }}>Someday</span>
+            {PRODUCT.plusOffered && <PlusPill plus={plus} onClick={openPlus} />}
+          </div>);
+        return <SimpleHome plan={plan} update={update} dd={dd} mc={mc} onDetails={() => setSheet('details')} header={header} headerNight={headerNight} picture={picture}
+          pending={S.mcPending} front={sheet === null} onNight={setNight} />;
       })()}
 
-      <nav className="fixed bottom-0 left-0 right-0 z-40"
-           style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 0.3rem)', paddingTop: '0.5rem',
-                    background: 'color-mix(in srgb, var(--color-surface) 88%, transparent)',
-                    backdropFilter: 'saturate(160%) blur(22px)', WebkitBackdropFilter: 'saturate(160%) blur(22px)',
-                    borderTop: '1px solid var(--color-hairline)' }}>
+      {/* Over the moon the bar has no slab and no line: the sky runs to the foot of the screen, and the tabs are quiet. */}
+      <nav className="fixed bottom-0 left-0 right-0 z-40" data-night={night && sheet === null ? '1' : undefined}
+           style={night && sheet === null
+             ? { paddingBottom: 'calc(env(safe-area-inset-bottom) + 0.3rem)', paddingTop: '0.5rem', '--color-ink-dim': '#8E9CC4', '--color-calm-strong': '#F4F6FF',
+                 background: 'linear-gradient(180deg, rgba(10, 18, 48, 0), rgba(10, 18, 48, 0.92) 45%)', borderTop: '1px solid transparent' } as React.CSSProperties
+             : { paddingBottom: 'calc(env(safe-area-inset-bottom) + 0.3rem)', paddingTop: '0.5rem',
+                 background: 'color-mix(in srgb, var(--color-surface) 88%, transparent)',
+                 backdropFilter: 'saturate(160%) blur(22px)', WebkitBackdropFilter: 'saturate(160%) blur(22px)',
+                 borderTop: '1px solid var(--color-hairline)' }}>
         <div className="flex justify-around mx-auto max-w-[560px]">
           <TabButton icon={<Sunrise size={24} />} label="Horizon" active={sheet === null} onClick={() => setSheet(null)} />
           <TabButton icon={<SlidersHorizontal size={24} />} label="Details" active={sheet === 'details'} onClick={() => setSheet('details')} />
@@ -158,7 +171,7 @@ function TabButton({ icon, label, active, onClick }: { icon: React.ReactNode; la
             aria-current={active ? 'page' : undefined}
             style={{ color: active ? 'var(--color-calm-strong)' : 'var(--color-ink-dim)' }}>
       <motion.span animate={{ scale: active ? 1.08 : 1 }} transition={{ type: 'spring', stiffness: 400, damping: 20 }}>{icon}</motion.span>
-      <span className="text-[0.62rem] font-semibold">{label}</span>
+      <span className="text-[0.8125rem] leading-tight font-semibold">{label}</span>
     </button>
   );
 }
@@ -376,21 +389,21 @@ function ExploreBody({ plan, dd, estate, mc, plus, onUpgrade, update, picture, s
         </nav>
       </div>
 
-      {/* Which picture the home shows. The Lantern is the home since 18 November 2026;
-          the island stays here for a release, for anyone who prefers it. */}
+      {/* Which picture the home shows. The moon is the home since 21 November 2026;
+          the island stays here for anyone who prefers it. */}
       <div data-picture className="rounded-2xl p-4" style={{ background: 'var(--color-canvas)', border: '1px solid var(--color-hairline)' }}>
         <div className="font-bold">Home picture</div>
         <p className="text-[0.82rem] leading-snug mt-0.5" style={{ color: 'var(--color-ink-dim)' }}>
-          The Lantern is a tower of your years with a light on for every future that pays. The island is the picture it replaced.
+          The moon is lit by how often your money lasts. The island is the earlier picture: land where your money covers what you ask, sea where it does not.
         </p>
         <div role="group" aria-label="Home picture" className="mt-2 grid grid-cols-2 gap-2">
-          {(['lantern', 'island'] as Picture[]).map(k => (
+          {(['moon', 'island'] as Picture[]).map(k => (
             <button key={k} type="button" data-picture-choice={k} aria-pressed={picture === k} onClick={() => setPicture(k)}
               className="min-h-[44px] rounded-xl text-[0.86rem] font-bold"
               style={picture === k
                 ? { background: 'var(--color-calm)', color: 'var(--color-on-calm)', border: '1px solid var(--color-calm)' }
                 : { background: 'var(--color-surface)', color: 'var(--color-ink)', border: '1px solid var(--color-hairline)' }}>
-              {k === 'lantern' ? 'The Lantern' : 'The island'}
+              {k === 'moon' ? 'The moon' : 'The island'}
             </button>
           ))}
         </div>

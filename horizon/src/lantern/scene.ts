@@ -253,7 +253,8 @@ export class LanternScene {
       for (const sx of [-1, 1]) for (const sz of [-1, 1]) edge.push(sx * w / 2, y0, sz * w / 2, sx * w / 2, y0 + hh, sz * w / 2);
 
       // The State Pensions: strips of light up the corners from the year each starts, as thick as the income.
-      for (const sp of M.spines) {
+      // On the home there is no key, and without one the strips read as glitches (both design critics, 21 November 2026): full-screen view only.
+      for (const sp of this.opts.compact ? [] : M.spines) {
         if (i < sp.fromFloor) continue;
         const side = Math.max(0.16, Math.min(0.42, ((W0 * sp.income) / this.maxSpend) * 0.07));
         for (const [sx, sz] of CORNERS[sp.key]) L.strips.push(this.box(sx * (w / 2 + side / 2), mid, sz * (w / 2 + side / 2), side, hh, side, STRIP_COL[sp.key]));
@@ -280,7 +281,7 @@ export class LanternScene {
       const geo = layer === 'quads' ? new THREE.PlaneGeometry(1, 1) : layer === 'frames' ? new THREE.RingGeometry(0.6, 0.68, 4, 1, Math.PI / 4) : new THREE.BoxGeometry(1, 1, 1);
       const mat = layer === 'glass' ? new THREE.MeshBasicMaterial({ color: 0x1c2f66, transparent: true, opacity: 0.16, depthWrite: false })
         : layer === 'rims' ? new THREE.MeshBasicMaterial({ color: 0x3a52a0 })
-          : layer === 'stone' ? new THREE.MeshLambertMaterial({ color: 0x6e5536, emissive: 0x1c1004 })
+          : layer === 'stone' ? new THREE.MeshLambertMaterial({ color: 0x2c3760, emissive: 0x0a0f22 })
             : layer === 'amber' ? new THREE.MeshBasicMaterial({ color: hex(0xffb347, 0.9), toneMapped: false })
               : new THREE.MeshBasicMaterial({ toneMapped: false });
       const mesh = new THREE.InstancedMesh(geo, mat, Math.max(1, cap));
@@ -317,7 +318,8 @@ export class LanternScene {
     const F = this.model.floors;
     F.forEach((f, i) => {
       const rank = i === 0 || i === this.n - 1 ? 0 : f.spend !== F[i - 1].spend ? 1 : f.age % 5 === 0 ? 2 : -1;
-      if (rank >= 0) this.labels.push(this.makeLabel(false, i, rank));
+      // On the home: the first and last age and nothing more. The count for a year is one tap away, in words under the picture.
+      if (rank === 0 || (rank > 0 && !this.opts.compact)) this.labels.push(this.makeLabel(false, i, rank));
     });
     this.labels.sort((a, b) => a.rank - b.rank || a.floor - b.floor);
     this.labelFace = -1;
@@ -328,7 +330,8 @@ export class LanternScene {
     el.setAttribute('aria-hidden', 'true'); el.dataset.floorLabel = String(floor);
     el.style.cssText = `position:absolute;left:0;top:0;display:flex;flex-direction:column;align-items:${this.opts.compact ? 'flex-start' : 'flex-end'};white-space:nowrap;pointer-events:none;font-variant-numeric:tabular-nums;line-height:1.05;` +
       (strong ? 'background:#16224a;border-radius:6px;padding:3px 5px;' : '');
-    age.style.cssText = strong ? 'font-size:12px;font-weight:700;color:#ffffff;' : 'font-size:11px;font-weight:700;color:#dce6ff;';
+    const big = !!this.opts.compact;   // the home: nothing under 13 px
+    age.style.cssText = strong ? `font-size:${big ? 14 : 12}px;font-weight:700;color:#ffffff;` : `font-size:${big ? 13 : 11}px;font-weight:700;color:#dce6ff;`;
     count.style.cssText = strong ? 'font-size:10.5px;font-weight:600;color:#dce6ff;' : 'font-size:10px;font-weight:600;color:#9fb0d9;';
     el.append(age, count);
     this.overlay.appendChild(el);
@@ -340,8 +343,9 @@ export class LanternScene {
     const say = (l: Label) => {
       const f = this.model.floors[l.floor]; if (!f) return;
       l.age.textContent = String(f.age);
-      l.count.textContent = face === 0 ? `${of100(f.windows)} of 100` : face === 3 ? `${of100(f.stress)} of 100` : '';
-      l.count.style.display = face === 0 || face === 3 ? '' : 'none';
+      const counted = !this.opts.compact && (face === 0 || face === 3);
+      l.count.textContent = !counted ? '' : face === 0 ? `${of100(f.windows)} of 100` : `${of100(f.stress)} of 100`;
+      l.count.style.display = counted ? '' : 'none';
     };
     this.labels.forEach(say); say(this.selLabel);
   }
@@ -363,7 +367,7 @@ export class LanternScene {
     const t = Math.tan((FOV * Math.PI) / 360);
     const halfH = ((top - bottom) / 2) * 1.14, halfW = W0 / 2 + (this.model.ladderFloors > 0 ? 3.6 : 2.3);   // the near face stands taller than the axis; a ladder's posts stand outside it
     // Room on both sides for the age labels, so the tower stays centred.
-    const compact = !!this.opts.compact, LEFT = 0.43, LABELS = 62;
+    const compact = !!this.opts.compact, LEFT = 0.43, LABELS = 40;
     const region = compact ? this.cw * (1 - LEFT) : this.cw;
     const room = Math.max(0.2, (region - (compact ? LABELS + 8 : 136)) / this.ch);
     const d = Math.max(halfH / t, halfW / (t * room)) / this.zoom;
@@ -406,11 +410,11 @@ export class LanternScene {
     const face = this.face;
     if (face !== this.labelFace) { this.labelFace = face; this.writeLabels(face); }
     // Labels never touch: the open floor's first, then the first and last year, the years spending steps, the fifth birthdays.
-    const two = face === 0 || face === 3, need = two ? 24 : 14, taken: number[] = [];
+    const two = !this.opts.compact && (face === 0 || face === 3), need = two ? 24 : 16, taken: number[] = [];
     const on = this.model.floors.map((_f, i) => this.floorOnScreen(i)), half = need / 2;
     // Beside the widest floor, and never so far out that a label is cut off by the edge of the picture.
     const widest = two ? 60 : 22;
-    const col = this.opts.compact ? Math.min(this.cw - widest - 7, Math.max(...on.map(p => p.maxX))) : Math.max(widest + 8, Math.min(...on.map(p => p.minX)));
+    const col = this.opts.compact ? Math.min(this.cw - widest - 16, Math.max(...on.map(p => p.maxX))) : Math.max(widest + 8, Math.min(...on.map(p => p.minX)));
     if (this.selected >= 0) { const y = on[this.selected].y; this.place(this.selLabel.el, y, col, half + 3); taken.push(y - 3, y + 3); }
     for (const l of this.labels) {
       const y = Math.min(this.ch - half - 1, Math.max(half + 1, on[l.floor].y)), show = l.floor !== this.selected && !taken.some(t => Math.abs(t - y) < need);

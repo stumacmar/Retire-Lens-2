@@ -165,6 +165,28 @@ contradict the figure beside it:
   years, so its status uses the share that last with the rules
   (`successProbWithCuts`) and the paid-in-full share is stated beside it.
 
+**The verdict on the moon home** (`verdictFor`, from 21 November 2026). The
+home's default picture is a moon lit by the share of futures in which the
+money lasts, with that count under it ("58 times in 100, the money lasts to
+94"). The words beside it are decided by the count and by nothing else, so
+the two cannot disagree (in blind tests every reader saw "Enough in most
+futures, not all" beside 58 of 100 as a contradiction):
+
+| Count (of 100) | Shown as |
+|---|---|
+| 80 or more | "Yes, on track" |
+| 60 to 79 | "Probably" |
+| 40 to 59 | "It could go either way" |
+| 20 to 39 | "Probably not" |
+| under 20 | "Not as it stands" |
+
+The count is the last year of `perAgeHeld`: `successProb` on a plain plan,
+`successProbWithCuts` on a structured one, which then also states the
+paid-in-full count. The row of years under the moon is `perAgeHeld` at the
+day of stopping, each fifth birthday and the last year. `planStatus` still
+decides the words on the island home and everywhere else; bringing the two
+into one rule is recorded as work to do in `docs/agents/ux-ledger.md`.
+
 History: until 14 November 2026 the rule put the futures first, so a plan
 supporting exactly the ask, or more, could read "Not yet funded"; and a
 structured plan kept solvent by cutting spending to 75% was credited with

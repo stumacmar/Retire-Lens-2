@@ -205,7 +205,9 @@ argue about for a month, so build instead of arguing.
 2. **Build them for real.** Each concept is a working screen on the real
    engine at `?lab=<name>`, in its own lazy chunk under `horizon/src/lab/`,
    reachable only by its address, never the default, never linked from the
-   app, and deleted when it loses. A mock-up that does not run the engine is
+   app, and deleted when it loses (the lab's route in `main.tsx` goes with
+   the last concept and comes back with the next Leap; the stage the moon is
+   drawn on, `horizon/src/moon/stage.ts`, began there and can be built on). A mock-up that does not run the engine is
    not a concept. Build the picture properly: this is the part that has to be
    stunning, so spend the time on it. Real light, depth and motion where they
    mean something (Three.js is already in the app, pinned and bundled); type

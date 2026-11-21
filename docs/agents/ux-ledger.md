@@ -9,6 +9,7 @@ Word for word, newest first. These outrank any score.
 
 | Date | About | The owner said |
 |---|---|---|
+| 2026-11-21 | the tower, on seeing the panel's finding that nobody can read it | "Yes the tower is not intuitive. You can remove it but only to replace with something better and non standard. Think of all the 3d spacial opportunities or 4D or button pressing to open more- don't know what I mean like visual levels of depth" |
 | 2026-11-21 | the first draft of version 2 (subtract, subtract) | "Don't ruin the UX in warn something visually stunning and different but simplicity is importantly" (read as: don't ruin the UX; I want something visually stunning and different, but simplicity is important) |
 | 2026-11-21 | the whole app | "The UX is now too complex. Create or revise the agent to create a world class UX by reviewing the best in the market and then using AI development to paradym shift" |
 | 2026-11-20 | the Lantern | "Do 1 through to 4" (one face on the home, two window states, one count, the count on the picture) |
@@ -42,6 +43,7 @@ answer is a picture that needs no explaining, with almost nothing beside it.
 |---|---|---|---|---|---|---|---|---|---|---|---|---|
 | target | 60 | 5 | 7 | 4 | 13 px | 0 | — | 150 | — / 12 | 300 / 20 | — | 1,600 / 80 |
 | 2026-11-21 (baseline) | 171 | 21 | 21 | 15 | 9.9 px | 71 | 91 | 305 | 909 / 86 | 1,419 / 219 | 184 | 3,250 / 156 |
+| 2026-11-21 (after the first Subtract cycle) | 107 | 17 | 19 | 13 | 9.9 px | 16 | 91 | 305 | 909 / 86 | 1,419 / 219 | 184 | 3,122 / 152 |
 
 Notes on the baseline: Details and Explore are measured as they open; the
 pages inside Details are not yet counted (add them to `ux-metrics.mjs` in the
@@ -77,6 +79,73 @@ Not yet judged: the first Subtract cycle gives each a rung (manual §3.1).
 | Counts line ("Counts Alex and Sam: £430k…") and its link | What did you count? | 1 | Trust; below the fold |
 | Tab bar (Horizon, Details, Explore, Peace) | Where is everything? | 4 | Four places, two of whose names say nothing about what is in them |
 
+### Home: what the first cycle did (21 November 2026)
+
+| Element | Rung | Done |
+|---|---|---|
+| Key ("Pays in full", "Falls short") | 1 remove | Gone |
+| Caption ("Each floor is a year. Each window…") | 1 remove | Gone |
+| "How to read this" and its sheet | 1 remove | Gone (`LanternKey.tsx` deleted) |
+| "Sources, money left, stress" | 3 down a layer | Gone from the home; the full-screen view is reached from Explore |
+| Age and count labels (five pairs, 10 px) | 3 down a layer | Two ages (first and last, 13 px); the count for a year is in the words when a floor is tapped |
+| State Pension strips on the tower | 3 down a layer | Full-screen view only: without a key they read as glitches |
+| "You ask for £X" in the answer | 2 merge | Gone from the Lantern's answer: it is on the stepper and in the sentence |
+| Resting line ("From 78, some futures fall short…") | 3 down a layer | Gone from the first screen (it is in "What could go wrong?") |
+| The tower | keep, and more of it | A third taller: it has the room the scaffolding took |
+| Steppers, switches, questions, counts line, tabs | not yet judged | Next cycles (see the work list) |
+
+### The panel on the home (21 November 2026)
+
+The test plan: the example couple asking £4,333 a month. Truth from the
+engine: the central case pays (£4,500 a month, £167 over the ask); 58 of 100
+futures pay £4,333 every year to the end; in the unluckiest 1 in 10 the
+money is short by 77. K is the home before this cycle, M after.
+
+| | Q1 what is it telling you | Q2 can they stop, how sure | Q3 which number matters | One word |
+|---|---|---|---|---|
+| K (before) | 6 of 6 right | 6 of 6 right ("probably, not sure") | 2 right (58 of 100), 4 partly (the big figure, muddled with the ask) | Busy, Flash, Striking, Slick, Serious, Chatty |
+| M (after) | 6 of 6 right | 6 of 6 right | 3 right, 3 partly | Smart, Slick, Smart, Slick, Pretty, Fiddly |
+
+Design critics (each saw both, unlabelled; this cycle without the three
+benchmark apps beside them, which the manual asks for: collect those
+pictures in the first Benchmark cycle). K: 5 and 5 of 10. M: 7 and 6. Both
+would be prouder of M ("the only one that looks like a designer said no to
+things"). Neither calls M's top half generic; both call its bottom half
+"stock form UI". M is better and is not yet stunning.
+
+**The work list the panel wrote** (question 5, most raised first):
+
+1. **The words contradict each other** (12 of 12 readers). "Enough in most
+   futures, not all" and "£167 to spare" beside "58 of 100": "that's barely
+   better than a coin toss, I don't call that most." The status word `thin`
+   covers anything under 80 of 100, including under 50, where "most" is
+   false. This is a wrong word, so it outranks the budget: fix
+   `lib/status.ts` and the spec (§3.4) next cycle.
+2. **Nobody can read the tower** (11 of 12, in both versions). "It's pretty,
+   but I don't know what it is." "Ignore the building." In K the key and
+   caption did not help: "went straight over my head." Removing them lost
+   nothing; the picture still does not give the answer. This is the case for
+   the first Leap: a picture whose overall look is the answer.
+3. **Two figures for one thing** (10). "£4,500 … then £4,333: which is the
+   real one?"
+4. **"15% less from 75"** (10). "Less of what? They're already ticked and I
+   didn't tick them."
+5. **The tabs** (11). "Horizon" and "Peace" "mean nothing to me."
+6. **"Futures"** (9). "I have only one future. Is it 100 people, or 100
+   guesses?"
+7. **Ages that disagree** (7). The tower runs to 94; the sentence says
+   "lasts to 92" (one is the older partner's age at the end, the other the
+   plan age).
+8. **"You pay in a month"** (5). "Pay into what?"
+9. **The counts line** is cut off by the tab bar (5, in M).
+10. **Screen reader:** the first thing announced is a slider, "Years of your
+    plan, 64", with no explanation; the figure is read in five pieces; there
+    is one heading on the screen; the tabs do not say which is selected.
+11. **Critics, the render:** dotted lines through the windows and uneven
+    gutters; a white header strip that spends 70 px on a name; six text sizes
+    in the answer; seven bordered objects under the picture in three styles.
+    Both suggested one annotation on the tower tying it to the sentence.
+
 ## Benchmarks
 
 None yet under version 2. (The market's pension calculators are in
@@ -86,31 +155,101 @@ screen.)
 
 ## Patterns
 
-To be filled from Benchmark cycles. Starting hypotheses, each to be tested,
-not believed:
+Learned on this product, from the panels (each with its evidence above):
 
-1. The first screen is one stunning picture that is itself the answer, one
-   sentence and one control. Everything else is a tap.
-2. Uncertainty is said the way a forecast says it, in words a person acts on,
-   with the picture behind a tap.
-3. The app decides more and asks less: defaults in place of settings.
+1. **A control teaches a picture better than a key does.** Nobody could read
+   the tower with its key. Everyone read the moon after one press of "+".
+   Put the lever next to the picture and let the picture move.
+2. **The count goes with the picture, in plain words.** "58 times in 100",
+   large, under the object. Not "futures" (9 of 12 stumbled), not an idiom
+   ("Touch and go" was read as an instruction), not a headline that
+   contradicts the count ("most" beside 58; "outweighs" beside "touch and
+   go").
+3. **Familiar is understood; familiar is also generic.** The scales were read
+   perfectly and scored 4.5 for looks. The answer is a distinctive object
+   made familiar by its behaviour, not a familiar object.
+4. **One encoding per object.** The core carried two (size and lit share) and
+   nobody could read it.
+5. **Do not shrink things with distance.** Smaller moons were read as less
+   money by 3 of 3.
+6. **People press the control, not the picture.** Depth that hangs off the
+   picture alone will not be found; give it a visible way in.
+
+Still hypotheses: the app should decide more and ask less; uncertainty said
+the way a forecast says it.
 
 ## Concepts
 
-None yet. The first Leap cycle is due within the first week.
+### The first Leap (21 November 2026)
+
+The owner: "the tower is not intuitive. You can remove it but only to replace
+with something better and non standard. Think of all the 3d spacial
+opportunities or 4D or button pressing to open more … visual levels of
+depth". Three concepts, each one object in the dark that is the answer at a
+glance and a press that goes a level deeper, on the real engine at
+`?lab=<name>` (`horizon/src/lab/`).
+
+| Concept | In one sentence | Address | Lay readers (3): what does the picture mean? | Critics (of 10) | Verdict |
+|---|---|---|---|---|---|
+| **Moon** | The lit share of one moon is the share of futures in which the money lasts; press it and it becomes the years ahead | `?lab=moon` | 3 of 3 right, each saying "I'm guessing"; after stepping the stop age, 3 of 3 sure ("the moon made more sense once I saw it change") | 7 and 7.5; both rank it first: "the only one I would screenshot", "the only one where the picture is the answer" | **Recommended.** Kept, and taken to a second version |
+| **Scales** | What you have against what you need on a balance that sways with the uncertainty | `?lab=scales` | 3 of 3 right at once, every part named ("much friendlier than a graph"); pressing a pan gave "exactly what I expected" | 4.5 and 4.5; both rank it last: "clip-art", "the stock metaphor for money" | The most understood and the least distinctive. Not the home. Keep the idea of have against need for a deeper level |
+| **Core** | Income guaranteed for life as a solid core in a glass shell lit by the share of futures | `?lab=core` | 0 of 3 from the picture ("the labels do the work, the picture doesn't"); its sentence was "the clearest thing so far" | 6 and 6: "needs that sentence to be understood at all" | Kill the picture. Keep the sentence ("£2,060 of your £4,333 a month is guaranteed for life") for a deeper level |
+| The stripped tower (the baseline) | — | the home after cycle 1 | 1 of 12 could say what it means | 5.5 and 5.5 | Replaced if the owner chooses the moon |
+
+Screening used three lay readers a concept (the nurse, the builder, the
+second-language reader), not six, and the critics again had no reference
+apps beside the screens. The winner gets the full panel when it is built as
+the home.
+
+**The moon, second version** (the same day, from what the readers and critics
+said): the count locked up with the picture ("58 / times in 100, the money
+lasts to 94"), a verdict in plain words, the years as a level row with the
+count under each age, a proper surface (relief, a crisp terminator, light on
+the dark side), and the two things a person would change ("Stop work at",
+"Take home a month") on the same dark screen, so the light moves across the
+moon as they are stepped. Nothing is saved from the lab.
+
+What three lay readers then said of it:
+- All three read the first screen right, and all three would press "+"
+  beside "Stop work at" before anything else.
+- After pressing it: "Age went to 66, the number went from 58 to 77, and it
+  now says 'Probably'. The moon's filled up more. So two more years' graft
+  buys a much better chance. That's useful and I got it straight away."
+  "Bigger yellow is better." The interaction teaches the picture; no key did.
+- The years view needed words and numbers ("give me the numbers under each
+  one, or don't bother"): added.
+- Still open: "why a moon?" (2 of 3: understood, not explained); "lasts to
+  94: the money, or me?" (reworded to "the money lasts to 94"); is £4,333
+  what I get or what I want, before or after tax; whose money and how much;
+  nobody thought to press the moon itself.
+
+Honesty check: at 16 times in 100 the moon is a thin crescent and says "Not
+as it stands"; at 97 it is all but full and says "Yes, on track".
 
 ## Cycles
 
 | Date | Kind | What shipped | Pull request | The owner's reaction |
 |---|---|---|---|---|
-| 2026-11-21 | setup (owner-driven) | Version 2 of the manual; `horizon/ux-metrics.mjs` and the baseline above; this ledger with a first inventory of the home | see the pull request | — |
+| 2026-11-21 | setup (owner-driven) | Version 2 of the manual; `horizon/ux-metrics.mjs` and the baseline above; this ledger with a first inventory of the home | #76, #77 | "Don't ruin the UX… visually stunning and different but simplicity is important"; then "Run it now" |
+| 2026-11-21 | Leap (owner-directed) | Three concepts at `?lab=moon`, `?lab=scales`, `?lab=core`; the moon taken to a second version with the count, plain words and two live steppers. Recommendation: build the home around the moon | see the pull request | — |
+| 2026-11-21 | Subtract (home) | The picture without its scaffolding: key, caption, two buttons, the count labels, the State Pension strips, "You ask for" and the resting line are off the first screen; the tower is a third taller. Panel: no worse on any question; critics 7 and 6 against 5 and 5 | #78 | "Yes the tower is not intuitive. You can remove it but only to replace with something better and non standard…" |
 
 **Standing instruction (owner, 21 November 2026):** do not ruin the UX. The
 result must be visually stunning and different as well as simple. Subtract
 the scaffolding, never the picture.
 
-**Next:** a Subtract cycle on the home. Give every row of the inventory its
-rung, run the panel on the home as it is (the baseline score), then ship the
-largest subtraction that the panel does not score worse. Then a Benchmark
-cycle (Apple Weather or the Met Office app, Google Maps, Monzo), then the
-first Leap.
+**Next, if the owner chooses the moon:** make it the home. That is several
+cycles, in this order: (1) the moon in `SimpleHome` in place of the Lantern,
+with the lockup, the plain verdict and the two steppers on the dark screen,
+writing to the plan as the home's steppers do; the island stays as the
+fallback without WebGL; the full six-reader panel and the critics with three
+reference apps beside it. (2) The wording goes app-wide: "times in 100", a
+verdict that cannot contradict the count (`lib/status.ts`, spec §3.4), one
+age for "lasts to". (3) What sits a level down from the moon: the years
+(built), what it is made of (the core's sentence: guaranteed for life against
+your pots), have against need, "What would help?" and "What could go
+wrong?", each with a visible way in. (4) Everything else under the picture
+goes or moves down: "You pay in", the two "less from" switches, the counts
+line, the tab names. (5) The render to benchmark quality on a real phone.
+
+**If the owner does not choose it:** another Leap, starting from pattern 1.

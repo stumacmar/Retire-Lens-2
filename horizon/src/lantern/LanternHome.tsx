@@ -2,21 +2,19 @@ import { useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
 import LanternCanvas from './LanternCanvas';
 import { lanternModel } from './adapter';
-import { Swatch, captionFor, legendFor, readout } from './words';
+import { readout } from './words';
 
 /**
- * The Lantern as the home's picture (owner, 18 November 2026: "move the
- * candle to the main screen", with "a key or other way to understand how
- * it's constructed in each example").
+ * The Lantern as the home's picture: one dark panel, the tower, and the
+ * answer beside it. Nothing else.
  *
- * One dark panel and one face of the tower, "Will it pay?" (owner, 20
- * November 2026, after three reviews: one face on the home, the other three
- * in the full-screen view). Left: the answer (status, what the plan can pay,
- * the gap) and under it the key, two marks. Right: the tower, with the age
- * and the count of 100 futures that pay in full beside its floors. Along the
- * foot: one line on how to read it, "How to read this", and the way to the
- * other views. Under the panel, the reading: the answer sentence at rest,
- * the open floor's year in words once a floor is tapped.
+ * Scout, 21 November 2026 (the owner: "The UX is now too complex", and
+ * "something visually stunning and different but simplicity is important"):
+ * the key, the caption, "How to read this", the way out to the other views
+ * and the count beside every fifth floor are gone from here, and the space
+ * they took goes to the tower. Lit means paid; unlit means not. A tap on a
+ * floor still opens it and reads that year in words under the panel. The
+ * other three faces are in the full-screen view, reached from Explore.
  *
  * The tower is drawn from the same results as everything else on the home:
  * the central case's rows and the simulated futures the home already has.
@@ -29,12 +27,8 @@ const PANEL_VARS = {
   '--status-ink': '#F4F6FF',
 } as React.CSSProperties;
 
-const FOOT_BUTTON = 'min-h-[40px] rounded-xl px-3 text-[0.76rem] font-semibold leading-tight flex items-center justify-center text-center whitespace-nowrap';
-const FOOT_STYLE = { background: '#16224A', color: '#F4F6FF', border: '1px solid #6177BD' } as React.CSSProperties;
-
-export default function LanternHome({ plan, rows, mc, head, answer, resting, spoken, onKey, onFailed }: {
-  plan: any; rows: any[]; mc: any | null; head: ReactNode; answer: ReactNode; resting: string; spoken: string;
-  onKey: () => void; onFailed: () => void;
+export default function LanternHome({ plan, rows, mc, head, answer, spoken, onFailed }: {
+  plan: any; rows: any[]; mc: any | null; head: ReactNode; answer: ReactNode; spoken: string; onFailed: () => void;
 }) {
   const [sel, setSel] = useState(-1);
   const P = useMemo(() => ({ ...plan, growth: plan.growthBase ?? plan.growth }), [plan]);
@@ -46,52 +40,27 @@ export default function LanternHome({ plan, rows, mc, head, answer, resting, spo
   useEffect(() => { if (sel >= n) setSel(-1); }, [sel, n]);
   const f = model && sel >= 0 && sel < n ? model.floors[sel] : null;
   const line = model && f ? readout(model, f, 0) : '';
-  const legend = model ? legendFor(model, 0) : [];
   const summary = f ? line : spoken;
 
   return (
     <div data-lantern-home className="flex-1 flex flex-col">
-      <div className="relative flex-1 min-h-[300px] [@media(min-height:650px)]:min-h-[318px] [@media(min-height:700px)]:min-h-[380px] max-h-[640px] -mx-4 sm:mx-0 sm:rounded-3xl overflow-hidden grid"
-        style={{ ...PANEL_VARS, background: 'linear-gradient(180deg, #060B1A, #0B1430)', color: '#F4F6FF',
-          gridTemplateColumns: 'minmax(0, 43%) minmax(0, 57%)', gridTemplateRows: 'minmax(0, 1fr) auto', ['--foot' as any]: '88px' }}>
+      <div className="relative flex-1 min-h-[300px] [@media(min-height:650px)]:min-h-[318px] [@media(min-height:700px)]:min-h-[380px] max-h-[640px] -mx-4 sm:mx-0 sm:rounded-3xl overflow-hidden"
+        style={{ ...PANEL_VARS, background: 'linear-gradient(180deg, #060B1A, #0B1430)', color: '#F4F6FF' }}>
         {/* The tower is drawn across the whole panel, standing in the right-hand part of it, so the glow has no seam. */}
-        <div className="relative min-h-0 col-start-1 col-span-2 row-start-1">
+        <div className="absolute inset-0">
           {model
             ? <LanternCanvas model={model} lens={0} selected={sel} summary={summary} compact locked onLens={() => {}} onSelect={i => setSel(s => (i === s ? -1 : i))} onFailed={onFailed} />
-            : <p data-lantern-wait className="absolute inset-y-0 right-0 w-[57%] flex items-center justify-center px-4 text-center text-[0.8rem]" style={{ color: '#C9D4F2' }}>Working out 2,000 futures…</p>}
+            : <p data-lantern-wait className="absolute inset-y-0 right-0 w-[57%] flex items-center justify-center px-4 text-center text-[0.84rem]" style={{ color: '#C9D4F2' }}>Working out 2,000 futures…</p>}
         </div>
 
-        {/* Laid over the left of the tower's panel, and out of the flow, so the key never changes the panel's height. */}
-        <div className="absolute z-10 pointer-events-none left-0 top-0 w-[43%] pl-4 pr-1 pt-3 flex flex-col overflow-hidden" style={{ bottom: 'var(--foot, 62px)' }}>
-          <div>{head}</div>
-          {/* The key: two marks. */}
-          <ul data-lantern-legend className="mt-auto pt-1 pb-1 space-y-1">
-            {legend.map(it => (
-              <li key={it.label} className="flex items-center gap-1.5 leading-[1.15] text-[0.76rem]" style={{ color: '#E3E9FB' }}>
-                <Swatch kind={it.kind} colour={it.colour} tile={false} />{it.label}
-              </li>
-            ))}
-          </ul>
-        </div>
-
-        <div className="col-span-2 row-start-2 px-3 pb-2 pt-1">
-          <p data-lantern-caption className="px-1 text-[0.72rem] leading-snug" style={{ color: '#B9C8F5' }}>{model ? captionFor(model, 0) : ''}</p>
-          <div className="mt-1.5 flex gap-2">
-            <button type="button" data-lantern-key-open onClick={onKey} className={`${FOOT_BUTTON} shrink-0`} style={FOOT_STYLE}>
-              How to read this <span aria-hidden="true">&nbsp;›</span>
-            </button>
-            {/* The other three faces (where the money comes from, what is left, a market fall) are a tap away, full screen. */}
-            <a data-lantern-more href="./?lantern=1" className={`${FOOT_BUTTON} flex-1 min-w-0`} style={{ ...FOOT_STYLE, textDecoration: 'none' }}>
-              Sources, money left, stress <span aria-hidden="true">&nbsp;›</span>
-            </a>
-          </div>
-        </div>
+        {/* The answer, laid over the left of the panel. */}
+        <div className="absolute z-10 pointer-events-none left-0 top-0 w-[43%] pl-4 pr-1 pt-4">{head}</div>
       </div>
 
-      {/* The reading: the answer at rest, the open floor's year once one is tapped. */}
-      <p data-lantern-reading aria-live="polite" className="mt-1.5 px-0 text-center text-[0.8rem] leading-snug min-h-[3.75em]" style={{ color: f ? 'var(--color-ink)' : 'var(--color-ink-dim)' }}>
-        <span className={f ? 'sr-only' : undefined}>{answer} </span>
-        <span data-lantern-text>{f ? line : resting}</span>
+      {/* Under the picture: the answer in one sentence, or the open floor's year once one is tapped. */}
+      <p data-lantern-reading aria-live="polite" className="mt-2 px-0 text-center text-[0.88rem] leading-snug min-h-[2.75em]" style={{ color: 'var(--color-ink)' }}>
+        <span className={f ? 'sr-only' : undefined}>{answer}</span>
+        <span data-lantern-text>{f ? line : ''}</span>
       </p>
     </div>
   );

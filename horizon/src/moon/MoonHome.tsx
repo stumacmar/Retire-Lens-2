@@ -16,8 +16,8 @@ import { verdictFor } from '../lib/status';
  * and what the plan counts are in Details, where they always were.
  *
  * Depth is time: "The years ahead" (or a press on the moon) opens it into a
- * row of moons, one every five years, each lit by how often the money is
- * still paying at that age; a press on a year reads it out.
+ * row of moons, one every five years, each lit by how often the money lasts
+ * to that age; a press on one lifts a large moon out of it and reads it out.
  *
  * It draws only what the home already has: the simulated futures' own count
  * of how many are still paying at each age (`mc.perAgeHeld`, whose last year
@@ -33,25 +33,41 @@ const NIGHT = '#070C1F';
 // The header is written with theme tokens; on the night screen they are given light values.
 const VARS = { '--color-ink': '#F4F6FF', '--color-ink-dim': '#C9D4F2', '--color-ink-faint': '#9FB0D9', '--color-calm': '#9DB8FF' } as React.CSSProperties;
 
+/** A whole number that counts to each new value over about half a second. */
+function useCounted(value: number | null, go: boolean) {
+  const [n, setN] = useState<number | null>(null), from = useRef(0);
+  useEffect(() => {
+    if (value == null || !go) return;
+    const calm = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    const a = from.current, t0 = performance.now(), ms = calm ? 0 : 650;
+    let raf = 0;
+    const tick = (now: number) => { const k = ms ? Math.min(1, (now - t0) / ms) : 1, e = 1 - Math.pow(1 - k, 3), v = Math.round(a + (value - a) * e); from.current = v; setN(v); if (k < 1) raf = requestAnimationFrame(tick); };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [value, go]);
+  return n ?? (go ? value : 0) ?? 0;
+}
+
 function Step({ s }: { s: MoonStep }) {
   const [text, setText] = useState<string | null>(null);
   const commit = () => { if (text == null) return; const n = parseFloat(text.replace(/[,£\s]/g, '')); if (Number.isFinite(n)) s.onType?.(n); setText(null); };
-  const round = 'w-11 h-11 rounded-full flex items-center justify-center disabled:opacity-30';
-  const ring = { color: '#DCE6FF', border: '1px solid #3A4C8C' };
+  const round = 'w-10 h-10 rounded-full flex items-center justify-center disabled:opacity-30';
+  const ring = { color: '#DCE6FF', border: '1px solid rgba(157, 184, 255, 0.38)' };
+  const slot = { width: '5.4ch' };
   return (
-    <div data-driver={s.id} className="flex items-center justify-between gap-2 min-h-[50px]">
+    <div data-driver={s.id} role="group" aria-label={`${s.label}: ${s.value}`} className="flex items-center justify-between gap-2 min-h-[50px]">
       <span className="text-[1rem] whitespace-nowrap" style={{ color: '#C9D4F2' }}>{s.label}</span>
-      <span className="flex items-center gap-1 pointer-events-auto">
-        <button type="button" aria-label={s.less} disabled={!s.canLess} onClick={s.onLess} className={round} style={ring}><Minus size={20} aria-hidden /></button>
+      <span className="flex items-center gap-1.5 pointer-events-auto">
+        <button type="button" aria-label={s.less} disabled={!s.canLess} onClick={s.onLess} className={round} style={ring}><Minus size={18} aria-hidden /></button>
         {text != null ? (
           <input autoFocus inputMode="decimal" aria-label={`${s.label}, type a figure`} value={text} onChange={e => setText(e.target.value)} onBlur={commit}
             onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); if (e.key === 'Escape') setText(null); }}
-            className="tnum text-center text-[1.35rem] font-extrabold rounded-lg outline-none" style={{ width: '5.2ch', background: '#101A40', color: '#F4F6FF', border: '1px solid #9DB8FF' }} />
+            className="tnum text-center text-[1.35rem] font-semibold rounded-lg outline-none" style={{ ...slot, background: '#101A40', color: '#F4F6FF', border: '1px solid #9DB8FF' }} />
         ) : s.onType ? (
           <button type="button" data-value onClick={() => setText(String(s.raw))} aria-label={`${s.label}: ${s.value}. Tap to type a figure`}
-            className="tnum text-[1.35rem] font-extrabold text-center min-h-[44px]" style={{ minWidth: '5.2ch', color: '#F4F6FF' }}>{s.value}</button>
-        ) : <span data-value className="tnum text-[1.35rem] font-extrabold text-center" style={{ minWidth: '5.2ch' }}>{s.value}</span>}
-        <button type="button" aria-label={s.more} disabled={!s.canMore} onClick={s.onMore} className={round} style={ring}><Plus size={20} aria-hidden /></button>
+            className="tnum text-[1.35rem] font-semibold text-center min-h-[44px]" style={{ ...slot, color: '#F4F6FF' }}>{s.value}</button>
+        ) : <span data-value className="tnum text-[1.35rem] font-semibold text-center" style={slot}>{s.value}</span>}
+        <button type="button" aria-label={s.more} disabled={!s.canMore} onClick={s.onMore} className={round} style={ring}><Plus size={18} aria-hidden /></button>
       </span>
     </div>
   );
@@ -100,12 +116,14 @@ export default function MoonHome({ header, held, structured, pending, front, ste
     return () => { metas.forEach((m, i) => { m.content = was[i]; }); };
   }, [front]);
 
+  // The figure counts to its new value as the light moves across the moon (at once, where motion is unwelcome).
+  const shown = useCounted(count, drawn);
   const level = has ? at.level : 0;
   const year = data && level === 2 && at.sel >= 0 ? data.years[at.sel] : null;
   const yearCount = year ? Math.round(year.p * 100) : null, yearFull = year ? fullOf.get(year.age) ?? null : null;
   const yearLine = year == null ? '' : structured && yearFull != null && yearFull !== yearCount
-    ? `${yearCount} times in 100, the money is still paying with your spending rules; ${yearFull} times in full.`
-    : `${yearCount} times in 100, the money is still paying in full.`;
+    ? `${yearCount} times in 100, the money lasts this long with your spending rules; ${yearFull} times in full.`
+    : `${yearCount} times in 100, the money lasts this long.`;
   const rules = structured && inFull != null && inFull !== count ? `with your spending rules; ${inFull} times in full` : null;
   const ages = data ? data.years.map(y => y.age) : [];
   const key = (e: React.KeyboardEvent) => {
@@ -139,22 +157,26 @@ export default function MoonHome({ header, held, structured, pending, front, ste
                 aria-label="The years ahead" aria-valuemin={ages[0]} aria-valuemax={ages[ages.length - 1]} aria-valuenow={year ? year.age : ages[0]}
                 aria-valuetext={year ? `At ${year.age}: ${yearLine}` : 'No year chosen. Use the arrow keys to choose one.'} />}
 
-          <section data-answer data-ready={has && !pending && drawn ? '1' : '0'} aria-live="polite" className="text-center flex flex-col justify-center" style={{ minHeight: rules ? '8.9rem' : '7.5rem' }}>
+          <section data-answer data-ready={has && !pending && drawn ? '1' : '0'} aria-live="polite" className="text-center flex flex-col justify-center" style={{ minHeight: rules ? '9.9rem' : '8.5rem' }}>
             {!has && <p data-moon-wait className="text-[1rem]" style={{ color: '#C9D4F2' }}>Working out 2,000 futures…</p>}
             {has && level === 0 && <>
               <h1 className="font-normal">
-                {/* While a new count is on its way the old one waits in a quieter colour (never dimmed with opacity). */}
-                <span data-moon-count className="block tnum font-extrabold tracking-tight" style={{ fontSize: '3.6rem', lineHeight: 1, color: pending ? '#9FB0D9' : '#F4F6FF' }}>{count}</span>
+                {/* Light and large; the verdict is the one bold line. While a new count is on its way the old one waits in a
+                    quieter colour (never dimmed with opacity). A screen reader is told the count once, not every step of the counting. */}
+                <span aria-hidden="true" className="block tnum tracking-tight" style={{ fontSize: '4.5rem', lineHeight: 0.95, fontWeight: 400, letterSpacing: '-0.045em', color: pending ? '#9FB0D9' : '#FFFFFF' }}>{shown}</span>
+                <span data-moon-count className="sr-only">{count}</span>
                 {/* "Times in 100", not "futures": nine of twelve readers stumbled on "futures" ("I have only one future"). */}
-                <span data-moon-line className="block mt-1 text-[1rem] leading-snug" style={{ color: '#C9D4F2' }}>times in 100, the money lasts to {last!.age}</span>
+                <span data-moon-line className="block mt-0.5 text-[1rem] font-medium leading-snug" style={{ color: '#F4F6FF' }}>times in 100, the money lasts to {last!.age}</span>
               </h1>
               {rules && <p data-moon-rules className="text-[1rem] leading-snug" style={{ color: '#C9D4F2' }}>{rules}</p>}
-              <p data-status={v!.key} className="mt-2 text-[1.35rem] font-extrabold leading-tight tracking-tight">{v!.label}</p>
+              <p data-status={v!.key} className="mt-1.5 text-[1.35rem] font-bold leading-tight tracking-tight">{v!.label}</p>
             </>}
             {has && level === 1 && <>
               <h1 data-moon-title className="text-[1.35rem] font-extrabold leading-tight tracking-tight">The years ahead</h1>
-              <p data-moon-line className="mt-2 text-[1rem] leading-snug" style={{ color: '#C9D4F2' }}>At each age, how many times in 100 the money is still paying. Press a year.</p>
+              {/* One test, one word for it, at every level: "the money lasts" (a reader: "lasts, still paying, paying in full: are those the same test?"). */}
+              <p data-moon-line className="mt-2 text-[1rem] leading-snug" style={{ color: '#C9D4F2' }}>How many times in 100 the money lasts to each age. Press one.</p>
             </>}
+            {has && level >= 1 && <ul className="sr-only" data-moon-list>{data!.years.map(y => <li key={y.age}>To {y.age}: {Math.round(y.p * 100)} times in 100.</li>)}</ul>}
             {year && <>
               <h1 data-moon-title className="text-[1.35rem] font-extrabold leading-tight tracking-tight">At {year.age}</h1>
               <p data-moon-line className="mt-2 text-[1rem] leading-snug" style={{ color: '#C9D4F2' }}>{yearLine}</p>
@@ -164,18 +186,18 @@ export default function MoonHome({ header, held, structured, pending, front, ste
           {/* The way in, and the way back out, in the same place. Nobody in the lab pressed the moon unprompted. */}
           <div className="flex justify-center">
             <button type="button" data-moon-years disabled={!has} onClick={() => (level === 0 ? stage.current?.enter() : stage.current?.back())}
-              className="pointer-events-auto min-h-[44px] px-4 text-[1rem] font-semibold" style={{ color: '#DCE6FF' }}>
+              className="pointer-events-auto min-h-[44px] px-4 text-[1rem]" style={{ color: '#B9C8F5' }}>
               {level === 0 ? <>The years ahead <span aria-hidden="true">›</span></> : <><span aria-hidden="true">‹</span> Back</>}
             </button>
           </div>
 
-          <section aria-label="Change your plan" className="mt-1">
-            {steps.map((s, i) => <div key={s.id}>{i > 0 && <div style={{ height: 1, background: '#1E2A55' }} />}<Step s={s} /></div>)}
+          <section aria-label="Change your plan" className="mt-2">
+            {steps.map(s => <Step key={s.id} s={s} />)}
           </section>
 
           <div className="mt-1 flex justify-between">
-            <button type="button" onClick={onHelp} className="pointer-events-auto min-h-[44px] text-[1rem] underline underline-offset-4" style={{ color: '#C9D4F2', textDecorationColor: '#3A4C8C' }}>What would help?</button>
-            <button type="button" onClick={onRisk} className="pointer-events-auto min-h-[44px] text-[1rem] underline underline-offset-4" style={{ color: '#C9D4F2', textDecorationColor: '#3A4C8C' }}>What could go wrong?</button>
+            <button type="button" onClick={onHelp} className="pointer-events-auto min-h-[44px] text-[1rem]" style={{ color: '#B9C8F5' }}>What would help?</button>
+            <button type="button" onClick={onRisk} className="pointer-events-auto min-h-[44px] text-[1rem]" style={{ color: '#B9C8F5' }}>What could go wrong?</button>
           </div>
         </div>
       </div>

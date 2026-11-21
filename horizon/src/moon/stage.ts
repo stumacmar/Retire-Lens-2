@@ -124,31 +124,86 @@ function backdrop() {
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
 }
 
+const NOISE = `
+  float hash(vec3 p){ p = fract(p * 0.3183099 + 0.1); p *= 17.0; return fract(p.x * p.y * p.z * (p.x + p.y + p.z)); }
+  float noise(vec3 x){ vec3 i = floor(x), f = fract(x); f = f * f * (3.0 - 2.0 * f);
+    return mix(mix(mix(hash(i), hash(i + vec3(1,0,0)), f.x), mix(hash(i + vec3(0,1,0)), hash(i + vec3(1,1,0)), f.x), f.y),
+               mix(mix(hash(i + vec3(0,0,1)), hash(i + vec3(1,0,1)), f.x), mix(hash(i + vec3(0,1,1)), hash(i + vec3(1,1,1)), f.x), f.y), f.z); }
+  float fbm(vec3 p){ float a = 0.5, s = 0.0; for (int i = 0; i < 5; i++) { s += a * noise(p); p *= 2.03; a *= 0.5; } return s; }
+  vec3 hash3(vec3 p){ return fract(sin(vec3(dot(p, vec3(127.1, 311.7, 74.7)), dot(p, vec3(269.5, 183.3, 246.1)), dot(p, vec3(113.5, 271.9, 124.6)))) * 43758.5453); }
+  // Craters at one scale: a bowl with a raised rim, in about half the cells of a grid.
+  float craters(vec3 p, float scale, float seed){ vec3 q = p * scale + seed, i = floor(q), f = fract(q); float h = 0.0;
+    for (int x = -1; x <= 1; x++) for (int y = -1; y <= 1; y++) for (int z = -1; z <= 1; z++) {
+      vec3 g = vec3(float(x), float(y), float(z)), o = hash3(i + g); if (o.z > 0.3) continue;
+      float r = 0.1 + 0.36 * o.x * o.x, d = length(g + o - f) / r;
+      h += (d < 1.0 ? -(1.0 - d * d) * 0.6 : 0.0) + exp(-pow((d - 1.0) / 0.2, 2.0)) * 0.3; }
+    return h; }
+  float seas(vec3 p){ return smoothstep(0.44, 0.62, fbm(p * 1.15 + 4.0)); }
+  float height(vec3 p){ float m = seas(p); return 0.25 * (fbm(p * 5.0 + 9.0) - 0.5) + (craters(p, 3.0, 1.0) + 0.6 * craters(p, 6.5, 7.0) + 0.18 * craters(p, 13.0, 3.0)) * 0.2 * (1.0 - 0.65 * m) - 0.05 * m; }`;
+
+/**
+ * The moon's surface, worked out once on the graphics card and kept as a
+ * picture: how bright the ground is (seas dark, highlands pale, a little
+ * brighter round a crater) and which way it slopes, east and north. Every
+ * moon on the screen then reads its surface from this, which costs two
+ * lookups a pixel instead of the hundred sums it takes to make.
+ */
+export function bakeMoon(renderer: THREE.WebGLRenderer): THREE.WebGLRenderTarget {
+  const rt = new THREE.WebGLRenderTarget(1024, 512, { minFilter: THREE.LinearMipmapLinearFilter, magFilter: THREE.LinearFilter, generateMipmaps: true, wrapS: THREE.RepeatWrapping, depthBuffer: false });
+  const mat = new THREE.ShaderMaterial({
+    vertexShader: 'varying vec2 vU; void main(){ vU = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }',
+    fragmentShader: `varying vec2 vU; ${NOISE}
+      void main(){ float lon = vU.x * 6.2831853, lat = (vU.y - 0.5) * 3.14159265;
+        vec3 p = vec3(cos(lat) * sin(lon), sin(lat), cos(lat) * cos(lon));
+        vec3 east = vec3(cos(lon), 0.0, -sin(lon)), north = vec3(-sin(lat) * sin(lon), cos(lat), -sin(lat) * cos(lon));
+        float e = 0.006, h = height(p), dE = (height(normalize(p + east * e)) - h) / e, dN = (height(normalize(p + north * e)) - h) / e;
+        float m = seas(p), albedo = clamp(0.84 - 0.58 * m + 0.34 * (fbm(p * 2.6 + 9.0) - 0.5) + 0.16 * (fbm(p * 9.0 + 2.0) - 0.5) + 0.4 * max(h, 0.0), 0.0, 1.0);
+        gl_FragColor = vec4(albedo, 0.5 + 0.5 * clamp(dE * 0.3, -1.0, 1.0), 0.5 + 0.5 * clamp(dN * 0.3, -1.0, 1.0), 1.0); }`,
+  });
+  const quad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), mat), scene = new THREE.Scene(); scene.add(quad);
+  const was = renderer.getRenderTarget();
+  renderer.setRenderTarget(rt); renderer.render(scene, new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1)); renderer.setRenderTarget(was);
+  quad.geometry.dispose(); mat.dispose();
+  return rt;
+}
+
 /**
  * A sphere lit like the moon: the share `p` of its face is lit, from the
- * right, and the rest is a dim slate you can still see. The light's angle is
- * set so the lit share of the disc is exactly p (a half moon is 50).
+ * right, and the rest is night, a little above the sky's own colour, with
+ * the seas just showing and a faint rim so the whole disc still reads. The
+ * light's angle is set so the lit share of the disc is exactly p (a half
+ * moon is 50); the ground's slopes catch the light, which breaks the edge of
+ * the shadow the way craters do, without moving it.
+ *
+ * (Two design critics, 21 November 2026: the first render was "a two-tone
+ * mustard-and-navy ball"; the dark side was a flat navy brighter than the sky.)
  */
-export function phaseMaterial(p: number, o: { lit?: number; dark?: number; gain?: number; alpha?: number } = {}) {
+export function phaseMaterial(p: number, surface: THREE.Texture, o: { gain?: number; bump?: number } = {}) {
   const m = new THREE.ShaderMaterial({
-    transparent: o.alpha != null, depthWrite: o.alpha == null,
-    uniforms: { uLight: { value: new THREE.Vector3() }, uLit: { value: new THREE.Color(o.lit ?? 0xffd27a) }, uDark: { value: new THREE.Color(o.dark ?? 0x25305a) },
-      uGain: { value: o.gain ?? 1.0 }, uDim: { value: 1 }, uAlpha: { value: o.alpha ?? 1 } },
-    vertexShader: 'varying vec3 vN; varying vec3 vP; void main(){ vN = normalize(normalMatrix * normal); vP = position; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
-    fragmentShader: `uniform vec3 uLight; uniform vec3 uLit; uniform vec3 uDark; uniform float uGain; uniform float uDim; uniform float uAlpha; varying vec3 vN; varying vec3 vP;
-      float hash(vec3 p){ p = fract(p * 0.3183099 + 0.1); p *= 17.0; return fract(p.x * p.y * p.z * (p.x + p.y + p.z)); }
-      float noise(vec3 x){ vec3 i = floor(x), f = fract(x); f = f * f * (3.0 - 2.0 * f);
-        return mix(mix(mix(hash(i), hash(i + vec3(1,0,0)), f.x), mix(hash(i + vec3(0,1,0)), hash(i + vec3(1,1,0)), f.x), f.y),
-                   mix(mix(hash(i + vec3(0,0,1)), hash(i + vec3(1,0,1)), f.x), mix(hash(i + vec3(0,1,1)), hash(i + vec3(1,1,1)), f.x), f.y), f.z); }
-      float fbm(vec3 p){ float a = 0.5, s = 0.0; for (int i = 0; i < 5; i++) { s += a * noise(p); p *= 2.03; a *= 0.5; } return s; }
-      void main(){ vec3 n = normalize(vN);
-        float relief = fbm(vP * 3.2), seas = smoothstep(0.42, 0.62, fbm(vP * 1.15 + 4.0));
-        float d = dot(n, normalize(uLight)) + (relief - 0.5) * 0.035;
-        float lit = smoothstep(-0.012, 0.03, d);
-        float limb = pow(max(n.z, 0.0), 0.45);
-        vec3 bright = uLit * uGain * (0.74 + 0.26 * limb) * (0.9 + 0.2 * (relief - 0.5)) * (1.0 - 0.2 * seas) * (0.82 + 0.18 * smoothstep(0.0, 0.5, d));
-        vec3 shade = uDark * (0.5 + 0.5 * limb) * (0.92 + 0.16 * (relief - 0.5)) + vec3(0.02, 0.03, 0.07) * (1.0 - limb);
-        gl_FragColor = vec4(mix(shade, bright, lit) * uDim, uAlpha); }`,
+    uniforms: { uLight: { value: new THREE.Vector3() }, uMap: { value: surface },
+      uHigh: { value: new THREE.Color(0xfff6de) }, uSea: { value: new THREE.Color(0xc8a25c) }, uDark: { value: new THREE.Color(0x0d1226) }, uRim: { value: new THREE.Color(0x27335a) },
+      uGain: { value: o.gain ?? 1.0 }, uBump: { value: o.bump ?? 1.0 }, uDim: { value: 1 } },
+    vertexShader: `varying vec3 vN; varying vec3 vE; varying vec3 vT; varying vec3 vP;
+      void main(){ vec3 n = normalize(position), e = normalize(cross(vec3(0.0, 1.0, 0.0), n) + vec3(1e-5, 0.0, 0.0));
+        vN = normalize(normalMatrix * n); vE = normalMatrix * e; vT = normalMatrix * cross(n, e); vP = position;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
+    fragmentShader: `uniform vec3 uLight; uniform sampler2D uMap; uniform vec3 uHigh; uniform vec3 uSea; uniform vec3 uDark; uniform vec3 uRim; uniform float uGain; uniform float uBump; uniform float uDim;
+      varying vec3 vN; varying vec3 vE; varying vec3 vT; varying vec3 vP;
+      void main(){ vec3 n = normalize(vN), q = normalize(vP), L = normalize(uLight);
+        vec4 t = texture2D(uMap, vec2(atan(q.x, q.z) / 6.2831853 + 0.5, asin(clamp(q.y, -1.0, 1.0)) / 3.14159265 + 0.5));
+        vec2 slope = (t.gb - 0.5) * 2.0;
+        vec3 nb = normalize(n - uBump * (slope.x * normalize(vE) + slope.y * normalize(vT)));
+        float dM = dot(n, L), dB = dot(nb, L), facing = max(n.z, 0.0);
+        // The shadow's edge is soft, a penumbra a few hundredths of the disc wide, and the ground's slopes show most
+        // beside it, where the light is low: crater rims catch it there. Out in full light the ground is calm.
+        float low = 1.0 - smoothstep(0.0, 0.55, dM);
+        float lit = smoothstep(-0.05, 0.11, dM + (dB - dM) * 0.22);
+        float limb = pow(facing, 0.5);
+        vec3 ground = mix(uSea, uHigh, t.r);
+        vec3 bright = ground * uGain * (0.62 + 0.38 * limb) * clamp(1.0 + (0.5 + 2.2 * low) * (dB - dM), 0.5, 1.4) * (0.9 + 0.1 * smoothstep(0.0, 0.45, dM));
+        // Night: a little above the sky, the seas just showing by earthshine, and a faint rim so the whole disc still reads.
+        vec3 shade = uDark * (0.55 + 0.75 * t.r) * (0.45 + 0.55 * limb) + uRim * pow(1.0 - facing, 3.0) * 0.45;
+        gl_FragColor = vec4(mix(shade, bright, lit) * uDim, 1.0); }`,
   });
   setPhase(m, p); return m;
 }

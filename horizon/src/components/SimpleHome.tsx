@@ -52,8 +52,10 @@ import TrancheSheet from './TrancheSheet';
  */
 type Driver = { id: string; label: string; val: Val; step: number; show: (n: number) => string; sub: string; less: string; more: string };
 
-export default function SimpleHome({ plan, update, dd, mc, onDetails, header, picture = 'moon', pending = false, front = true, onNight }: {
+export default function SimpleHome({ plan, update, dd, mc, onDetails, header, headerNight, picture = 'moon', pending = false, front = true, onNight }: {
   plan: any; update: (p: any) => void; dd: Drawdown; mc: MC | null; onDetails: () => void; header?: React.ReactNode; picture?: Picture;
+  /** The app's name as it is set on the moon's night screen. */
+  headerNight?: React.ReactNode;
   /** A new simulation is on its way; `mc` is still the last one. */
   pending?: boolean;
   /** Nothing covers the home (no sheet is open over it). */
@@ -116,7 +118,7 @@ export default function SimpleHome({ plan, update, dd, mc, onDetails, header, pi
   // The moon needs WebGL; without it (or if the context is lost) the home shows the island instead.
   const [no3d, setNo3d] = useState(() => !canDraw3d());
   const moon = picture === 'moon' && !no3d && hasMoney;
-  useEffect(() => { onNight?.(moon); return () => onNight?.(false); }, [moon, onNight]);
+  useEffect(() => { onNight?.(moon && panel == null); return () => onNight?.(false); }, [moon, panel, onNight]);
   // What the moon draws: at each age, the share of futures still paying (in full on a plain plan, with its rules on
   // a structured one), and the share still paying in full. The last year is the headline count.
   const moonYears = useMemo(() => held.map((h: any) => ({ age: h.age as number, p: (structured ? Math.max(h.full, h.rules) : h.full) as number, full: h.full as number })), [held, structured]);
@@ -165,7 +167,7 @@ export default function SimpleHome({ plan, update, dd, mc, onDetails, header, pi
     };
     return (<>
       <Suspense fallback={<div data-simple-home data-moon-loading className="fixed inset-0" style={{ background: '#070C1F' }} />}>
-        <MoonHome header={header} held={moonYears} structured={structured} pending={pending} front={front && panel == null}
+        <MoonHome header={headerNight ?? header} held={moonYears} structured={structured} pending={pending} front={front && panel == null}
           steps={[stepOf(drivers[0], 'Stop work at', false), stepOf(drivers[1], 'Take home a month', true)]}
           onHelp={() => setPanel('help')} onRisk={() => setPanel('risk')} onFailed={() => setNo3d(true)} />
       </Suspense>

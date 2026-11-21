@@ -108,16 +108,25 @@ function Horizon() {
             <span className="flex-1 serif text-[1.35rem] leading-none" style={{ color: 'var(--color-ink)' }}>Someday</span>
             {PRODUCT.plusOffered && <PlusPill plus={plus} onClick={openPlus} />}
           </div>);
-        return <SimpleHome plan={plan} update={update} dd={dd} mc={mc} onDetails={() => setSheet('details')} header={header} picture={picture}
+        // On the night screen the name is small and quiet: the moon has the top of the screen.
+        const headerNight = (
+          <div className="flex items-center min-h-[28px]">
+            <span className="flex-1 text-[1rem] font-semibold tracking-tight" style={{ color: '#B9C8F5' }}>Someday</span>
+            {PRODUCT.plusOffered && <PlusPill plus={plus} onClick={openPlus} />}
+          </div>);
+        return <SimpleHome plan={plan} update={update} dd={dd} mc={mc} onDetails={() => setSheet('details')} header={header} headerNight={headerNight} picture={picture}
           pending={S.mcPending} front={sheet === null} onNight={setNight} />;
       })()}
 
+      {/* Over the moon the bar has no slab and no line: the sky runs to the foot of the screen, and the tabs are quiet. */}
       <nav className="fixed bottom-0 left-0 right-0 z-40" data-night={night && sheet === null ? '1' : undefined}
-           style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 0.3rem)', paddingTop: '0.5rem',
-                    ...(night && sheet === null ? { '--color-surface': '#070C1F', '--color-hairline': '#1E2A55', '--color-ink-dim': '#C9D4F2', '--color-calm-strong': '#FFFFFF' } as React.CSSProperties : null),
-                    background: 'color-mix(in srgb, var(--color-surface) 88%, transparent)',
-                    backdropFilter: 'saturate(160%) blur(22px)', WebkitBackdropFilter: 'saturate(160%) blur(22px)',
-                    borderTop: '1px solid var(--color-hairline)' }}>
+           style={night && sheet === null
+             ? { paddingBottom: 'calc(env(safe-area-inset-bottom) + 0.3rem)', paddingTop: '0.5rem', '--color-ink-dim': '#8E9CC4', '--color-calm-strong': '#F4F6FF',
+                 background: 'linear-gradient(180deg, rgba(10, 18, 48, 0), rgba(10, 18, 48, 0.92) 45%)', borderTop: '1px solid transparent' } as React.CSSProperties
+             : { paddingBottom: 'calc(env(safe-area-inset-bottom) + 0.3rem)', paddingTop: '0.5rem',
+                 background: 'color-mix(in srgb, var(--color-surface) 88%, transparent)',
+                 backdropFilter: 'saturate(160%) blur(22px)', WebkitBackdropFilter: 'saturate(160%) blur(22px)',
+                 borderTop: '1px solid var(--color-hairline)' }}>
         <div className="flex justify-around mx-auto max-w-[560px]">
           <TabButton icon={<Sunrise size={24} />} label="Horizon" active={sheet === null} onClick={() => setSheet(null)} />
           <TabButton icon={<SlidersHorizontal size={24} />} label="Details" active={sheet === 'details'} onClick={() => setSheet('details')} />

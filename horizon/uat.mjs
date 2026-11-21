@@ -278,11 +278,15 @@ await check('17a4 the status never contradicts the central case', async () => {
   // "On track" or "Enough on average" only when the central case pays in full; "Nearly" or "Not enough" only when it runs short.
   return dd.holds ? !['close', 'not'].includes(key) : ['close', 'not'].includes(key); });
 // "What could go wrong": the layered risk panel (audit §5C), one tap from home.
+// The people whose State Pension is still to start: for them the panel adds "A smaller State Pension" (Scout, 21 November 2026).
+const spToCome = q => (E.isSingle(q) ? [q.partnerA] : [q.partnerA, q.partnerB]).filter(w => w && w.spAmount > 0 && w.birthYear > 1900 && q.startYear - w.birthYear < E.spAgeOf(w));
 await p.getByRole('button', { name: 'What could go wrong?' }).click(); await wait(600);
 await p.waitForFunction(() => document.querySelectorAll('[role=dialog][aria-label="What could go wrong"] [data-risk]').length >= 6, null, { timeout: 20000 }).catch(() => {});
 {
   const risk = p.locator('[role=dialog][aria-label="What could go wrong"]');
-  await check('17b what could go wrong: central case, a poor run, three real histories and the futures', async () => (await risk.locator('[data-risk]').count()) === 6);
+  await check('17b what could go wrong: central case, a poor run, three real histories, a smaller State Pension where one is still to start, and the futures', async () => {
+    const keys = await risk.locator('[data-risk]').evaluateAll(els => els.map(e => e.getAttribute('data-risk')).join(' '));
+    return keys === (spToCome(await planOf()).length ? 'base poor japan stagflation crashflat spLow futures' : 'base poor japan stagflation crashflat futures'); });
   await check('17b2 the hardest real history is named and explained in one sentence', async () => /Japan from 1990/.test(await risk.innerText()) && /Two lost decades/.test(await risk.innerText()));
   await check('17b3 each case is a limit in pounds a month, with what it would take to see it through', async () => /£[\d,]+/.test(await risk.locator('[data-risk="japan"]').innerText()) && /would see it through|would still be paid/.test(await risk.locator('[data-risk="japan"]').innerText()));
   await check('17b4 the unluckiest 1 in 10 is stated as an age', async () => /unluckiest 1 in 10/.test(await risk.locator('[data-risk="futures"]').innerText()));
@@ -308,6 +312,21 @@ await p.waitForFunction(() => document.querySelectorAll('[role=dialog][aria-labe
     let lo = 2000, hi = Math.max(250000, q.targetNet * 3);
     for (let i = 0; i < 16; i++) { const mid = (lo + hi) / 2; const Q = { ...q, spendingPlanOn: false, targetNet: mid, growth: q.growthBase }; const acc = E.accumulate(Q, Q.growth); if (E.drawdown(Q, { growth: Q.growth, startPots: acc.atRetirement }).holds) lo = mid; else hi = mid; }
     return Math.abs(shown - Math.round(Math.floor(lo / 100) * 100 / 12 / 10) * 10) <= 10; });
+  // Scout, 21 November 2026: every other case is a market; this one is the income most plans lean on hardest
+  // (Moneysmart asks "Include the Age Pension?"; TPAW Planner: "Assume that your pension will be lower than expected").
+  await check('17b7 a smaller State Pension: a fifth off each one still to start, by the same bisection, never above the central case, with where the fifth comes from and where to check', async () => {
+    const q = await planOf(), who = spToCome(q);
+    if (!who.length) return (await risk.locator('[data-risk="spLow"]').count()) === 0;
+    const low = JSON.parse(JSON.stringify(q)); for (const w of spToCome(low)) w.spAmount = Math.round(w.spAmount * 0.8);
+    const most = (pl) => { let lo = 2000, hi = Math.max(250000, pl.targetNet * 3);
+      for (let i = 0; i < 16; i++) { const mid = (lo + hi) / 2; const Q = { ...pl, spendingPlanOn: false, targetNet: mid, growth: pl.growthBase }; const acc = E.accumulate(Q, Q.growth); if (E.drawdown(Q, { growth: Q.growth, startPots: acc.atRetirement }).holds) lo = mid; else hi = mid; }
+      return Math.round(Math.floor(lo / 100) * 100 / 12 / 10) * 10; };
+    const txt = (await risk.locator('[data-risk="spLow"]').innerText()).replace(/\s+/g, ' ');
+    const fig = Number((await risk.locator('[data-risk="spLow"] .tnum').first().innerText()).match(/£([\d,]+)/)[1].replace(/,/g, ''));
+    const want = most(low), base = most(q);
+    if (Math.abs(fig - want) > 10) console.log(`  17b7: shows £${fig}, by hand £${want} (central £${base})`);
+    return Math.abs(fig - want) <= 10 && want <= base && /A fifth less than you have entered, for life/.test(txt) && /7 missing years of National Insurance/.test(txt) && /the full rate needs 35/.test(txt) && /gov\.uk\/check-state-pension/.test(txt)
+      && (await risk.locator('a[href^="http"]').count()) === 0; });
 }
 await p.getByRole('button', { name: 'Close' }).click(); await wait(400);
 await p.getByRole('button', { name: 'What would help?' }).click();
@@ -828,7 +847,7 @@ const openMap = async () => { await closeSheet(); await tap('Explore'); await wa
     const shown = Number((await p.$eval('[data-supports]', e => e.textContent)).replace(/[£,]/g, '')); return Math.abs(shown - cap(await planOf())) <= 10; });
   await p.getByRole('button', { name: 'What could go wrong?' }).click(); await wait(700);
   await p.waitForFunction(() => document.querySelectorAll('[data-risk-panel] [data-risk]').length >= 6, null, { timeout: 20000 }).catch(() => {});
-  await check('153 what could go wrong: six cases, one tap from home', async () => (await p.locator('[data-risk-panel] [data-risk]').count()) === 6);
+  await check('153 what could go wrong: every case, one tap from home', async () => (await p.locator('[data-risk-panel] [data-risk]').count()) === 6 + (spToCome(await planOf()).length ? 1 : 0));
   await check('154 the sheet covers the tab bar, not the other way round', async () => p.evaluate(() => {
     const nav = document.querySelector('nav').getBoundingClientRect(); const el = document.elementFromPoint(nav.left + nav.width / 2, nav.top + nav.height / 2);
     return !!el && !el.closest('nav'); }));
@@ -1118,6 +1137,25 @@ const openMap = async () => { await closeSheet(); await tap('Explore'); await wa
       return k1 === 'island' && island && kept && (await h.evaluate(() => localStorage.getItem('someday-picture-v1'))) === 'lantern' && (await h.$('[data-lantern-home]')) != null; });
   }
   await check('186 lantern home: nothing left the device, and zero page errors' + (herr.length ? ' — ' + herr.slice(0, 2).join(' | ') : ''), () => hreq.length === 0 && herr.length === 0);
+  await cx.close();
+}
+
+// ── A smaller State Pension is not offered where every State Pension is already being paid (a known amount) ──
+{
+  const q = await planOf(), old = JSON.parse(JSON.stringify(q));
+  for (const w of [old.partnerA, old.partnerB]) if (w && w.birthYear > 1900) { w.birthYear = old.startYear - 72; w.spAge = 0; w.stopYear = 0; w.income = 0; w.monthlyPension = 0; }
+  old.retireYear = old.startYear;
+  const fixed = E.sanitisePlan(old);
+  const dump = await p.evaluate(() => JSON.stringify(Object.fromEntries(Object.entries(localStorage))));
+  const cx = await b.newContext({ viewport: { width: 390, height: 844 } }), o = await cx.newPage(), oerr = [];
+  o.on('pageerror', e => oerr.push(e.message));
+  await o.addInitScript(() => { try { localStorage.setItem('someday-picture-v1', 'island'); } catch { /* private mode */ } });
+  await o.goto(URL); await o.evaluate(([d, pl]) => { for (const [k, v] of Object.entries(JSON.parse(d))) localStorage.setItem(k, v); localStorage.setItem('horizon-plan-v1', pl); }, [dump, JSON.stringify(fixed)]);
+  await o.goto(URL, { waitUntil: 'networkidle' });
+  await o.getByRole('button', { name: 'What could go wrong?' }).click();
+  await o.waitForFunction(() => document.querySelectorAll('[data-risk-panel] [data-risk]').length >= 6, null, { timeout: 30000 }).catch(() => {}); await o.waitForTimeout(500);
+  await check('187 a smaller State Pension is not offered once every State Pension is in payment: six cases, and no page errors', async () =>
+    spToCome(fixed).length === 0 && (await o.locator('[data-risk-panel] [data-risk]').evaluateAll(els => els.map(e => e.getAttribute('data-risk')).join(' '))) === 'base poor japan stagflation crashflat futures' && oerr.length === 0);
   await cx.close();
 }
 

@@ -650,7 +650,7 @@ function Guardrails({ plan }: { plan: any }) {
   const key = useMemo(() => JSON.stringify({ ...plan, targetNet: 0, codeSet: null, spendingPlanOn: false }), [plan]);
   const rails = useInsight<Rail[]>('guardrails', plan, key);
   const month = Math.round((plan.targetNet || 0) / 12);
-  const list = rails?.filter(r => r.key !== 'good') ?? [];
+  const list = rails?.filter(r => r.key !== 'good' && r.key !== 'spLow') ?? [];   // market histories only; the State Pension case is in "What could go wrong?"
   const max = Math.max(month * 1.1, ...list.map(r => r.year / 12)) * 1.04;
   return (
     <div className="rounded-2xl p-4" style={{ background: 'var(--color-canvas)' }}>

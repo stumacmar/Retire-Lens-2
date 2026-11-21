@@ -124,6 +124,7 @@ a third party.
 | 2b | Adapter (`lantern/adapter.js`, tested by hand calculation) and wiring to the plan on the device, read only | Done |
 | 5 (early) | The Lantern is the home's picture, with a key for each face and "How to read this"; the island is the switch-back in Explore and the fallback without WebGL (owner, 18 November 2026) | Done |
 | 5 (simplified) | After three reviews: new colours; then one face on the home, two window states, ten windows a floor counted "of 100", and the count beside the ages (owner, 20 November 2026; §10) | Done |
+| 5 (stripped) | The home's panel is the tower and the answer and nothing else: no key, caption, buttons, counts or State Pension strips; tested blind first (Scout, 21 November 2026; `docs/agents/ux-ledger.md`) | Done |
 | 3 | Dials, chips, bottom sheet | Not started |
 | 4 | The "now" band, Play, Flat view, table, reduced motion | Not started (reduced motion already cross-fades and stops the dust) |
 | 5 | Polish, performance stepping, replace the home behind a setting | Not started |

@@ -441,7 +441,7 @@ async function worker() {
             const want = m.count >= 80 ? 'Yes, on track' : m.count >= 60 ? 'Probably' : m.count >= 40 ? 'It could go either way' : m.count >= 20 ? 'Probably not' : 'Not as it stands';
             if (m.count !== x.futuresFull) fails.push(`P the moon home shows ${m.count} times in 100, the engine's paid-in-full count is ${x.futuresFull}`);
             if (m.verdict !== want) fails.push(`P the moon home says "${m.verdict}" beside ${m.count}; the count alone decides the words: "${want}"`);
-            if (!m.line.endsWith(`the money lasts until you are ${x.moon.split(' ').pop().split(':')[0]}`)) fails.push(`P the moon home's sentence is "${m.line}", the last year drawn is ${x.moon.split(' ').pop()}`);
+            if (m.line !== `times in 100, ${x.structured && x.futuresFull !== x.futures ? 'it pays in full' : 'the money lasts'} until you are ${x.moon.split(' ').pop().split(':')[0]}`) fails.push(`P the moon home's sentence is "${m.line}", the last year drawn is ${x.moon.split(' ').pop()}`);
             if (x.structured && x.futuresFull !== x.futures && m.rules !== `or ${x.futures} times, trimmed by your rules`) fails.push(`P structured plan: the moon home does not state the count with the rules, ${x.futures}: "${m.rules}"`);
             if (!(x.structured && x.futuresFull !== x.futures) && m.rules) fails.push(`P the moon home states a count with rules ("${m.rules}") where there is none to state`);
             moonChecked++;

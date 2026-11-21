@@ -835,7 +835,7 @@ const openMap = async () => { await closeSheet(); await tap('Explore'); await wa
     (await p.$eval('[data-counts]', e => e.innerText.replace(/\s+/g, ' '))).includes('£3,200 a month going into pensions, tax relief included.'));
   await p.getByRole('button', { name: 'Stop work at: a year later' }).click(); await wait(500);
   await check('148 one tap: stop a year later', async () => (await planOf()).retireYear === 2031);
-  await p.getByRole('button', { name: 'Live on each month: £100 less' }).click(); await wait(500);
+  await p.getByRole('button', { name: 'Take home: £100 a month less' }).click(); await wait(500);
   await check('149 one tap: take home £100 a month less', async () => (await planOf()).targetNet === 4900 * 12);
   await p.getByRole('button', { name: /^Take home: £4,900\. Tap to type/ }).click(); await wait(300);
   await p.fill('input[aria-label="Take home, type a figure"]', '4500'); await p.keyboard.press('Enter'); await wait(500);

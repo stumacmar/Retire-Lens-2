@@ -46,12 +46,18 @@ answer is a picture that needs no explaining, with almost nothing beside it.
 | 2026-11-21 (baseline) | 171 | 21 | 21 | 15 | 9.9 px | 71 | 91 | 305 | 909 / 86 | 1,419 / 219 | 184 | 3,250 / 156 |
 | 2026-11-21 (after the first Subtract cycle) | 107 | 17 | 19 | 13 | 9.9 px | 16 | 91 | 305 | 909 / 86 | 1,419 / 219 | 184 | 3,122 / 152 |
 | 2026-11-21 (the moon is the home) | 36 | 5 | 12 | 4 | 13 px | 0 | 91 | 305 | 909 / 86 | 1,424 / 219 | 184 | 2,985 / 138 |
+| 2026-11-21 (what the readers still asked) | 38 | 5 | 12 | 4 | 13 px | 0 | 91 | 305 | 909 / 86 | 1,424 / 219 | 186 | 2,991 / 138 |
 
 The moon home meets the home's targets for words, figures, sizes and smallest
 text. Controls are 12 against 7: four tabs, four stepper buttons, the typed
 figure, "The years ahead" and the two questions. (The tab labels went from
 9.9 to 13 px on every screen, which is where the app-wide "smallest" will
 move as each screen is worked on.)
+
+The second row of the evening went up by two words on the home ("until you
+are 94" for "to 94") and four elsewhere (two of them the Workings sheet's title): every reader had
+asked whose 94 it was. It is recorded as an exception to "numbers only go
+down", inside the home's target of 60.
 
 Notes on the baseline: Details and Explore are measured as they open; the
 pages inside Details are not yet counted (add them to `ux-metrics.mjs` in the

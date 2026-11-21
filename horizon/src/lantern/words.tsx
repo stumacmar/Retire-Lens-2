@@ -13,7 +13,7 @@ export const gbpK = (v: number) => (v < 500 ? 'nothing' : v >= 1e6 ? `£${(v / 1
 const lower = (s: string) => s.charAt(0).toLowerCase() + s.slice(1);
 
 /** The colours the scene draws with, for the key (scene.ts holds the same hues). */
-export const TONE = { full: '#FFC53D', short: '#3D4E80', edge: '#6D7FB3', ghost: '#F4F6FF', bar: '#C4ECFF', halo: '#2E6FA8', stone: '#8A6A42' };
+export const TONE = { full: '#FFC53D', short: '#3D4E80', edge: '#6D7FB3', ghost: '#F4F6FF', bar: '#C4ECFF', halo: '#2E6FA8', stone: '#3A4670' };
 export const SOURCE_TONE: Record<SourceKey, string> = {
   pension: '#3FA3A6', isa: '#F1EC5E', cash: '#EEF2F7', scheme: '#C8742A', work: '#93D3A0', sp: '#9160F8', partnerSp: '#CDB6FF',
 };

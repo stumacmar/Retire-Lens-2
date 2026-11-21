@@ -334,7 +334,7 @@ await p.waitForFunction(() => /\+\d+ of 100|Nothing measured/.test(document.quer
 await check('17f what would help: each action measured', async () => /\+\d+ of 100|Nothing measured/.test(await p.locator('[role=dialog][aria-label="What would help most"]').innerText()));
 await p.getByRole('button', { name: 'Close' }).click(); await wait(400);
 await check('18 the figures are saved on the plan', async () => (await planOf()).partnerA.pension === 300000 && (await planOf()).partnerA.monthlyPension === 1550);
-await check('19 bottom tab bar visible', () => has('Horizon'));
+await check('19 bottom tab bar visible', () => has('Home'));
 await check('20 setup completed without a separate form', () => true);
 
 await loadEx();
@@ -344,7 +344,7 @@ await check('22 example shows an answer', async () => /£[\d,]+ a month after ta
 await check('23 the count of futures shown', async () => /^In \d+ of 100 futures/.test(await futuresText()));
 
 let k = 24;
-for (const [t, m] of [['Details', 'Your details'], ['Explore', 'Explore'], ['Peace', 'Peace of mind']]) {
+for (const [t, m] of [['Details', 'Your details'], ['Explore', 'Explore'], ['Workings', 'How this is worked out']]) {
   await closeSheet(); await tap(t); await wait(600);
   await check(`${k++} ${t} tab opens sheet`, () => has(m));
   await closeSheet();
@@ -518,7 +518,7 @@ await check('65d futures: "Show every year as a table" gives one row a year, and
   return ok && (await p.$('[data-futures-table]')) == null; });
 await closeSheet();
 
-await tap('Peace'); await wait(600);
+await tap('Workings'); await wait(600);
 await check('66 privacy card', () => has('Private by design'));
 await check('67 one-possible-future card', () => has('One possible future'));
 await check('68 not-advice card', () => has('Not financial advice'));
@@ -592,7 +592,7 @@ await check('87 the example shows its answer on the home', async () => /£[\d,]+
 await check('88 the example is a couple, and the home says it counts both', async () => (await planOf()).household === 'couple' && /^Counts Robin and Jo:/.test(await p.$eval('[data-counts]', e => e.innerText)));
 await check('89 the home points to Details for everything else', () => has('Check or change in Details'));
 await check('90 exactly three things to change on the home', async () => (await p.locator('[data-simple-home] [data-driver]').count()) === 3);
-await check('91 four tab destinations', async () => (await has('Horizon')) && (await has('Details')) && (await has('Explore')) && (await has('Peace')));
+await check('91 four tab destinations', async () => (await has('Home')) && (await has('Details')) && (await has('Explore')) && (await has('Workings')));
 await tap('Details'); await wait(500);
 await check('92 sheet opens (dialog role)', () => sheetOpen());
 await check('93 £ prefix in fields', async () => /£/.test(await bodyT()));
@@ -600,7 +600,7 @@ await goPage('Drawing'); await check('94 drawing page reachable from the rail', 
 await goPage('Spending'); await check('95 spending page reachable from the rail', () => onPage('Ease spending from'));
 await goPage('Plan file'); await check('95b plan file: says where the plan is kept and when it was saved (audit F-06)', async () => /Saved on this device/.test(await p.$eval('[data-save-status]', e => e.innerText).catch(() => '')));
 await closeSheet();
-await tap('Peace'); await wait(500); await p.mouse.click(195, 25); await wait(500);
+await tap('Workings'); await wait(500); await p.mouse.click(195, 25); await wait(500);
 await check('96 sheet closes on backdrop tap', async () => !(await sheetOpen()));
 await check('97 no NaN/undefined leaking to UI', async () => !/\bNaN\b|\bundefined\b/.test(await bodyT()));
 await check('98 no £NaN anywhere', async () => !/£NaN/.test(await p.content()));
@@ -634,7 +634,7 @@ const axeScan = async (label, pg = p) => {
   const exp = await axeScan('Explore');
   await check(`100c axe: Explore has no critical or serious violations${exp.bad.length ? ' — ' + exp.detail : ''}`, () => exp.bad.length === 0);
   await closeSheet();
-  await tap('Peace'); await wait(600);
+  await tap('Workings'); await wait(600);
   await tap('Every assumption behind your numbers'); await tap('How we checked these numbers'); await wait(600);
   const pea = await axeScan('Peace');
   await check(`100d axe: Peace (with Assumptions and How we checked open) has no critical or serious violations${pea.bad.length ? ' — ' + pea.detail : ''}`, () => pea.bad.length === 0);
@@ -700,7 +700,7 @@ if (!plusOffered) {
     await p.evaluate(v => localStorage.setItem('horizon-plan-v1', v), before); await p.reload({ waitUntil: 'networkidle' }); await wait(900);
   }
   await closeSheet();
-  await tap('Peace'); await wait(500);
+  await tap('Workings'); await wait(500);
   await check('116 plus off: no Plus card, no "· Plus" on the report button', async () => !/· Plus|Someday Plus/.test(await bodyT()));
   await check('117 plus off: print report rendered without a licence', async () => (await p.$('#print-summary')) != null);
   await check('118 plus off: the word Plus appears nowhere on Peace', async () => !/\bPlus\b/.test(await bodyT()));
@@ -729,7 +729,7 @@ await check('114 free: advanced detail locked', async () => (await onPage('Advan
 await goPage('Safe ladder');
 await check('115 free: structure page locked', async () => (await onPage('Safe ladder')) && (await p.locator('[role=dialog] [role=switch]:has-text("Use a safe ladder")').count()) === 0);
 await closeSheet();
-await tap('Peace'); await wait(500);
+await tap('Workings'); await wait(500);
 await check('116 free: report button routes to Plus', async () => { await tap('Save the full report'); await wait(600); return has('Already have a licence key?'); });
 await check('117 free: print report not rendered', async () => (await p.$('#print-summary')) == null);
 await closeSheet();
@@ -1032,20 +1032,24 @@ const openMap = async () => { await closeSheet(); await tap('Explore'); await wa
   const engineOf = (pl) => { const q0 = E.migratePlan(pl), q = { ...q0, growth: q0.growthBase ?? q0.growth }, m = E.runMonteCarlo(q, 2000, q.mcSeed || 42), st = !!q.architecture?.on;
     const held = m.perAgeHeld.map(v => ({ age: v.age, n: Math.round((st ? Math.max(v.full, v.rules) : v.full) * 100) })), n = held.length;
     const pick = e => held.filter((y, i) => i === 0 || i === n - 1 || (y.age % e === 0 && i >= 3 && i <= n - 4)), five = pick(5);
-    return { count: held[n - 1].n, toAge: held[n - 1].age, years: five.length > 8 ? pick(10) : five, mc: m }; };
+    const rows = E.drawdown(q).rows;
+    const unlucky = age => { const a = m.perAgePaid.ages.find(v => v.age === age), r = rows.find(v => v.ageA === age); if (!a || !r) return null; const share = (a.q[1] + a.q[2]) / 2;
+      return share >= 0.99 ? 'full' : Math.round((share * r.planTarget / Math.pow(1 + (q.inflation || 0), r.year - q.startYear) / 12) / 50) * 50; };
+    return { count: held[n - 1].n, toAge: held[n - 1].age, years: five.length > 8 ? pick(10) : five, mc: m, unlucky }; };
   const seenText = sel => h.$eval(sel, e => { const c = e.cloneNode(true); c.querySelectorAll('.sr-only').forEach(x => x.remove()); c.style.cssText = 'position:fixed;left:-9999px;top:0;width:360px'; document.body.appendChild(c); const t = c.innerText; c.remove(); return t.replace(/\s+/g, ' ').trim(); });
   const yearsShown = async () => ((await M('data-years')) || '').split(' ').filter(Boolean).map(s => s.split(':').map(Number));
   const near = (got, want) => got.length === want.length && got.every(([a, n], i) => a === want[i].age && Math.abs(n - want[i].n) <= 1);
   // The share of the moon's disc that is lit, measured from a photograph of the screen: the lit pixels in the moon's
   // box against the area of the disc (its radius is the box's, as moon.ts lays it out). The night side is not counted,
   // so the measure does not depend on how dark it is drawn.
-  const litShare = async () => { const box = await h.locator('[data-moon-box]').boundingBox(), png = (await h.screenshot({ clip: box })).toString('base64');
+  const litShare = async () => { await h.waitForFunction(() => { const m = document.querySelector('[data-moon-home]'), d = m && m.querySelector('[data-lit]'); return !!d && d.getAttribute('data-lit') === m.getAttribute('data-count'); }, null, { timeout: 20000 }).catch(() => {}); await hw(900);
+    const box = await h.locator('[data-moon-box]').boundingBox(), png = (await h.screenshot({ clip: box })).toString('base64');
     const lit = await h.evaluate(async b64 => { const img = new Image(); img.src = 'data:image/png;base64,' + b64; await img.decode();
       const c = document.createElement('canvas'); c.width = img.width; c.height = img.height; const x = c.getContext('2d'); x.drawImage(img, 0, 0);
       const d = x.getImageData(0, 0, c.width, c.height).data; let gold = 0;
-      for (let i = 0; i < d.length; i += 4) if (d[i] > 120 && d[i] > d[i + 2] + 28) gold++;
+      for (let i = 0; i < d.length; i += 4) if (d[i] > 115 && d[i + 1] > 95) gold++;
       return { gold, scale: img.width / document.querySelector('[data-moon-box]').getBoundingClientRect().width }; }, png);
-    const R = Math.min(box.width * 0.31, box.height * 0.45) * lit.scale;
+    const R = Math.min(box.width * 0.36, box.height * 0.45) * lit.scale;
     return lit.gold / (Math.PI * R * R); };
   if (!gl) {
     await check('174 moon home: without WebGL the home shows the island instead', async () => (await h.$('[data-island]')) != null);
@@ -1057,7 +1061,7 @@ const openMap = async () => { await closeSheet(); await tap('Explore'); await wa
       (await h.$('[data-simple-home][data-moon-home] canvas')) != null && (await h.$('[data-island]')) == null && (await h.$('[data-lantern]')) == null && (await M('data-drawn')) === '1');
     await check('175 moon home: the count is the engine\'s share of futures (to 1 of 100), the sentence names the last year, and the verdict is the one the count decides', async () => {
       const shown = Number(await h.$eval('[data-moon-count]', e => e.textContent)), line = await h.$eval('[data-moon-line]', e => e.textContent), verdict = await h.$eval('[data-moon-home] [data-status]', e => e.textContent);
-      const ok = Math.abs(shown - X.count) <= 1 && line === `times in 100, the money lasts to ${X.toAge}` && verdict === words(shown) && String(shown) === (await M('data-count'));
+      const ok = Math.abs(shown - X.count) <= 1 && line === `times in 100, the money lasts until you are ${X.toAge}` && verdict === words(shown) && String(shown) === (await M('data-count'));
       if (!ok) console.log(`  175: shows ${shown} "${line}" "${verdict}", engine ${X.count} to ${X.toAge}`);
       return ok; });
     await check('176 moon home: the years in the row are the engine\'s (the day of stopping, each fifth birthday, the last year), and the last year is the headline count', async () => {
@@ -1072,7 +1076,7 @@ const openMap = async () => { await closeSheet(); await tap('Explore'); await wa
         const seen = c.innerText; c.remove();
         return { controls, words: (seen + ' ' + nav.innerText).split(/\s+/).filter(Boolean).length, text: seen.replace(/\s+/g, ' ') }; });
       const gone = !(await h.$('[data-step-down]')) && !(await h.$('[data-counts]')) && !(await h.$('[data-supports]')) && !(await h.$('[data-driver="monthly"]')) && !/Your plan can pay|futures|pay in/i.test(r.text);
-      const ok = gone && r.words <= 60 && r.controls <= 8 && /Stop work at/.test(r.text) && /Take home a month/.test(r.text) && /What would help\?/.test(r.text) && /What could go wrong\?/.test(r.text);
+      const ok = gone && r.words <= 60 && r.controls <= 8 && /Stop work at/.test(r.text) && /Live on each month/.test(r.text) && !/Take home/.test(r.text) && /What would help\?/.test(r.text) && /What could go wrong\?/.test(r.text);
       if (!ok) console.log('  177: ' + JSON.stringify(r).slice(0, 400));
       return ok; });
     await check('177b moon home: no text on the first screen is under 13 px, tab bar included, and it is set in four sizes', async () => {
@@ -1095,7 +1099,11 @@ const openMap = async () => { await closeSheet(); await tap('Explore'); await wa
       const labels = await h.$$eval('[data-moon-home] [data-year-age]', els => els.filter(e => getComputedStyle(e).visibility !== 'hidden').map(e => [Number(e.dataset.yearAge), Number(e.querySelector('[data-n]').textContent)]));
       const k = Math.min(3, X.years.length - 1); await tapYear(k);
       const l2 = await M('data-level'), sel = Number(await M('data-sel')), t2 = await seenText('[data-moon-home] [data-answer]');
-      const got = labels[k] || [], read = new RegExp(`^At ${got[0]} ${got[1]} times in 100, the money lasts this long( with your spending rules; \\d+ times in full)?\\.$`).test(t2);
+      const got = labels[k] || [], said = t2.match(new RegExp(`^At ${got[0]} ${got[1]} times in 100, the money lasts this long( with your spending rules; \\d+ times in full)?\\. (Even the unluckiest 10 are paid in full that year\\.|In the unluckiest 10, it pays about £([\\d,]+) a month or less\\.)$`));
+      // What the unluckiest 10 of 100 are paid that year, from the engine: the 10th percentile of that year's share paid, times what the plan asks then.
+      const lucky = X.unlucky(got[0]), shownU = said && said[3] ? Number(said[3].replace(/,/g, '')) : null;
+      const read = !!said && (lucky === 'full' ? shownU == null : shownU != null && Math.abs(shownU - lucky) <= Math.max(50, lucky * 0.02));
+      if (!read) console.log(`  179: the engine's unluckiest 10 at ${got[0]}: ${lucky}`);
       // A large moon has lifted out of the chosen year to the top of the box, and the row is still whole: press the large one to put it back.
       const whole = (await h.$$eval('[data-moon-home] [data-year-age]', els => els.filter(e => getComputedStyle(e).visibility !== 'hidden').length)) === labels.length;
       // It stands above its own year (kept inside the box).
@@ -1137,13 +1145,13 @@ const openMap = async () => { await closeSheet(); await tap('Explore'); await wa
       return ok; });
     await check('182 moon home: a stepper writes the plan, and the same moon moves to the engine\'s new count (no new canvas)', async () => {
       await h.$eval('[data-moon-home] canvas', c => { c.dataset.mark = 'same'; });
-      await h.getByRole('button', { name: 'Take home: £100 a month more' }).click(); await hw(500); await settled(); await hw(300);
+      await h.getByRole('button', { name: 'Live on each month: £100 more' }).click(); await hw(500); await settled(); await hw(300);
       const now = await h.evaluate(() => JSON.parse(localStorage.getItem('horizon-plan-v1'))), Y = engineOf(now);
       const shown = Number(await M('data-count')), years = await yearsShown(), same = (await h.$eval('[data-moon-home] canvas', c => c.dataset.mark)) === 'same';
       await h.getByRole('button', { name: 'Stop work at: a year later' }).click(); await hw(500); await settled(); await hw(300);
       const later = await h.evaluate(() => JSON.parse(localStorage.getItem('horizon-plan-v1'))), Z = engineOf(later), shown2 = Number(await M('data-count'));
       await h.getByRole('button', { name: 'Stop work at: a year earlier' }).click(); await hw(300);
-      await h.getByRole('button', { name: 'Take home: £100 a month less' }).click(); await hw(500); await settled();
+      await h.getByRole('button', { name: 'Live on each month: £100 less' }).click(); await hw(500); await settled();
       const back = await h.evaluate(() => JSON.parse(localStorage.getItem('horizon-plan-v1')));
       const base = E.migratePlan(stored);
       const ok = now.targetNet === base.targetNet + 1200 && Math.abs(shown - Y.count) <= 1 && near(years, Y.years) && same && later.retireYear === base.retireYear + 1 && Math.abs(shown2 - Z.count) <= 1

@@ -121,7 +121,19 @@ export default function SimpleHome({ plan, update, dd, mc, onDetails, header, he
   useEffect(() => { onNight?.(moon && panel == null); return () => onNight?.(false); }, [moon, panel, onNight]);
   // What the moon draws: at each age, the share of futures still paying (in full on a plain plan, with its rules on
   // a structured one), and the share still paying in full. The last year is the headline count.
-  const moonYears = useMemo(() => held.map((h: any) => ({ age: h.age as number, p: (structured ? Math.max(h.full, h.rules) : h.full) as number, full: h.full as number })), [held, structured]);
+  // With them, for each age, what the unluckiest 10 of 100 futures pay that year, a month in today's money: the answer
+  // to the question every blind reader asked of the count ("and the other 43 times? a bit less, or nothing?").
+  const moonYears = useMemo(() => {
+    const paid = new Map<number, number[]>((mc?.perAgePaid?.ages || []).map((a: any) => [a.age as number, a.q as number[]]));
+    const asked = new Map<number, number>((dd.rows as any[]).map(r => [r.ageA as number, (r.planTarget || 0) / Math.pow(1 + (plan.inflation || 0), r.year - plan.startYear) / 12]));
+    return held.map((h: any) => {
+      const q = paid.get(h.age), want = asked.get(h.age);
+      // The 10th percentile of that year's futures sits between the engine's 7.5% and 12.5% levels.
+      const share = q && q.length > 2 ? (q[1] + q[2]) / 2 : null;
+      return { age: h.age as number, p: (structured ? Math.max(h.full, h.rules) : h.full) as number, full: h.full as number,
+        unlucky: share == null || want == null ? null : share >= 0.99 ? 'full' as const : Math.round((share * want) / 50) * 50 };
+    });
+  }, [held, structured, mc, dd, plan.inflation, plan.startYear]);
   const events = useMemo(() => lifeEvents(plan, dd), [plan, dd]);
   const central = useMemo(() => { try { return (E as any).coverByAge(plan) as { age: number; cover: number }[]; } catch { return []; } }, [plan]);
   const endAge = held.length ? held[held.length - 1].age : plan.horizonAge;
@@ -162,13 +174,15 @@ export default function SimpleHome({ plan, update, dd, mc, onDetails, header, he
     // The moon home: the count, the verdict and the two things most people change. Everything else is in Details.
     const stepOf = (d: Driver, label: string, typed: boolean): MoonStep => {
       const n = d.val.get();
-      return { id: d.id, label, value: d.show(n), raw: n, less: `${d.label}: ${d.less}`, more: `${d.label}: ${d.more}`, canLess: n > d.val.min, canMore: n < d.val.max,
+      // The names a screen reader hears start with the words on the screen.
+      const less = d.id === 'targetNet' ? `${label}: £100 less` : `${label}: ${d.less}`, more = d.id === 'targetNet' ? `${label}: £100 more` : `${label}: ${d.more}`;
+      return { id: d.id, label, value: d.show(n), raw: n, less, more, canLess: n > d.val.min, canMore: n < d.val.max,
         onLess: () => write(d.id, (_v, cur) => cur - d.step), onMore: () => write(d.id, (_v, cur) => cur + d.step), onType: typed ? v => write(d.id, () => v) : undefined };
     };
     return (<>
       <Suspense fallback={<div data-simple-home data-moon-loading className="fixed inset-0" style={{ background: '#070C1F' }} />}>
         <MoonHome header={headerNight ?? header} held={moonYears} structured={structured} pending={pending} front={front && panel == null}
-          steps={[stepOf(drivers[0], 'Stop work at', false), stepOf(drivers[1], 'Take home a month', true)]}
+          steps={[stepOf(drivers[0], 'Stop work at', false), stepOf(drivers[1], 'Live on each month', true)]}
           onHelp={() => setPanel('help')} onRisk={() => setPanel('risk')} onFailed={() => setNo3d(true)} />
       </Suspense>
       {sheets}

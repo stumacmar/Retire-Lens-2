@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { motion, MotionConfig } from 'framer-motion';
-import { Sunrise, SlidersHorizontal, Compass, ShieldCheck, Download, Sparkles } from 'lucide-react';
+import { Home, SlidersHorizontal, Compass, ShieldCheck, Download, Sparkles } from 'lucide-react';
 import { usePlan, hasSavedPlan, E } from './lib/usePlan';
 import type { Accum, Drawdown, MC } from './engine/engine';
 import { fmt, fmtK, pct, deflate } from './lib/format';
@@ -128,10 +128,11 @@ function Horizon() {
                  backdropFilter: 'saturate(160%) blur(22px)', WebkitBackdropFilter: 'saturate(160%) blur(22px)',
                  borderTop: '1px solid var(--color-hairline)' }}>
         <div className="flex justify-around mx-auto max-w-[560px]">
-          <TabButton icon={<Sunrise size={24} />} label="Horizon" active={sheet === null} onClick={() => setSheet(null)} />
+          {/* "Home" and "Workings" since 21 November 2026: eighteen of eighteen blind readers said "Horizon" and "Peace" told them nothing. */}
+          <TabButton icon={<Home size={24} />} label="Home" active={sheet === null} onClick={() => setSheet(null)} />
           <TabButton icon={<SlidersHorizontal size={24} />} label="Details" active={sheet === 'details'} onClick={() => setSheet('details')} />
           <TabButton icon={<Compass size={24} />} label="Explore" active={sheet === 'explore'} onClick={() => setSheet('explore')} />
-          <TabButton icon={<ShieldCheck size={24} />} label="Peace" active={sheet === 'peace'} onClick={() => setSheet('peace')} />
+          <TabButton icon={<ShieldCheck size={24} />} label="Workings" active={sheet === 'peace'} onClick={() => setSheet('peace')} />
         </div>
       </nav>
 
@@ -142,7 +143,7 @@ function Horizon() {
       <Sheet open={sheet === 'explore'} onClose={() => setSheet(null)} title="Explore">
         <ExploreBody plan={planL} dd={dd} estate={estate} mc={mc} plus={plus} onUpgrade={openPlus} update={update} picture={picture} setPicture={setPicture} />
       </Sheet>
-      <Sheet open={sheet === 'peace'} onClose={() => setSheet(null)} title="Peace of mind">
+      <Sheet open={sheet === 'peace'} onClose={() => setSheet(null)} title="How this is worked out">
         <PeaceBody plus={plus} onUpgrade={openPlus} plan={plan} mc={mc} />
       </Sheet>
       {PRODUCT.plusOffered && (

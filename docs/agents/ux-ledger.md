@@ -46,12 +46,18 @@ answer is a picture that needs no explaining, with almost nothing beside it.
 | 2026-11-21 (baseline) | 171 | 21 | 21 | 15 | 9.9 px | 71 | 91 | 305 | 909 / 86 | 1,419 / 219 | 184 | 3,250 / 156 |
 | 2026-11-21 (after the first Subtract cycle) | 107 | 17 | 19 | 13 | 9.9 px | 16 | 91 | 305 | 909 / 86 | 1,419 / 219 | 184 | 3,122 / 152 |
 | 2026-11-21 (the moon is the home) | 36 | 5 | 12 | 4 | 13 px | 0 | 91 | 305 | 909 / 86 | 1,424 / 219 | 184 | 2,985 / 138 |
+| 2026-11-21 (what the readers still asked) | 38 | 5 | 12 | 4 | 13 px | 0 | 91 | 305 | 909 / 86 | 1,424 / 219 | 186 | 2,991 / 138 |
 
 The moon home meets the home's targets for words, figures, sizes and smallest
 text. Controls are 12 against 7: four tabs, four stepper buttons, the typed
 figure, "The years ahead" and the two questions. (The tab labels went from
 9.9 to 13 px on every screen, which is where the app-wide "smallest" will
 move as each screen is worked on.)
+
+The second row of the evening went up by two words on the home ("until you
+are 94" for "to 94") and four elsewhere (two of them the Workings sheet's title): every reader had
+asked whose 94 it was. It is recorded as an exception to "numbers only go
+down", inside the home's target of 60.
 
 Notes on the baseline: Details and Explore are measured as they open; the
 pages inside Details are not yet counted (add them to `ux-metrics.mjs` in the
@@ -188,6 +194,15 @@ What the readers found, and what was done the same day:
 | "Lasts", "still paying", "paying in full": "are those the same test?" | the engineer | One phrase at every level: "the money lasts" |
 | "Press a year": "they are ages, not years" | 2 | "Press one" |
 | Screen reader: "64" was a bare number between two buttons; the years were a picture only | 1 | Each stepper is a named group ("Stop work at: 64"); the years are also a list |
+
+**Done the same evening** (owner: "Continue"): items 1 to 4 below. The year
+view now says what the unluckiest 10 of 100 are paid at that age; the tabs
+are Home, Details, Explore and Workings; "Take home a month" is "Live on each
+month"; the sentence says "until you are 94". The moon was retuned on the
+critics' round 3 (a cooler pearl surface, a clean edge to the shadow, a wider
+and softer glow, larger where the screen is tall), and measured: its lit
+share is within one point of the count at 8, 23, 40, 57, 72 and 100. Not yet
+tested blind: the next panel reads these.
 
 **Still open, in the readers' order** (the next cycles' work list):
 
@@ -345,15 +360,18 @@ as it stands"; at 97 it is all but full and says "Yes, on track".
 
 | 2026-11-21 | Leap, shipped (owner-driven) | The moon is the home: one night screen, the count, a verdict the count decides, two steppers, the years a press deeper. The Lantern is off the home; the lab's losers are deleted. Readers 6 of 6 on every question; critics 7 and 7 against 5 and 5 | merged by the owner's standing instruction | "Moon - do it" |
 
+| 2026-11-21 | Subtract and reword (owner: "Continue") | What the readers still asked: the unluckiest 10 at each age; "until you are 94"; "Live on each month"; tabs named Home and Workings. The moon retuned after the critics' third round, and its lit share measured against the count | merged by the owner's standing instruction | — |
+
 **Standing instruction (owner, 21 November 2026):** do not ruin the UX. The
 result must be visually stunning and different as well as simple. Subtract
 the scaffolding, never the picture.
 
-**Next (the moon is the home):** the two work lists above, "Still open" from
-the readers and the five from the critics, in that order of weight: first
-what happens in the other futures (at the year level, and through "What
-could go wrong?"), then the tabs' names, then the moon's render and the
-lockup. Then the wording app-wide: "times in 100" and a verdict that cannot
+**Next (the moon is the home):** a blind panel on the evening's changes (the unlucky sentence, the new label,
+the tab names, the retuned moon), since none of them has been read by fresh
+eyes yet. Then the rest of the two work lists above: "times in 100" of what,
+what is counted and that it is an estimate (one tap away, not more words),
+the labels under the row; and from the critics the lockup for the answer and
+the lower half. Then the wording app-wide: "times in 100" and a verdict that cannot
 contradict its count everywhere `lib/status.ts` still says "futures" and
 "Enough in most futures, not all" (the island home, Explore, the report;
 spec §3.4), and one age for "lasts to". Then what sits a level down from the

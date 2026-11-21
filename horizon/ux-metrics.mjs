@@ -127,7 +127,7 @@ const sheet = async (label, open) => {
 };
 await sheet('What would help?', () => p.getByRole('button', { name: 'What would help?' }).click());
 await sheet('What could go wrong?', async () => { await p.getByRole('button', { name: 'What could go wrong?' }).click(); await p.waitForFunction(() => document.querySelectorAll('[data-risk]').length >= 6, null, { timeout: 20000 }).catch(() => {}); });
-for (const tab of ['Details', 'Explore', 'Peace']) await sheet(tab, () => p.locator('nav').getByRole('button', { name: tab }).click());
+for (const tab of ['Details', 'Explore', 'Workings']) await sheet(tab, () => p.locator('nav').getByRole('button', { name: tab }).click());
 
 await b.close(); server.close();
 

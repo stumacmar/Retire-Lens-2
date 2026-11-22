@@ -49,6 +49,7 @@ answer is a picture that needs no explaining, with almost nothing beside it.
 | 2026-11-21 (after the first Subtract cycle) | 107 | 17 | 19 | 13 | 9.9 px | 16 | 91 | 305 | 909 / 86 | 1,419 / 219 | 184 | 3,122 / 152 |
 | 2026-11-21 (the moon is the home) | 36 | 5 | 12 | 4 | 13 px | 0 | 91 | 305 | 909 / 86 | 1,424 / 219 | 184 | 2,985 / 138 |
 | 2026-11-21 (what the readers still asked) | 38 | 5 | 12 | 4 | 13 px | 0 | 91 | 305 | 909 / 86 | 1,424 / 219 | 186 | 2,991 / 138 |
+| 2026-11-22 ("What could go wrong?" halved) | 38 | 5 | 12 | 4 | 13 px | 0 | 91 | 126 | 909 / 86 | 1,424 / 219 | 186 | 2,812 / 138 |
 
 The moon home meets the home's targets for words, figures, sizes and smallest
 text. Controls are 12 against 7: four tabs, four stepper buttons, the typed
@@ -293,6 +294,52 @@ question"); the stop age cannot be typed and is read as a bare "64" (screen
 reader). Not run this time: the two critics (the look changed only in the
 night side and the glow).
 
+### "What could go wrong?" (22 November 2026): 331 words, 22 figures, 7 text sizes, smallest 10.9 px
+
+The sheet the home sends people to for "and the other times?". Target: 150
+words.
+
+| Element | Question it answers | Rung | Done |
+|---|---|---|---|
+| Opening sentence (27 words: "The most you could spend a month, after tax in today's money, and still be paid every year to 92 in each case…") | What am I looking at? | 5 say it shorter | "What each case could pay you a month until you are 94. You ask for £4,333." The age is now yours at the plan's end, as on the home (it was the plan age, 92, beside the home's 94) |
+| Each case's meaning ("Returns of 5% a year, every year"; "A crash the day you stop and five flat years after it") | What is this case? | 5, and 2 for the crash | Shorter; the crash's is merged into its name ("A 30% fall, then five flat years") |
+| "Spending £703 a month less would see it through" / "What you ask would still be paid" | Is it enough? | 2 merge | Gone: it was the third statement of one fact |
+| The figure, and "covers your ask" / "short of your ask" | Is it enough? | 2 merge | The figure, and "enough" or "£700 short" |
+| A smaller State Pension (45 words) | What if the State Pension is less? | 5 | 21 words; "with returns of 5% a year" and "(the full rate needs 35)" went |
+| The futures: "Random markets from today, through the saving years too" | How was this done? | 3 down a layer | Gone from here (the name says "random futures"; the method is in Workings) |
+| The futures: the count and the unlucky age | How often, and when? | keep, in the home's words | "57 times in 100, the money lasts until you are 94. In the unluckiest 10 of 100, it runs short by age 77, falling to about £2,050 a month." One rule for the age, shared with the home |
+| "The chance at least one of you is still here at 77 is about 96 in 100" | Will I be here to feel it? | 3 | Gone (found odd or morbid by 7 of 12) |
+| "Counting how long people live, the money runs short while one of you is still here in about 36 of 100 futures. These are national averages…" | The same, as one figure | 3 | Gone from here: it is in Explore and the report. All six readers of the old sheet could not relate 36 to 57 |
+| Closing paragraph (31 words) | Is this a forecast? | 5 | "Scenarios, not predictions." |
+| Seven text sizes, the smallest 10.9 px | | | Three: 16, 14 and 13 px |
+
+**Panel** (six fresh readers a version, each shown the whole sheet; the
+example couple asking £4,333; truth: the central case pays £4,470, the worst
+history, Japan from 1990, £3,330, which is £1,000 short; 57 of 100; the
+unluckiest 10 short by 77). K is the sheet before, M after.
+
+| | Q1 what is it telling you | Q2 safe? the worst case, in pounds | Q3 which number matters | Q4 how often, what happens, when | Time to read (their words) | One word |
+|---|---|---|---|---|---|---|
+| K (331 words) | 6 of 6 right | 6 of 6 right | 6 of 6 (57 of 100) | 6 right on 57 and 77; 6 of 6 lost by "36 of 100" ("I can't see how the two relate"); 3 unsure 77 was an age | 1½ to 4 minutes | Dense, Heavy, Heavy, Dense, Heavy, Heavy |
+| M (143 words) | 6 of 6 right | 6 of 6 right | 6 of 6 | 6 right; nobody unsure of the age; 4 asked whether "runs short" means nothing at all | 40 seconds to 2 minutes | Worrying, Worrying, Worrying, Vague, Dense, Confusing |
+
+No worse on any question, and read in about half the time. "Worrying" is a
+true reading of a plan that lasts 57 times in 100. After the panel, from
+what M's readers said: the sentence about still being here went (4 of 6
+found it odd) and the bad case now says what is still paid ("falling to
+about £2,050 a month"); the sheet's surface is nearly opaque (3 of 6 saw the
+home's count through it). The sheet as shipped is 134 words. Those two
+changes have not been read blind. The
+readers were a smaller model than earlier panels used, the same for both
+versions.
+
+Still open on this sheet: the names of the cases mean little to a reader
+with English as a second language ("A poor run: a run is something you do
+with your legs?"; "central of what?"); "5% a year: of what?" (3); five
+bad histories where "two would do" (the teacher); the engineer wants the
+working behind each figure; gov.uk cannot be pressed (the app sends nobody
+anywhere, by rule).
+
 ## Benchmarks
 
 None yet under version 2. (The market's pension calculators are in
@@ -413,6 +460,8 @@ as it stands"; at 97 it is all but full and says "Yes, on track".
 | 2026-11-21 | Fix (owner: "The moon isn't sensitive enough") | The moon counts paid in full on every plan (a ladder plan's "with rules" count hardly moved and could rise with the ask); the unlit sliver is visible; a change flashes where it happened; the glow widens with what is to spare past full | merged by the owner's standing instruction | — |
 
 | 2026-11-22 | Reword (owner: "You do what you think is best for the user") | The strip was not built: it is the bar strip, the stripe canvas and the tower again (one mark a year; 1 of 12 could read the tower), with five encodings on one object, and the report's case was against a moon that measures the pot, which this one does not. Its best idea was taken: the bad case as an age, as the way in to the years ("In the unluckiest 10 of 100, it runs short by age 77 ›"). A second blind panel then read everything changed since the first (6 of 6 again; what it found is in "second panel" above), and the years became one level | merged by the owner's standing instruction | — |
+
+| 2026-11-22 | Subtract ("What could go wrong?") | The sheet more than halved: 331 words to 134 (143 as the panel read it), seven text sizes to three, nothing under 13 px; each row says its result once; the futures row in the home's words with the home's age; the two longevity sentences gone. Panel: 6 of 6 on every question before and after, read in about half the time | this pull request | — |
 
 **Standing instruction (owner, 21 November 2026):** do not ruin the UX. The
 result must be visually stunning and different as well as simple. Subtract

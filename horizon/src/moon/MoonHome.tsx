@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 import { Minus, Plus } from 'lucide-react';
 import { MoonStage } from './moon';
 import { verdictFor } from '../lib/status';
+import { shortByOf } from '../lib/shortBy';
 
 /**
  * The home, as the moon (owner, 21 November 2026, on the three concepts
@@ -123,11 +124,7 @@ export default function MoonHome({ header, held, structured, spare = 0, pending,
   // the money lasts at least half the time: the age by which the unluckiest 10 of 100 have run short. Where it does
   // not, the age by which more than half have. Nothing where fewer than 10 in 100 ever run short. It is read from the
   // same per-age counts as the moon and the row, so it cannot disagree with them, and it is the way in to the years.
-  const shortBy = useMemo(() => {
-    if (!n || count == null) return null;
-    const often = count < 50, at = held.find(y => (often ? y.p < 0.5 : y.p <= 0.9));
-    return at ? { age: at.age, line: often ? `More often than not, it runs short by age ${at.age}` : `In the unluckiest 10 of 100, it runs short by age ${at.age}` } : null;
-  }, [held, n, count]);
+  const shortBy = useMemo(() => shortByOf(held.map(y => ({ age: y.age, full: y.p }))), [held]);
   // The figure counts to its new value as the light moves across the moon (at once, where motion is unwelcome).
   const shown = useCounted(count, drawn);
   const level = has ? at.level : 0;

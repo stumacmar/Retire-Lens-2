@@ -172,7 +172,7 @@ export default function SimpleHome({ plan, update, dd, mc, onDetails, header, he
       {panel === 'help' && <HelpPanel plan={plan} update={update} onDone={() => setPanel(null)} />}
     </Sheet>
     <Sheet open={panel === 'risk'} onClose={() => setPanel(null)} title="What could go wrong">
-      {panel === 'risk' && <RiskPanel plan={plan} mc={mc} rails={rails} />}
+      {panel === 'risk' && <RiskPanel plan={plan} mc={mc} rails={rails} unlucky={moonYears.length ? moonYears[moonYears.length - 1].unlucky : null} />}
     </Sheet>
   </>;
   const answer = <span data-futures style={{ color: 'var(--color-ink)' }}>{futuresSentence(status)}</span>;

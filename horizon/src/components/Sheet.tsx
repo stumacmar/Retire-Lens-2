@@ -78,7 +78,8 @@ export default function Sheet({ open, onClose, title, children }: {
             drag="y" dragConstraints={{ top: 0, bottom: 0 }} dragElastic={{ top: 0, bottom: 0.6 }}
             onDragEnd={(_, info) => { if (info.offset.y > 110 || info.velocity.y > 700) onClose(); }}
             style={{
-              background: 'color-mix(in srgb, var(--color-surface) 88%, transparent)',
+              // Nearly opaque: over the night-blue home the count showed through a frosted sheet as a ghost (three of six readers).
+              background: 'color-mix(in srgb, var(--color-surface) 97%, transparent)',
               backdropFilter: 'saturate(180%) blur(26px)',
               WebkitBackdropFilter: 'saturate(180%) blur(26px)',
               borderRadius: 'var(--radius-xl) var(--radius-xl) 0 0',

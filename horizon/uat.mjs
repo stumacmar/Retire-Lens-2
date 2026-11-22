@@ -288,24 +288,28 @@ await p.waitForFunction(() => document.querySelectorAll('[role=dialog][aria-labe
     const keys = await risk.locator('[data-risk]').evaluateAll(els => els.map(e => e.getAttribute('data-risk')).join(' '));
     return keys === (spToCome(await planOf()).length ? 'base poor japan stagflation crashflat spLow futures' : 'base poor japan stagflation crashflat futures'); });
   await check('17b2 the hardest real history is named and explained in one sentence', async () => /Japan from 1990/.test(await risk.innerText()) && /Two lost decades/.test(await risk.innerText()));
-  await check('17b3 each case is a limit in pounds a month, with what it would take to see it through', async () => /£[\d,]+/.test(await risk.locator('[data-risk="japan"]').innerText()) && /would see it through|would still be paid/.test(await risk.locator('[data-risk="japan"]').innerText()));
-  await check('17b4 the unluckiest 1 in 10 is stated as an age', async () => /unluckiest 1 in 10/.test(await risk.locator('[data-risk="futures"]').innerText()));
-  await check('17b5 scenarios, not predictions', async () => /Scenarios, not predictions/.test(await risk.innerText()));
-  // Scout, 18 November 2026: running short beside still being here (after Engaging Data's "Rich, Broke or Dead").
-  await check('17b5b the futures row puts running short beside still being here, with the engine\'s own figures', async () => {
-    const q0 = await planOf(), q = { ...q0, growth: q0.growthBase ?? q0.growth }, m = E.runMonteCarlo(q, 2000, q.mcSeed || 42);
-    const el = await risk.locator('[data-still-here]').count();
-    if (m.successProb >= 0.995) return el === 0;
-    const t = (await risk.locator('[data-still-here]').innerText()).replace(/\s+/g, ' ');
-    const joint = Math.round((1 - m.successLifetime) * 100), couple = q.household !== 'single';
-    let ok = t.includes(joint < 1 ? 'in fewer than 1 of 100 futures' : `in about ${joint} of 100 futures`) && t.includes(couple ? 'while one of you is still here' : 'while you are still here')
-      && /national averages, and many people live longer/.test(t) && joint <= 100 - Math.round(m.successProb * 100) + 1;
-    if (m.shortAgeP10 != null) {
-      const o = E.lifeOdds(q, m.shortAgeP10), ahead = m.shortAgeP10 - o.a.ageNow;
-      const here = Math.round((1 - (1 - o.a.at(m.shortAgeP10)) * (1 - (o.b ? o.b.at(o.b.ageNow + ahead) : 0))) * 100);
-      ok = ok && t.includes(`still here at ${m.shortAgeP10} is about ${here} in 100`) && here >= 1 && here <= 100;
-    }
+  await check('17b3 each case is what it could pay in pounds a month, and says once whether that is enough or how far short (to the nearest £10 of the ask)', async () => {
+    const month = Math.round((await planOf()).targetNet / 12);
+    return (await risk.locator('[data-risk]:not([data-risk="futures"])').evaluateAll((els, month) => els.every(e => { const pays = Number(e.querySelector('[data-risk-pays]').textContent.replace(/[£,]/g, '')), v = e.querySelector('[data-risk-verdict]').textContent;
+      return pays >= month ? v === 'enough' : v === '£' + (Math.round((month - pays) / 10) * 10).toLocaleString('en-GB') + ' short'; }), month)) && !/see it through|covers your ask|short of your ask/.test(await risk.innerText()); });
+  await check('17b4 the futures row says what the home says: the count, the age you are when the plan ends, and the bad case as an age, from the engine\'s per-age counts', async () => {
+    const q0 = await planOf(), q = { ...q0, growth: q0.growthBase ?? q0.growth }, m = E.runMonteCarlo(q, 2000, q.mcSeed || 42), H = m.perAgeHeld, last = H[H.length - 1], count = Math.round(m.successProb * 100);
+    const t = (await risk.locator('[data-risk="futures"]').innerText()).replace(/\s+/g, ' ');
+    const said = t.match(/(\d+) times in 100, the money lasts until you are (\d+)\. (In the unluckiest 10 of 100, it runs short by age (\d+)(, falling to about £[\d,]+ a month)?\.|More often than not, it runs short by age (\d+)\.|Even the unluckiest 10 of 100 are paid in full\.)$/);
+    const often = count < 50, hit = H.find(v => (often ? v.full < 0.5 : v.full <= 0.9)), cut = often ? 0.5 : 0.9, edge = Math.abs(count - 50) <= 1 || H.some(v => Math.abs(v.full - cut) < 0.006);
+    const age = said ? Number(said[4] || said[6]) : null;
+    const ok = !!said && Math.abs(Number(said[1]) - count) <= 1 && Number(said[2]) === last.age && (edge || (hit ? Math.abs(age - hit.age) <= 1 && (often ? !!said[6] : !!said[4]) : /Even the unluckiest/.test(said[3])));
+    if (!ok) console.log(`  17b4: "${t}", engine count ${count} to ${last.age}, short by ${hit ? hit.age : 'never'}`);
     return ok; });
+  await check('17b5 scenarios, not predictions', async () => /Scenarios, not predictions/.test(await risk.innerText()));
+  // Scout, 22 November 2026: the sheet was halved. What the unlucky are still paid is the home's own figure for the last year.
+  await check('17b5b the bad case says what is still paid, the same figure the home gives for the last year; the sentences about still being here have gone', async () => {
+    const q0 = await planOf(), q = { ...q0, growth: q0.growthBase ?? q0.growth }, m = E.runMonteCarlo(q, 2000, q.mcSeed || 42), rows = E.drawdown(q).rows;
+    const t = (await risk.locator('[data-risk="futures"]').innerText()).replace(/\s+/g, ' '), fall = t.match(/falling to about £([\d,]+) a month/);
+    if (!fall) return (await risk.locator('[data-still-here]').count()) === 0 && !/still here|national averages/.test(t);
+    const a = m.perAgePaid.ages[m.perAgePaid.ages.length - 1], r = rows.find(v => v.ageA === a.age), want = Math.round(((a.q[1] + a.q[2]) / 2 * r.planTarget / Math.pow(1 + (q.inflation || 0), r.year - q.startYear) / 12) / 50) * 50, shown = Number(fall[1].replace(/,/g, ''));
+    if (Math.abs(shown - want) > Math.max(50, want * 0.02)) console.log(`  17b5b: shows £${shown}, engine £${want}`);
+    return Math.abs(shown - want) <= Math.max(50, want * 0.02) && (await risk.locator('[data-still-here]').count()) === 0 && !/still here|national averages/.test(t); });
   await check('17b6 the central case agrees with the engine to the nearest ten pounds', async () => {
     const q = await planOf(); const txt = await risk.locator('[data-risk="base"]').innerText(); const shown = Number((txt.match(/£([\d,]+)/) || [])[1]?.replace(/,/g, ''));
     // The most a year that still holds, by bisection, as the insight does.
@@ -325,7 +329,7 @@ await p.waitForFunction(() => document.querySelectorAll('[role=dialog][aria-labe
     const fig = Number((await risk.locator('[data-risk="spLow"] .tnum').first().innerText()).match(/£([\d,]+)/)[1].replace(/,/g, ''));
     const want = most(low), base = most(q);
     if (Math.abs(fig - want) > 10) console.log(`  17b7: shows £${fig}, by hand £${want} (central £${base})`);
-    return Math.abs(fig - want) <= 10 && want <= base && /A fifth less than you have entered, for life/.test(txt) && /7 missing years of National Insurance/.test(txt) && /the full rate needs 35/.test(txt) && /gov\.uk\/check-state-pension/.test(txt)
+    return Math.abs(fig - want) <= 10 && want <= base && /A fifth less, for life/.test(txt) && /7 missing years of National Insurance/.test(txt) && /gov\.uk\/check-state-pension/.test(txt)
       && (await risk.locator('a[href^="http"]').count()) === 0; });
 }
 await p.getByRole('button', { name: 'Close' }).click(); await wait(400);

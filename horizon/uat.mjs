@@ -1036,7 +1036,10 @@ const openMap = async () => { await closeSheet(); await tap('Explore'); await wa
     const rows = E.drawdown(q).rows;
     const unlucky = age => { const a = m.perAgePaid.ages.find(v => v.age === age), r = rows.find(v => v.ageA === age); if (!a || !r) return null; const share = (a.q[1] + a.q[2]) / 2;
       return share >= 0.99 ? 'full' : Math.round((share * r.planTarget / Math.pow(1 + (q.inflation || 0), r.year - q.startYear) / 12) / 50) * 50; };
-    return { count: held[n - 1].n, toAge: held[n - 1].age, years: five.length > 8 ? pick(10) : five, mc: m, unlucky, kept }; };
+    // The bad case as an age: where the money lasts at least half the time, the age by which 10 of 100 have run short; otherwise the age by which more than half have.
+    const often = held[n - 1].n < 50, hit = m.perAgeHeld.find(v => (often ? v.full < 0.5 : v.full <= 0.9)), cut = often ? 0.5 : 0.9;
+    const shortBy = hit ? { age: hit.age, often } : null, edge = Math.abs(held[n - 1].n - 50) <= 1 || m.perAgeHeld.some(v => Math.abs(v.full - cut) < 0.006);
+    return { count: held[n - 1].n, toAge: held[n - 1].age, years: five.length > 8 ? pick(10) : five, mc: m, unlucky, kept, shortBy, edge }; };
   const seenText = sel => h.$eval(sel, e => { const c = e.cloneNode(true); c.querySelectorAll('.sr-only').forEach(x => x.remove()); c.style.cssText = 'position:fixed;left:-9999px;top:0;width:360px'; document.body.appendChild(c); const t = c.innerText; c.remove(); return t.replace(/\s+/g, ' ').trim(); });
   const yearsShown = async () => ((await M('data-years')) || '').split(' ').filter(Boolean).map(s => s.split(':').map(Number));
   const near = (got, want) => got.length === want.length && got.every(([a, n], i) => a === want[i].age && Math.abs(n - want[i].n) <= 1);
@@ -1071,6 +1074,14 @@ const openMap = async () => { await closeSheet(); await tap('Explore'); await wa
       const got = await yearsShown(), ok = near(got, X.years) && got[got.length - 1][1] === Number(await M('data-count')) && got.every(([, n], i) => i === 0 || n <= got[i - 1][1]);
       if (!ok) console.log('  176: ' + JSON.stringify(got) + ' engine ' + JSON.stringify(X.years));
       return ok; });
+    await check('176b moon home: the bad case is said as an age, from the same counts as the row, and it is the way in to the years', async () => {
+      const label = (await h.$eval('[data-moon-years]', e => e.innerText)).replace(/\s+/g, ' ').trim(), by = await h.getAttribute('[data-moon-years]', 'data-short-by');
+      const said = label.match(/^(In the unluckiest 10 of 100|More often than not), it runs short by age (\d+) ›$/);
+      const ok = X.shortBy
+        ? (!!said && said[1] === (X.shortBy.often ? 'More often than not' : 'In the unluckiest 10 of 100') && Math.abs(Number(said[2]) - X.shortBy.age) <= 1 && by === said[2]) || X.edge
+        : label === 'The years ahead ›' || X.edge;
+      if (!ok) console.log(`  176b: "${label}", engine ${JSON.stringify(X.shortBy)}`);
+      return ok; });
     await check('177 moon home: the first screen is the moon, the count, the verdict, two steppers and two questions: 60 words or fewer, and none of the old scaffolding', async () => {
       const r = await h.evaluate(() => { const home = document.querySelector('[data-moon-home]'), nav = document.querySelector('nav');
         const shows = e => { const b = e.getBoundingClientRect(), cs = getComputedStyle(e); return b.width > 0 && b.height > 0 && cs.visibility !== 'hidden'; };
@@ -1096,41 +1107,42 @@ const openMap = async () => { await closeSheet(); await tap('Explore'); await wa
       if (!ok) console.log(`  177c: lit share ${lit == null ? 'not measured' : (lit * 100).toFixed(1)}, count ${shown}`);
       return ok; });
     const tapYear = async i => { const bx = await h.locator('[data-moon-home] [data-year-age]').nth(i).boundingBox(); await h.mouse.click(bx.x + bx.width / 2, bx.y - 20); await hw(900); };
-    await check('179 moon home: "The years ahead" opens the moon into its years; pressing a year reads it with the engine\'s count; pressing it again, then Back, returns to the answer', async () => {
+    await check('179 moon home: the line under the verdict opens the years with the last age chosen, the large moon standing over it; pressing another age reads it with the engine\'s figures; pressing the large moon returns to the answer', async () => {
       await h.locator('[data-moon-years]').click(); await hw(1200);
-      const l1 = await M('data-level'), t1 = await seenText('[data-moon-home] [data-answer]');
+      const l1 = await M('data-level'), sel1 = Number(await M('data-sel')), t1 = await seenText('[data-moon-home] [data-answer]');
       const labels = await h.$$eval('[data-moon-home] [data-year-age]', els => els.filter(e => getComputedStyle(e).visibility !== 'hidden').map(e => [Number(e.dataset.yearAge), Number(e.querySelector('[data-n]').textContent)]));
-      const k = Math.min(3, X.years.length - 1); await tapYear(k);
+      const reads = (t, got) => { const said = t.match(new RegExp(`^At ${got[0]} ${got[1]} times in 100, (?:the money lasts this long|it pays in full this long; \\d+ times, trimmed by your rules)\\. (Even the unluckiest 10 are paid in full that year\\.|In the unluckiest 10, it pays about £([\\d,]+) a month\\.)$`));
+        // What the unluckiest 10 of 100 are paid that year, from the engine: the 10th percentile of that year's share paid, times what the plan asks then.
+        const lucky = X.unlucky(got[0]), shownU = said && said[2] ? Number(said[2].replace(/,/g, '')) : null;
+        const ok = !!said && (lucky === 'full' ? shownU == null : shownU != null && Math.abs(shownU - lucky) <= Math.max(50, lucky * 0.02));
+        if (!ok) console.log(`  179: "${t}"; the engine's unluckiest 10 at ${got[0]}: ${lucky}`);
+        return ok; };
+      const last = labels[labels.length - 1] || [], first = sel1 === X.toAge && reads(t1, last);
+      const k = Math.min(3, X.years.length - 2); await tapYear(k);
       const l2 = await M('data-level'), sel = Number(await M('data-sel')), t2 = await seenText('[data-moon-home] [data-answer]');
-      const got = labels[k] || [], said = t2.match(new RegExp(`^At ${got[0]} ${got[1]} times in 100, (?:the money lasts this long|it pays in full this long; \\d+ times, trimmed by your rules)\\. (Even the unluckiest 10 are paid in full that year\\.|In the unluckiest 10, it pays about £([\\d,]+) a month or less\\.)$`));
-      // What the unluckiest 10 of 100 are paid that year, from the engine: the 10th percentile of that year's share paid, times what the plan asks then.
-      const lucky = X.unlucky(got[0]), shownU = said && said[2] ? Number(said[2].replace(/,/g, '')) : null;
-      const read = !!said && (lucky === 'full' ? shownU == null : shownU != null && Math.abs(shownU - lucky) <= Math.max(50, lucky * 0.02));
-      if (!read) console.log(`  179: the engine's unluckiest 10 at ${got[0]}: ${lucky}`);
-      // A large moon has lifted out of the chosen year to the top of the box, and the row is still whole: press the large one to put it back.
+      const got = labels[k] || [], read = reads(t2, got);
+      // The row stays whole, and the years are also a list for a screen reader.
       const whole = (await h.$$eval('[data-moon-home] [data-year-age]', els => els.filter(e => getComputedStyle(e).visibility !== 'hidden').length)) === labels.length;
-      // It stands above its own year (kept inside the box).
-      const bx = await h.locator('[data-moon-box]').boundingBox(), R2 = Math.min(bx.width * 0.2, bx.height * 0.24), lb = await h.locator('[data-moon-home] [data-year-age]').nth(k).boundingBox();
-      await h.mouse.click(Math.max(bx.x + R2, Math.min(bx.x + bx.width - R2, lb.x + lb.width / 2)), bx.y + R2 + 6); await hw(900);
-      const l3 = await M('data-level');
       const list = await h.$$eval('[data-moon-home] [data-moon-list] li', els => els.map(e => e.textContent));
-      await h.locator('[data-moon-years]').click(); await hw(900);
-      const ok = l1 === '1' && /^The years ahead How many times in 100 the money lasts to each age\./.test(t1) && near(labels, X.years) && l2 === '2' && sel === got[0] && read && whole && l3 === '1' && list.length === labels.length && list[k] === `To ${got[0]}: ${got[1]} times in 100.` && (await M('data-level')) === '0';
-      if (!ok) console.log(`  179: levels ${l1},${l2},${l3} sel ${sel} "${t1}" "${t2}" labels ${JSON.stringify(labels)}`);
+      // The large moon stands above its own age (kept inside the box): pressing it goes back to the answer.
+      const bx = await h.locator('[data-moon-box]').boundingBox(), R2 = Math.min(bx.width * 0.19, bx.height * 0.22), lb = await h.locator('[data-moon-home] [data-year-age]').nth(k).boundingBox();
+      await h.mouse.click(Math.max(bx.x + R2, Math.min(bx.x + bx.width - R2, lb.x + lb.width / 2)), bx.y + R2 + 6); await hw(900);
+      const ok = l1 === '2' && first && near(labels, X.years) && l2 === '2' && sel === got[0] && read && whole && list.length === labels.length && list[k] === `To ${got[0]}: ${got[1]} times in 100.` && (await M('data-level')) === '0';
+      if (!ok) console.log(`  179: levels ${l1},${l2},${await M('data-level')} sel ${sel1},${sel} "${t1}" "${t2}" labels ${JSON.stringify(labels)}`);
+      if ((await M('data-level')) !== '0') { await h.locator('[data-moon-years]').click(); await hw(900); }
       return ok; });
-    await check('179b moon home: pressing the moon itself opens the years too', async () => {
+    await check('179b moon home: pressing the moon itself opens the years too, and "Back" returns to the answer', async () => {
       const bx = await h.locator('[data-moon-box]').boundingBox(); await h.mouse.click(bx.x + bx.width / 2, bx.y + bx.height / 2); await hw(900);
-      const l = await M('data-level'); await h.locator('[data-moon-years]').click(); await hw(900);
-      return l === '1' && (await M('data-level')) === '0'; });
-    await check('180 moon home: the keyboard reaches it: Enter on "The years ahead", then the years are a slider stepped with the arrows, End and Escape', async () => {
+      const l = await M('data-level'), back = (await h.$eval('[data-moon-years]', e => e.innerText)).trim(); await h.locator('[data-moon-years]').click(); await hw(900);
+      return l === '2' && /Back$/.test(back) && (await M('data-level')) === '0'; });
+    await check('180 moon home: the keyboard reaches it: Enter on the line under the verdict, then the years are a slider stepped with Home, the arrows and End, and Escape returns to the answer', async () => {
       await h.locator('[data-moon-years]').focus(); await h.keyboard.press('Enter'); await hw(700);
-      await h.locator('[data-moon-box]').focus(); await h.keyboard.press('ArrowRight'); await hw(300); await h.keyboard.press('ArrowRight'); await hw(500);
+      await h.locator('[data-moon-box]').focus(); await h.keyboard.press('Home'); await hw(300); const home = await M('data-sel'); await h.keyboard.press('ArrowRight'); await hw(500);
       const role = await h.getAttribute('[data-moon-box]', 'role'), now = await h.getAttribute('[data-moon-box]', 'aria-valuenow'), vt = await h.getAttribute('[data-moon-box]', 'aria-valuetext');
       await h.keyboard.press('End'); await hw(400); const end = await M('data-sel');
-      await h.keyboard.press('Escape'); await hw(400); const l1 = await M('data-level');
       await h.keyboard.press('Escape'); await hw(700);
-      const ok = role === 'slider' && now === String(X.years[1].age) && vt.startsWith(`At ${X.years[1].age}: `) && end === String(X.toAge) && l1 === '1' && (await M('data-level')) === '0';
-      if (!ok) console.log(`  180: role ${role} now ${now} "${vt}" end ${end} level ${l1}`);
+      const ok = role === 'slider' && home === String(X.years[0].age) && now === String(X.years[1].age) && vt.startsWith(`At ${X.years[1].age}: `) && end === String(X.toAge) && (await M('data-level')) === '0';
+      if (!ok) console.log(`  180: role ${role} home ${home} now ${now} "${vt}" end ${end} level ${await M('data-level')}`);
       return ok; });
     await check('181 moon home: "What would help?" and "What could go wrong?" open their sheets over it, and the tab bar is night-blue only while the moon is in front', async () => {
       const night0 = await h.getAttribute('nav', 'data-night');
@@ -1185,7 +1197,7 @@ const openMap = async () => { await closeSheet(); await tap('Explore'); await wa
         const a = await fit();
         await h.locator('[data-moon-years]').click(); await hw(1000); const y = await fit();
         await tapYear(1); const z = await fit();
-        await h.locator('[data-moon-years]').click(); await hw(300); await h.locator('[data-moon-years]').click(); await hw(600);
+        await h.locator('[data-moon-years]').click(); await hw(700);
         for (const [name, r] of [['answer', a], ['years', y], ['a year', z]]) if (r.slack < 0 || r.scrolls || r.box < 168 || !r.rows || !r.apart || (name !== 'answer' && r.labels < 3)) bad.push(`${w}×${hh} ${name} ${JSON.stringify(r)}`);
       }
       await h.setViewportSize({ width: 390, height: 844 }); await hw(600);
@@ -1194,7 +1206,7 @@ const openMap = async () => { await closeSheet(); await tap('Explore'); await wa
     const ax = await axeScan('Moon home', h);
     await h.locator('[data-moon-years]').click(); await hw(900); await tapYear(2);
     const ax2 = await axeScan('Moon home, a year open', h);
-    await h.locator('[data-moon-years]').click(); await hw(300); await h.locator('[data-moon-years]').click(); await hw(600);
+    await h.locator('[data-moon-years]').click(); await hw(700);
     await check(`184 moon home: no critical or serious WCAG 2.2 AA violations, closed or with a year open${ax.bad.length + ax2.bad.length ? ' — ' + [ax.detail, ax2.detail].filter(Boolean).join(' | ') : ''}`, () => ax.bad.length === 0 && ax2.bad.length === 0);
     await check('185 moon home: Explore switches the home picture to the island and back, and remembers it', async () => {
       await h.getByRole('button', { name: 'Explore' }).last().click(); await hw(900);

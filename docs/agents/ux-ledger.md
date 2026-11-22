@@ -9,6 +9,7 @@ Word for word, newest first. These outrank any score.
 
 | Date | About | The owner said |
 |---|---|---|
+| 2026-11-22 | a research report he had commissioned, proposing a strip of funded years (three bands a year, locks, hatching, two edges) in place of the moon; asked "Thoughts ??", then | "You do what you think is best for the user" |
 | 2026-11-21 | the moon home, live | "The moon isn't sensitive enough." |
 | 2026-11-21 | the three concepts built in the lab, the moon recommended | "Moon - do it" (said twice) |
 | 2026-11-21 | the tower, on seeing the panel's finding that nobody can read it | "Yes the tower is not intuitive. You can remove it but only to replace with something better and non standard. Think of all the 3d spacial opportunities or 4D or button pressing to open more- don't know what I mean like visual levels of depth" |
@@ -258,6 +259,40 @@ it; the difference is the next cycles' work:
    from the first screen with the old sentence). "That should be one tap
    away, not more text on the screen."
 
+### The moon home, second panel (22 November 2026)
+
+After three rounds of changes nobody fresh had read (the readers' first list,
+the more sensitive moon, the bad case as an age). The same six personas and
+plan; truth: 57 of 100; in the unluckiest 10 the money runs short by 77; the
+guaranteed income is about £2,050 a month.
+
+| | Q1 what is it telling you | Q2 can they stop, how sure | Q3 which number matters | If the money does not last: what happens, and when? |
+|---|---|---|---|---|
+| The moon home | 6 of 6 right | 6 of 6 right | 6 of 6 right | 5 of 5 who saw the years: "they don't end up with nothing… they drop from £4,333 to about £2,050… from about 77"; the screen-reader persona, with the first screen only, could not say |
+
+One word each: Calm, Smart, Striking, Handsome, Sparse, Beautiful. Three of
+six said the line they would lose sleep over was the new one ("the number I'd
+actually worry about is the 77"), which is the point of it. All five
+"pieced it together from three places": no screen said outright what the
+drop is.
+
+Found, and fixed before it shipped:
+
+| Found | By | Done |
+|---|---|---|
+| "Runs short by 77": 77 what? Pounds, per cent, years? | 6 of 6 | "by age 77"; "the unluckiest 10 of 100" |
+| "£2,050 still comes in whatever the markets do" beside "£2,050 or less": "which is it?"; "why 69?" | 5 of 5 | "or less" went; the separate sentence went (the year reading says it) |
+| The years screen: "the top half is empty black where the big moon was. It looked like something had failed to load"; "Press one" nearly missed | 2, and three critics before them | One level: opening the years chooses the last age, and the moon travels to stand over it |
+| Screen reader: the button read as two things glued together | 1 | "The years ahead: in the unluckiest 10 of 100, it runs short by age 77" |
+
+Still open (added to the list above): the figures under the ages are
+unlabelled (5 of 6); it never says it is a couple, together, after tax (6 of
+6); "Workings" (2 of 6: "working like a job?"); what the £2,050 is made of
+(4); what happens if one of them dies (the teacher: "at our age the real
+question"); the stop age cannot be typed and is read as a bare "64" (screen
+reader). Not run this time: the two critics (the look changed only in the
+night side and the glow).
+
 ## Benchmarks
 
 None yet under version 2. (The market's pension calculators are in
@@ -304,6 +339,11 @@ Learned on this product, from the panels (each with its evidence above):
     100 moves the shadow four pixels. Count what was asked; keep both parts
     of the picture visible; show a change where it happened; and give the
     picture something to say past full.
+
+12. **Say the bad case as an age.** "Runs short by 77" is easier to hold than
+    "57 times in 100", and it is the question every reader asked (when?).
+    From the report the owner brought (Kitces, Blanchett, eMoney: success
+    rates hide when and how badly). Not yet tested blind here.
 
 Still hypotheses: the app should decide more and ask less; uncertainty said
 the way a forecast says it.
@@ -371,6 +411,8 @@ as it stands"; at 97 it is all but full and says "Yes, on track".
 | 2026-11-21 | Subtract and reword (owner: "Continue") | What the readers still asked: the unluckiest 10 at each age; "until you are 94"; "Live on each month"; tabs named Home and Workings. The moon retuned after the critics' third round, and its lit share measured against the count | merged by the owner's standing instruction | — |
 
 | 2026-11-21 | Fix (owner: "The moon isn't sensitive enough") | The moon counts paid in full on every plan (a ladder plan's "with rules" count hardly moved and could rise with the ask); the unlit sliver is visible; a change flashes where it happened; the glow widens with what is to spare past full | merged by the owner's standing instruction | — |
+
+| 2026-11-22 | Reword (owner: "You do what you think is best for the user") | The strip was not built: it is the bar strip, the stripe canvas and the tower again (one mark a year; 1 of 12 could read the tower), with five encodings on one object, and the report's case was against a moon that measures the pot, which this one does not. Its best idea was taken: the bad case as an age, as the way in to the years ("In the unluckiest 10 of 100, it runs short by age 77 ›"). A second blind panel then read everything changed since the first (6 of 6 again; what it found is in "second panel" above), and the years became one level | merged by the owner's standing instruction | — |
 
 **Standing instruction (owner, 21 November 2026):** do not ruin the UX. The
 result must be visually stunning and different as well as simple. Subtract

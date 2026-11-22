@@ -101,7 +101,7 @@ export class MoonStage extends Stage {
     if (same) this.years.forEach((y, i) => { const was = y.p; y.p = data.years[i].p; const m = y.mesh.material as THREE.ShaderMaterial;
       if (!this.reduced && Math.abs(y.p - was) > 0.004) { y.flash = 1; setChange(m, was, 1); }
       setPhase(m, y.p); const n = y.label.querySelector('[data-n]'); if (n) n.textContent = String(Math.round(y.p * 100)); });
-    else { if (this.level === 2) this.setLevel(1); this.build(); }
+    else { const open = this.level === 2; this.build(); if (open) this.setLevel(2, this.years.length - 1); }
   }
 
   // ── Layout, in the page's own pixels ────────────────────────────────────────
@@ -116,7 +116,7 @@ export class MoonStage extends Stage {
   private get rowPx() { return Math.min(26, (this.box.w * 0.94) / Math.max(1, this.years.length) / 2.2); }
   /** The one moon at rest: room above it for the name and below it for the count. */
   private get restPx() { return Math.min(this.box.w * 0.36, this.box.h * 0.45); }
-  private get chosenPx() { return Math.min(this.box.w * 0.2, this.box.h * 0.24); }
+  private get chosenPx() { return Math.min(this.box.w * 0.19, this.box.h * 0.22); }
   /**
    * Where a year's moon sits: a level row, the day you stop on the left. (It was a shallow arc; three of four
    * readers asked whether the height meant something.) It stands at the foot of the box, just above its words, whether or not an age is chosen (it used to jump down when one was).
@@ -126,12 +126,13 @@ export class MoonStage extends Stage {
     return { x: b.cx - half + 2 * half * t, y: b.cy + b.h / 2 - 44 - r };
   }
 
-  setLevel(level: number, sel = -1) {
-    const was = this.level; this.level = level; this.sel = level === 2 ? sel : -1;
-    // A chosen year: the large moon lifts out of that year's place in the row, lit as that year is. The row stays whole.
-    if (level === 2 && was !== 2 && this.years[this.sel]) { const y = this.years[this.sel]; this.mainAt.set(y.pos.x, y.pos.y, 0.02); this.mainR = Math.max(y.r, 0.0001); this.pNow = y.p; }
-    this.on(this.level, this.sel);
-  }
+  /**
+   * Two levels since 22 November 2026: the answer (0), and the years with one age chosen (2). Opening the years chooses
+   * the last age, which is the headline count: the one moon shrinks and travels to stand above it, so there is never
+   * an empty sky where it was (a reader: "it looked like something had failed to load"), and no screen that only says
+   * "press one". Level 1, the row with nothing chosen, is no longer reached.
+   */
+  setLevel(level: number, sel = -1) { this.level = level; this.sel = level === 2 ? sel : -1; this.on(this.level, this.sel); }
 
   protected update(t: number, dt: number) {
     const u = this.u, b = this.box, c = this.at(b.cx, b.cy);
@@ -185,23 +186,23 @@ export class MoonStage extends Stage {
 
   protected onTap(x: number, y: number) {
     // A press anywhere in the moon's own space opens it: a finger need not land on the disc.
-    if (this.level === 0) { const b = this.box; if (Math.abs(x - b.cx) <= b.w / 2 && Math.abs(y - b.cy) <= b.h / 2) this.setLevel(1); return; }
+    if (this.level === 0) { const b = this.box; if (Math.abs(x - b.cx) <= b.w / 2 && Math.abs(y - b.cy) <= b.h / 2) this.enter(); return; }
     // A year's moon is small: take the nearest one within a thumb's width.
     let best = -1, bd = 34;
     this.years.forEach((v, i) => { const p = v.mesh.position.clone().project(this.camera), dx = (p.x * 0.5 + 0.5) * this.w - x, dy = (-p.y * 0.5 + 0.5) * this.h - y, d = Math.hypot(dx, dy) - v.r / this.u; if (d < bd) { bd = d; best = i; } });
     // The lifted moon, or its own year in the row, pressed again: put it back.
-    if (this.level === 2 && (best === this.sel || (best < 0 && this.hit(x, y, [this.main])))) { this.setLevel(1); return; }
-    if (best >= 0) this.setLevel(2, best);
+    // The large moon pressed: back to the answer.
+    if (best < 0) { if (this.hit(x, y, [this.main])) this.setLevel(0); return; }
+    if (best !== this.sel) this.setLevel(2, best);
   }
 
   /** For the buttons, the keyboard and the tests. */
-  enter() { if (this.level === 0) this.setLevel(1); }
-  back() { this.setLevel(Math.max(0, this.level - 1)); }
+  enter() { if (this.level === 0 && this.years.length) this.setLevel(2, this.years.length - 1); }
+  back() { this.setLevel(0); }
   select(i: number) { if (this.years.length) this.setLevel(2, Math.max(0, Math.min(this.years.length - 1, i))); }
   /** Step along the years: from the row, right takes the first year and left the last. */
   step(d: number) {
     if (this.level === 0) return;
-    if (this.level === 1) { this.select(d > 0 ? 0 : this.years.length - 1); return; }
     this.select(this.sel + d);
   }
 

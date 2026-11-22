@@ -119,6 +119,15 @@ export default function MoonHome({ header, held, structured, spare = 0, pending,
     return () => { metas.forEach((m, i) => { m.content = was[i]; }); };
   }, [front]);
 
+  // The bad case, said as an age (it is easier to hold than a count, and it is what every reader asked: when?). Where
+  // the money lasts at least half the time: the age by which the unluckiest 10 of 100 have run short. Where it does
+  // not, the age by which more than half have. Nothing where fewer than 10 in 100 ever run short. It is read from the
+  // same per-age counts as the moon and the row, so it cannot disagree with them, and it is the way in to the years.
+  const shortBy = useMemo(() => {
+    if (!n || count == null) return null;
+    const often = count < 50, at = held.find(y => (often ? y.p < 0.5 : y.p <= 0.9));
+    return at ? { age: at.age, line: often ? `More often than not, it runs short by age ${at.age}` : `In the unluckiest 10 of 100, it runs short by age ${at.age}` } : null;
+  }, [held, n, count]);
   // The figure counts to its new value as the light moves across the moon (at once, where motion is unwelcome).
   const shown = useCounted(count, drawn);
   const level = has ? at.level : 0;
@@ -129,7 +138,7 @@ export default function MoonHome({ header, held, structured, spare = 0, pending,
     : `${yearCount} times in 100, the money lasts this long.`;
   // What the count leaves unsaid: in the futures where the money has not lasted, the guaranteed income still comes in.
   const un = year ? unluckyOf.get(year.age) ?? null : null;
-  const unluckyLine = un == null ? '' : un === 'full' ? 'Even the unluckiest 10 are paid in full that year.' : `In the unluckiest 10, it pays about £${un.toLocaleString('en-GB')} a month or less.`;
+  const unluckyLine = un == null ? '' : un === 'full' ? 'Even the unluckiest 10 are paid in full that year.' : `In the unluckiest 10, it pays about £${un.toLocaleString('en-GB')} a month.`;
   const rules = structured && kept != null && kept !== count ? `or ${kept} times, trimmed by your rules` : null;
   const ages = data ? data.years.map(y => y.age) : [];
   const key = (e: React.KeyboardEvent) => {
@@ -177,11 +186,6 @@ export default function MoonHome({ header, held, structured, spare = 0, pending,
               {rules && <p data-moon-rules className="text-[1rem] leading-snug" style={{ color: '#C9D4F2' }}>{rules}</p>}
               <p data-status={v!.key} className="mt-1.5 text-[1.35rem] font-bold leading-tight tracking-tight">{v!.label}</p>
             </>}
-            {has && level === 1 && <>
-              <h1 data-moon-title className="text-[1.35rem] font-extrabold leading-tight tracking-tight">The years ahead</h1>
-              {/* One test, one word for it, at every level: "the money lasts" (a reader: "lasts, still paying, paying in full: are those the same test?"). */}
-              <p data-moon-line className="mt-2 text-[1rem] leading-snug" style={{ color: '#C9D4F2' }}>How many times in 100 the money lasts to each age. Press one.</p>
-            </>}
             {has && level >= 1 && <ul className="sr-only" data-moon-list>{data!.years.map(y => <li key={y.age}>To {y.age}: {Math.round(y.p * 100)} times in 100.</li>)}</ul>}
             {year && <>
               <h1 data-moon-title className="text-[1.35rem] font-extrabold leading-tight tracking-tight">At {year.age}</h1>
@@ -191,9 +195,10 @@ export default function MoonHome({ header, held, structured, spare = 0, pending,
 
           {/* The way in, and the way back out, in the same place. Nobody in the lab pressed the moon unprompted. */}
           <div className="flex justify-center">
-            <button type="button" data-moon-years disabled={!has} onClick={() => (level === 0 ? stage.current?.enter() : stage.current?.back())}
-              className="pointer-events-auto min-h-[44px] px-4 text-[1rem]" style={{ color: '#B9C8F5' }}>
-              {level === 0 ? <>The years ahead <span aria-hidden="true">›</span></> : <><span aria-hidden="true">‹</span> Back</>}
+            <button type="button" data-moon-years data-short-by={level === 0 && shortBy ? shortBy.age : undefined} disabled={!has} onClick={() => (level === 0 ? stage.current?.enter() : stage.current?.back())}
+              aria-label={level === 0 && shortBy ? `The years ahead: ${shortBy.line.charAt(0).toLowerCase()}${shortBy.line.slice(1)}` : undefined}
+              className="pointer-events-auto min-h-[44px] px-1 text-[1rem] leading-snug" style={{ color: '#B9C8F5', textWrap: 'balance' } as React.CSSProperties}>
+              {level === 0 ? <>{shortBy ? shortBy.line : 'The years ahead'} <span aria-hidden="true">›</span></> : <><span aria-hidden="true">‹</span> Back</>}
             </button>
           </div>
 

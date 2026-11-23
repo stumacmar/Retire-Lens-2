@@ -50,6 +50,7 @@ answer is a picture that needs no explaining, with almost nothing beside it.
 | 2026-11-21 (the moon is the home) | 36 | 5 | 12 | 4 | 13 px | 0 | 91 | 305 | 909 / 86 | 1,424 / 219 | 184 | 2,985 / 138 |
 | 2026-11-21 (what the readers still asked) | 38 | 5 | 12 | 4 | 13 px | 0 | 91 | 305 | 909 / 86 | 1,424 / 219 | 186 | 2,991 / 138 |
 | 2026-11-22 ("What could go wrong?" halved) | 38 | 5 | 12 | 4 | 13 px | 0 | 91 | 126 | 909 / 86 | 1,424 / 219 | 186 | 2,812 / 138 |
+| 2026-11-23 ("What would help?" in the home's words) | 38 | 5 | 12 | 4 | 13 px | 0 | 44 | 126 | 909 / 86 | 1,424 / 219 | 186 | 2,765 / 138 |
 
 The moon home meets the home's targets for words, figures, sizes and smallest
 text. Controls are 12 against 7: four tabs, four stepper buttons, the typed
@@ -340,12 +341,135 @@ bad histories where "two would do" (the teacher); the engineer wants the
 working behind each figure; gov.uk cannot be pressed (the app sends nobody
 anywhere, by rule).
 
+### "What would help?" (23 November 2026): 91 words, 5 text sizes, smallest 11.8 px
+
+The sheet behind the home's first question. It spoke the engine's words
+beside a home that speaks its own: "Spend £3,000 a year less" under a
+stepper that says "Live on each month"; "+10 of 100" under "times in 100".
+(On the couple asking £4,333, as the panel read it: 105 words.)
+
+| Element | Question it answers | Rung | Done |
+|---|---|---|---|
+| Title, "What would help most" | What is this? | 5 | "What would help?": the words on the button that opened it (5 of 6 noticed the difference; two actions tie, so "most" was not true either) |
+| (nothing said what the numbers count) | More of what? | | One line, in the home's phrase: "How many more times in 100 the money would last." |
+| "Stop work one year later" | What could I do? | 5 the home's words | "Stop work at 65": the stepper's label and the age it would show |
+| "One more year of growth and saving, one fewer to fund." | Why does it help? | 1 delete | Gone: the row is a control on the home, and the gain is the answer |
+| "Spend £3,000 a year less" | What could I do? | 5 the home's units | "Live on £250 a month less": the home is in months |
+| "A little under £60 a week, for the whole retirement." | How much is that? | 1 | Gone: a third unit of time for one sum |
+| "Two years of part-time work after stopping, £10,000 a year" | What could I do? | keep | Kept (the engine's name for it) |
+| "Taxed as earnings; bridges the early years so the pots keep growing." | Why does it help? | 1 | Gone: jargon to 6 of 6 ("bridges", "pots": "a cooking word?") |
+| "Save £250 a month more until you stop" / "Into the pension, with growth on top." | What could I do? | keep / 1 | The name kept; its line gone |
+| "+10 of 100", in amber | How much would it help? | 5 | "+10", in the green the app uses for good news ("orange to me is warning"); heard by a screen reader as "Stop work at 65: 10 more times in 100" |
+| "Each is your plan run again through the same simulated futures." | How was it measured? | 3 down a layer | Gone from here (the method is in Workings) |
+| "Tap one to try it; you can change it back above." | What does a press do? | 5 | "Press one to try it." ("Above" pointed at the island home's steppers; on the moon home they are behind the sheet, and to a screen reader "above" is nowhere) |
+| "Prompts, not advice." | Is this advice? | 5 | "Ideas, not advice." ("Prompts" was not understood by 6 of 6) |
+| Five text sizes, the smallest 11.8 px; the footer in the faint ink | | | Three in the panel (16, 14, 13 px) and the title; the footer in the dim ink |
+
+Rows for the actions that are not the home's own controls (easing spending
+from 75, taking the tax-free cash in stages, the order of withdrawal, a
+scheme pension at its normal age) keep the engine's one line of why: a
+reader has nothing else to place them by. The example couple's sheet shows
+none of them.
+
+**Panel** (six fresh readers a version, the whole sheet over the home; the
+couple asking £4,333, whose home says "57 times in 100"; truth: stopping at
+65 or living on £250 a month less each add 10, part-time work and saving
+more 3 each; a press applies the change and closes the sheet). K is the
+sheet before, M the first rewrite, N the sheet as shipped (three readers:
+the nurse, the second-language reader, the screen-reader user).
+
+| | Q1 what is it telling you | Q2 what helps most, by how much | What the number counts | Q3 the home afterwards (67) | Q4 what a press does | Time | One word |
+|---|---|---|---|---|---|---|---|
+| K (105 words) | 6 of 6 | 6 of 6 (two tie at +10) | 6 guessed right, and 6 of 6 asked "of 100 what?" ("it might be 10 per cent, it might be 10 people") | 6 of 6 | 6 of 6; 3 not sure how to undo | 20 to 40 s (mean 29) | Clear, Shifty, Clear, Thin, Dense, Confusing |
+| M (62 words) | 6 of 6 | 6 of 6 | 6 right, 5 quoting the opening line; 2 still asked whether it was per cent | 6 of 6 | 6 of 6; 4 not sure it can be undone | 20 to 40 s (mean 25) | Clear, Plain, Clear, Thin, Clipped, Clear |
+| N (50 words) | 3 of 3 | 3 of 3 | 3 right, all from the opening line; all 3 still wonder aloud whether it is per cent | 3 of 3 | 3 of 3; 1 not sure it can be undone | 20 to 25 s | Clear, Clear, Terse |
+
+No worse on any question, and the one thing every reader of the old sheet
+asked ("of 100 what?") is answered by one line. From M's readers, before N:
+the part-time row's line of why went (jargon to 6 of 6), "Prompts" became
+"Ideas" (6 of 6), the title became the button's words (5 of 6), the gains
+went from amber to green (3 across both panels). From N: the rows are named
+for a screen reader ("+10" was heard as "plus ten" of nothing); that name
+has not been heard by a fresh listener. The readers were the smaller model
+the last cycle used, the same for every version.
+
+Still open on this sheet: whether a press can be undone (the old words
+"you can change it back above" did not settle it either; a real "Undo" on
+the home after a press would, and it is a control, so it waits for the
+home's controls to come down); "+10" still wondered at as possibly per cent by 3 of 3, though each
+read it right;
+the two that tie give no reason to choose ("how can a year's work be worth
+the same as £3,000 a year less?", the builder); "Stop work at 65" does not
+say it is a year later than now (2); the part-time row is long, and does
+not say whose work or whether £10,000 is before tax; "Save £250 a month
+more until you stop": into what; "Ideas, not advice" still reads as a
+disclaimer (which it is); the engineer wants the working.
+
 ## Benchmarks
 
-None yet under version 2. (The market's pension calculators are in
-`pension-scout-ledger.md`: about forty examined. What they have in common is one
-line, before tax, and an adviser at the end. None is a model of a first
-screen.)
+The first under version 2, 23 November 2026. None of the three was run:
+each was read from its maker's own pages and its store listing, so the
+counts of words and controls are not given. (The market's pension
+calculators are in `pension-scout-ledger.md`: about forty examined. What
+they have in common is one line, before tax, and an adviser at the end.
+None is a model of a first screen.)
+
+For the critics, a reference to stand the home beside (manual §5): the
+maker's own picture of (Not Boring) Weather,
+`https://cdn.prod.website-files.com/5f52cb73016fed9a30bb4d95/602cf9d3ce0c80797de3228a_weather-hero.jpg`.
+No critic has yet been shown it.
+
+### (Not Boring) Weather — 2026-11-23 — notbor.ing (the product page), its App Store listing
+
+The one job it does for the person: says what the weather is and will be today, as a thing to look at ("Most weather apps are more akin to reading a weather chart").
+First screen: words, figures and controls not counted (stills only) · the eye lands on one 3D scene of the weather, with one bar under it for the day.
+What makes it beautiful, and what makes it unmistakably itself: "Built like a game, Runs like an app": a lit, moving 3D object where every other weather app has a table.
+Before the first answer it asks for: not stated (a place, presumably).
+How it reveals depth (what one tap shows, and the next): the bar "tells you what's most important"; "Tap anywhere on the bar to preview the weather at that time… Scrub to play through a full day"; then "Tap to reveal the underlying weather data".
+How it says uncertainty, in its own words: not stated.
+What it leaves out that a pension tool would put in: menus ("No menus… Just simple swipes and taps"); anything not needed now ("Just what you need, Not a button more").
+The pattern, in one sentence: one object fills the screen, one bar under it is time, a finger on the bar plays the object through time, and the numbers are one tap beneath.
+Would it survive on Someday's first screen? Why or why not: most of it is there (one moon, the count, depth by a press). What is missing is the scrub: the years are a second state with a row of small moons to press one at a time, where a finger drawn along the ages could make the one large moon wane. That is a Leap, not a subtraction.
+Sources: notbor.ing/product/weather; apps.apple.com (id 1531063436).
+
+### Flighty — 2026-11-23 — flighty.com, its App Store listing
+
+The one job it does for the person: says whether your flight is on time, before the airline does ("Never stop and stare at a flight board again").
+First screen: not counted · the eye lands on a status in words: "Your flight today is on time", "Delayed 45m".
+What makes it beautiful, and what makes it unmistakably itself: not stated by its makers in what was read.
+Before the first answer it asks for: the flight; "No account required".
+How it reveals depth (what one tap shows, and the next): not stated in what was read.
+How it says uncertainty, in its own words: "Delay predictions. Long before airlines admit it"; "Probability of extension is 30-60%"; a gate "may start as a concourse or gate range, then sharpen as departure gets closer".
+What it leaves out that a pension tool would put in: an account; the model behind the prediction.
+The pattern, in one sentence: the answer is a status sentence in everyday words, with the size of the trouble in the unit the person lives in (minutes late), and a prediction is a range that narrows as the day comes.
+Would it survive on Someday's first screen? Why or why not: the verdict ("Probably") and the bad case as an age ("runs short by age 77") are this pattern already. The range that narrows is not here: the count is one number, and its sampling range is in Explore. A range on the first screen would be a sixth figure; not now.
+Sources: flighty.com; its App Store listing.
+
+### Met Office forecast — 2026-11-23 — weather.metoffice.gov.uk/guides/what-does-this-forecast-mean
+
+The one job it does for the person: says whether it will rain where you are.
+First screen: not looked at (the guide to reading it was).
+What makes it beautiful, and what makes it unmistakably itself: not stated.
+Before the first answer it asks for: a place.
+How it reveals depth: not stated.
+How it says uncertainty, in its own words: "a 70% chance means a 7 in 10 chance that precipitation will fall at some point during that period".
+What it leaves out that a pension tool would put in: how the chance was worked out.
+The pattern, in one sentence: a chance is never said bare: it comes with the event it is the chance of and the period it covers, as a count in 10.
+Would it survive on Someday's first screen? Why or why not: it is there ("57 times in 100, the money lasts until you are 94": the count, the event, the period). It was missing one press away, where "What would help?" said "+10 of 100" of nothing; this cycle put it right.
+Sources: the guide above. (Its page on probability returned "not found"; Apple's guide to its Weather app could be read only in part, and nothing is taken from it.)
+
+**The three patterns most worth trying**, in order:
+
+1. **Every chance carries its event and its period** (Met Office). Applied
+   this cycle to "What would help?". Still bare or in other words: Explore
+   and the report ("futures", a percentage here and there).
+2. **Scrub time on the one object** (Weather). The years as a finger drawn
+   along the ages under the one large moon, which wanes as it goes, in
+   place of a second state with a row of small moons. For the next Leap.
+3. **Not a button more, and one vocabulary** (Weather; Flighty's status
+   line). A sheet opened from the home says things in the home's words and
+   units, and carries no line the answer does not need. Applied this cycle
+   to "What would help?"; Details (86 controls) is where it matters most.
 
 ## Patterns
 
@@ -392,8 +516,23 @@ Learned on this product, from the panels (each with its evidence above):
     From the report the owner brought (Kitces, Blanchett, eMoney: success
     rates hide when and how badly). Not yet tested blind here.
 
-Still hypotheses: the app should decide more and ask less; uncertainty said
-the way a forecast says it.
+13. **A sheet speaks the words of the screen that opened it.** "Spend
+    £3,000 a year less" under a control named "Live on each month", and
+    "+10 of 100" under "times in 100": six of six asked "of 100 what?".
+    One line in the home's phrase answered it, and the rows lost their
+    second lines without any question scoring worse.
+14. **A chance is never said bare.** The count, what it is the chance of,
+    and until when (the Met Office's "7 in 10… at some point during that
+    period"). Where a number stands alone ("+10"), one line above must
+    carry the rest, and a screen reader must hear it on the number itself.
+15. **A line of why is the first thing to go.** Each action carried a
+    sentence of mechanism ("bridges the early years so the pots keep
+    growing"); nobody needed one to choose, and the one that was left was
+    jargon to six of six.
+
+Still hypotheses: the app should decide more and ask less; a prediction
+given as a range that narrows (Flighty); the years scrubbed under one moon
+(Weather).
 
 ## Concepts
 
@@ -461,13 +600,24 @@ as it stands"; at 97 it is all but full and says "Yes, on track".
 
 | 2026-11-22 | Reword (owner: "You do what you think is best for the user") | The strip was not built: it is the bar strip, the stripe canvas and the tower again (one mark a year; 1 of 12 could read the tower), with five encodings on one object, and the report's case was against a moon that measures the pot, which this one does not. Its best idea was taken: the bad case as an age, as the way in to the years ("In the unluckiest 10 of 100, it runs short by age 77 ›"). A second blind panel then read everything changed since the first (6 of 6 again; what it found is in "second panel" above), and the years became one level | merged by the owner's standing instruction | — |
 
-| 2026-11-22 | Subtract ("What could go wrong?") | The sheet more than halved: 331 words to 134 (143 as the panel read it), seven text sizes to three, nothing under 13 px; each row says its result once; the futures row in the home's words with the home's age; the two longevity sentences gone. Panel: 6 of 6 on every question before and after, read in about half the time | this pull request | — |
+| 2026-11-22 | Subtract ("What could go wrong?") | The sheet more than halved: 331 words to 134 (143 as the panel read it), seven text sizes to three, nothing under 13 px; each row says its result once; the futures row in the home's words with the home's age; the two longevity sentences gone. Panel: 6 of 6 on every question before and after, read in about half the time | #84 | "Merge" |
+
+| 2026-11-23 | Benchmark | (Not Boring) Weather, Flighty and the Met Office read from their makers' pages (templates above); three patterns ranked. One applied as a subtraction: "What would help?" says things in the home's words and units, with one line for what the numbers count; 91 words to 44 on the budget's example (105 to 50 as the panel read it), five text sizes to four, nothing under 13 px. Panel: 6 of 6 on every question before and after; "of 100 what?" from 6 of 6 to none | this pull request | — |
 
 **Standing instruction (owner, 21 November 2026):** do not ruin the UX. The
 result must be visually stunning and different as well as simple. Subtract
 the scaffolding, never the picture.
 
-**Next (the moon is the home):** a blind panel on the evening's changes (the unlucky sentence, the new label,
+**Next (after 23 November):** the next cycle is a Subtract (Details: 909
+words and 86 controls against a target of 12 controls; add its pages to
+`ux-metrics.mjs` first) or, if a week has passed since the moon, the Leap
+that scrubs the years under the one moon. The two sheets off the home are
+now within reach of their targets; the home's controls (12 against 7) are
+not, and an "Undo" after a press in "What would help?" waits on that.
+Critics have still not been shown a reference screen: the address of one is
+under Benchmarks.
+
+**Before that (the moon is the home):** a blind panel on the evening's changes (the unlucky sentence, the new label,
 the tab names, the retuned moon), since none of them has been read by fresh
 eyes yet. Then the rest of the two work lists above: "times in 100" of what,
 what is counted and that it is an estimate (one tap away, not more words),

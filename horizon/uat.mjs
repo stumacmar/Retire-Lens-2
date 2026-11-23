@@ -334,8 +334,20 @@ await p.waitForFunction(() => document.querySelectorAll('[role=dialog][aria-labe
 }
 await p.getByRole('button', { name: 'Close' }).click(); await wait(400);
 await p.getByRole('button', { name: 'What would help?' }).click();
-await p.waitForFunction(() => /\+\d+ of 100|Nothing measured/.test(document.querySelector('[role=dialog][aria-label="What would help most"]')?.textContent || ''), null, { timeout: 20000 }).catch(() => {});
-await check('17f what would help: each action measured', async () => /\+\d+ of 100|Nothing measured/.test(await p.locator('[role=dialog][aria-label="What would help most"]').innerText()));
+await p.waitForFunction(() => /\+\d+|Nothing measured/.test(document.querySelector('[role=dialog][aria-label="What would help?"]')?.textContent || ''), null, { timeout: 20000 }).catch(() => {});
+await check('17f what would help: each action measured', async () => /\+\d+|Nothing measured/.test(await p.locator('[role=dialog][aria-label="What would help?"]').innerText()));
+await check('17f2 what would help: in the home\'s words (times in 100; "Stop work at", "Live on … a month"), each gain the engine\'s own and named for a screen reader, and nothing set under 13 px', async () => {
+  const d = p.locator('[role=dialog][aria-label="What would help?"]'), t = (await d.innerText()).replace(/\s+/g, ' ');
+  if (/Nothing measured/.test(t)) return true;
+  const q0 = await planOf(), q = { ...q0, growth: q0.growthBase ?? q0.growth }, L = E.levers(q, { paths: 200 }).levers.filter(l => l.dConf > 0.004).slice(0, 6);
+  const rows = await d.locator('[data-help]').evaluateAll(els => els.map(e => [e.getAttribute('data-help'), e.querySelector('[data-help-gain]').textContent, e.innerText.replace(/\s+/g, ' '), e.getAttribute('aria-label') || '']));
+  const px = await d.evaluate(e => { let m = 99; const w = document.createTreeWalker(e, NodeFilter.SHOW_TEXT); for (let n = w.nextNode(); n; n = w.nextNode()) if (n.nodeValue.trim()) m = Math.min(m, parseFloat(getComputedStyle(n.parentElement).fontSize)); return m; });
+  const same = rows.length === L.length && rows.every(([id, gain, , name]) => { const l = L.find(v => v.id === id); return !!l && Math.abs(Number(gain) - Math.round(l.dConf * 100)) <= 2 && name.endsWith(`: ${Number(gain)} more times in 100`); });
+  const later = rows.find(r => r[0] === 'later1'), less = rows.find(r => r[0] === 'spend3k');
+  const ok = /How many more times in 100 the money would last\./.test(t) && !/of 100|a year less|simulated futures|Prompts|bridges the early/.test(t) && same && px >= 13
+    && (!later || later[2].startsWith(`Stop work at ${q.retireYear - q.partnerA.birthYear + 1} `)) && (!less || less[2].startsWith('Live on £250 a month less '));
+  if (!ok) console.log(`  17f2: px ${px} rows ${JSON.stringify(rows)} engine ${JSON.stringify(L.map(l => [l.id, Math.round(l.dConf * 100)]))}`);
+  return ok; });
 await p.getByRole('button', { name: 'Close' }).click(); await wait(400);
 await check('18 the figures are saved on the plan', async () => (await planOf()).partnerA.pension === 300000 && (await planOf()).partnerA.monthlyPension === 1550);
 await check('19 bottom tab bar visible', () => has('Home'));
@@ -858,8 +870,8 @@ const openMap = async () => { await closeSheet(); await tap('Explore'); await wa
   await closeSheet();
   const beforeHelp = JSON.stringify(await planOf());
   await p.getByRole('button', { name: 'What would help?' }).click();
-  await p.waitForFunction(() => /\+\d+ of 100|Nothing measured/.test(document.querySelector('[data-help-panel]')?.textContent || ''), null, { timeout: 25000 }).catch(() => {});
-  await check('155 what would help: each action measured', async () => /\+\d+ of 100|Nothing measured/.test(await p.$eval('[data-help-panel]', e => e.innerText)));
+  await p.waitForFunction(() => /\+\d+|Nothing measured/.test(document.querySelector('[data-help-panel]')?.textContent || ''), null, { timeout: 25000 }).catch(() => {});
+  await check('155 what would help: each action measured', async () => /\+\d+|Nothing measured/.test(await p.$eval('[data-help-panel]', e => e.innerText)));
   if (await p.locator('[data-help-panel] button').count()) { await p.locator('[data-help-panel] button').first().click(); await wait(800); }
   await check('156 tapping an action applies it and returns home', async () => !(await sheetOpen()) && JSON.stringify(await planOf()) !== beforeHelp);
   {
@@ -1154,7 +1166,7 @@ const openMap = async () => { await closeSheet(); await tap('Explore'); await wa
       const risk = (await h.$('[data-risk-panel]')) != null, night1 = await h.getAttribute('nav', 'data-night');
       await h.keyboard.press('Escape'); await hw(700);
       await h.getByRole('button', { name: 'What would help?' }).click(); await hw(900);
-      const help = (await h.getByRole('dialog').count()) > 0 && /What would help most/.test(await h.getByRole('dialog').first().innerText());
+      const help = (await h.getByRole('dialog').count()) > 0 && /What would help\?/.test(await h.getByRole('dialog').first().innerText());
       await h.keyboard.press('Escape'); await hw(700);
       await h.getByRole('button', { name: 'Explore' }).last().click(); await hw(900);
       const night2 = await h.getAttribute('nav', 'data-night'), link = (await h.getAttribute('[data-lantern-link]', 'href')) === './?lantern=1';

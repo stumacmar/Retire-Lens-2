@@ -168,7 +168,7 @@ export default function SimpleHome({ plan, update, dd, mc, onDetails, header, he
                   </span>)}
               </>;
   const sheets = <>
-    <Sheet open={panel === 'help'} onClose={() => setPanel(null)} title="What would help most">
+    <Sheet open={panel === 'help'} onClose={() => setPanel(null)} title="What would help?">
       {panel === 'help' && <HelpPanel plan={plan} update={update} onDone={() => setPanel(null)} />}
     </Sheet>
     <Sheet open={panel === 'risk'} onClose={() => setPanel(null)} title="What could go wrong">
@@ -307,20 +307,35 @@ function HelpPanel({ plan, update, onDone }: { plan: any; update: (p: any) => vo
     return () => { live = false; clearTimeout(id); };
   }, [plan]);
   const top: any[] = res?.levers ? res.levers.filter((l: any) => l.dConf > 0.004).slice(0, 6) : [];
+  // Where an action is one of the home's own two controls, it is said in the home's words and units ("Stop work at 65",
+  // "Live on £250 a month less": it was "Spend £3,000 a year less"), and needs no second line. The others keep the
+  // engine's one line of why. (Pension Scout, 23 November 2026, a Benchmark cycle: "Just what you need, not a button
+  // more"; the count was "+10 of 100" beside a home that says "times in 100".)
+  const stopAge = plan.retireYear - plan.partnerA.birthYear;
+  const say = (l: any): { label: string; detail: string } =>
+    l.id === 'later1' ? { label: `Stop work at ${stopAge + 1}`, detail: '' }
+      : l.id === 'spend3k' ? { label: 'Live on £250 a month less', detail: '' }
+        // Part-time work's line of why ("Taxed as earnings; bridges the early years so the pots keep growing") was jargon to six of six blind readers; its name says what it is.
+        : l.id === 'save250' || l.id === 'parttime' ? { label: l.label, detail: '' }
+          : { label: l.label, detail: l.detail };
   return (
     <div data-help-panel>
-      {!res ? <p className="text-[0.9rem] py-2" style={{ color: 'var(--color-ink-dim)' }}>Measuring each action across the same futures…</p>
-        : !top.length ? <p className="text-[0.9rem] py-2" style={{ color: 'var(--color-ink-dim)' }}>Nothing measured would clearly improve this plan. That is a good place to be.</p>
-          : top.map((l, i) => (
-            <button key={l.id} type="button" onClick={() => { update(() => ({ ...l.patch, codeSet: plan.codeSet })); onDone(); }}
-              className="w-full text-left flex items-start gap-3 py-3" style={{ borderTop: i ? '1px solid var(--color-hairline)' : 'none' }}>
-              <span className="min-w-0 flex-1">
-                <span className="block text-[0.95rem] font-semibold">{l.label}</span>
-                <span className="block text-[0.8rem] mt-0.5 leading-snug" style={{ color: 'var(--color-ink-dim)' }}>{l.detail}</span>
-              </span>
-              <span className="tnum shrink-0 text-[0.92rem] font-extrabold" style={{ color: 'var(--color-ring)' }}>+{Math.round(l.dConf * 100)} of 100</span>
-            </button>))}
-      <p className="text-[0.74rem] mt-3" style={{ color: 'var(--color-ink-faint)' }}>Tap one to try it; you can change it back above. Each is your plan run again through the same simulated futures. Prompts, not advice.</p>
+      {!res ? <p className="text-[0.875rem] py-2" style={{ color: 'var(--color-ink-dim)' }}>Measuring each action across the same futures…</p>
+        : !top.length ? <p className="text-[0.875rem] py-2" style={{ color: 'var(--color-ink-dim)' }}>Nothing measured would clearly improve this plan. That is a good place to be.</p>
+          : <>
+            <p className="text-[0.875rem] leading-snug mb-1" style={{ color: 'var(--color-ink-dim)' }}>How many more times in 100 the money would last.</p>
+            {top.map((l, i) => { const w = say(l), n = Math.round(l.dConf * 100); return (
+              // Heard alone, "+10" is "plus ten" of nothing (the screen-reader user on the panel): the name says what it counts.
+              <button key={l.id} type="button" data-help={l.id} aria-label={`${w.label}${w.detail ? `. ${w.detail}` : ''}: ${n} more times in 100`} onClick={() => { update(() => ({ ...l.patch, codeSet: plan.codeSet })); onDone(); }}
+                className="w-full text-left flex items-start gap-3 py-3" style={{ borderTop: i ? '1px solid var(--color-hairline)' : 'none' }}>
+                <span className="min-w-0 flex-1">
+                  <span className="block text-[1rem] font-semibold leading-snug">{w.label}</span>
+                  {w.detail && <span className="block text-[0.875rem] mt-0.5 leading-snug" style={{ color: 'var(--color-ink-dim)' }}>{w.detail}</span>}
+                </span>
+                <span data-help-gain className="tnum shrink-0 text-[1rem] font-extrabold" style={{ color: 'var(--color-sage-strong)' }}>+{n}</span>
+              </button>); })}
+            <p className="text-[0.8125rem] mt-3" style={{ color: 'var(--color-ink-dim)' }}>Press one to try it. Ideas, not advice.</p>
+          </>}
     </div>
   );
 }

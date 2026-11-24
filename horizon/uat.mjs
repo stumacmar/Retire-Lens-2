@@ -403,7 +403,12 @@ await check('35 paying in reads back in plain English', async () => (await p.get
 await loadEx(); await tap('Details'); await wait(800);
 // Editing is the same carousel: a rail of named pages, one idea on each.
 await check('36 details opens the carousel on page one', async () => /^Who/.test(await pageTitle()) && /1 \/ \d/.test(await bodyT()));
-await check('36b the rail names the pages', async () => (await has('Someday')) && (await has('Drawing')) && (await has('The lens')));
+await check('36b the rail names the pages', async () => (await has('Someday')) && (await has('Drawing')) && (await has('Growth rates')));
+await check('36c Details: on every page, nothing is set under 13 px and there are at most four text sizes (Scout, 24 November 2026)', async () => {
+  const r = await p.evaluate(() => { const d = document.querySelector('[role=dialog]'), px = new Set(); const w = document.createTreeWalker(d, NodeFilter.SHOW_TEXT);
+    for (let n = w.nextNode(); n; n = w.nextNode()) { if (!n.nodeValue.trim() || n.parentElement.closest('.sr-only')) continue; px.add(Math.round(parseFloat(getComputedStyle(n.parentElement).fontSize) * 10) / 10); }
+    return [...px].sort((x, y) => x - y); });
+  const ok = r.length > 0 && r[0] >= 13 && r.length <= 4; if (!ok) console.log('  36c sizes: ' + r.join(' / ')); return ok; });
 // Off-screen pages must be genuinely inert. They were not: React 19 reads
 // inert="" as false, so it was silently dropped and Tab could land on a page
 // you could not see. The production build does not log that warning.
@@ -460,7 +465,7 @@ await check('47 step-down on reveals its figures', async () => (await planOf()).
 await easeSwitch().click().catch(() => {}); await wait(600);
 await check('47b step-down off puts them away', async () => (await planOf()).phase1On === false);
 await easeSwitch().click().catch(() => {}); await wait(600);
-await goPage('The lens');
+await goPage('Growth rates');
 await check('48 lens inflation field', () => onPage('Inflation'));
 await goPage('Life events');
 await check('49 inheritance toggle', () => onPage('Expect an inheritance'));

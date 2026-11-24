@@ -41,7 +41,7 @@ export default function SchemePensions({ plan, who, set, compact, adv }: {
             <div className="flex items-center gap-2">
               <select value={t.scheme || 'custom'} aria-label="Pension scheme"
                 onChange={e => patch(i, { scheme: e.target.value, npa: undefined, takeAge: undefined })}
-                className="flex-1 min-w-0 rounded-xl px-3 h-[44px] font-semibold text-[0.92rem] outline-none"
+                className="flex-1 min-w-0 rounded-xl px-3 h-[44px] font-semibold text-[1rem] outline-none"
                 style={{ background: 'var(--color-surface)', border: '1px solid var(--color-hairline)', color: 'var(--color-ink)' }}>
                 {FAMILIES.map(f => (
                   <optgroup key={f} label={f}>
@@ -49,12 +49,12 @@ export default function SchemePensions({ plan, who, set, compact, adv }: {
                   </optgroup>
                 ))}
               </select>
-              <button onClick={() => remove(i)} aria-label="Remove this pension" style={{ color: 'var(--color-ink-faint)' }}><X size={16} /></button>
+              <button onClick={() => remove(i)} aria-label="Remove this pension" style={{ color: 'var(--color-ink-dim)' }}><X size={16} /></button>
             </div>
             <MoneyField label="Pension a year on your latest statement (today's money)" value={Number(t.pension) || 0} onChange={v => patch(i, { pension: v })} />
             <div className="grid grid-cols-2 gap-3 items-end">
               <NumField label="Take it from age" value={b.takeAge} onChange={v => patch(i, { takeAge: v })} />
-              <div className="text-[0.78rem] leading-snug pb-2" style={{ color: 'var(--color-ink-dim)' }}>
+              <div className="text-[0.875rem] leading-snug pb-2" style={{ color: 'var(--color-ink-dim)' }}>
                 Unreduced at <b className="tnum">{b.npa}</b>{s.npa === 'spa' ? ' (State Pension age)' : ''}.
                 {b.early > 0 && <> Taking it {b.early} year{b.early > 1 ? 's' : ''} early: about <b style={{ color: 'var(--color-hope)' }}>{pct(1 - b.factor, 0)} less</b>, for life.</>}
                 {b.late > 0 && <> Taking it {b.late} year{b.late > 1 ? 's' : ''} late: about <b style={{ color: 'var(--color-sage-strong)' }}>{pct(b.factor - 1, 0)} more</b>.</>}
@@ -63,9 +63,9 @@ export default function SchemePensions({ plan, who, set, compact, adv }: {
               </div>
             </div>
             <div>
-              <span className="block text-[0.8rem] font-semibold mb-1.5" style={{ color: 'var(--color-ink-dim)' }}>Tax-free lump sum</span>
+              <span className="block text-[0.875rem] font-semibold mb-1.5" style={{ color: 'var(--color-ink-dim)' }}>Tax-free lump sum</span>
               <Segmented small value={commuteKey as '0' | '0.5' | '1'} onChange={v => patch(i, { commutePct: Number(v) })} options={lumpOpts as any} />
-              <p className="mt-1.5 text-[0.78rem] leading-relaxed" style={{ color: 'var(--color-ink-faint)' }}>
+              <p className="mt-1.5 text-[0.875rem] leading-relaxed" style={{ color: 'var(--color-ink-dim)' }}>
                 You’d receive <b className="tnum" style={{ color: 'var(--color-ink)' }}>{fmt(Math.round(b.pension))}</b> a year, rising with prices,
                 {b.lump > 0 ? <> plus <b className="tnum" style={{ color: 'var(--color-ink)' }}>{fmt(Math.round(b.lump))}</b> at {b.takeAge}, tax-free within your lump sum allowance.</> : ' and no lump sum.'}
                 {b.lump > Math.max(0, 268275 - (Number(who.pclsTaken) || 0)) && <> <b style={{ color: 'var(--color-hope)' }}>This is more than the £268,275 allowance left</b> across all your pensions; the excess is taxed as income, and it leaves no tax-free cash for personal pensions.</>}
@@ -75,7 +75,7 @@ export default function SchemePensions({ plan, who, set, compact, adv }: {
             {!compact && <>
               <Toggle label="Still paying into it" checked={!!t.accruing} onChange={v => patch(i, { accruing: v })} />
               {t.accruing && <MoneyField label="Pensionable pay a year" value={Number(t.salary) || 0} onChange={v => patch(i, { salary: v })} />}
-              {t.accruing && <p className="text-[0.76rem] -mt-1" style={{ color: 'var(--color-ink-faint)' }}>
+              {t.accruing && <p className="text-[0.875rem] -mt-1" style={{ color: 'var(--color-ink-dim)' }}>
                 Adds {s.accrual < 0.01 ? `1/${Math.round(1 / s.accrual)}` : pct(s.accrual, 2)} of pay each year until you stop work{s.revalReal > 0 ? `, revalued at CPI + ${pct(s.revalReal, 2)} in service` : ''}.
                 Built up to {fmt(Math.round(b.accrued))} a year by then.
               </p>}
@@ -83,7 +83,7 @@ export default function SchemePensions({ plan, who, set, compact, adv }: {
                 <PctField label="Early reduction, per year" value={t.earlyRate != null ? Number(t.earlyRate) : s.earlyRate} onChange={v => patch(i, { earlyRate: v })} />
                 <NumField label="Normal pension age" value={b.npa} onChange={v => patch(i, { npa: v })} />
               </div>}
-              <p className="text-[0.74rem] leading-relaxed" style={{ color: 'var(--color-ink-faint)' }}>
+              <p className="text-[0.875rem] leading-relaxed" style={{ color: 'var(--color-ink-dim)' }}>
                 {s.legacy
                   ? 'Deferred final-salary benefits keep pace with prices, so the statement figure holds its value in today’s money. '
                   : (s.family === 'LGPS'
@@ -95,9 +95,9 @@ export default function SchemePensions({ plan, who, set, compact, adv }: {
           </div>
         );
       })}
-      <button onClick={add} className="w-full flex items-center justify-center gap-1.5 rounded-2xl py-2.5 text-[0.85rem] font-semibold"
+      <button onClick={add} className="w-full flex items-center justify-center gap-1.5 rounded-2xl py-2.5 text-[0.875rem] font-semibold"
         style={{ background: 'var(--color-canvas)', color: 'var(--color-calm-strong)', border: '1px dashed var(--color-hairline)' }}>
-        <Plus size={15} /> {list.length ? 'Add another scheme pension' : 'Add an NHS, Teachers’, LGPS, Civil Service or other public-sector pension'}
+        <Plus size={15} /> {list.length ? 'Add another scheme pension' : 'Add an NHS, Teachers’, LGPS or other public-sector pension'}
       </button>
     </div>
   );

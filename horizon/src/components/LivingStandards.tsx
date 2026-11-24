@@ -10,8 +10,8 @@ export default function LivingStandards({ plan, onPick }: { plan: any; onPick: (
   const S = standardsFor(plan);
   return (
     <div role="group" aria-label="Retirement Living Standards">
-      <p className="text-[0.73rem] leading-snug" style={{ color: 'var(--color-ink-faint)' }}>
-        What retirement costs for {whoText(plan)}, after tax, with the home paid off — Pensions UK Retirement Living Standards, {LS.asOf} edition. Tap one to use it.
+      <p className="text-[0.875rem] leading-snug" style={{ color: 'var(--color-ink-dim)' }}>
+        What retirement costs {whoText(plan)}, after tax, with the home paid off (Pensions UK Retirement Living Standards, {LS.asOf}).
       </p>
       <div className="flex gap-1.5 mt-2">
         {LS.tiers.map(t => {
@@ -24,8 +24,8 @@ export default function LivingStandards({ plan, onPick }: { plan: any; onPick: (
                 border: `1px solid ${on ? 'var(--color-calm)' : 'var(--color-hairline)'}`,
                 color: 'var(--color-ink)',
               }}>
-              <span className="block text-[0.78rem] font-bold leading-tight">{LS.labels[t]}</span>
-              <span className="block tnum text-[0.7rem] leading-tight mt-0.5" style={{ color: 'var(--color-ink-dim)' }}>{fmt(v / 12)} a month</span>
+              <span className="block text-[0.8125rem] font-bold leading-tight">{LS.labels[t]}</span>
+              <span className="block tnum text-[0.8125rem] leading-tight mt-0.5" style={{ color: 'var(--color-ink-dim)' }}>{fmt(v / 12)} a month</span>
             </button>
           );
         })}

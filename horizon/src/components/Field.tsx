@@ -35,7 +35,7 @@ const ROW = 'flex items-center justify-between gap-3 w-full py-3 min-h-[56px] te
  */
 export const CARD_ROWS = `rounded-[20px] overflow-hidden [&>*]:px-4
   [&>*+*]:border-t [&>*+*]:border-[color:var(--color-hairline)]
-  [&>p]:py-3 [&>p]:text-[0.75rem] [&>p]:leading-[1.5]
+  [&>p]:py-3 [&>p]:text-[0.875rem] [&>p]:leading-[1.5]
   [&>div[role=group]]:py-3 [&>span]:block [&>span]:py-3`;
 
 export function Card({ children, className = '' }: { children: React.ReactNode; className?: string }) {
@@ -53,10 +53,10 @@ export function TextField({ label, value, placeholder, onChange }: {
 }) {
   return (
     <label className={ROW}>
-      <span className="min-w-0 flex-1 text-[0.92rem] leading-[1.3]" style={{ color: 'var(--color-ink)' }}>{label}</span>
+      <span className="min-w-0 flex-1 text-[1rem] leading-[1.3]" style={{ color: 'var(--color-ink)' }}>{label}</span>
       <input value={value} placeholder={placeholder} onChange={e => onChange(e.target.value)}
         className="shrink-0 w-[46%] bg-transparent outline-none rounded-xl px-2 py-1 -mr-2 text-right
-                   text-[1.05rem] font-bold transition-colors
+                   text-[1rem] font-bold transition-colors
                    focus:bg-[color-mix(in_srgb,var(--color-calm)_16%,transparent)]" />
     </label>
   );
@@ -82,11 +82,11 @@ function Ask({ id, label, msg, hint }: { id: string; label: string; msg: string 
   const sub = msg || hint || aside;
   return (
     <span className="min-w-0 flex-1">
-      <span className="block text-[0.92rem] leading-[1.3]" style={{ color: 'var(--color-ink)' }}>{head}</span>
+      <span className="block text-[1rem] leading-[1.3]" style={{ color: 'var(--color-ink)' }}>{head}</span>
       {sub && (
         <span id={id} role={msg ? 'alert' : undefined}
-          className="block text-[0.73rem] leading-snug mt-0.5"
-          style={{ color: msg ? 'var(--color-hope)' : 'var(--color-ink-faint)' }}>{sub}</span>
+          className="block text-[0.875rem] leading-snug mt-0.5"
+          style={{ color: msg ? 'var(--color-hope)' : 'var(--color-ink-dim)' }}>{sub}</span>
       )}
     </span>
   );
@@ -97,7 +97,7 @@ const valueWrap = (bad: boolean) =>
   `flex items-baseline shrink-0 rounded-xl px-2 py-1 -mr-2 transition-colors
    focus-within:bg-[color-mix(in_srgb,var(--color-calm)_16%,transparent)]
    ${bad ? 'bg-[color-mix(in_srgb,var(--color-hope)_12%,transparent)]' : ''}`;
-const valueInput = 'tnum bg-transparent outline-none text-right text-[1.05rem] font-bold';
+const valueInput = 'tnum bg-transparent outline-none text-right text-[1rem] font-bold';
 const chars = (t: string) => `${Math.max(2, t.length) + 0.4}ch`;
 
 /** Money input — the figure reads as money, right-aligned and tabular. */
@@ -112,7 +112,7 @@ export function MoneyField({ label, value, onChange, prefix = '£', min = 0, max
     <label className={ROW}>
       <Ask id={id} label={label} msg={msg} hint={hint} />
       <span className={valueWrap(!!msg)}>
-        <span className="text-[0.95rem] mr-0.5" style={{ color: 'var(--color-ink-faint)' }} aria-hidden="true">{prefix}</span>
+        <span className="text-[1rem] mr-0.5" style={{ color: 'var(--color-ink-dim)' }} aria-hidden="true">{prefix}</span>
         <input className={valueInput} style={{ width: chars(text), color: msg ? 'var(--color-hope)' : 'var(--color-ink)' }}
           inputMode="decimal" value={text} aria-invalid={!!msg} aria-describedby={id}
           onChange={e => setText(e.target.value)}
@@ -140,7 +140,7 @@ export function NumField({ label, value, onChange, suffix, min = 0, max = 1e6, h
           onChange={e => setText(e.target.value)}
           onBlur={() => { const t = text.replace(/[^\d.-]/g, ''); const v = commit(t === '' ? 0 : parseFloat(t)); setText(String(Math.round(v))); }}
           onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }} />
-        {suffix && <span className="text-[0.9rem] ml-0.5" style={{ color: 'var(--color-ink-faint)' }}>{suffix}</span>}
+        {suffix && <span className="text-[0.875rem] ml-0.5" style={{ color: 'var(--color-ink-dim)' }}>{suffix}</span>}
       </span>
     </label>
   );
@@ -164,7 +164,7 @@ export function PctField({ label, value, onChange, min = -0.1, max = 1, hint }: 
           onChange={e => setText(e.target.value)}
           onBlur={() => { const v = commit(text.trim() === '' ? 0 : parseFloat(text) / 100); setText(show(v)); }}
           onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }} />
-        <span className="text-[0.95rem] ml-0.5" style={{ color: 'var(--color-ink-faint)' }} aria-hidden="true">%</span>
+        <span className="text-[1rem] ml-0.5" style={{ color: 'var(--color-ink-dim)' }} aria-hidden="true">%</span>
       </span>
     </label>
   );
@@ -176,8 +176,8 @@ export function Toggle({ label, checked, onChange }: { label: string; checked: b
   return (
     <button type="button" role="switch" aria-checked={checked} onClick={() => onChange(!checked)} className={ROW}>
       <span className="min-w-0 flex-1">
-        <span className="block text-[0.92rem] leading-[1.3]" style={{ color: 'var(--color-ink)' }}>{head}</span>
-        {aside && <span className="block text-[0.73rem] leading-snug mt-0.5" style={{ color: 'var(--color-ink-faint)' }}>{aside}</span>}
+        <span className="block text-[1rem] leading-[1.3]" style={{ color: 'var(--color-ink)' }}>{head}</span>
+        {aside && <span className="block text-[0.875rem] leading-snug mt-0.5" style={{ color: 'var(--color-ink-dim)' }}>{aside}</span>}
       </span>
       <span className="relative shrink-0 rounded-full transition-colors" style={{
         width: 48, height: 29,
@@ -196,8 +196,10 @@ export function Toggle({ label, checked, onChange }: { label: string; checked: b
  * pill. Four separate coloured buttons read as four decisions; this reads as
  * one, which is what it is.
  */
-export function Segmented<T extends string>({ options, value, onChange, small, label }: {
+export function Segmented<T extends string>({ options, value, onChange, small, label, fit }: {
   options: { value: T; label: string; sub?: string }[]; value: T; onChange: (v: T) => void; small?: boolean; label?: string;
+  /** Each choice as wide as its words (four choices of unequal length at 13 px), not equal shares. */
+  fit?: boolean;
 }) {
   return (
     <div className="flex gap-1 rounded-[14px] p-1" role="group" aria-label={label}
@@ -206,14 +208,14 @@ export function Segmented<T extends string>({ options, value, onChange, small, l
         const on = o.value === value;
         return (
           <button key={o.value} type="button" onClick={() => onChange(o.value)} aria-pressed={on}
-            className={`flex-1 min-w-0 rounded-[11px] text-center transition-all active:scale-[0.97] min-h-[40px] ${small ? 'py-1.5 px-1' : 'py-2 px-1.5'}`}
+            className={`${fit ? 'flex-auto' : 'flex-1 min-w-0'} rounded-[11px] text-center transition-all active:scale-[0.97] min-h-[40px] ${small ? 'py-1.5 px-1' : 'py-2 px-1.5'}`}
             style={{
               background: on ? 'var(--color-canvas)' : 'transparent',
               color: on ? 'var(--color-ink)' : 'var(--color-ink-dim)',
               boxShadow: on ? '0 1px 2px rgba(15,23,42,0.14), 0 2px 8px rgba(15,23,42,0.07)' : 'none',
             }}>
-            <span className={`block leading-[1.2] ${on ? 'font-bold' : 'font-semibold'} ${small ? 'text-[0.78rem]' : 'text-[0.85rem]'}`}>{o.label}</span>
-            {o.sub && <span className="block text-[0.66rem] tnum leading-tight mt-0.5" style={{ color: 'var(--color-ink-faint)' }}>{o.sub}</span>}
+            <span className={`block leading-[1.2] ${on ? 'font-bold' : 'font-semibold'} ${small ? 'text-[0.8125rem]' : 'text-[0.875rem]'}`}>{o.label}</span>
+            {o.sub && <span className="block text-[0.8125rem] tnum leading-tight mt-0.5" style={{ color: 'var(--color-ink-dim)' }}>{o.sub}</span>}
           </button>
         );
       })}

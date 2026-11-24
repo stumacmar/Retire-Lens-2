@@ -113,7 +113,7 @@ export default function Carousel({ pages, index, onIndex, footer, railBg = 'var(
           {pages.map((p, n) => (
             <button key={p.id} ref={el => { railRefs.current[n] = el; }} onClick={() => onIndex(n)}
               aria-current={n === i ? 'step' : undefined}
-              className="shrink-0 rounded-full px-3 py-1.5 text-[0.76rem] font-semibold whitespace-nowrap transition-colors"
+              className="shrink-0 rounded-full px-3 py-1.5 text-[0.8125rem] font-semibold whitespace-nowrap transition-colors"
               style={{
                 background: n === i ? 'var(--color-calm)' : 'var(--color-canvas)',
                 color: n === i ? 'var(--color-on-calm)' : 'var(--color-ink-dim)',
@@ -126,12 +126,12 @@ export default function Carousel({ pages, index, onIndex, footer, railBg = 'var(
       </div>
 
       <div className="flex items-baseline justify-between gap-3 mb-2">
-        <h2 className="text-[1.3rem] font-extrabold tracking-tight leading-tight">{page.title}</h2>
-        <span className="tnum shrink-0 text-[0.74rem] font-semibold" style={{ color: 'var(--color-ink-faint)' }}>
+        <h2 className="text-[1.35rem] font-extrabold tracking-tight leading-tight">{page.title}</h2>
+        <span className="tnum shrink-0 text-[0.8125rem] font-semibold" style={{ color: 'var(--color-ink-dim)' }}>
           {i + 1} / {pages.length}
         </span>
       </div>
-      {page.blurb && <p className="text-[0.84rem] leading-relaxed mb-4" style={{ color: 'var(--color-ink-dim)' }}>{page.blurb}</p>}
+      {page.blurb && <p className="text-[0.875rem] leading-relaxed mb-4" style={{ color: 'var(--color-ink-dim)' }}>{page.blurb}</p>}
 
       {/* The scroller IS the flex row, so a page is exactly one frame wide —
           nothing of the next page peeks in and nothing is clipped. */}

@@ -15,9 +15,9 @@ export default function Accordion({ title, children, defaultOpen = false }: {
     <div className="-mx-4">
       <button type="button" onClick={() => setOpen(o => !o)} aria-expanded={open}
         className="flex items-center justify-between gap-3 w-full px-4 py-3 min-h-[56px] text-left">
-        <span className="text-[0.92rem] leading-[1.3]" style={{ color: 'var(--color-calm-strong)' }}>{title}</span>
+        <span className="text-[1rem] leading-[1.3]" style={{ color: 'var(--color-calm-strong)' }}>{title}</span>
         <motion.span animate={{ rotate: open ? 180 : 0 }} transition={{ duration: 0.2 }} className="shrink-0"
-          style={{ color: 'var(--color-ink-faint)' }}><ChevronDown size={18} /></motion.span>
+          style={{ color: 'var(--color-ink-dim)' }}><ChevronDown size={18} /></motion.span>
       </button>
       <AnimatePresence initial={false}>
         {open && (
@@ -27,7 +27,7 @@ export default function Accordion({ title, children, defaultOpen = false }: {
             {/* The disclosed rows keep the card's rhythm, tinted a shade deeper
                 so it is obvious they belong to the row that opened them. */}
             <div className="px-4 [&>*+*]:border-t [&>*+*]:border-[color:var(--color-hairline)]
-                            [&>p]:py-3 [&>p]:text-[0.75rem] [&>p]:leading-[1.5]"
+                            [&>p]:py-3 [&>p]:text-[0.875rem] [&>p]:leading-[1.5]"
                  style={{ background: 'color-mix(in srgb, var(--color-ink) 3%, transparent)',
                           borderTop: '1px solid var(--color-hairline)' }}>
               {children}

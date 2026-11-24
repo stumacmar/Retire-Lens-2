@@ -54,6 +54,7 @@ answer is a picture that needs no explaining, with almost nothing beside it.
 | 2026-11-22 ("What could go wrong?" halved) | 38 | 5 | 12 | 4 | 13 px | 0 | 91 | 126 | 909 / 86 | 1,424 / 219 | 186 | 2,812 / 138 |
 | 2026-11-23 ("What would help?" in the home's words) | 38 | 5 | 12 | 4 | 13 px | 0 | 44 | 126 | 909 / 86 | 1,424 / 219 | 186 | 2,765 / 138 |
 | 2026-11-24 (the plain chart is the home; owner: "Build it") | 65 | 13 | 12 | 4 | 13 px | 0 | 44 | 126 | 909 / 86 | 1,416 / 219 | 186 | 2,811 / 139 |
+| 2026-11-24 (Details said shorter, in three sizes) | 65 | 13 | 12 | 4 | 13 px | 0 | 44 | 126 | 670 / 86 | 1,416 / 219 | 186 | 2,572 / 139 |
 
 **The chart home (24 November) is over the home's targets for words and
 figures, by the owner's choice of a chart**: 65 words against 60 and 13
@@ -74,9 +75,11 @@ are 94" for "to 94") and four elsewhere (two of them the Workings sheet's title)
 asked whose 94 it was. It is recorded as an exception to "numbers only go
 down", inside the home's target of 60.
 
-Notes on the baseline: Details and Explore are measured as they open; the
-pages inside Details are not yet counted (add them to `ux-metrics.mjs` in the
-cycle that first works on Details). Reading grade: home 4.6, Details 12.1,
+Notes on the baseline: Explore is measured as it opens. Details is every one
+of its fourteen pages at once (the pages sit side by side in the sheet, so
+the count has always included them: the note here that they were "not yet
+counted" was wrong). What a person meets on opening Details is the first
+page: 7 controls, with 14 page names and two arrows round it. Reading grade: home 4.6, Details 12.1,
 Explore 10.3, Peace 10.
 
 ## Inventory
@@ -416,6 +419,62 @@ not say whose work or whether £10,000 is before tax; "Save £250 a month
 more until you stop": into what; "Ideas, not advice" still reads as a
 disclaimer (which it is); the engineer wants the working.
 
+### Details (24 November 2026): 909 words, 86 controls, 14 text sizes, smallest 10.6 px, 257 words under 12 px
+
+Fourteen pages in one sheet. The first Subtract cycle here took the two
+lowest rungs only (remove; say it shorter) and the type. No field, switch or
+page went: every one is an input to the model, and the tests enter figures
+by the fields' names.
+
+| Page | Words before | After | What went or changed |
+|---|---|---|---|
+| Who | 47 | 28 | The sentence under "A couple / Just me" ("Two people taxed as two individuals, planned to the later horizon, with the survivor modelled after a first death") |
+| Someday | 90 | 83 | The living standards' source in a bracket; "Tap one to use it" |
+| Pots (each person) | 103 / 86 | 71 / 62 | The payment's hint from 42 words to 18, and it now names the employer's share; the Advanced switch's label |
+| Guaranteed income (each) | 62 | 46 | "change only if you know otherwise"; the list of schemes that the button under it repeats |
+| Spending | 37 | 37 | |
+| Life events | 11 | 11 | |
+| Investing | 49 | 37 | "the simulation's spread and the share of your money the stress tests hit together" |
+| Tax | 51 | 35 | "Every figure in the app recalculates on your choice"; the freeze said in eleven words |
+| Drawing | 95 | 65 | Each choice's line ("Crystallises a slice with each withdrawal…" is "A quarter of each withdrawal is tax-free: often the least tax"); "advice-grade decision" |
+| The lens | 12 | 12 | Renamed "Growth rates": ten of twelve readers did not know what "The lens" was |
+| Safe ladder | 88 | 52 | The paragraph from 75 words to 39; "gilts" is "government bonds (gilts)" |
+| Plan file | 77 | 56 | "A plain JSON file…", the engine version |
+| Page blurbs (one shows at a time) | 12 of 14 pages had one | 3 | Kept: the State Pension forecast at gov.uk; "Most people spend less later."; "Most people leave these alone." |
+| Type | 14 sizes from 10.6 px | 4: 21.6, 16, 14 and 13 px | Labels and figures 16, hints 14, the small controls 13; hints in the dimmer ink, not the faint one |
+
+**Panel** (six fresh readers a version on five pages: pots, guaranteed
+income, tax, drawing, safe ladder; truth for Q1: £200 from wages and £300
+from the employer is 500 in the box, and the bank-account switch stays
+off). K is before, M the first rewrite, N as shipped (three readers).
+
+| | Q1 the payment | Q2 State Pension, the third box | Q3 the tax switch | Q4 tax-free cash | Q5 the ladder | Time | One word | Small grey text hard to see |
+|---|---|---|---|---|---|---|---|---|
+| K (909 words) | 6 of 6 | 6 of 6 | 5 of 6 | 6 of 6 | 6 of 6 | 3½ to 10 min (mean 6.3) | Dense ×5, Fiddly | 5 of 5 sighted |
+| M (657) | 6 of 6; 1 unsure the employer's share counts | 6 of 6 | 6 of 6 | 6 of 6 | 6 of 6 | 2½ to 10 min (mean 5.6) | Dense ×4, Fiddly ×2 | 4 of 5 |
+| N (670) | 3 of 3, each quoting "yours and your employer's" | 3 of 3 | 3 of 3 | 3 of 3 | 3 of 3 | 5 to 10 min | Dense ×2, Fiddly | 3 of 3 ("a bit faint") |
+
+No worse on any question, and not better in the way that matters: a
+quarter fewer words and larger type, and it is still "dense" or "fiddly"
+to every reader. Each reader of every version listed eight to twenty-three
+terms they did not know, and the lists hardly changed: "defined
+contribution", "the allowance taper", "protected tax-free cash", "Which
+pot first", "Allowances", "Capped at £268,275", "annuity", "gilts" (still
+listed with "government bonds" beside it, though two of three then used
+those words to explain the page). The difficulty of Details is its
+vocabulary and its fourteen pages, not its word count. The readers were
+the smaller model, the same for every version.
+
+Still open on Details: the terms above; fourteen page names in a strip
+that runs off the screen ("the tabs run off the edge", 6 of 12); three ways
+to move between pages (the strip, the arrows, a swipe); the labels do not
+use the home's words ("Retire in year", "Income you want each year" beside
+"Stop work at", "Live on each month": the tests enter figures by these
+names, so it is a cycle of its own); the full State Pension as the default
+beside "most people are not on the full amount" (the engineer); 86
+controls against a target of 12, which only a different structure (the
+five pages most people need, and the rest a layer down) will move.
+
 ### The chart as the home (24 November 2026, owner: "Build it")
 
 **The council** (23 November, owner: "gather the council"): twelve fresh
@@ -632,6 +691,11 @@ Learned on this product, from the panels (each with its evidence above):
     answered by income, not by the pot: on the pot, the bad case read as
     nothing; on income, as about £2,050 a month, to every reader.
 
+20. **Fewer words is not plainer words.** Details lost a quarter of its
+    words and every reader still called it dense, with the same list of
+    terms they did not know. Count the terms a reader cannot define, not
+    only the words.
+
 Still hypotheses: for money, people trust the form they already know over
 a new one, and dull is no fault (the council; simulated);
 the app should decide more and ask less; a prediction
@@ -712,6 +776,8 @@ as it stands"; at 97 it is all but full and says "Yes, on track".
 
 | 2026-11-24 | The plain chart home (owner-driven) | `ChartHome.tsx` is the default home: the moon's words over one chart of monthly income (what you ask; what the unlucky are paid), the years as a table one press down; the moon and the island in Explore. Read blind three times and changed after each: at 70 in the bad case 0 of 6, then 3 of 6, then 5 of 5; at 80, 5 of 5; nobody read the bad case as nothing. The home is over its targets for words and figures (65 and 13) | merged by the owner's standing instruction | — |
 
+| 2026-11-24 | Subtract (Details) | Every page said shorter and set in three sizes: 909 words to 670, fourteen text sizes to four, none under 13 px (257 words were), hints in a darker ink; "The lens" is "Growth rates". Panel: no worse on any question, and still "dense": the trouble is the vocabulary and the fourteen pages | this pull request | — |
+
 **Standing instruction (owner, 21 November 2026):** do not ruin the UX. The
 result must be visually stunning and different as well as simple. Subtract
 the scaffolding, never the picture.
@@ -722,8 +788,10 @@ plan (nobody has) and with six on a failing one, and read the "you ask
 list in "The chart as the home" (what "runs short" means, "What you ask",
 after tax and today's money one tap away, not as more words). The same
 words across the app: the island, Explore and the report still say
-"futures" and take their verdict from `planStatus`. Then Details and
-Explore, which are where the words are (909 and 1,416). The moon and the
+"futures" and take their verdict from `planStatus`. Then Details again, this time its structure (the pages most people need
+first, the rest a layer down) and its vocabulary, and Explore (1,416
+words, 21 text sizes, 654 words under 12 px), where the type scale used on
+Details would apply as it stands. The moon and the
 island are alternatives now, not to be worked on; once the chart has been
 lived with, ask the owner whether they should go. No Leap for the home
 unless the owner asks for one.

@@ -510,7 +510,7 @@ await goPage('Spending');
 const p1before = (await plan()).phase1On;
 await p.locator('[role=dialog] [role=switch]:has-text("Ease spending")').first().click().catch(() => {}); await wait(500);
 await acheck('U78 Details: step-down toggle flips phase1On', async () => (await plan()).phase1On !== p1before);
-await goPage('The lens');
+await goPage('Growth rates');
 await setField('Poor', 3.5);
 await acheck('U80 Details: lens Poor rate → plan', async () => Math.abs((await plan()).growthBear - 0.035) < 1e-6);
 await setField('Inflation', 2.5);

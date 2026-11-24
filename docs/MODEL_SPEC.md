@@ -193,6 +193,22 @@ day of stopping, each fifth birthday and the last year. `planStatus` still
 decides the words on the island home and everywhere else; bringing the two
 into one rule is recorded as work to do in `docs/agents/ux-ledger.md`.
 
+**The chart home** (from 24 November 2026, the default; the moon and the
+island are alternatives). The same count, sentence and verdict as the moon
+home, over one chart of monthly income by age, in today's money. The upper
+line is what the plan asks each year (`rows[].planTarget`, deflated, a
+twelfth). The lower line is the case the sentence under the chart names
+(`lib/shortBy.ts`): where the count is 50 or more, what the unluckiest 10
+of 100 futures are paid that year (the 10th percentile of
+`perAgePaid` times the ask); where it is under 50, what the middle case is
+paid (the 50th percentile). Before the age that sentence gives, the lower
+line is at the ask: by the count's own rule (`perAgeHeld[].full` above 0.9,
+or 0.5) those futures are still paid in full then, so the picture and the
+words give one age. Where fewer than 10 in 100 ever run short there is no
+lower line. The figure named on it is that line's value in the plan's last
+year, to the nearest £50. One press down, the same per-age counts and
+10th-percentile payments as plain numbers.
+
 History: until 14 November 2026 the rule put the futures first, so a plan
 supporting exactly the ask, or more, could read "Not yet funded"; and a
 structured plan kept solvent by cutting spending to 75% was credited with

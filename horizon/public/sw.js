@@ -2,7 +2,7 @@
  * Navigations: network-first with cached fallback (the app shell).
  * Assets (same-origin GET): stale-while-revalidate.
  * Everything stays on the device; nothing is fetched from third parties. */
-const CACHE = 'someday-v29';   // bump on every release that must flush installed copies
+const CACHE = 'someday-v31';   // bump on every release that must flush installed copies
 
 self.addEventListener('install', () => self.skipWaiting());
 

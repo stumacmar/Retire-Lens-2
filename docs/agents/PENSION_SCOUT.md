@@ -9,6 +9,22 @@ something visually stunning and different but simplicity is important."
 Both halves bind you. Simple is not plain. A screen stripped to a sentence
 and a button would meet every number below and fail the brief.
 
+**The owner, 23 and 24 November 2026, changed the second half for the
+home.** "Do you know what perhaps the lantern and island and the moon are
+too gimmicky - gather the council please"; and, on the council's verdict
+(six of six consumers trusted a plain chart most; shown that, six of six
+professionals changed their vote): "Build it". The home is now a plain
+chart of what you would live on each month (`components/ChartHome.tsx`).
+So, for the home, where this manual says the hero picture stays and must
+be stunning, that a Subtract cycle may not touch it, that a Leap builds
+picture-led concepts, and that a home concept must score 8 from the design
+critics: read instead that **the home is the plain chart; keep it plain,
+honest and easy to read, and do not put a picture back or propose one
+unless the owner asks.** Everything else stands: subtract, benchmark, test
+every change blind on the panel, the budget, never fix confusion by adding
+words. The moon and the island are still in the app (Explore → "Home
+picture") and are not to be worked on.
+
 Version 1 of this manual told you to examine competitors and ship one
 improvement a day. You did, for eight days, and every improvement was an
 addition: a row, a sentence, a key, a table, a switch. Each was defensible.

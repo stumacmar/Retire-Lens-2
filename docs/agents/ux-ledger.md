@@ -9,6 +9,8 @@ Word for word, newest first. These outrank any score.
 
 | Date | About | The owner said |
 |---|---|---|
+| 2026-11-24 | the council's verdict: a plain chart under the count in place of the moon, shown as two sketches | "Build it" |
+| 2026-11-23 | the home's pictures, two days after choosing the moon | "Do you know what perhaps the lantern and island and the moon are too gimmicky - gather the council please" |
 | 2026-11-22 | a research report he had commissioned, proposing a strip of funded years (three bands a year, locks, hatching, two edges) in place of the moon; asked "Thoughts ??", then | "You do what you think is best for the user" |
 | 2026-11-21 | the moon home, live | "The moon isn't sensitive enough." |
 | 2026-11-21 | the three concepts built in the lab, the moon recommended | "Moon - do it" (said twice) |
@@ -51,6 +53,15 @@ answer is a picture that needs no explaining, with almost nothing beside it.
 | 2026-11-21 (what the readers still asked) | 38 | 5 | 12 | 4 | 13 px | 0 | 91 | 305 | 909 / 86 | 1,424 / 219 | 186 | 2,991 / 138 |
 | 2026-11-22 ("What could go wrong?" halved) | 38 | 5 | 12 | 4 | 13 px | 0 | 91 | 126 | 909 / 86 | 1,424 / 219 | 186 | 2,812 / 138 |
 | 2026-11-23 ("What would help?" in the home's words) | 38 | 5 | 12 | 4 | 13 px | 0 | 44 | 126 | 909 / 86 | 1,424 / 219 | 186 | 2,765 / 138 |
+| 2026-11-24 (the plain chart is the home; owner: "Build it") | 65 | 13 | 12 | 4 | 13 px | 0 | 44 | 126 | 909 / 86 | 1,416 / 219 | 186 | 2,811 / 139 |
+
+**The chart home (24 November) is over the home's targets for words and
+figures, by the owner's choice of a chart**: 65 words against 60 and 13
+figures against 5 on the budget's example (more on a plan with a lower
+line: about 74 words). The moon home was 38 and 5. A chart has an axis:
+seven of the figures are the ages along its foot, which the first two
+blind reads showed it cannot do without. It is recorded as the second
+exception to "numbers only go down", and it is the owner's.
 
 The moon home meets the home's targets for words, figures, sizes and smallest
 text. Controls are 12 against 7: four tabs, four stepper buttons, the typed
@@ -405,6 +416,83 @@ not say whose work or whether £10,000 is before tax; "Save £250 a month
 more until you stop": into what; "Ideas, not advice" still reads as a
 disclaimer (which it is); the engineer wants the working.
 
+### The chart as the home (24 November 2026, owner: "Build it")
+
+**The council** (23 November, owner: "gather the council"): twelve fresh
+seats in the three factions of `design-rounds/world-class-council.md`
+(a financial planner, a Consumer Duty specialist, a product lead; three
+designers: product, data, brand; six consumers), each shown five
+unlabelled first screens for one couple: the moon, the island, the
+Lantern, a count with a bar, and a chart of savings by age.
+
+| | First choice | The moon | The island and the Lantern |
+|---|---|---|---|
+| Round 1, six professionals | The moon, 6 of 6 | "An honest ornament": no information, no harm | A gimmick or an overreach, 6 of 6 |
+| Round 1, six consumers | The chart, 6 of 6 | Third of five for 5; a toy or a gimmick to 5 ("a moon isn't money"; "I'd be embarrassed to say the moon says 57") | Nobody could read either |
+| Round 2, the professionals shown the consumers' result | A plain chart under the count and the verdict, 6 of 6 | Off the home | Off the home |
+
+All six consumers trusted the chart most and said dull is fine for money.
+All six also misread it: savings at nothing from 77 was taken for no
+income. Five professionals would label that on the chart; the data seat
+would chart monthly income in place of savings. The owner was shown both
+as sketches and said "Build it".
+
+**What was built**: `components/ChartHome.tsx`, the income form. The
+moon's words (the count, "times in 100, the money lasts until you are
+94", the verdict, the bad case as an age), one chart of what you would
+live on each month, the two steppers, the two questions. The moon and the
+island are in Explore → "Home picture".
+
+**Panel** (six fresh readers a version, the couple asking £4,333, 57 in
+100; truth: in the unluckiest 10 of 100 they are paid £4,333 at 70 and
+about £2,050 at 80, and nobody is ever paid nothing). F is the sketch of
+the savings chart with its zero point labelled; M, N and P are the built
+income chart, each changed from what the one before found.
+
+| | What they live on at 70 in the bad case | At 80 | Read the bad case as nothing | Worry, 0 to 10 |
+|---|---|---|---|---|
+| F, savings sketch | 0 of 6 could say (2 guessed right) | 4 of 6, each "a guess"; 1 could not say | 1 of 6 ("in the bad case they've nothing at 77") | 6, all six |
+| M, income: the lower line drawn only where it differs | 0 of 6 ("about £3,000", "a little under") | 6 of 6 | 0 | 5, all six |
+| N: the lower line its whole length, wide, under the asked line | 3 of 6 | 4 of 6 | 0 | 5 to 6 |
+| P: the fifth birthdays marked along the foot, the area under the line filled | 5 of 5 | 5 of 5 | 0 | 5 to 6 |
+
+What each read changed. From M: the lower line was hidden under the asked
+line until it left it, so nobody could see the unlucky were still paid in
+full at 70; it is now drawn wide its whole length beneath the thin asked
+line. From N: with only 64, 77 and 94 along the foot, three of four placed
+70 and 80 wrongly; the fifth birthdays are marked, with faint uprights.
+From M and N: "a big empty gap" under the lines (most readers); the area
+under the lower line is filled faintly, and the chart no longer keeps an
+empty band above itself. From P: two of five took the far end of the
+asked line for what an ordinary case pays. Named "then £3,250" and read by
+two more (who both had 70 and 80 right), it was still "the plan as it
+stands" to one and "an ordinary case" to the other, which is near enough
+true and not what the label meant; it now says "you ask £3,250". That
+wording has not been read.
+
+A failing plan (£5,300 a month: 21 in 100, "Probably not", the lower
+line the middle case, "More often than not: about £2,050 a month") was
+read by two: both right at 70 (£5,300) and at 85 (£2,050), both took the
+thin line for what is asked, both scored the worry 7, and one said "the
+picture looks worse than the words".
+
+Limits: simulated readers of the smaller model, stills. The failing plan
+was read by two, not six; a comfortable one (no lower line) by nobody. No design critics: the brief for the home
+is no longer "stunning". The council's consumers chose a savings chart
+they then misread; this is the income chart the data seat proposed, which
+they did not see.
+
+Still open on this screen: "times in 100" is still "odd" to most; "the
+unluckiest 10 of 100" (people or outcomes?); "What you ask" ("it sounds as
+if someone is asking me for money"; "I would say what you want to spend");
+why the asked line steps down (most guessed right: they plan to spend less
+later; nothing says so); whether "runs short" means nothing or less (the
+chart answers it, the words do not); before or after tax, and in today's
+money; and trust: asked whether they would put their own figures in, four
+of five said "maybe" and one "no", none "yes", for want of knowing who
+made it and where the figures go. That last is the same on every screen
+this app has had.
+
 ## Benchmarks
 
 The first under version 2, 23 November 2026. None of the three was run:
@@ -530,7 +618,23 @@ Learned on this product, from the panels (each with its evidence above):
     growing"); nobody needed one to choose, and the one that was left was
     jargon to six of six.
 
-Still hypotheses: the app should decide more and ask less; a prediction
+16. **Ask the people who would pay, before the people who design.** Six
+    professionals put the moon first and six consumers put it third;
+    shown that, all six professionals changed their vote. (Simulated.)
+17. **A line that coincides with another is not seen.** Where the bad
+    case equals what is asked, draw it anyway, wide, under the other:
+    "still paid in full" has to be visible, not inferred.
+18. **A chart needs its axis.** Three ages along the foot were not enough
+    to find 70; no reader missed a key, a grid or a title once the fifth
+    birthdays were there. Label the lines where they end and the axis
+    where people look things up; leave out the rest.
+19. **Chart the thing the question is about.** "Can we live on this?" is
+    answered by income, not by the pot: on the pot, the bad case read as
+    nothing; on income, as about £2,050 a month, to every reader.
+
+Still hypotheses: for money, people trust the form they already know over
+a new one, and dull is no fault (the council; simulated);
+the app should decide more and ask less; a prediction
 given as a range that narrows (Flighty); the years scrubbed under one moon
 (Weather).
 
@@ -602,13 +706,29 @@ as it stands"; at 97 it is all but full and says "Yes, on track".
 
 | 2026-11-22 | Subtract ("What could go wrong?") | The sheet more than halved: 331 words to 134 (143 as the panel read it), seven text sizes to three, nothing under 13 px; each row says its result once; the futures row in the home's words with the home's age; the two longevity sentences gone. Panel: 6 of 6 on every question before and after, read in about half the time | #84 | "Merge" |
 
-| 2026-11-23 | Benchmark | (Not Boring) Weather, Flighty and the Met Office read from their makers' pages (templates above); three patterns ranked. One applied as a subtraction: "What would help?" says things in the home's words and units, with one line for what the numbers count; 91 words to 44 on the budget's example (105 to 50 as the panel read it), five text sizes to four, nothing under 13 px. Panel: 6 of 6 on every question before and after; "of 100 what?" from 6 of 6 to none | this pull request | — |
+| 2026-11-23 | Benchmark | (Not Boring) Weather, Flighty and the Met Office read from their makers' pages (templates above); three patterns ranked. One applied as a subtraction: "What would help?" says things in the home's words and units, with one line for what the numbers count; 91 words to 44 on the budget's example (105 to 50 as the panel read it), five text sizes to four, nothing under 13 px. Panel: 6 of 6 on every question before and after; "of 100 what?" from 6 of 6 to none | #85 | "Merge" |
+
+| 2026-11-23 | Council (owner: "gather the council") | Whether the moon, the island and the Lantern are gimmicks. Twelve seats, two rounds; the verdict was a plain chart under the count. Put to the owner with two sketches | none: nothing built | "Build it" |
+
+| 2026-11-24 | The plain chart home (owner-driven) | `ChartHome.tsx` is the default home: the moon's words over one chart of monthly income (what you ask; what the unlucky are paid), the years as a table one press down; the moon and the island in Explore. Read blind three times and changed after each: at 70 in the bad case 0 of 6, then 3 of 6, then 5 of 5; at 80, 5 of 5; nobody read the bad case as nothing. The home is over its targets for words and figures (65 and 13) | merged by the owner's standing instruction | — |
 
 **Standing instruction (owner, 21 November 2026):** do not ruin the UX. The
 result must be visually stunning and different as well as simple. Subtract
 the scaffolding, never the picture.
 
-**Next (after 23 November):** the next cycle is a Subtract (Details: 909
+**Next (the plain chart is the home):** read it blind on a comfortable
+plan (nobody has) and with six on a failing one, and read the "you ask
+£3,250" label; then the open
+list in "The chart as the home" (what "runs short" means, "What you ask",
+after tax and today's money one tap away, not as more words). The same
+words across the app: the island, Explore and the report still say
+"futures" and take their verdict from `planStatus`. Then Details and
+Explore, which are where the words are (909 and 1,416). The moon and the
+island are alternatives now, not to be worked on; once the chart has been
+lived with, ask the owner whether they should go. No Leap for the home
+unless the owner asks for one.
+
+**Before that (after 23 November):** the next cycle is a Subtract (Details: 909
 words and 86 controls against a target of 12 controls; add its pages to
 `ux-metrics.mjs` first) or, if a week has passed since the moon, the Leap
 that scrubs the years under the one moon. The two sheets off the home are

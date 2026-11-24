@@ -17,6 +17,7 @@ import type { Picture } from '../lib/picture';
 const MoonHome = lazy(() => import('../moon/MoonHome'));
 import type { MoonStep } from '../moon/MoonHome';
 import RiskPanel from './RiskPanel';
+import ChartHome from './ChartHome';
 import Island from './Island';
 import { lifeEvents } from '../lib/lifeEvents';
 import { tranchesOf, type TrancheKey } from '../lib/tranches';
@@ -52,7 +53,7 @@ import TrancheSheet from './TrancheSheet';
  */
 type Driver = { id: string; label: string; val: Val; step: number; show: (n: number) => string; sub: string; less: string; more: string };
 
-export default function SimpleHome({ plan, update, dd, mc, onDetails, header, headerNight, picture = 'moon', pending = false, front = true, onNight }: {
+export default function SimpleHome({ plan, update, dd, mc, onDetails, header, headerNight, picture = 'chart', pending = false, front = true, onNight }: {
   plan: any; update: (p: any) => void; dd: Drawdown; mc: MC | null; onDetails: () => void; header?: React.ReactNode; picture?: Picture;
   /** The app's name as it is set on the moon's night screen. */
   headerNight?: React.ReactNode;
@@ -122,6 +123,8 @@ export default function SimpleHome({ plan, update, dd, mc, onDetails, header, he
   // The moon needs WebGL; without it (or if the context is lost) the home shows the island instead.
   const [no3d, setNo3d] = useState(() => !canDraw3d());
   const moon = picture === 'moon' && !no3d && hasMoney;
+  // The plain chart: the home since 24 November 2026 (owner: "Build it", on the council's verdict).
+  const chart = picture === 'chart' && hasMoney;
   useEffect(() => { onNight?.(moon && panel == null); return () => onNight?.(false); }, [moon, panel, onNight]);
   // What the moon draws: at each age, the share of futures still paying in full, and (for a safe-ladder plan) the share
   // still paying once its rules have trimmed spending. The last year is the headline count.
@@ -138,7 +141,9 @@ export default function SimpleHome({ plan, update, dd, mc, onDetails, header, he
       // enough"). On a safe-ladder plan it used to count the futures that last once the rules have trimmed spending: that count
       // hardly moves, and can rise when more is asked for, because the rules cut harder. It is now stated beside the moon.
       return { age: h.age as number, p: h.full as number, kept: (structured ? Math.max(h.full, h.rules) : h.full) as number,
-        unlucky: share == null || want == null ? null : share >= 0.99 ? 'full' as const : Math.round((share * want) / 50) * 50 };
+        unlucky: share == null || want == null ? null : share >= 0.99 ? 'full' as const : Math.round((share * want) / 50) * 50,
+        // For the chart home: what is asked that year, and what the unluckiest 10 of 100 and the middle case are paid, a month.
+        ask: want, low: share != null && want != null ? share * want : undefined, mid: q && q.length > 10 && want != null ? ((q[9] + q[10]) / 2) * want : undefined };
     });
   }, [held, structured, mc, dd, plan.inflation, plan.startYear]);
   const events = useMemo(() => lifeEvents(plan, dd), [plan, dd]);
@@ -177,8 +182,8 @@ export default function SimpleHome({ plan, update, dd, mc, onDetails, header, he
   </>;
   const answer = <span data-futures style={{ color: 'var(--color-ink)' }}>{futuresSentence(status)}</span>;
 
-  if (moon) {
-    // The moon home: the count, the verdict and the two things most people change. Everything else is in Details.
+  if (moon || chart) {
+    // The chart home and the moon home: the count, the verdict and the two things most people change. Everything else is in Details.
     const stepOf = (d: Driver, label: string, typed: boolean): MoonStep => {
       const n = d.val.get();
       // The names a screen reader hears start with the words on the screen.
@@ -186,6 +191,12 @@ export default function SimpleHome({ plan, update, dd, mc, onDetails, header, he
       return { id: d.id, label, value: d.show(n), raw: n, less, more, canLess: n > d.val.min, canMore: n < d.val.max,
         onLess: () => write(d.id, (_v, cur) => cur - d.step), onMore: () => write(d.id, (_v, cur) => cur + d.step), onType: typed ? v => write(d.id, () => v) : undefined };
     };
+    if (chart) return (<>
+      <ChartHome header={header} years={moonYears} structured={structured} pending={pending}
+        steps={[stepOf(drivers[0], 'Stop work at', false), stepOf(drivers[1], 'Live on each month', true)]}
+        onHelp={() => setPanel('help')} onRisk={() => setPanel('risk')} />
+      {sheets}
+    </>);
     return (<>
       <Suspense fallback={<div data-simple-home data-moon-loading className="fixed inset-0" style={{ background: '#070C1F' }} />}>
         <MoonHome header={headerNight ?? header} held={moonYears} structured={structured} spare={spare} pending={pending} front={front && panel == null}

@@ -395,16 +395,16 @@ function ExploreBody({ plan, dd, estate, mc, plus, onUpgrade, update, picture, s
       <div data-picture className="rounded-2xl p-4" style={{ background: 'var(--color-canvas)', border: '1px solid var(--color-hairline)' }}>
         <div className="font-bold">Home picture</div>
         <p className="text-[0.82rem] leading-snug mt-0.5" style={{ color: 'var(--color-ink-dim)' }}>
-          The moon is lit by how often your money lasts. The island is the earlier picture: land where your money covers what you ask, sea where it does not.
+          The chart shows what you would live on each month. The moon and the island are the earlier pictures.
         </p>
-        <div role="group" aria-label="Home picture" className="mt-2 grid grid-cols-2 gap-2">
-          {(['moon', 'island'] as Picture[]).map(k => (
+        <div role="group" aria-label="Home picture" className="mt-2 grid grid-cols-3 gap-2">
+          {(['chart', 'moon', 'island'] as Picture[]).map(k => (
             <button key={k} type="button" data-picture-choice={k} aria-pressed={picture === k} onClick={() => setPicture(k)}
               className="min-h-[44px] rounded-xl text-[0.86rem] font-bold"
               style={picture === k
                 ? { background: 'var(--color-calm)', color: 'var(--color-on-calm)', border: '1px solid var(--color-calm)' }
                 : { background: 'var(--color-surface)', color: 'var(--color-ink)', border: '1px solid var(--color-hairline)' }}>
-              {k === 'moon' ? 'The moon' : 'The island'}
+              {k === 'chart' ? 'The chart' : k === 'moon' ? 'The moon' : 'The island'}
             </button>
           ))}
         </div>

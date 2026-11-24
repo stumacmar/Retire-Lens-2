@@ -1,19 +1,21 @@
 import { useCallback, useState } from 'react';
 
 /**
- * Which picture the home shows. The moon since 21 November 2026 (owner, on
- * the three concepts built in the lab: "Moon - do it"); the island is the
- * alternative, one tap away in Explore, and what the home falls back to
- * where WebGL is not available. The Lantern was the home from 18 to 21
- * November and is now only the full-screen view of the years (Explore); a
- * device that stored `lantern` gets the moon. A per-device preference, not
- * part of the plan.
+ * What the home shows. A plain chart since 24 November 2026: the owner asked
+ * whether the moon, the island and the Lantern were "too gimmicky", a council
+ * of twelve fresh seats said they were (six of six consumers trusted a plain
+ * chart most; shown that, six of six professionals changed their vote), and
+ * the owner said "Build it". The moon (the home from 21 to 24 November) and
+ * the island are the alternatives, one tap away in Explore; the moon falls
+ * back to the island where WebGL is not available. The Lantern is only the
+ * full-screen view of the years (Explore); a device that stored `lantern`
+ * gets the chart. A per-device preference, not part of the plan.
  */
-export type Picture = 'moon' | 'island';
+export type Picture = 'chart' | 'moon' | 'island';
 const KEY = 'someday-picture-v1';
 
 export function readPicture(): Picture {
-  try { return localStorage.getItem(KEY) === 'island' ? 'island' : 'moon'; } catch { return 'moon'; }
+  try { const v = localStorage.getItem(KEY); return v === 'island' || v === 'moon' ? v : 'chart'; } catch { return 'chart'; }
 }
 
 export function usePicture(): [Picture, (p: Picture) => void] {

@@ -1037,7 +1037,7 @@ const openMap = async () => { await closeSheet(); await tap('Explore'); await wa
   const herr = [], hreq = [];
   h.on('pageerror', e => herr.push(e.message)); h.on('console', m => { if (m.type() === 'error' && !/404|favicon/i.test(m.text())) herr.push(m.text()); });
   h.on('request', r => { const u = r.url(); if (!u.startsWith(URL) && !/^(data|blob|about):/.test(u)) hreq.push(u); });
-  await h.goto(URL); await h.evaluate(d => { for (const [k, v] of Object.entries(JSON.parse(d))) localStorage.setItem(k, v); localStorage.setItem('someday-picture-v1', 'lantern'); }, dump);
+  await h.goto(URL); await h.evaluate(d => { for (const [k, v] of Object.entries(JSON.parse(d))) localStorage.setItem(k, v); localStorage.setItem('someday-picture-v1', 'moon'); }, dump);
   await h.goto(URL, { waitUntil: 'networkidle' });
   const gl = await h.evaluate(() => { const c = document.createElement('canvas'); return !!(c.getContext('webgl2') || c.getContext('webgl')); });
   const hw = ms => h.waitForTimeout(ms);
@@ -1077,8 +1077,8 @@ const openMap = async () => { await closeSheet(); await tap('Explore'); await wa
     await h.waitForSelector('[data-moon-home][data-drawn="1"]', { timeout: 40000 }).catch(() => {});
     await settled(); await hw(1500);
     const X = engineOf(stored);
-    await check('174 moon home: a visitor\'s home opens on the moon (also where the device had stored the Lantern), not the island or the tower', async () =>
-      (await h.$('[data-simple-home][data-moon-home] canvas')) != null && (await h.$('[data-island]')) == null && (await h.$('[data-lantern]')) == null && (await M('data-drawn')) === '1');
+    await check('174 moon home: where the moon is the chosen picture the home opens on it, not the chart, the island or the tower', async () =>
+      (await h.$('[data-simple-home][data-moon-home] canvas')) != null && (await h.$('[data-chart-home]')) == null && (await h.$('[data-island]')) == null && (await h.$('[data-lantern]')) == null && (await M('data-drawn')) === '1');
     await check('175 moon home: the count is the engine\'s share of futures (to 1 of 100), the sentence names the last year, and the verdict is the one the count decides', async () => {
       const shown = Number(await h.$eval('[data-moon-count]', e => e.textContent)), line = await h.$eval('[data-moon-line]', e => e.textContent), verdict = await h.$eval('[data-moon-home] [data-status]', e => e.textContent);
       const rulesLine = await h.$eval('[data-moon-home] [data-moon-rules]', e => e.textContent).catch(() => null), keptShown = rulesLine ? Number((rulesLine.match(/^or (\d+) times, trimmed by your rules$/) || [])[1]) : null;
@@ -1241,6 +1241,106 @@ const openMap = async () => { await closeSheet(); await tap('Explore'); await wa
     await h.goto(URL + '?lab=scales', { waitUntil: 'networkidle' }); await hw(600);
     const none = (await h.$('[data-lab]')) == null && (await h.$('[data-lab-index]')) == null;
     return none && (await p.$$eval('a[href*="lab="]', els => els.length)) === 0; });
+
+  // ── The plain chart is the home (owner, 24 November 2026: "Build it", on the verdict of the council asked whether
+  // the moon, the island and the Lantern were "too gimmicky"). The count, the verdict, and one chart of what you would
+  // live on each month: what you ask, and what the unlucky are paid. In its own page, as a visitor's opens (a device
+  // that had stored the Lantern gets it too).
+  {
+    const cc = await b.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2 }), c = await cc.newPage();
+    const cerr = [], creq = [];
+    c.on('pageerror', e => cerr.push(e.message)); c.on('console', m => { if (m.type() === 'error' && !/404|favicon/i.test(m.text())) cerr.push(m.text()); });
+    c.on('request', r => { const u = r.url(); if (!u.startsWith(URL) && !/^(data|blob|about):/.test(u)) creq.push(u); });
+    await c.goto(URL); await c.evaluate(d => { for (const [k, v] of Object.entries(JSON.parse(d))) localStorage.setItem(k, v); localStorage.setItem('someday-picture-v1', 'lantern'); }, dump);
+    await c.goto(URL, { waitUntil: 'networkidle' });
+    const cw = ms => c.waitForTimeout(ms), C = k => c.$eval('[data-chart-home]', (e, k) => e.getAttribute(k), k);
+    const ready = () => c.waitForFunction(() => document.querySelector('[data-chart-home]')?.getAttribute('data-ready') === '1', null, { timeout: 40000 }).catch(() => {});
+    const planC = () => c.evaluate(() => JSON.parse(localStorage.getItem('horizon-plan-v1')));
+    const txt = sel => c.$eval(sel, e => e.textContent.replace(/\s+/g, ' ').trim()).catch(() => '');
+    await ready(); await cw(500);
+    const X = engineOf(stored);
+    await check('187 chart home: a visitor\'s home opens on the plain chart (also where the device had stored the Lantern): no moon, no island, no tower, no canvas, and the tab bar is not night-blue', async () =>
+      (await c.$('[data-simple-home][data-chart-home] [data-chart]')) != null && (await c.$('[data-moon-home]')) == null && (await c.$('[data-island]')) == null && (await c.$('[data-lantern]')) == null
+      && (await c.$('[data-chart-home] canvas')) == null && (await c.getAttribute('nav', 'data-night')) == null);
+    await check('188 chart home: the count is the engine\'s share of futures (to 1 of 100), the sentence names the last year, and the verdict is the one the count decides', async () => {
+      const shown = Number(await txt('[data-chart-count]')), line = await txt('[data-chart-line]'), verdict = await txt('[data-chart-home] [data-status]'), rules = await txt('[data-chart-rules]');
+      const lineOk = rules ? line.startsWith(`times in 100, it pays in full until you are ${X.toAge}`) && /^or \d+ times, trimmed by your rules$/.test(rules) : line === `times in 100, the money lasts until you are ${X.toAge}`;
+      const ok = Math.abs(shown - X.count) <= 1 && lineOk && verdict === words(shown) && String(shown) === (await C('data-count'));
+      if (!ok) console.log(`  188: shows ${shown} "${line}" "${verdict}", engine ${X.count} to ${X.toAge}`);
+      return ok; });
+    await check('189 chart home: the bad case on the chart is the engine\'s: the age the lower line leaves what is asked, what is then paid a month (to £50), and the same age in the words under it', async () => {
+      const sb = await C('data-short-by'), paid = await C('data-end-paid'), said = await txt('[data-chart-said]'), btn = await txt('[data-chart-years]'), low = (await c.$('[data-chart-low]')) != null;
+      if (X.edge) return true;
+      let ok;
+      if (!X.shortBy) ok = sb === '' && !low && said === 'Even the unluckiest 10 of 100 are paid in full' && btn.startsWith('The years ahead');
+      else { const u = X.shortBy.often ? null : X.unlucky(X.toAge), who = X.shortBy.often ? 'More often than not' : 'The unluckiest 10 of 100';
+        ok = sb === String(X.shortBy.age) && low && said.startsWith(`${who}: about £`) && said.endsWith('a month') && btn.includes(`it runs short by age ${X.shortBy.age}`) && (typeof u !== 'number' || Math.abs(Number(paid) - u) <= 50); }
+      if (!ok) console.log(`  189: short by "${sb}" paid "${paid}" said "${said}" button "${btn}", engine ${JSON.stringify(X.shortBy)} ${X.shortBy && !X.shortBy.often ? X.unlucky(X.toAge) : ''}`);
+      return ok; });
+    await check('190 chart home: the first screen is the count, the verdict, one chart, two steppers and two questions: 80 words or fewer, 12 controls or fewer, "times in 100" and never "futures"', async () => {
+      const r = await c.evaluate(() => { const vis = el => { const b = el.getBoundingClientRect(); return b.width > 0 && b.height > 0 && b.top < innerHeight && b.bottom > 0 && !el.closest('.sr-only'); };
+        const root = [document.querySelector('[data-chart-home]'), document.querySelector('nav')], words = [];
+        for (const el of root) { const w = document.createTreeWalker(el, NodeFilter.SHOW_TEXT); for (let n = w.nextNode(); n; n = w.nextNode()) { const t = n.nodeValue.trim(); if (t && vis(n.parentElement)) words.push(...t.split(/\s+/).filter(x => /[A-Za-z0-9£]/.test(x))); } }
+        const controls = root.flatMap(el => [...el.querySelectorAll('button, a[href], input, [role=slider]')]).filter(el => vis(el) && !el.disabled).length;
+        return { words: words.length, controls, text: words.join(' ') }; });
+      const ok = r.words <= 80 && r.controls <= 12 && /times in 100/.test(r.text) && !/futures/i.test(r.text) && /Stop work at/.test(r.text) && /Live on each month/.test(r.text) && /What you ask: £[\d,]+ a month/.test(r.text) && /What would help\?/.test(r.text) && /What could go wrong\?/.test(r.text);
+      if (!ok) console.log(`  190: ${r.words} words, ${r.controls} controls: ${r.text}`);
+      return ok; });
+    await check('191 chart home: no text on the first screen is under 13 px, tab bar and chart included, and it is set in four sizes', async () => {
+      const px = await c.evaluate(() => { const out = new Set(); for (const el of [document.querySelector('[data-chart-home]'), document.querySelector('nav')]) { const w = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+        for (let n = w.nextNode(); n; n = w.nextNode()) { if (!n.nodeValue.trim() || n.parentElement.closest('.sr-only')) continue; out.add(Math.round(parseFloat(getComputedStyle(n.parentElement).fontSize) * 10) / 10); } } return [...out].sort((a, b) => a - b); });
+      const ok = px[0] >= 13 && px.length <= 4; if (!ok) console.log('  191 sizes: ' + px.join(' / ')); return ok; });
+    await check('192 chart home: the line under the chart opens the years as plain numbers, and each row is the engine\'s (the count to 1 of 100, what the unluckiest 10 are paid to £50)', async () => {
+      await c.locator('[data-chart-years]').click(); await cw(900);
+      const rows = await c.$$eval('[data-chart-table] tr[data-year]', els => els.map(e => [Number(e.getAttribute('data-year')), Number(e.children[1].textContent), e.children[2].textContent.trim()]));
+      const ok = rows.length === X.years.length && rows.every(([age, n, un], i) => { const u = X.unlucky(age);
+        return age === X.years[i].age && Math.abs(n - X.years[i].n) <= 1 && (u === 'full' ? un === 'paid in full' || /^£/.test(un) : u == null || un === 'paid in full' || Math.abs(Number(un.replace(/[£,]/g, '')) - u) <= 50); })
+        && (await c.locator('[role=dialog]').first().getAttribute('aria-label')) === 'The years ahead';
+      if (!ok) console.log(`  192: rows ${JSON.stringify(rows)} engine ${JSON.stringify(X.years)}`);
+      await c.keyboard.press('Escape'); await cw(600);
+      return ok; });
+    await check('193 chart home: a stepper writes the plan and the count follows the engine; a typed figure far too high turns the chart to "More often than not", and typing the old figure restores it', async () => {
+      const was = (await planC()).targetNet;
+      await c.getByRole('button', { name: 'Live on each month: £100 more' }).click(); await cw(600); await ready(); await cw(400);
+      const q1 = await planC(), x1 = engineOf(q1), n1 = Number(await C('data-count'));
+      const type = async v => { await c.locator('[data-chart-home] [data-driver="targetNet"] button[data-value]').click(); await cw(200); const inp = c.getByLabel('Live on each month, type a figure'); await inp.fill(String(v)); await inp.press('Enter'); await cw(600); await ready(); await cw(400); };
+      await type(Math.round(was / 12 * 2.2));
+      const q2 = await planC(), n2 = Number(await C('data-count')), said2 = await txt('[data-chart-said]'), btn2 = await txt('[data-chart-years]');
+      await type(Math.round(was / 12)); const back = (await planC()).targetNet;
+      const ok = q1.targetNet === was + 1200 && Math.abs(n1 - x1.count) <= 1 && q2.targetNet > was * 2 && (n2 >= 50 || (said2.startsWith('More often than not: about £') && btn2.startsWith('More often than not, it runs short by age'))) && Math.abs(back - was) <= 12;
+      if (!ok) console.log(`  193: ${was} -> ${q1.targetNet} shows ${n1} engine ${x1.count}; high ${q2.targetNet} shows ${n2} "${said2}"; back ${back}`);
+      return ok; });
+    await check('194 chart home: at 390×844, 390×660, 375×667, 360×780 and 360×640 it all fits one screen above the tab bar, nothing scrolls, and the chart keeps its height', async () => {
+      const bad = [];
+      for (const [w, hh] of [[390, 844], [390, 660], [375, 667], [360, 780], [360, 640]]) { await c.setViewportSize({ width: w, height: hh }); await cw(500);
+        const r = await c.evaluate(() => { const home = document.querySelector('[data-chart-home]'), nav = document.querySelector('nav').getBoundingClientRect(), ch = home.querySelector('[data-chart]').getBoundingClientRect();
+          const lastB = Math.max(...[...home.querySelectorAll('button')].map(x => x.getBoundingClientRect().bottom)); const said = home.querySelector('[data-chart-said]').getBoundingClientRect();
+          return { scrolls: home.scrollHeight > home.clientHeight + 1 || home.scrollWidth > home.clientWidth + 1, over: lastB > nav.top + 0.5, chart: ch.height, saidIn: said.left >= ch.left - 1 && said.right <= ch.right + 1 && said.bottom <= ch.bottom + 1 }; });
+        if (r.scrolls || r.over || r.chart < 150 || !r.saidIn) bad.push(`${w}x${hh} ${JSON.stringify(r)}`); }
+      await c.setViewportSize({ width: 390, height: 844 }); await cw(400);
+      if (bad.length) console.log('  194: ' + bad.join(' | ')); return bad.length === 0; });
+    const ax = await axeScan('Chart home', c);
+    await c.locator('[data-chart-years]').click(); await cw(900);
+    const ax2 = await axeScan('Chart home, the years open', c);
+    await c.keyboard.press('Escape'); await cw(600);
+    await check(`195 chart home: no critical or serious WCAG 2.2 AA violations, closed or with the years open${ax.bad.length + ax2.bad.length ? ' — ' + [ax.detail, ax2.detail].filter(Boolean).join(' | ') : ''}`, () => ax.bad.length === 0 && ax2.bad.length === 0);
+    await check('196 chart home: Explore offers the chart, the moon and the island; choosing the moon shows it (the island where WebGL is missing) and is remembered; choosing the chart brings it back', async () => {
+      await c.getByRole('button', { name: 'Explore' }).last().click(); await cw(900);
+      const three = (await c.$$eval('[data-picture-choice]', els => els.map(e => e.getAttribute('data-picture-choice')).join(','))) === 'chart,moon,island';
+      await c.locator('[data-picture-choice="moon"]').click(); await cw(400);
+      const k1 = await c.evaluate(() => localStorage.getItem('someday-picture-v1'));
+      await c.keyboard.press('Escape'); await cw(1500);
+      const other = (await c.$('[data-chart-home]')) == null && ((await c.$('[data-moon-home]')) != null || (await c.$('[data-island]')) != null);
+      await c.reload({ waitUntil: 'networkidle' }); await cw(1200);
+      const kept = (await c.$('[data-chart-home]')) == null;
+      await c.getByRole('button', { name: 'Explore' }).last().click(); await cw(900);
+      await c.locator('[data-picture-choice="chart"]').click(); await cw(400); await c.keyboard.press('Escape'); await cw(900);
+      const ok = three && k1 === 'moon' && other && kept && (await c.evaluate(() => localStorage.getItem('someday-picture-v1'))) === 'chart' && (await c.$('[data-chart-home]')) != null;
+      if (!ok) console.log(`  196: three ${three} stored ${k1} other ${other} kept ${kept}`);
+      return ok; });
+    await check('197 chart home: nothing left the device, and zero page errors' + (cerr.length ? ' — ' + cerr.slice(0, 2).join(' | ') : ''), () => creq.length === 0 && cerr.length === 0);
+    await cc.close();
+  }
   await cx.close();
 }
 

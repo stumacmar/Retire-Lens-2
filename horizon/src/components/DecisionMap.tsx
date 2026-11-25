@@ -123,24 +123,24 @@ export default function DecisionMap({ plan, update }: { plan: any; update: (p: a
 
   return (
     <div id="explore-map" className="rounded-2xl p-4" style={{ background: 'var(--color-canvas)' }}>
-      <div className="text-[0.9rem] font-semibold">Every retirement you could choose</div>
-      <p className="text-[0.76rem] mt-0.5 mb-3" style={{ color: 'var(--color-ink-faint)' }}>
+      <div className="text-[0.875rem] font-semibold">Every retirement you could choose</div>
+      <p className="text-[0.875rem] mt-0.5 mb-3" style={{ color: 'var(--color-ink-faint)' }}>
         Across is the year you stop, up is what you spend. Each square is a whole retirement, worked out by the engine. Drag the dot to choose yours.
       </p>
-      <p className="text-[1.02rem] leading-snug mb-3" aria-live="polite">
+      <p className="text-[1rem] leading-snug mb-3" aria-live="polite">
         Stop in <b className="tnum">{plan.retireYear}</b> at {age}, live on <b className="tnum">{fmt(plan.targetNet)}</b> a year:{' '}
         {here == null ? '…' : ok
           ? <b style={{ color: 'var(--color-sage-strong)' }}>it lasts.</b>
           : <b style={{ color: 'var(--color-hope)' }}>it runs short.</b>}
       </p>
       <div className="relative" style={{ display: asTable ? 'none' : undefined }}>
-        {!map && <p className="absolute inset-0 flex items-center justify-center text-[0.85rem]" style={{ color: 'var(--color-ink-faint)' }}>Working out every retirement…</p>}
+        {!map && <p className="absolute inset-0 flex items-center justify-center text-[0.875rem]" style={{ color: 'var(--color-ink-faint)' }}>Working out every retirement…</p>}
         <canvas ref={canvas} tabIndex={0} className="block w-full rounded-xl" style={{ touchAction: 'none', cursor: 'crosshair', minHeight: 200 }}
           aria-label="Map of retirements. Arrow keys move your plan: left and right change the year you stop, up and down change what you spend. The same map is available as a table below." />
       </div>
       {asTable && map && (
         <div className="overflow-x-auto rounded-xl" tabIndex={0} role="region" aria-label="Every retirement as a table, scrolls sideways" data-map-table style={{ background: 'var(--color-surface)' }}>
-          <table className="w-full text-[0.72rem]" style={{ borderCollapse: 'collapse', minWidth: 340 }}>
+          <table className="w-full text-[0.8125rem]" style={{ borderCollapse: 'collapse', minWidth: 340 }}>
             <caption className="sr-only">Whether the money lasts, for each year you might stop (rows) and each yearly spend (columns). Your plan's row and column are marked.</caption>
             <thead>
               <tr style={{ color: 'var(--color-ink-faint)' }}>
@@ -165,7 +165,7 @@ export default function DecisionMap({ plan, update }: { plan: any; update: (p: a
           </table>
         </div>
       )}
-      <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-[0.72rem]" style={{ color: 'var(--color-ink-dim)' }}>
+      <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-[0.8125rem]" style={{ color: 'var(--color-ink-dim)' }}>
         {!asTable && [['lasts, with plenty left', 'var(--color-sage-strong)'], ['lasts, just', 'var(--color-sage)'],
           ['runs out in your 80s', 'var(--color-map-late)'], ['runs out sooner', 'var(--color-map-early)']].map(([l, c]) => (
           <span key={l} className="flex items-center gap-1.5"><span className="inline-block w-[10px] h-[10px] rounded-[3px]" style={{ background: c }} aria-hidden="true" />{l}</span>
@@ -175,7 +175,7 @@ export default function DecisionMap({ plan, update }: { plan: any; update: (p: a
         </button>
       </div>
       {here != null && (
-        <p className="mt-3 text-[0.86rem] leading-relaxed" style={{ color: 'var(--color-ink-dim)' }}>
+        <p className="mt-3 text-[0.875rem] leading-relaxed" style={{ color: 'var(--color-ink-dim)' }}>
           The bold line is the edge: the most you can spend for each year you might stop and still have it last.
           Stopping in {plan.retireYear}, that is <b className="tnum" style={{ color: 'var(--color-ink)' }}>{fmt(here)}</b> a year.
           {next != null && next > here && <> Working one more year moves it to <b className="tnum" style={{ color: 'var(--color-ink)' }}>{fmt(next)}</b>,

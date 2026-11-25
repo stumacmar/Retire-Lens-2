@@ -28,7 +28,7 @@ export function datesThatMatter(plan: any): Row[] {
         : 'The minimum pension age rises from 55 to 57 on 6 April 2028, which catches anyone born from 1973.' });
     push({ year: p.birthYear + (E as any).spAgeOf(p), who: p.name, kind: 'you',
       title: `${p.name}’s State Pension starts, at ${(E as any).spAgeOf(p)}`,
-      note: 'Check the exact date and amount at gov.uk/check-state-pension. Deferring adds about 5.8% a year for life.' });
+      note: 'Check yours at gov.uk/check-state-pension. Deferring adds about 5.8% a year for life.' });
     // Public-sector scheme tranches: when each is unreduced, and when it is planned.
     for (const t of (p.dbSchemes || [])) {
       if (!t || !((Number(t.pension) || 0) > 0 || (t.accruing && t.salary > 0))) continue;
@@ -47,25 +47,25 @@ export function datesThatMatter(plan: any): Row[] {
     }
     push({ year: p.birthYear + 75, who: p.name, kind: 'you',
       title: `${p.name} turns 75`,
-      note: 'The last tax year for pension tax relief, and after 75 any pension your beneficiaries inherit is taxed as their income.' });
+      note: 'The last year of pension tax relief; a pension inherited after 75 is taxed as income.' });
   }
   push({ year: plan.retireYear, who: '', kind: 'you',
     title: `You stop work — ${A.name} at ${ageIn(plan.retireYear, A.birthYear)}${B?.birthYear ? `, ${B.name} at ${ageIn(plan.retireYear, B.birthYear)}` : ''}`,
-    note: 'Your chosen date. Everything below the horizon line is measured from here.' });
+    note: '' });
 
   // Rule changes already announced.
   push({ year: 2027, who: '', kind: 'rule',
     title: 'April 2027 — unused pensions come into inheritance tax',
-    note: 'From 6 April 2027 most unused pension funds count as part of the estate. Spending pensions first, or gifting, becomes a live question for larger estates.' });
+    note: 'Most unused pension funds count as part of the estate from then.' });
   push({ year: 2027, who: '', kind: 'rule',
     title: 'April 2027 — cash ISA limit becomes £12,000 under 65',
-    note: 'The overall £20,000 ISA allowance stays, but only £12,000 of it can go into cash ISAs if you are under 65 (announced in the Autumn Budget 2025).' });
+    note: 'The £20,000 ISA allowance stays; only £12,000 of it can go into cash ISAs under 65.' });
   push({ year: 2028, who: '', kind: 'rule',
     title: 'April 2028 — minimum pension age rises to 57',
-    note: 'The age you can first draw a private pension moves from 55 to 57 on 6 April 2028.' });
+    note: '' });
   push({ year: 2031, who: '', kind: 'rule',
     title: 'April 2031 — the income tax threshold freeze is due to end',
-    note: 'The personal allowance (£12,570) and higher-rate threshold (£50,270) are frozen until then, so more of each year’s income drifts into tax meanwhile.' });
+    note: 'Frozen until then, so more income drifts into tax each year.' });
 
   rows.sort((a, b) => a.year - b.year || (a.kind === 'you' ? -1 : 1));
   return rows;
@@ -76,22 +76,22 @@ export default function Dates({ plan }: { plan: any }) {
   if (!rows.length) return null;
   return (
     <div>
-      <h3 className="text-[0.72rem] font-bold uppercase tracking-widest mb-2 flex items-center gap-1.5" style={{ color: 'var(--color-ink-faint)' }}>
+      <h3 className="text-[0.8125rem] font-bold uppercase tracking-widest mb-2 flex items-center gap-1.5" style={{ color: 'var(--color-ink-faint)' }}>
         <CalendarDays size={13} /> Dates that matter
       </h3>
       <div className="rounded-3xl overflow-hidden" style={{ background: 'var(--color-canvas)' }}>
         {rows.map((r, i) => (
           <div key={i} className="flex gap-3 px-4 py-3" style={{ borderTop: i ? '1px solid var(--color-hairline)' : 'none' }}>
-            <div className="tnum shrink-0 w-[3.1rem] text-[0.95rem] font-extrabold tracking-tight"
+            <div className="tnum shrink-0 w-[3.1rem] text-[1rem] font-extrabold tracking-tight"
                  style={{ color: r.kind === 'you' ? 'var(--color-calm-strong)' : 'var(--color-ink-faint)' }}>{r.year}</div>
             <div className="min-w-0">
-              <div className="text-[0.88rem] font-semibold leading-snug">{r.title}</div>
-              <div className="mt-0.5 text-[0.76rem] leading-relaxed" style={{ color: 'var(--color-ink-dim)' }}>{r.note}</div>
+              <div className="text-[0.875rem] font-semibold leading-snug">{r.title}</div>
+              {r.note && <div className="mt-0.5 text-[0.875rem] leading-relaxed" style={{ color: 'var(--color-ink-dim)' }}>{r.note}</div>}
             </div>
           </div>
         ))}
       </div>
-      <p className="text-[0.72rem] mt-1.5" style={{ color: 'var(--color-ink-faint)' }}>
+      <p className="text-[0.8125rem] mt-1.5" style={{ color: 'var(--color-ink-faint)' }}>
         Worked out from your birth years and the rules announced to date. Birth years only, so dates near a 6 April boundary may differ by a year.
       </p>
     </div>

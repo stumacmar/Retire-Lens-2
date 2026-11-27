@@ -109,9 +109,9 @@ export default function Carousel({ pages, index, onIndex, footer, railBg = 'var(
       {/* The rail: every step named, the current one lit, any of them one tap
           away. You are never more than a glance from knowing where you are. */}
       <div className="sticky top-0 z-10 -mx-6 px-6 py-2 mb-1 overflow-x-auto no-scrollbar" style={{ background: railBg }}>
-        <div className="flex gap-1.5 w-max">
+        <div className="flex gap-1.5 w-max" data-rail>
           {pages.map((p, n) => (
-            <button key={p.id} ref={el => { railRefs.current[n] = el; }} onClick={() => onIndex(n)}
+            <button key={p.id} ref={el => { railRefs.current[n] = el; }} onClick={() => onIndex(n)} data-rail-title={p.title}
               aria-current={n === i ? 'step' : undefined}
               className="shrink-0 rounded-full px-3 py-1.5 text-[0.8125rem] font-semibold whitespace-nowrap transition-colors"
               style={{
@@ -128,7 +128,8 @@ export default function Carousel({ pages, index, onIndex, footer, railBg = 'var(
       <div className="flex items-baseline justify-between gap-3 mb-2">
         <h2 className="text-[1.35rem] font-extrabold tracking-tight leading-tight">{page.title}</h2>
         <span className="tnum shrink-0 text-[0.8125rem] font-semibold" style={{ color: 'var(--color-ink-dim)' }}>
-          {i + 1} / {pages.length}
+          <span aria-hidden>{`${i + 1} / ${pages.length}`}</span>
+          <span className="sr-only">{`Page ${i + 1} of ${pages.length}`}</span>
         </span>
       </div>
       {page.blurb && <p className="text-[0.875rem] leading-relaxed mb-4" style={{ color: 'var(--color-ink-dim)' }}>{page.blurb}</p>}

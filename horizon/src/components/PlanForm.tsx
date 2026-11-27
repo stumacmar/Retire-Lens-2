@@ -1,5 +1,5 @@
-import { useMemo } from 'react';
-import { Download, Plus, RotateCcw, Upload, X, AlertTriangle } from 'lucide-react';
+import { useMemo, useState } from 'react';
+import { ChevronRight, Download, Plus, RotateCcw, Upload, X, AlertTriangle } from 'lucide-react';
 import Carousel, { type Page } from './Carousel';
 import Group from './Group';
 import Accordion from './Accordion';
@@ -159,6 +159,17 @@ function Promised({ plan, who, set, adv }: { plan: any; who: any; set: (patch: a
   );
 }
 
+/** What each page a layer down holds, said under its name on the More page. */
+const MORE_LINE: Record<string, string> = {
+  events: 'An inheritance, a windfall, a big cost',
+  invested: 'How much is in shares, and charges',
+  tax: 'Scotland, and frozen tax thresholds',
+  draw: 'Tax-free cash, and which pot first',
+  lens: 'The growth and inflation assumed',
+  structure: 'Bonds for the early years, with spending rules',
+  file: 'Save a copy, load one, or start over',
+};
+
 export default function PlanForm({ plan, update, reset, plus, onUpgrade, issues = [], mode = 'all', index, onIndex, footer, railBg, saved }: {
   plan: any; update: (p: any) => void; reset?: () => void; plus: boolean; onUpgrade: () => void;
   issues?: { path: string; message: string; level: string }[];
@@ -179,6 +190,13 @@ export default function PlanForm({ plan, update, reset, plus, onUpgrade, issues 
   const adv = plus && !!plan.advanced;
   const A = plan.partnerA, B = plan.partnerB;
   const setup = mode === 'setup';
+  // The pages most people need come first: who, when and how much, the pots,
+  // the guaranteed income, spending. The rest are one layer down, behind a
+  // page that lists them, and are not built until one is opened (Scout, 26
+  // November 2026: fourteen pages and 86 controls met everyone who opened
+  // Details). The list keeps its place, so a page's number never changes.
+  const moreAt = (single ? 4 : 6) + 1;
+  const [more, setMore] = useState(() => !setup && index > moreAt);
 
   const pages = useMemo<Page[]>(() => {
     const list: Page[] = [];
@@ -263,7 +281,8 @@ export default function PlanForm({ plan, update, reset, plus, onUpgrade, issues 
       </Group>,
     });
 
-    list.push({
+    const rest: Page[] = [];
+    rest.push({
       id: 'events', title: 'Life events',
       body: <>
         <Group title="An inheritance">
@@ -297,7 +316,7 @@ export default function PlanForm({ plan, update, reset, plus, onUpgrade, issues 
       </>,
     });
 
-    list.push({
+    rest.push({
       id: 'invested', title: 'Investing',
       body: <Group>
         <div role="group"><Segmented small fit value={plan.riskPreset || 'custom'} onChange={(v: string) => update((p: any) => v === 'custom' ? { ...p, riskPreset: null } : (E as any).applyRiskPreset(p, v))}
@@ -310,7 +329,7 @@ export default function PlanForm({ plan, update, reset, plus, onUpgrade, issues 
       </Group>,
     });
 
-    list.push({
+    rest.push({
       id: 'tax', title: 'Tax',
       body: <Group>
         <div role="group"><Segmented small value={plan.tax?.region || 'ruk'}
@@ -327,7 +346,7 @@ export default function PlanForm({ plan, update, reset, plus, onUpgrade, issues 
       </Group>,
     });
 
-    list.push({
+    rest.push({
       id: 'draw', title: 'Drawing',
       body: <>
         <Group title="Tax-free cash">
@@ -353,7 +372,7 @@ export default function PlanForm({ plan, update, reset, plus, onUpgrade, issues 
       </>,
     });
 
-    list.push({
+    rest.push({
       id: 'lens', title: 'Growth rates', blurb: 'Most people leave these alone.',
       body: <Group>
         <PctField label="Poor" value={plan.growthBear} onChange={v => update({ growthBear: v, riskPreset: null })} />
@@ -368,7 +387,7 @@ export default function PlanForm({ plan, update, reset, plus, onUpgrade, issues 
       </Group>,
     });
 
-    list.push({
+    rest.push({
       id: 'structure', title: 'Safe ladder',
       body: plus
         ? <ArchitectureSection plan={plan} update={update} />
@@ -378,7 +397,7 @@ export default function PlanForm({ plan, update, reset, plus, onUpgrade, issues 
               : 'Model a gilt ladder, a growth engine and written spending rules instead of one growth rate — then see, measured on your own figures, whether the structure is worth it.')} />,
     });
 
-    list.push({
+    rest.push({
       id: 'file', title: 'Plan file',
       body: <>
         <Card>
@@ -430,8 +449,26 @@ export default function PlanForm({ plan, update, reset, plus, onUpgrade, issues 
       </>,
     });
 
+    const restAt = list.length + 1;
+    list.push({
+      id: 'more', title: 'More', blurb: 'Most people leave these as they are.',
+      body: <Card>
+        {rest.map((r, k) => (
+          <button key={r.id} type="button" data-more-row={r.title} onClick={() => { setMore(true); onIndex(restAt + k); }}
+            className="w-full flex items-center gap-3 py-3 min-h-[56px] text-left" style={k ? { borderTop: '1px solid var(--color-hairline)' } : undefined}>
+            <span className="flex-1 min-w-0">
+              <span className="block font-semibold" style={{ color: 'var(--color-ink)' }}>{r.title}</span>
+              <span className="block text-[0.875rem] leading-snug" style={{ color: 'var(--color-ink-dim)' }}>{MORE_LINE[r.id]}</span>
+            </span>
+            <ChevronRight size={18} aria-hidden style={{ color: 'var(--color-ink-dim)' }} />
+          </button>
+        ))}
+      </Card>,
+    });
+    if (more) list.push(...rest);
+
     return list;
-  }, [plan, plus, adv, single, setup]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [plan, plus, adv, single, setup, more]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <div>

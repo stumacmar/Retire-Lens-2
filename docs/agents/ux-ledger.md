@@ -9,6 +9,7 @@ Word for word, newest first. These outrank any score.
 
 | Date | About | The owner said |
 |---|---|---|
+| 2026-11-28 | three Scout pull requests waiting: #88 (Explore), #89 (Details), #90 (the home's words) | "Merge all Tori improvements" (taken as "all three") |
 | 2026-11-24 | the council's verdict: a plain chart under the count in place of the moon, shown as two sketches | "Build it" |
 | 2026-11-23 | the home's pictures, two days after choosing the moon | "Do you know what perhaps the lantern and island and the moon are too gimmicky - gather the council please" |
 | 2026-11-22 | a research report he had commissioned, proposing a strip of funded years (three bands a year, locks, hatching, two edges) in place of the moon; asked "Thoughts ??", then | "You do what you think is best for the user" |
@@ -56,6 +57,7 @@ answer is a picture that needs no explaining, with almost nothing beside it.
 | 2026-11-24 (the plain chart is the home; owner: "Build it") | 65 | 13 | 12 | 4 | 13 px | 0 | 44 | 126 | 909 / 86 | 1,416 / 219 | 186 | 2,811 / 139 |
 | 2026-11-24 (Details said shorter, in three sizes) | 65 | 13 | 12 | 4 | 13 px | 0 | 44 | 126 | 670 / 86 | 1,416 / 219 | 186 | 2,572 / 139 |
 | 2026-11-25 (Explore said shorter, in one type scale) | 65 | 13 | 12 | 4 | 13 px | 0 | 44 | 126 | 670 / 86 | 858 / 82 | 186 | 2,014 / 136 |
+| 2026-11-27 (Details opens on eight pages; seven are a layer down) | 65 | 13 | 12 | 4 | 13 px | 0 | 44 | 126 | 449 / 61 | 858 / 82 | 186 | 1,793 / 111 |
 
 **The chart home (24 November) is over the home's targets for words and
 figures, by the owner's choice of a chart**: 65 words against 60 and 13
@@ -476,6 +478,55 @@ beside "most people are not on the full amount" (the engineer); 86
 controls against a target of 12, which only a different structure (the
 five pages most people need, and the rest a layer down) will move.
 
+### Details, a layer down (27 November 2026): 670 words, 86 controls, fourteen pages
+
+Begun on 26 November and cut off by a restart of the session before
+anything was committed; finished and shipped on the 27th as that day's
+cycle. The rung is the third (move it down a layer), on the pattern from
+Wealthfront's planner below: the app handles the hard assumptions and
+shows only what a person must enter.
+
+| | Before | After |
+|---|---|---|
+| Pages on opening | 14 (the strip of their names is 1,503 px wide on a 390 px screen) | 8: Who, Someday, each person's pots and guaranteed income, Spending, More (940 px) |
+| A layer down | nothing | Life events, Investing, Tax, Drawing, Growth rates, Safe ladder, Plan file: listed on the More page, each with a line of what it holds, and not built until one is opened |
+| Words / controls (`ux:metrics`) | 670 / 86 | 449 / 61 |
+| The page count, to a screen reader | "1", "/", "14" | "Page 1 of 8" |
+
+Opening a row adds the seven pages to the strip, where they stay while
+Details is open, so nothing that could be reached before is harder to reach
+again. `PlanForm.tsx` (`more`, `MORE_LINE`), `Carousel.tsx` (`data-rail`,
+`data-rail-title`). UAT 36b, 36b2; the suites' `goPage` goes by the strip
+and, where a page is not on it, by More.
+
+**Panel** (six fresh readers a version, as Alex with a partner Sam; three
+stills each: the screen as it opens, and the strip swiped along). K is
+before, M the first build, N and P two rewordings of the More page read by
+three each.
+
+| | Scotland: where? | An inheritance | Keep a copy | Start again | One word |
+|---|---|---|---|---|---|
+| K (14 pages) | 0 of 6 found it (one guessed Tax) | 6 of 6 | 6 of 6 | not asked | Overwhelming ×5, Tiring |
+| M ("Already set for you…"; Plan file: "Save a copy, load one, or start over") | 6 of 6 | 6 of 6, five "sure" | 6 of 6; four worried the row would wipe the plan | not asked | Fiddly, Suspicious, Manageable, Dense, Daunting, Heavy |
+| N (Plan file: "Save a copy, or load one") | 3 of 3 | | 3 of 3 | 0 of 3 ("I would be stuck") | Overwhelming, Heavy, Fiddly |
+| P, as shipped ("Most people leave these as they are."; "…or start over" back) | 3 of 3 | | 3 of 3 | 3 of 3 | Fiddly, Fine, Manageable |
+
+What the reads changed. From M: "Tax" wrapped to two lines and was said
+shorter. From N: taking "start over" off the row to spare a worry hid it
+from everyone, so it went back: a thing that can be found and gives pause
+beats one that cannot be found. "Already set for you" made three of three
+uneasy ("by whom, and based on what?"); "Most people leave these as they
+are." put two of three at ease, and the third half so.
+
+Still open on Details: where a pension from an old job goes ("pots" or
+"guaranteed income": nearly every reader was unsure, on both versions,
+and it is the first thing most people will bring); "pots", "Someday", "Safe
+ladder" ("Bonds for the early years, with spending rules" is "gibberish"),
+"Drawing" ("sounds like art"); the strip still runs off the screen at
+eight pages; eight pages still read as "a lot of forms"; "Plan file" sits
+oddly under "leave these as they are" (the teacher); 61 controls against a
+target of 12.
+
 ### The chart as the home (24 November 2026, owner: "Build it")
 
 **The council** (23 November, owner: "gather the council"): twelve fresh
@@ -541,6 +592,25 @@ was read by two, not six; a comfortable one (no lower line) by nobody. No design
 is no longer "stunning". The council's consumers chose a savings chart
 they then misread; this is the income chart the data seat proposed, which
 they did not see.
+
+**Read again on 26 November** (the two reads this section owed: six fresh
+readers on a comfortable plan, £3,333 a month and 96 in 100, no lower
+line; six on a failing one, £5,300 and 21 in 100, the lower line the
+middle case). Nothing was changed.
+
+| | The answer and how sure (Q1 to Q3) | What they live on at 70, and at 90 | Read the bad case as nothing | "you ask £2,500" / "£3,980" | Own figures in? |
+|---|---|---|---|---|---|
+| Comfortable | 6 of 6 | 6 of 6 (£3,333, then £2,500: "paid in full", most of them "a guess") | 0 | 6 of 6: what they want to spend later | maybe ×6 |
+| Failing | 6 of 6 | 6 of 6 (£5,300, then about £2,050) | 0 ("the orange stays above £0") | 5 of 6; the screen-reader user took £3,980 for what they would get | maybe ×6 |
+
+Nobody was told why the asked line steps down and nine of twelve guessed
+it (they plan to spend less later). Words still stumbled on: "More often
+than not" (5 of 6 on the failing plan: vague, an idiom, and odd beside "21
+times in 100"); "the unluckiest 10 of 100" (5 of 6: clumsy); "£0" (5 of
+12 did not know what it was for); "Someday" (9 of 12: tells me nothing);
+"Workings" (6). For the screen reader, "You ask £5,300, and £3,980 by 94"
+is unclear ("by 94 what?"). Trust is unchanged: "maybe" from all twelve,
+for want of knowing who made it and where the figures go.
 
 Still open on this screen: "times in 100" is still "odd" to most; "the
 unluckiest 10 of 100" (people or outcomes?); "What you ask" ("it sounds as
@@ -660,6 +730,64 @@ Sources: the guide above. (Its page on probability returned "not found"; Apple's
    units, and carries no line the answer does not need. Applied this cycle
    to "What would help?"; Details (86 controls) is where it matters most.
 
+The second, 26 November 2026, for a home that is now a chart. Read from the
+makers' own pages by a fetch; none was run. Where a page could not be read
+it is said.
+
+### UK government chart guidance — 2026-11-26 — the Analysis Function's "Data visualisation: charts" and its checklist; the ONS service manual on chart text and on axes
+
+The one job it does for the person: says how a chart for the public should be made so it is read right.
+First screen: not a product.
+What makes it beautiful, and what makes it unmistakably itself: not applicable.
+Before the first answer it asks for: nothing.
+How it reveals depth: a headline first, the statistical detail under it ("a headline title and a formal statistical subtitle").
+How it says uncertainty, in its own words: the four pages set no rule for it (the page that does was not read).
+What it leaves out that a pension tool would put in: the key ("Avoid legends – label lines directly"; "Legends rely on users matching labels to lines using colours"); most of the axis ("three to six gridlines for a mobile view"; "You could also drop some of the labels"); text ("do not overload your chart with text").
+The pattern, in one sentence: the title says the finding ("The headline title should communicate the headline message of the chart"), each line is named at its right-hand end, and there are few enough marks on the axis to count.
+Would it survive on Someday's first screen? Why or why not: it is what the chart home already does, arrived at by three blind reads: the count and verdict are the headline, both lines are named where they end, there is no key, and seven ages mark the foot (the guidance: three to six gridlines on a phone). Nothing to change; a check passed.
+Sources: analysisfunction.civilservice.gov.uk/policy-store/data-visualisation-charts (cut off part way; nothing quoted from the part not read) and /charts-a-checklist; service-manual.ons.gov.uk/data-visualisation/guidance/chart-text and /axes-and-gridlines.
+
+### The Bank of England's fan chart — 2026-11-26 — its 1998 Quarterly Bulletin page, a 2023 Bank Underground post, the OBR's box on uncertainty
+
+The one job it does for the person: shows a forecast with its uncertainty, "without suggesting a degree of precision that would be spurious" (as a search summary gave the 1998 article; the article itself could not be read past its first paragraph).
+First screen: one chart: a dark central band and lighter bands round it.
+What makes it beautiful, and what makes it unmistakably itself: the fan: one shape, darker where more likely.
+Before the first answer it asks for: nothing.
+How it reveals depth: not stated.
+How it says uncertainty, in its own words: "inflation is expected to lie somewhere within the entire width of the fan on 90 out of 100 occasions"; the centre is "the MPC's view of the most likely outcome"; the lighter bands are "less likely – but still possible – outcomes".
+What it leaves out that a pension tool would put in: a key on the chart (the rule is one sentence in the text beside it); the working.
+The pattern, in one sentence: one sentence gives the rule for reading the picture, as a count of occasions in 100, and the central case has a plain name.
+Would it survive on Someday's first screen? Why or why not: the count is said the same way ("57 times in 100"). The lower line is not: it is "the unluckiest 10 of 100" (10 what?) or "More often than not", which five of six readers found vague this cycle. One unit for both ("times") is the change to try next on the home; the OBR's note that its fan "fell outside" in 2023 is a reminder that a band is not a promise.
+Sources: bankofengland.co.uk/quarterly-bulletin/1998/q1/the-inflation-report-projections-understanding-the-fan-chart (first paragraph only); bankunderground.co.uk (13 July 2023); obr.uk/box/presenting-uncertainty-in-our-forecasts.
+
+### Wealthfront Path — 2026-11-26 — two posts on its makers' blog (2017); its help pages refused the fetch
+
+The one job it does for the person: says whether you are on course to retire, from accounts it already holds.
+First screen: not seen. A graph with a dotted line: "simply click on the dotted line and the savings number that gets you to 100% is revealed".
+What makes it beautiful, and what makes it unmistakably itself: not stated in what was read.
+Before the first answer it asks for: linked accounts ("You can set up Path in five minutes"; "we aggregate data from your linked accounts").
+How it reveals depth: change one thing and see ("Path let's you adjust your spending rate in retirement"; "you can see that impact if you retire a few years later").
+How it says uncertainty, in its own words: it does not, in what was read: one projection at "a return that would happen at least 50% of the time".
+What it leaves out that a pension tool would put in: the assumptions ("Path eliminates that challenge by … handl[ing] the most difficult assumptions for you, like social security, inflation and investment returns"); questions it can answer itself ("you don't have to tell us. We already know.").
+The pattern, in one sentence: the app decides everything it can and asks only for what only you know; the assumptions exist, a layer down, for the few who want them.
+Would it survive on Someday's first screen? Why or why not: the home already asks for two things. Details did not: fourteen pages met everyone, half of them assumptions. Applied this cycle.
+Sources: wealthfront.com/blog/introducing-path and /understanding-path-retirement (both 2017, so the product may differ now); support.wealthfront.com returned "forbidden".
+
+**The three patterns most worth trying**, in order:
+
+1. **Ask only for what only the person knows** (Wealthfront). Applied this
+   cycle: Details opens on eight pages, and the seven of assumptions and
+   housekeeping are a layer down. Next in the same vein: where a pension
+   from an old job goes should not be a question the person has to answer.
+2. **One unit for the count and for the bad case** (the Bank's "on 90 out
+   of 100 occasions"). The home counts "times in 100" and then says "the
+   unluckiest 10 of 100" and "More often than not". To try: "the worst 10
+   times in 100", and a plain name for the middle case.
+3. **Name each line at its end, say the finding in the title, keep the
+   axis countable** (UK government guidance). Already so on the home; hold
+   it there, and apply it to Explore's futures chart, which has no axis and
+   no names (the engineer, 25 November).
+
 ## Patterns
 
 Learned on this product, from the panels (each with its evidence above):
@@ -737,6 +865,15 @@ Learned on this product, from the panels (each with its evidence above):
     words and every reader still called it dense, with the same list of
     terms they did not know. Count the terms a reader cannot define, not
     only the words.
+
+21. **A layer down is found if the way in says what is there.** Scotland
+    was found by none of six on a strip of fourteen names and by six of six
+    on a list of seven with a line each. A list read down beats a strip
+    swiped along.
+22. **Do not hide a thing to spare a worry.** "Start over" taken off its
+    row was found by nobody; back on it, by everyone, with the worry.
+23. **"Set for you" asks to be trusted; "most people leave these" does
+    not.** The first drew "by whom?" from three of three.
 
 Still hypotheses: for money, people trust the form they already know over
 a new one, and dull is no fault (the council; simulated);
@@ -820,15 +957,23 @@ as it stands"; at 97 it is all but full and says "Yes, on track".
 
 | 2026-11-24 | Subtract (Details) | Every page said shorter and set in three sizes: 909 words to 670, fourteen text sizes to four, none under 13 px (257 words were), hints in a darker ink; "The lens" is "Growth rates". Panel: no worse on any question, and still "dense": the trouble is the vocabulary and the fourteen pages | #86 | "Merge" |
 
-| 2026-11-25 | Subtract (Explore) | "How far it could fall" went (it repeats "What could go wrong?"); the year-by-year table is one press down, behind a button named by what it holds; "What moves the needle" is "What would help" in the home's words; Dates and the stress tests said shorter; one type scale. 1,416 words to 858, 219 figures to 82, 22 text sizes to 6, none under 13 px (654 words were under 12). Panel: what "+2" counts from 1 of 6 to 6 of 6; no worse elsewhere once both table buttons were named by their contents | this pull request | — |
+| 2026-11-25 | Subtract (Explore) | "How far it could fall" went (it repeats "What could go wrong?"); the year-by-year table is one press down, behind a button named by what it holds; "What moves the needle" is "What would help" in the home's words; Dates and the stress tests said shorter; one type scale. 1,416 words to 858, 219 figures to 82, 22 text sizes to 6, none under 13 px (654 words were under 12). Panel: what "+2" counts from 1 of 6 to 6 of 6; no worse elsewhere once both table buttons were named by their contents | #88 | "Merge all Tori improvements" |
+
+| 2026-11-27 (begun 26 November) | Benchmark | UK government chart guidance, the Bank of England's fan chart and Wealthfront's planner read from their makers' pages; three patterns ranked. One applied as a subtraction: Details opens on eight pages and the other seven are a layer down behind "More", each named with what it holds; 670 words to 449, 86 controls to 61. Panel: where to say you live in Scotland, 0 of 6 to 6 of 6; "overwhelming" from five of six to none of six. The chart home was read on the two plans it was owed (6 of 6 on both, nothing changed) | #89 | "Merge all Tori improvements" |
 
 **Standing instruction (owner, 21 November 2026):** do not ruin the UX. The
 result must be visually stunning and different as well as simple. Subtract
 the scaffolding, never the picture.
 
-**Next (the plain chart is the home):** read it blind on a comfortable
-plan (nobody has) and with six on a failing one, and read the "you ask
-£3,250" label; then the open
+**Next (27 November):** on the home, one unit for the count and the bad
+case ("the worst 10 times in 100"; a plain name in place of "More often
+than not") and the screen reader's sentence for the chart; on Details,
+where an old pension goes, and the names "pots", "Someday", "Safe
+ladder" and "Drawing" (the tests enter figures by page and field names,
+so it is a cycle of its own). A Leap is due by the manual's count (the
+last was 21 November) and is not to be for the home unless the owner asks.
+
+**Before that (the plain chart is the home):** the reads it was owed are done (above). Then the open
 list in "The chart as the home" (what "runs short" means, "What you ask",
 after tax and today's money one tap away, not as more words). The same
 words across the app: the island, Explore and the report still say

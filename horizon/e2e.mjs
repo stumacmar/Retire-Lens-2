@@ -304,7 +304,15 @@ const answerText = async () => p.$eval('[data-answer]', e => e.innerText).catch(
 // page to be the one on screen. A fixed sleep is a guess: a jump across five
 // pages takes as long as the device needs, and CI is slower than this one.
 const goPage = async t => {
-  if (!(await tapInSheet(t)) && !(await tap(t))) return false;
+  // A page most people need is on the rail. The rest are a layer down: the
+  // rail's "More" lists them, and a row there opens the page.
+  const hit = async (sel, want) => p.evaluate(([s, w]) => { const e = [...document.querySelectorAll(s)].find(x => (x.getAttribute('data-rail-title') ?? x.getAttribute('data-more-row')) === w); if (e) e.click(); return !!e; }, [sel, want]);
+  if (!(await hit('[data-rail-title]', t))) {
+    if (!(await hit('[data-rail-title]', 'More'))) return false;
+    try { await p.waitForFunction(() => document.querySelector('[data-active]')?.getAttribute('data-title') === 'More', null, { timeout: 10000 }); } catch { return false; }
+    await wait(200);
+    if (!(await hit('[data-more-row]', t))) return false;
+  }
   try {
     await p.waitForFunction(want => {
       const el = document.querySelector('[data-active]');

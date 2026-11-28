@@ -58,6 +58,7 @@ answer is a picture that needs no explaining, with almost nothing beside it.
 | 2026-11-24 (Details said shorter, in three sizes) | 65 | 13 | 12 | 4 | 13 px | 0 | 44 | 126 | 670 / 86 | 1,416 / 219 | 186 | 2,572 / 139 |
 | 2026-11-25 (Explore said shorter, in one type scale) | 65 | 13 | 12 | 4 | 13 px | 0 | 44 | 126 | 670 / 86 | 858 / 82 | 186 | 2,014 / 136 |
 | 2026-11-27 (Details opens on eight pages; seven are a layer down) | 65 | 13 | 12 | 4 | 13 px | 0 | 44 | 126 | 449 / 61 | 858 / 82 | 186 | 1,793 / 111 |
+| 2026-11-28 (the bad case said in the count's unit) | 64 | 13 | 12 | 4 | 13 px | 0 | 44 | 126 | 449 / 61 | 858 / 82 | 186 | 1,791 / 111 |
 
 **The chart home (24 November) is over the home's targets for words and
 figures, by the owner's choice of a chart**: 65 words against 60 and 13
@@ -612,6 +613,37 @@ times in 100"); "the unluckiest 10 of 100" (5 of 6: clumsy); "£0" (5 of
 is unclear ("by 94 what?"). Trust is unchanged: "maybe" from all twelve,
 for want of knowing who made it and where the figures go.
 
+**The words for the bad case (28 November 2026).** Every reader of the
+home on 26 November understood "the unluckiest 10 of 100" and "More often
+than not" and most stumbled on them. Three wordings were read blind by
+five fresh readers each (two stills a reader: a couple at 57 in 100 and one
+at 21), then the one shipped by six, one of them on the screen reader's
+text. Truth: at 57, 10 in 100 have run short by 77 and 43 by 94; at 21, at
+least 50 by 80 and 79 by 94; the lower line ends at about £2,050 and never
+reaches nothing.
+
+| | The sentence under the chart | The name on the lower line | Every figure right | Stumbled on the sentence (57 / 21) | Stumbled on the line's name |
+|---|---|---|---|---|---|
+| K, as it was | "In the unluckiest 10 of 100, it runs short by age 77" / "More often than not, it runs short by age 80" | the same phrase | 5 of 5 (at 21, "more than half": nobody could give a number) | 5 of 5 ("ten people or ten tries?") / 5 of 5 (vague; an idiom) | as the sentence |
+| M1 | "In the worst 10 times, …" / "Half the time, …" | "The worst 10 times" / "Half the time" | 5 of 5 | 5 of 5 ("10 times of what?") / 4 of 5 ("half of what?"; "the number says 21 but the words say half") | as the sentence |
+| M2 | "10 times in 100, …" / "50 times in 100, …" | "10 times in 100" / "50 times in 100" | 5 of 5, and the 10 and the 50 read off, not guessed | 2 of 5 / 1 of 5 | 3 of 5 ("does that mean 10 in 100 get £2,050?") |
+| N, as shipped | M2's | "The worst 10 times in 100" / "The middle case" | 6 of 6 | 1 of 6 on the count ("times what, years or goes?") / 0 of 6 | 5 of 6 on "worst" ("worst by what measure?"), none on "The middle case" |
+
+The count's own unit won for the sentence, and lost as the name of a line:
+on the chart a count was not taken for a case. The line is now named in the
+words the readers used unprompted ("the middle case" or "the middle
+one", ten of fifteen; "the worst 10"). Where there is no lower line the chart says "The worst 10 times
+in 100: paid in full". For a screen reader the chart's sentence was "You
+ask £5,300, and £3,980 by 94" ("by 94 what?"; one took the second figure
+for what they would get) and is "You ask £5,300 a month at first and £3,980
+later. In the middle case, that is paid in full until 80, then about £2,050
+a month until 94."; the reader on it had every figure right. One word for
+the wording did not move (K: Confusing ×2, Hedgy, Plain, Vague; N: Plain
+×3, Confusing ×2, Muddled), because what is left is the same in every
+version: "runs short" (short of what, and to nothing or to less? sixteen of
+twenty-one), "What you ask" and "you ask £3,250" (ask whom? thirteen), and
+"Someday".
+
 Still open on this screen: "times in 100" is still "odd" to most; "the
 unluckiest 10 of 100" (people or outcomes?); "What you ask" ("it sounds as
 if someone is asking me for money"; "I would say what you want to spend");
@@ -874,6 +906,14 @@ Learned on this product, from the panels (each with its evidence above):
     row was found by nobody; back on it, by everyone, with the worry.
 23. **"Set for you" asks to be trusted; "most people leave these" does
     not.** The first drew "by whom?" from three of three.
+24. **Say the number, not a phrase for it; name a line, do not number
+    it.** "50 times in 100" was stumbled on by one of eleven; "More often
+    than not" and "Half the time" by nine of ten. But "10 times in 100" on
+    the line itself was not read as a case by three of five: a line wants
+    the name of its case.
+25. **Understood is not the same as read without a stumble.** Three
+    wordings scored the same on every figure; they differed only in what
+    was read twice. Ask for the words stumbled on, and count them.
 
 Still hypotheses: for money, people trust the form they already know over
 a new one, and dull is no fault (the council; simulated);
@@ -961,11 +1001,15 @@ as it stands"; at 97 it is all but full and says "Yes, on track".
 
 | 2026-11-27 (begun 26 November) | Benchmark | UK government chart guidance, the Bank of England's fan chart and Wealthfront's planner read from their makers' pages; three patterns ranked. One applied as a subtraction: Details opens on eight pages and the other seven are a layer down behind "More", each named with what it holds; 670 words to 449, 86 controls to 61. Panel: where to say you live in Scotland, 0 of 6 to 6 of 6; "overwhelming" from five of six to none of six. The chart home was read on the two plans it was owed (6 of 6 on both, nothing changed) | #89 | "Merge all Tori improvements" |
 
+| 2026-11-28 | Subtract (the home's words) | The bad case is said in the count's own unit: "10 times in 100, it runs short by age 77" and "50 times in 100, …" for "In the unluckiest 10 of 100, …" and "More often than not, …", on the home, the moon home's button and "What could go wrong?"; the lower line is named "The worst 10 times in 100" or "The middle case"; the screen reader's sentence for the chart says the two asked amounts plainly. Three wordings read blind by five each, the one shipped by six: every figure right in all four, the stumbles on the failing plan's sentence from five of five to none of six. Home 65 words to 64. A Leap was due by the count from 21 November; the council and the chart home of 23 and 24 November were that week's, and the next is due by 1 December, not for the home unless the owner asks. #88 and #89 were still open, so no file of theirs but the ledger, `CLAUDE.md`, `uat.mjs` and `sw.js` was touched | #90 | "Merge all Tori improvements" |
+
 **Standing instruction (owner, 21 November 2026):** do not ruin the UX. The
 result must be visually stunning and different as well as simple. Subtract
 the scaffolding, never the picture.
 
-**Next (27 November):** on the home, one unit for the count and the bad
+**Next (28 November):** on the home, "runs short" (to less, not to nothing: the chart says it and the words do not) and "What you ask" ("what you want to spend" was the readers' phrase; the label is also the stepper's, "Live on each month"). Each is a wording to read blind against the present one, as on the 28th. The moon home's own lines still say "the unluckiest 10" and are left: it is an alternative, not to be worked on. A Leap is due by 1 December and is not to be for the home unless the owner asks: the candidate is how figures are put in (Details), where every panel still says "a lot of forms".
+
+**Before that (27 November; its first item, the home's unit for the bad case, was done on the 28th):** on the home, one unit for the count and the bad
 case ("the worst 10 times in 100"; a plain name in place of "More often
 than not") and the screen reader's sentence for the chart; on Details,
 where an old pension goes, and the names "pots", "Someday", "Safe

@@ -198,7 +198,9 @@ island are alternatives). The same count, sentence and verdict as the moon
 home, over one chart of monthly income by age, in today's money. The upper
 line is what the plan asks each year (`rows[].planTarget`, deflated, a
 twelfth). The lower line is the case the sentence under the chart names
-(`lib/shortBy.ts`): where the count is 50 or more, what the unluckiest 10
+(`lib/shortBy.ts`; said since 28 November 2026 as "10 times in 100, it runs
+short by age N" or "50 times in 100, …", and on the line as "The worst 10
+times in 100" or "The middle case"): where the count is 50 or more, what the unluckiest 10
 of 100 futures are paid that year (the 10th percentile of
 `perAgePaid` times the ask); where it is under 50, what the middle case is
 paid (the 50th percentile). Before the age that sentence gives, the lower

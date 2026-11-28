@@ -97,8 +97,10 @@ export default function ChartHome({ header, years, structured, pending, steps, o
     const under = `${low} L100,100 L0,100 Z`;
     return { ask, low, gap: `${ask} ${back} Z`, first: years[0].ask!, end, endPaid, endY: Y(end), askY: Y(years[0].ask!), lastAsk, lastAskY: Y(lastAsk), ticks, under, at: shortBy ? X(shortBy.age) : null, a0, a1: years[n - 1].age };
   }, [years, n, shortBy]);
-  const who = shortBy?.often ? 'More often than not' : 'The unluckiest 10 of 100';
-  const said = !g ? '' : shortBy ? `${who}: about ${gbp(g.endPaid)} a month` : 'Even the unluckiest 10 of 100 are paid in full';
+  // The line is named for its case, in the readers' own words ("the middle case", "the worst 10"): the count alone
+  // on the line ("10 times in 100: about £2,050") was not taken for a case by three of five.
+  const who = shortBy?.often ? 'The middle case' : 'The worst 10 times in 100';
+  const said = !g ? '' : shortBy ? `${who}: about ${gbp(g.endPaid)} a month` : 'The worst 10 times in 100: paid in full';
   // The rows one press down: the day you stop, each fifth birthday (each tenth on a long retirement) and the last year.
   const rows = useMemo(() => {
     const pick = (every: number) => years.filter((y, i) => i === 0 || i === n - 1 || (y.age % every === 0 && i >= 3 && i <= n - 4));
@@ -127,7 +129,7 @@ export default function ChartHome({ header, years, structured, pending, steps, o
         </section>
 
         {/* What you would live on each month, at each age. The words on it are read out once, as its name. */}
-        <div data-chart role="img" aria-label={g ? `What you would live on each month, in today's money. You ask ${gbp(g.first)}${g.lastAsk < g.first - 25 ? `, and ${gbp(Math.round(g.lastAsk / 10) * 10)} by ${g.a1}` : ''}. ${shortBy ? `${shortBy.often ? 'More often than not' : 'In the unluckiest 10 of 100'}, that is paid in full until ${shortBy.age}, then about ${gbp(g.endPaid)} a month` : said}.` : undefined}
+        <div data-chart role="img" aria-label={g ? `What you would live on each month, in today's money. You ask ${gbp(g.first)} a month${g.lastAsk < g.first - 25 ? ` at first and ${gbp(Math.round(g.lastAsk / 10) * 10)} later` : ''}. ${shortBy ? `${shortBy.often ? 'In the middle case' : 'In the worst 10 times in 100'}, that is paid in full until ${shortBy.age}, then about ${gbp(g.endPaid)} a month until ${g.a1}` : said}.` : undefined}
           className="relative min-h-[150px] max-h-[380px] mt-3" style={{ flex: '100 1 0%' }}>
           {g && <div aria-hidden="true" className="absolute inset-0 text-[0.8125rem] leading-tight" style={{ top: '1.5rem', bottom: '1.35rem' }}>
             <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="absolute inset-0 w-full h-full" style={{ overflow: 'visible' }}>
@@ -181,10 +183,10 @@ export default function ChartHome({ header, years, structured, pending, steps, o
     {/* Outside the fixed home, or it would slide under the tab bar. */}
     <Sheet open={open} onClose={() => setOpen(false)} title="The years ahead">
       {open && <div data-chart-table>
-        <p className="text-[0.875rem] leading-snug mb-1" style={{ color: 'var(--color-ink-dim)' }}>How often the money still lasts at each age, and what the unluckiest 10 of 100 are paid a month.</p>
+        <p className="text-[0.875rem] leading-snug mb-1" style={{ color: 'var(--color-ink-dim)' }}>How often the money lasts at each age, and what the worst 10 times in 100 are paid a month.</p>
         <table className="w-full text-[1rem] tnum">
           <thead><tr className="text-[0.8125rem] text-left" style={{ color: 'var(--color-ink-dim)' }}>
-            <th scope="col" className="font-semibold py-2 pr-2">At</th><th scope="col" className="font-semibold py-2 pr-2">Times in 100</th><th scope="col" className="font-semibold py-2 text-right">Unluckiest 10</th>
+            <th scope="col" className="font-semibold py-2 pr-2">At</th><th scope="col" className="font-semibold py-2 pr-2">Times in 100</th><th scope="col" className="font-semibold py-2 text-right">Worst 10</th>
           </tr></thead>
           <tbody>{rows.map(y => (
             <tr key={y.age} data-year={y.age} style={{ borderTop: '1px solid var(--color-hairline)' }}>

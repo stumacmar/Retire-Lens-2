@@ -9,6 +9,7 @@ Word for word, newest first. These outrank any score.
 
 | Date | About | The owner said |
 |---|---|---|
+| 2026-11-28 | with a brief on the competitor Isaac (the gap audit is `docs/competitor-isaac.md`; the manual now carries this as a standing job) | "The one thing about Isaac is that it's UX isn't intuitive - ensure ours is world class as part of our agents ongoing work" |
 | 2026-11-28 | three Scout pull requests waiting: #88 (Explore), #89 (Details), #90 (the home's words) | "Merge all Tori improvements" (taken as "all three") |
 | 2026-11-24 | the council's verdict: a plain chart under the count in place of the moon, shown as two sketches | "Build it" |
 | 2026-11-23 | the home's pictures, two days after choosing the moon | "Do you know what perhaps the lantern and island and the moon are too gimmicky - gather the council please" |

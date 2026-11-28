@@ -303,10 +303,10 @@ await p.waitForFunction(() => document.querySelectorAll('[role=dialog][aria-labe
   await check('17b4 the futures row says what the home says: the count, the age you are when the plan ends, and the bad case as an age, from the engine\'s per-age counts', async () => {
     const q0 = await planOf(), q = { ...q0, growth: q0.growthBase ?? q0.growth }, m = E.runMonteCarlo(q, 2000, q.mcSeed || 42), H = m.perAgeHeld, last = H[H.length - 1], count = Math.round(m.successProb * 100);
     const t = (await risk.locator('[data-risk="futures"]').innerText()).replace(/\s+/g, ' ');
-    const said = t.match(/(\d+) times in 100, the money lasts until you are (\d+)\. (In the unluckiest 10 of 100, it runs short by age (\d+)(, falling to about £[\d,]+ a month)?\.|More often than not, it runs short by age (\d+)\.|Even the unluckiest 10 of 100 are paid in full\.)$/);
+    const said = t.match(/(\d+) times in 100, the money lasts until you are (\d+)\. (10 times in 100, it runs short by age (\d+)(, falling to about £[\d,]+ a month)?\.|50 times in 100, it runs short by age (\d+)\.|The worst 10 times in 100 are paid in full\.)$/);
     const often = count < 50, hit = H.find(v => (often ? v.full < 0.5 : v.full <= 0.9)), cut = often ? 0.5 : 0.9, edge = Math.abs(count - 50) <= 1 || H.some(v => Math.abs(v.full - cut) < 0.006);
     const age = said ? Number(said[4] || said[6]) : null;
-    const ok = !!said && Math.abs(Number(said[1]) - count) <= 1 && Number(said[2]) === last.age && (edge || (hit ? Math.abs(age - hit.age) <= 1 && (often ? !!said[6] : !!said[4]) : /Even the unluckiest/.test(said[3])));
+    const ok = !!said && Math.abs(Number(said[1]) - count) <= 1 && Number(said[2]) === last.age && (edge || (hit ? Math.abs(age - hit.age) <= 1 && (often ? !!said[6] : !!said[4]) : /The worst 10 times in 100 are paid in full/.test(said[3])));
     if (!ok) console.log(`  17b4: "${t}", engine count ${count} to ${last.age}, short by ${hit ? hit.age : 'never'}`);
     return ok; });
   await check('17b5 scenarios, not predictions', async () => /Scenarios, not predictions/.test(await risk.innerText()));
@@ -1125,9 +1125,9 @@ const openMap = async () => { await closeSheet(); await tap('Explore'); await wa
       return ok; });
     await check('176b moon home: the bad case is said as an age, from the same counts as the row, and it is the way in to the years', async () => {
       const label = (await h.$eval('[data-moon-years]', e => e.innerText)).replace(/\s+/g, ' ').trim(), by = await h.getAttribute('[data-moon-years]', 'data-short-by');
-      const said = label.match(/^(In the unluckiest 10 of 100|More often than not), it runs short by age (\d+) ›$/);
+      const said = label.match(/^(10|50) times in 100, it runs short by age (\d+) ›$/);
       const ok = X.shortBy
-        ? (!!said && said[1] === (X.shortBy.often ? 'More often than not' : 'In the unluckiest 10 of 100') && Math.abs(Number(said[2]) - X.shortBy.age) <= 1 && by === said[2]) || X.edge
+        ? (!!said && said[1] === (X.shortBy.often ? '50' : '10') && Math.abs(Number(said[2]) - X.shortBy.age) <= 1 && by === said[2]) || X.edge
         : label === 'The years ahead ›' || X.edge;
       if (!ok) console.log(`  176b: "${label}", engine ${JSON.stringify(X.shortBy)}`);
       return ok; });
@@ -1305,9 +1305,9 @@ const openMap = async () => { await closeSheet(); await tap('Explore'); await wa
       const sb = await C('data-short-by'), paid = await C('data-end-paid'), said = await txt('[data-chart-said]'), btn = await txt('[data-chart-years]'), low = (await c.$('[data-chart-low]')) != null;
       if (X.edge) return true;
       let ok;
-      if (!X.shortBy) ok = sb === '' && !low && said === 'Even the unluckiest 10 of 100 are paid in full' && btn.startsWith('The years ahead');
-      else { const u = X.shortBy.often ? null : X.unlucky(X.toAge), who = X.shortBy.often ? 'More often than not' : 'The unluckiest 10 of 100';
-        ok = sb === String(X.shortBy.age) && low && said.startsWith(`${who}: about £`) && said.endsWith('a month') && btn.includes(`it runs short by age ${X.shortBy.age}`) && (typeof u !== 'number' || Math.abs(Number(paid) - u) <= 50); }
+      if (!X.shortBy) ok = sb === '' && !low && said === 'The worst 10 times in 100: paid in full' && btn.startsWith('The years ahead');
+      else { const u = X.shortBy.often ? null : X.unlucky(X.toAge), who = X.shortBy.often ? 'The middle case' : 'The worst 10 times in 100';
+        ok = sb === String(X.shortBy.age) && low && said.startsWith(`${who}: about £`) && said.endsWith('a month') && btn.startsWith(`${X.shortBy.often ? 50 : 10} times in 100, it runs short by age ${X.shortBy.age}`) && (typeof u !== 'number' || Math.abs(Number(paid) - u) <= 50); }
       if (!ok) console.log(`  189: short by "${sb}" paid "${paid}" said "${said}" button "${btn}", engine ${JSON.stringify(X.shortBy)} ${X.shortBy && !X.shortBy.often ? X.unlucky(X.toAge) : ''}`);
       return ok; });
     await check('190 chart home: the first screen is the count, the verdict, one chart, two steppers and two questions: 80 words or fewer, 12 controls or fewer, "times in 100" and never "futures"', async () => {
@@ -1332,7 +1332,7 @@ const openMap = async () => { await closeSheet(); await tap('Explore'); await wa
       if (!ok) console.log(`  192: rows ${JSON.stringify(rows)} engine ${JSON.stringify(X.years)}`);
       await c.keyboard.press('Escape'); await cw(600);
       return ok; });
-    await check('193 chart home: a stepper writes the plan and the count follows the engine; a typed figure far too high turns the chart to "More often than not", and typing the old figure restores it', async () => {
+    await check('193 chart home: a stepper writes the plan and the count follows the engine; a typed figure far too high turns the chart to "The middle case", and typing the old figure restores it', async () => {
       const was = (await planC()).targetNet;
       await c.getByRole('button', { name: 'Live on each month: £100 more' }).click(); await cw(600); await ready(); await cw(400);
       const q1 = await planC(), x1 = engineOf(q1), n1 = Number(await C('data-count'));
@@ -1340,7 +1340,7 @@ const openMap = async () => { await closeSheet(); await tap('Explore'); await wa
       await type(Math.round(was / 12 * 2.2));
       const q2 = await planC(), n2 = Number(await C('data-count')), said2 = await txt('[data-chart-said]'), btn2 = await txt('[data-chart-years]');
       await type(Math.round(was / 12)); const back = (await planC()).targetNet;
-      const ok = q1.targetNet === was + 1200 && Math.abs(n1 - x1.count) <= 1 && q2.targetNet > was * 2 && (n2 >= 50 || (said2.startsWith('More often than not: about £') && btn2.startsWith('More often than not, it runs short by age'))) && Math.abs(back - was) <= 12;
+      const ok = q1.targetNet === was + 1200 && Math.abs(n1 - x1.count) <= 1 && q2.targetNet > was * 2 && (n2 >= 50 || (said2.startsWith('The middle case: about £') && btn2.startsWith('50 times in 100, it runs short by age'))) && Math.abs(back - was) <= 12;
       if (!ok) console.log(`  193: ${was} -> ${q1.targetNet} shows ${n1} engine ${x1.count}; high ${q2.targetNet} shows ${n2} "${said2}"; back ${back}`);
       return ok; });
     await check('194 chart home: at 390×844, 390×660, 375×667, 360×780 and 360×640 it all fits one screen above the tab bar, nothing scrolls, and the chart keeps its height', async () => {

@@ -69,7 +69,7 @@ export default function RiskPanel({ plan, mc, rails, unlucky = null }: {
         <span className="block text-[0.875rem] leading-snug mt-0.5" style={{ color: 'var(--color-ink-dim)' }}>
           {mc && count != null ? <><b className="tnum">{count} times in 100</b>, the money lasts until you are {toAge}.{' '}
             {/* "Runs short" is not "runs out": four of six blind readers took it for nothing at all, so it says what is still paid. */}
-            {shortBy ? <span data-risk-short>{shortBy.line}{!shortBy.often && typeof unlucky === 'number' ? <>, falling to about <b className="tnum">{fmt(unlucky)}</b> a month</> : null}.</span> : <span data-risk-short>Even the unluckiest 10 of 100 are paid in full.</span>}</>
+            {shortBy ? <span data-risk-short>{shortBy.line}{!shortBy.often && typeof unlucky === 'number' ? <>, falling to about <b className="tnum">{fmt(unlucky)}</b> a month</> : null}.</span> : <span data-risk-short>The worst 10 times in 100 are paid in full.</span>}</>
             : 'Working out the futures.'}
         </span>
       </div>

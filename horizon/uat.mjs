@@ -369,8 +369,15 @@ for (const [t, m] of [['Details', 'Your details'], ['Explore', 'Explore'], ['Wor
 
 // The deeper views live in Explore.
 await closeSheet(); await tap('Explore'); await wait(900);
-await p.waitForFunction(() => /Japan, 1990 on/.test(document.getElementById('explore-fall')?.textContent || ''), null, { timeout: 8000 }).catch(() => {});
-await check('29d guardrails from real bad histories, in Explore', async () => /Japan, 1990 on/.test(await p.locator('#explore-fall').innerText()));
+await check('29d the bad histories are said once, in "What could go wrong?": Explore no longer repeats them, and its year-by-year table waits behind one button (Scout, 25 November 2026)', async () =>
+  (await p.$('#explore-fall')) == null && !/How far it could fall/.test(await bodyT()) && (await p.locator('[data-years-toggle]').count()) <= 1);
+await check('29e Explore: no text is set under 13 px, and the button "Each year: what you start with, take out and have left" opens the year-by-year table', async () => {
+  const px = await p.evaluate(() => { const d = document.querySelector('[role=dialog]'); let m = 99; const w = document.createTreeWalker(d, NodeFilter.SHOW_TEXT);
+    for (let n = w.nextNode(); n; n = w.nextNode()) { if (!n.nodeValue.trim() || n.parentElement.closest('.sr-only')) continue; const r = n.parentElement.getBoundingClientRect(); if (r.width < 1) continue; m = Math.min(m, parseFloat(getComputedStyle(n.parentElement).fontSize)); } return Math.round(m * 10) / 10; });
+  const tog = p.locator('[data-years-toggle]'); let opened = true;
+  if (await tog.count()) { await tog.click(); await wait(500); opened = (await p.locator('[aria-label="Year by year table, scrolls sideways"]').count()) === 1 && (await tog.count()) === 0; }
+  if (!(px >= 13 && opened)) console.log(`  29e: smallest ${px}px, table opened ${opened}`);
+  return px >= 13 && opened; });
 await check('29e the edge: every retirement, in Explore', () => has('Every retirement you could choose'));
 await closeSheet();
 // The island: at rest it says how short the bad futures are; touch the land,
@@ -501,7 +508,7 @@ await tap('Show as a map'); await wait(400);
 await check('55g back to the map: the canvas is shown again', async () => (await p.$eval('#explore-map canvas', e => getComputedStyle(e.parentElement).display)) !== 'none');
 await check('56 Monte-Carlo fan renders', () => has('Range of futures'));
 await check('57 income breakdown', () => has('Where your income comes from'));
-await check('56b decision levers ranked (What moves the needle)', async () => (await has('What moves the needle')) && /pts/.test(await bodyT()));
+await check('56b decision levers ranked, in the home\'s words (What would help: times in 100, not points)', async () => (await has('What would help')) && /How many more times in 100 the money would last/.test(await bodyT()) && !/\bpts\b|points of confidence/.test(await bodyT()));
 await check('56c stress tests headline', async () => (await has('Stress tests')) && /stress tests/.test(await bodyT()));
 await check('57b dates that matter (personal timeline)', async () => (await has('Dates that matter')) && /State Pension starts, at 67/.test(await bodyT()));
 await check('58 svg present', () => $('svg'));
@@ -519,7 +526,7 @@ await check('65c futures: the range is named as sampling error only, not assumpt
 // Counts and the plan are compared exactly. Money left is compared within 2% and a rounding step: the same
 // plan differs by up to 0.4% between the browser's JavaScript engine and node's (e2e150 check J), and at a
 // percentile that can move the pick to the neighbouring future (1.07% seen at a 10th percentile).
-await check('65d futures: "Show every year as a table" gives one row a year, and every figure is the engine\'s', async () => {
+await check('65d futures: "Each year: how many times in 100 it pays in full" gives one row a year, and every figure is the engine\'s', async () => {
   const q0 = E.migratePlan(await planOf()), q = { ...q0, growth: q0.growthBase ?? q0.growth }, m = E.runMonteCarlo(q, 2000, q.mcSeed || 42), rows = E.drawdown(q).rows;
   await p.locator('[data-futures-table-toggle]').click(); await wait(500);
   const got = await p.$$eval('[data-futures-table] tbody tr', trs => trs.map(tr => [...tr.children].map(c => c.textContent.trim())));
@@ -736,7 +743,7 @@ await check('106 free: lifetime-tax card stays free', () => has('Lifetime income
 await check('107 free: estate picture is locked', () => has('The estate picture'));
 await check('108 free: withdrawal order locked', async () => /Withdrawal order & tax/.test(await bodyT()) && !(await has('lowest lifetime tax')));
 await check('109 free: year-by-year locked with a preview', () => has('Every year, in full'));
-await check('109b free: top lever shown, rest behind Plus', async () => (await has('What moves the needle')) && /more levers? measured/.test(await bodyT()));
+await check('109b free: top lever shown, rest behind Plus', async () => (await has('What would help')) && /more levers? measured/.test(await bodyT()));
 await check('109c free: stress headline shown, table behind Plus', async () => (await has('Stress tests')) && /The full table/.test(await bodyT()));
 await check('110 free: lock opens the Plus sheet', async () => { await p.getByRole('button', { name: 'See what Plus adds' }).first().click(); await wait(700); return has('Already have a licence key?'); });
 await check('111 free: both prices shown', async () => (await has('£49')) && (await has('£129')));

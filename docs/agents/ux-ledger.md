@@ -55,6 +55,7 @@ answer is a picture that needs no explaining, with almost nothing beside it.
 | 2026-11-23 ("What would help?" in the home's words) | 38 | 5 | 12 | 4 | 13 px | 0 | 44 | 126 | 909 / 86 | 1,424 / 219 | 186 | 2,765 / 138 |
 | 2026-11-24 (the plain chart is the home; owner: "Build it") | 65 | 13 | 12 | 4 | 13 px | 0 | 44 | 126 | 909 / 86 | 1,416 / 219 | 186 | 2,811 / 139 |
 | 2026-11-24 (Details said shorter, in three sizes) | 65 | 13 | 12 | 4 | 13 px | 0 | 44 | 126 | 670 / 86 | 1,416 / 219 | 186 | 2,572 / 139 |
+| 2026-11-25 (Explore said shorter, in one type scale) | 65 | 13 | 12 | 4 | 13 px | 0 | 44 | 126 | 670 / 86 | 858 / 82 | 186 | 2,014 / 136 |
 
 **The chart home (24 November) is over the home's targets for words and
 figures, by the owner's choice of a chart**: 65 words against 60 and 13
@@ -552,6 +553,47 @@ of five said "maybe" and one "no", none "yes", for want of knowing who
 made it and where the figures go. That last is the same on every screen
 this app has had.
 
+### Explore (25 November 2026): 1,416 words, 219 figures, 22 text sizes, smallest 10.2 px, 654 words under 12 px
+
+One sheet of seven sections under a strip of chips. The cycle took the two
+lowest rungs (remove; say it shorter) and the type. Nothing the model
+computes went: every figure that left the screen is still in "What could go
+wrong?", the report or the table one press down.
+
+| Section | What went or changed |
+|---|---|
+| How far it could fall (`Guardrails`) | Gone: it drew the market histories that "What could go wrong?" already says, as bars in other words and other numbers |
+| What moves the needle | "What would help", in the home's words: "Live on £250 a month less", "Stop work at 65", "+2" (not "+2 pts"), one line for what it counts ("How many more times in 100 the money would last, give or take two") |
+| Dates that matter | Each note said in one line or dropped ("Check yours at gov.uk/check-state-pension. Deferring adds about 5.8% a year for life.") |
+| Stress tests | The note under each row only where it names the market's shape; one closing line for all of them |
+| Year by year | Behind a button, "Each year: what you start with, take out and have left ›"; the Futures table's button is "Each year: how many times in 100 it pays in full ›", so the two cannot be taken for each other |
+| Type | 22 sizes from 10.2 px to 6: 13, 14, 16, 21.6, 24 and 27.2 px, Details' scale |
+
+**Panel** (six fresh readers a version on the whole sheet; K before, M
+after, then three and two readers on the table buttons as renamed).
+
+| | What "+2" counts | State Pension: year and the check | Stress tests: how many, the hardest | Where the plan is year by year | One word |
+|---|---|---|---|---|---|
+| K (1,416 words) | 1 of 6 sure ("pts", "points of confidence": five guessed) | 6 of 6 | 6 of 6 | 6 of 6 (the table at the foot) | overwhelming ×2, heavy ×2, dense ×2 |
+| M (848) | 6 of 6, quoting the line | 6 of 6 | 6 of 6 | 0 of 6 could say what the button held ("Show every year as a table", twice on the sheet) | dense ×4, busy, crowded |
+| N, P (renamed buttons) | | | | 5 of 5 pressed the right one, "fairly sure"; with both renamed, 2 of 2 told the two tables apart ("a yearly list of percentages, so it isn't the money") | crowded ×3, cluttered ×2 |
+
+Read in about the same time (K 5 to 10 minutes, M 3 to 10). Every reader
+of both versions still listed terms they did not know, and the lists hardly
+changed: "Monte Carlo", "pctile", "sampling error on 2,000 paths", "Weighted
+by how long you are likely to be here", "Pensions to free allowances only,
+then ISA", "bear rate", "inheritance tax — often reducible". Three of six
+said the Home picture choice (the moon, the island, the Lantern) did not
+belong ("It looks like a toy"). The screen reader user cannot use the map
+("Drag the dot"; "Show as a table" is said three times).
+
+Still open on Explore: the Futures section's vocabulary (Monte Carlo,
+percentiles, "hold", three different success figures: 96, "about 95%" and
+"about 97%"); the map's key and its table; the Home picture block; the tax
+section's withdrawal orders, named as the engine names them; the chip strip
+runs off the screen ("S…", 2 of 12). The engineer: the futures chart has no
+axes, and "Left to your family" does not match the table's closing figure.
+
 ## Benchmarks
 
 The first under version 2, 23 November 2026. None of the three was run:
@@ -776,7 +818,9 @@ as it stands"; at 97 it is all but full and says "Yes, on track".
 
 | 2026-11-24 | The plain chart home (owner-driven) | `ChartHome.tsx` is the default home: the moon's words over one chart of monthly income (what you ask; what the unlucky are paid), the years as a table one press down; the moon and the island in Explore. Read blind three times and changed after each: at 70 in the bad case 0 of 6, then 3 of 6, then 5 of 5; at 80, 5 of 5; nobody read the bad case as nothing. The home is over its targets for words and figures (65 and 13) | merged by the owner's standing instruction | — |
 
-| 2026-11-24 | Subtract (Details) | Every page said shorter and set in three sizes: 909 words to 670, fourteen text sizes to four, none under 13 px (257 words were), hints in a darker ink; "The lens" is "Growth rates". Panel: no worse on any question, and still "dense": the trouble is the vocabulary and the fourteen pages | this pull request | — |
+| 2026-11-24 | Subtract (Details) | Every page said shorter and set in three sizes: 909 words to 670, fourteen text sizes to four, none under 13 px (257 words were), hints in a darker ink; "The lens" is "Growth rates". Panel: no worse on any question, and still "dense": the trouble is the vocabulary and the fourteen pages | #86 | "Merge" |
+
+| 2026-11-25 | Subtract (Explore) | "How far it could fall" went (it repeats "What could go wrong?"); the year-by-year table is one press down, behind a button named by what it holds; "What moves the needle" is "What would help" in the home's words; Dates and the stress tests said shorter; one type scale. 1,416 words to 858, 219 figures to 82, 22 text sizes to 6, none under 13 px (654 words were under 12). Panel: what "+2" counts from 1 of 6 to 6 of 6; no worse elsewhere once both table buttons were named by their contents | this pull request | — |
 
 **Standing instruction (owner, 21 November 2026):** do not ruin the UX. The
 result must be visually stunning and different as well as simple. Subtract
@@ -789,9 +833,9 @@ list in "The chart as the home" (what "runs short" means, "What you ask",
 after tax and today's money one tap away, not as more words). The same
 words across the app: the island, Explore and the report still say
 "futures" and take their verdict from `planStatus`. Then Details again, this time its structure (the pages most people need
-first, the rest a layer down) and its vocabulary, and Explore (1,416
-words, 21 text sizes, 654 words under 12 px), where the type scale used on
-Details would apply as it stands. The moon and the
+first, the rest a layer down) and its vocabulary, and Explore's Futures
+section in the home's words (one success figure, not three; no "Monte
+Carlo" or "pctile"), the list under "Explore" above. The moon and the
 island are alternatives now, not to be worked on; once the chart has been
 lived with, ask the owner whether they should go. No Leap for the home
 unless the owner asks for one.

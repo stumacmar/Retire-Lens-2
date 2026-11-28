@@ -21,18 +21,18 @@ export default function FuturesTable({ plan, rows, mc }: { plan: any; rows: any[
   return (
     <div className="mt-3">
       <button type="button" data-futures-table-toggle aria-expanded={open} onClick={() => setOpen(o => !o)}
-        className="w-full min-h-[44px] rounded-xl text-[0.84rem] font-semibold"
+        className="w-full min-h-[44px] rounded-xl text-[0.875rem] font-semibold"
         style={{ background: 'var(--color-surface)', border: '1px solid var(--color-hairline)', color: 'var(--color-ink)' }}>
-        {open ? 'Hide the year-by-year table' : 'Show every year as a table'}
+        {open ? 'Hide the times in 100, year by year' : 'Each year: how many times in 100 it pays in full ›'}
       </button>
       {open && model && (
         <>
-          <p className="text-[0.74rem] leading-snug mt-2" style={{ color: 'var(--color-ink-dim)' }}>
+          <p className="text-[0.875rem] leading-snug mt-2" style={{ color: 'var(--color-ink-dim)' }}>
             Of 100 simulated futures, for each year: how many pay that year’s plan in full and how many fall short.
             Then the money left at the end of the year, in today’s money.
           </p>
           <div className="overflow-x-auto rounded-xl mt-2" tabIndex={0} role="region" aria-label="The futures, year by year, as a table; scrolls sideways" data-futures-table style={{ background: 'var(--color-surface)' }}>
-            <table className="w-full text-[0.72rem] tnum" style={{ borderCollapse: 'collapse', minWidth: 420 }}>
+            <table className="w-full text-[0.8125rem] tnum" style={{ borderCollapse: 'collapse', minWidth: 420 }}>
               <caption className="sr-only">For each year of the plan: the planned spend, how many of 100 simulated futures pay it in full and how many fall short, and the money left in the unluckiest 1 in 10, the middle and the luckiest 1 in 10 futures.</caption>
               <thead>
                 <tr style={{ color: 'var(--color-ink-faint)' }}>
@@ -62,7 +62,7 @@ export default function FuturesTable({ plan, rows, mc }: { plan: any; rows: any[
               </tbody>
             </table>
           </div>
-          <p className="text-[0.7rem] leading-snug mt-1.5" style={{ color: 'var(--color-ink-faint)' }}>
+          <p className="text-[0.8125rem] leading-snug mt-1.5" style={{ color: 'var(--color-ink-faint)' }}>
             Each count is to the nearest 5 of 100, for that year alone: a future can pay in full one year and fall short the next. “Unlucky” and “lucky” are the 10th and 90th of 100 futures.
           </p>
         </>

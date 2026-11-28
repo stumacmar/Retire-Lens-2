@@ -8,8 +8,6 @@ import Sheet from './components/Sheet';
 import Onboarding from './components/Onboarding';
 import PlanForm from './components/PlanForm';
 import SimpleHome from './components/SimpleHome';
-import { useInsight } from './lib/useInsight';
-import type { Rail } from './lib/insights';
 import DecisionMap from './components/DecisionMap';
 import PrintReport from './components/PrintReport';
 import { Segmented } from './components/Field';
@@ -201,12 +199,12 @@ function YearDetail({ plan, acc, dd, year }: { plan: any; acc: Accum; dd: Drawdo
 
   const Line = ({ k, v, tone, strong }: { k: string; v: string; tone?: string; strong?: boolean }) => (
     <div className="flex items-baseline justify-between py-1.5" style={{ borderTop: '1px solid var(--color-hairline)' }}>
-      <span className={`text-[0.88rem] ${strong ? 'font-bold' : ''}`} style={{ color: strong ? 'var(--color-ink)' : 'var(--color-ink-dim)' }}>{k}</span>
-      <span className={`tnum text-[0.95rem] ${strong ? 'font-extrabold' : 'font-semibold'}`} style={{ color: tone || 'var(--color-ink)' }}>{v}</span>
+      <span className={`text-[0.875rem] ${strong ? 'font-bold' : ''}`} style={{ color: strong ? 'var(--color-ink)' : 'var(--color-ink-dim)' }}>{k}</span>
+      <span className={`tnum text-[1rem] ${strong ? 'font-extrabold' : 'font-semibold'}`} style={{ color: tone || 'var(--color-ink)' }}>{v}</span>
     </div>
   );
   const Cap = ({ children }: { children: React.ReactNode }) => (
-    <h3 className="text-[0.7rem] font-bold uppercase tracking-widest mt-4 mb-1" style={{ color: 'var(--color-ink-faint)' }}>{children}</h3>
+    <h3 className="text-[0.8125rem] font-bold uppercase tracking-widest mt-4 mb-1" style={{ color: 'var(--color-ink-faint)' }}>{children}</h3>
   );
 
   if (r) {
@@ -215,7 +213,7 @@ function YearDetail({ plan, acc, dd, year }: { plan: any; acc: Accum; dd: Drawdo
     const tax = D(r.tax);
     return (
       <div className="pb-2">
-        <p className="text-[0.9rem] -mt-2 mb-1" style={{ color: 'var(--color-ink-dim)' }}>
+        <p className="text-[0.875rem] -mt-2 mb-1" style={{ color: 'var(--color-ink-dim)' }}>
           {plan.partnerA.name} is {ageA}, {plan.partnerB.name} is {ageB}. All figures in today's money.
         </p>
         <Cap>The year's income</Cap>
@@ -240,7 +238,7 @@ function YearDetail({ plan, acc, dd, year }: { plan: any; acc: Accum; dd: Drawdo
           tone={r.fundedRatio < 0.9 ? 'var(--color-hope)' : 'var(--color-sage-strong)'} />}
         {r.spendMult != null && Math.abs(r.spendMult - 1) > 0.001 &&
           <Line k="Spending rule in force" v={`×${r.spendMult.toFixed(2)}`} tone="var(--color-hope)" />}
-        <p className="mt-3 text-[0.75rem]" style={{ color: 'var(--color-ink-faint)' }}>
+        <p className="mt-3 text-[0.875rem]" style={{ color: 'var(--color-ink-faint)' }}>
           Marginal tax rates this year: {plan.partnerA.name} {pct(r.marginalA)}, {plan.partnerB.name} {pct(r.marginalB)}.
         </p>
       </div>
@@ -254,7 +252,7 @@ function YearDetail({ plan, acc, dd, year }: { plan: any; acc: Accum; dd: Drawdo
   const contrib = (plan.partnerA.monthlyPension + plan.partnerB.monthlyPension + plan.partnerA.monthlyIsa + plan.partnerB.monthlyIsa) * 12;
   return (
     <div className="pb-2">
-      <p className="text-[0.9rem] -mt-2 mb-1" style={{ color: 'var(--color-ink-dim)' }}>
+      <p className="text-[0.875rem] -mt-2 mb-1" style={{ color: 'var(--color-ink-dim)' }}>
         {plan.partnerA.name} is {ageA}, {plan.partnerB.name} is {ageB} — still saving, {plan.retireYear - year} year{plan.retireYear - year === 1 ? '' : 's'} to go. Today's money.
       </p>
       <Cap>Pots this year</Cap>
@@ -272,7 +270,7 @@ function StatCard({ label, value, tone = 'calm' }: { label: string; value: strin
   return (
     <div className="rounded-2xl p-4 flex-1" style={{ background: 'var(--color-canvas)' }}>
       <div className="tnum text-[1.5rem] font-extrabold tracking-tight" style={{ color }}>{value}</div>
-      <div className="text-[0.78rem] mt-0.5" style={{ color: 'var(--color-ink-dim)' }}>{label}</div>
+      <div className="text-[0.875rem] mt-0.5" style={{ color: 'var(--color-ink-dim)' }}>{label}</div>
     </div>
   );
 }
@@ -359,6 +357,8 @@ function ExploreBody({ plan, dd, estate, mc, plus, onUpgrade, update, picture, s
 
   // Rich year-by-year: opening → drawn → growth → tax → closing, per person or combined.
   const [tv, setTv] = useState<'A' | 'B' | 'combined'>('combined');
+  // The year-by-year table is for the person who asks for it: closed, it is one line (it was 240 words and 126 figures on arrival).
+  const [years, setYears] = useState(false);
   const sp: any = (dd as any).startPots || {};
   const rows = dd.rows as any[];
   const table = rows.map((r, i) => {
@@ -383,8 +383,8 @@ function ExploreBody({ plan, dd, estate, mc, plus, onUpgrade, update, picture, s
     <div className="space-y-5 pb-2">
       <div className="sticky top-0 z-10 -mx-6 px-6 pb-2" style={{ background: 'var(--color-surface)' }}>
         <nav aria-label="Explore sections" className="flex gap-1.5 overflow-x-auto no-scrollbar">
-          {[['map', 'Map'], ['fall', 'Safe spend'], ['futures', 'Futures'], ['levers', 'Levers'], ['dates', 'Dates'], ['stress', 'Stress'], ['tax', 'Tax'], ['table', 'Year by year']].map(([id, l]) => (
-            <button key={id} onClick={() => jump(id)} className="shrink-0 rounded-full px-3 min-h-[36px] text-[0.75rem] font-semibold"
+          {[['map', 'Map'], ['futures', 'Futures'], ['levers', 'What helps'], ['dates', 'Dates'], ['stress', 'Stress'], ['tax', 'Tax'], ['table', 'Year by year']].map(([id, l]) => (
+            <button key={id} onClick={() => jump(id)} className="shrink-0 rounded-full px-3 min-h-[36px] text-[0.875rem] font-semibold"
               style={{ background: 'var(--color-canvas)', border: '1px solid var(--color-hairline)', color: 'var(--color-ink-dim)' }}>{l}</button>
           ))}
         </nav>
@@ -394,13 +394,13 @@ function ExploreBody({ plan, dd, estate, mc, plus, onUpgrade, update, picture, s
           the island stays here for anyone who prefers it. */}
       <div data-picture className="rounded-2xl p-4" style={{ background: 'var(--color-canvas)', border: '1px solid var(--color-hairline)' }}>
         <div className="font-bold">Home picture</div>
-        <p className="text-[0.82rem] leading-snug mt-0.5" style={{ color: 'var(--color-ink-dim)' }}>
+        <p className="text-[0.875rem] leading-snug mt-0.5" style={{ color: 'var(--color-ink-dim)' }}>
           The chart shows what you would live on each month. The moon and the island are the earlier pictures.
         </p>
         <div role="group" aria-label="Home picture" className="mt-2 grid grid-cols-3 gap-2">
           {(['chart', 'moon', 'island'] as Picture[]).map(k => (
             <button key={k} type="button" data-picture-choice={k} aria-pressed={picture === k} onClick={() => setPicture(k)}
-              className="min-h-[44px] rounded-xl text-[0.86rem] font-bold"
+              className="min-h-[44px] rounded-xl text-[0.875rem] font-bold"
               style={picture === k
                 ? { background: 'var(--color-calm)', color: 'var(--color-on-calm)', border: '1px solid var(--color-calm)' }
                 : { background: 'var(--color-surface)', color: 'var(--color-ink)', border: '1px solid var(--color-hairline)' }}>
@@ -408,38 +408,39 @@ function ExploreBody({ plan, dd, estate, mc, plus, onUpgrade, update, picture, s
             </button>
           ))}
         </div>
-        <a href="./?lantern=1" data-lantern-link className="mt-2 inline-flex items-center min-h-[44px] text-[0.84rem] font-semibold underline" style={{ color: 'var(--color-ink-dim)' }}>Open the Lantern full screen</a>
+        <a href="./?lantern=1" data-lantern-link className="mt-2 inline-flex items-center min-h-[44px] text-[0.875rem] font-semibold underline" style={{ color: 'var(--color-ink-dim)' }}>Open the Lantern full screen</a>
       </div>
       {/* ── Every retirement you could choose ────────────────────── */}
       <DecisionMap plan={plan} update={update} />
       {/* ── How far it could fall: safe spending under real bad histories ── */}
-      <div id="explore-fall"><Guardrails plan={plan} /></div>
+      {/* "How far it could fall" stood here: the most each bad history could pay a month. It is what the home's "What could go
+          wrong?" says, from the same figures, so it is said once (Pension Scout, 25 November 2026). 2008 is in the stress tests below. */}
       {/* ── Monte Carlo ─────────────────────────────────────────── */}
       {mc && (
         <div id="explore-futures" className="rounded-2xl p-4" style={{ background: 'var(--color-canvas)' }}>
-          <div className="flex items-baseline justify-between mb-1">
-            <span className="text-[0.9rem] font-semibold">Monte Carlo · range of futures</span>
-            <span className="tnum text-[0.9rem] font-bold" style={{ color: 'var(--color-calm-strong)' }}>{confText(mc).main} hold</span>
+          <div className="flex flex-wrap items-baseline justify-between gap-x-3 mb-1">
+            <span className="text-[0.875rem] font-semibold">Monte Carlo · range of futures</span>
+            <span className="tnum text-[0.875rem] font-bold" style={{ color: 'var(--color-calm-strong)' }}>{confText(mc).main} hold</span>
           </div>
           <McFan mc={mc} retireYear={plan.retireYear} />
-          <p className="text-[0.72rem] mt-1 mb-3" style={{ color: 'var(--color-ink-faint)' }}>
+          <p className="text-[0.8125rem] mt-1 mb-3" style={{ color: 'var(--color-ink-faint)' }}>
             {mc.nPaths} random market histories · lucky to unlucky. Typical line in the middle.
           </p>
           <div className="grid grid-cols-3 gap-2 text-center">
             {[['Unlucky', nowP10, '10th'], ['Typical', nowP50, '50th'], ['Lucky', nowP90, '90th']].map(([l, v, p]) => (
               <div key={l as string} className="rounded-xl py-2" style={{ background: 'var(--color-surface)' }}>
-                <div className="tnum text-[1.05rem] font-extrabold" style={{ color: 'var(--color-calm-strong)' }}>{fmtK(v as number)}</div>
-                <div className="text-[0.68rem]" style={{ color: 'var(--color-ink-faint)' }}>{l} · {p} pctile</div>
+                <div className="tnum text-[1rem] font-extrabold" style={{ color: 'var(--color-calm-strong)' }}>{fmtK(v as number)}</div>
+                <div className="text-[0.8125rem]" style={{ color: 'var(--color-ink-faint)' }}>{l} · {p} pctile</div>
               </div>
             ))}
           </div>
-          <p className="text-[0.72rem] mt-2 text-center" style={{ color: 'var(--color-ink-dim)' }}>
+          <p className="text-[0.8125rem] mt-2 text-center" style={{ color: 'var(--color-ink-dim)' }}>
             Wealth left at {plan.horizonAge} (today's money). Confidence stays above {pct(mc.threshold ?? 0.85, 0)} until age <b className="tnum">{mc.confidenceAge}</b>.
             {' '}Weighted by how long you are likely to be here, the money outlives you in about <b className="tnum">{Math.round(mc.successLifetime * 100)}%</b> of futures.
             {mc.successProbWithCuts > mc.successProb + 0.005 && <> With the written rules trimming spending, {Math.round(mc.successProbWithCuts * 100)}% stay solvent.</>}
           </p>
           {/* The bad tail in plain words, and what the range does and does not cover. */}
-          <p data-tail className="text-[0.8rem] mt-2 leading-relaxed rounded-xl px-3 py-2" style={{ background: 'var(--color-surface)', color: 'var(--color-ink)' }}>
+          <p data-tail className="text-[0.875rem] mt-2 leading-relaxed rounded-xl px-3 py-2" style={{ background: 'var(--color-surface)', color: 'var(--color-ink)' }}>
             {mc.shortAgeP10 != null
               ? <>In the unluckiest <b>1 in 10</b> futures the money has run short by age <b className="tnum">{mc.shortAgeP10}</b>{mc.shortAgeP5 != null && mc.shortAgeP5 !== mc.shortAgeP10 ? <>; in the unluckiest 1 in 20, by <b className="tnum">{mc.shortAgeP5}</b></> : null}. "Runs short" means a year not paid in full, not merely a smaller pot.</>
               : <>Even the unluckiest <b>1 in 10</b> futures pay every year in full to {plan.horizonAge}{mc.shortAgeP5 != null ? <>; the unluckiest 1 in 20 run short by <b className="tnum">{mc.shortAgeP5}</b></> : null}.</>}
@@ -457,13 +458,13 @@ function ExploreBody({ plan, dd, estate, mc, plus, onUpgrade, update, picture, s
 
       {/* ── Income mix ──────────────────────────────────────────── */}
       <div>
-        <h3 className="text-[0.72rem] font-bold uppercase tracking-widest mb-2" style={{ color: 'var(--color-ink-faint)' }}>Where your income comes from</h3>
+        <h3 className="text-[0.8125rem] font-bold uppercase tracking-widest mb-2" style={{ color: 'var(--color-ink-faint)' }}>Where your income comes from</h3>
         <div className="flex rounded-full overflow-hidden h-3.5">
           {mix.map(s => <span key={s.n} style={{ flex: s.pct, background: s.c }} />)}
         </div>
         <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2">
           {mix.map(s => (
-            <span key={s.n} className="flex items-center gap-1.5 text-[0.76rem]" style={{ color: 'var(--color-ink-dim)' }}>
+            <span key={s.n} className="flex items-center gap-1.5 text-[0.875rem]" style={{ color: 'var(--color-ink-dim)' }}>
               <i style={{ width: 9, height: 9, borderRadius: 3, background: s.c, display: 'inline-block' }} />
               {s.n} <b className="tnum" style={{ color: 'var(--color-ink)' }}>{Math.round(s.pct * 100)}%</b>
             </span>
@@ -502,24 +503,24 @@ function ExploreBody({ plan, dd, estate, mc, plus, onUpgrade, update, picture, s
         const Cmp = ({ k, a, b, note, better }: { k: string; a: string; b: string; note?: string; better?: number }) => (
           <div className="px-4 py-3" style={{ borderTop: '1px solid var(--color-hairline)' }}>
             <div className="flex items-baseline justify-between gap-3">
-              <span className="text-[0.85rem] font-semibold">{k}</span>
+              <span className="text-[0.875rem] font-semibold">{k}</span>
               <span className="text-right">
-                <span className="tnum block text-[0.95rem] font-bold"
+                <span className="tnum block text-[1rem] font-bold"
                       style={{ color: better == null || Math.abs(better) < 1e-9 ? 'var(--color-ink)'
                         : better > 0 ? 'var(--color-sage-strong)' : 'var(--color-hope)' }}>{a}</span>
-                <span className="tnum block text-[0.72rem]" style={{ color: 'var(--color-ink-faint)' }}>without it {b}</span>
+                <span className="tnum block text-[0.8125rem]" style={{ color: 'var(--color-ink-faint)' }}>without it {b}</span>
               </span>
             </div>
-            {note && <p className="mt-1 text-[0.72rem] leading-relaxed" style={{ color: 'var(--color-ink-faint)' }}>{note}</p>}
+            {note && <p className="mt-1 text-[0.8125rem] leading-relaxed" style={{ color: 'var(--color-ink-faint)' }}>{note}</p>}
           </div>
         );
         return (
           <div>
-            <h3 className="text-[0.72rem] font-bold uppercase tracking-widest mb-2" style={{ color: 'var(--color-ink-faint)' }}>Is the structure worth it?</h3>
+            <h3 className="text-[0.8125rem] font-bold uppercase tracking-widest mb-2" style={{ color: 'var(--color-ink-faint)' }}>Is the structure worth it?</h3>
             <div className="rounded-3xl overflow-hidden" style={{ background: 'var(--color-surface)', border: '1px solid var(--color-hairline)' }}>
               <div className="px-4 pt-4 pb-3">
                 <div className="text-[1.3rem] font-extrabold tracking-tight" style={{ color: tone }}>{title}</div>
-                <p className="mt-1 text-[0.84rem] leading-relaxed" style={{ color: 'var(--color-ink-dim)' }}>
+                <p className="mt-1 text-[0.875rem] leading-relaxed" style={{ color: 'var(--color-ink-dim)' }}>
                   Judged on the spending it actually delivers — a year the rules trim counts as spending less, exactly
                   like a year the pots cannot fund. On that basis the structure is worth about{' '}
                   <b style={{ color: tone }}>{fmt(Math.abs(Math.round(w.ceGain)))} a year</b>{' '}
@@ -546,16 +547,16 @@ function ExploreBody({ plan, dd, estate, mc, plus, onUpgrade, update, picture, s
                   : undefined} />
             </div>
             <div className="mt-3 rounded-3xl overflow-hidden" style={{ background: 'var(--color-surface)', border: '1px solid var(--color-hairline)' }}>
-              <div className="px-4 pt-3 pb-1 text-[0.72rem] font-bold uppercase tracking-widest" style={{ color: 'var(--color-ink-faint)' }}>What is doing the work</div>
+              <div className="px-4 pt-3 pb-1 text-[0.8125rem] font-bold uppercase tracking-widest" style={{ color: 'var(--color-ink-faint)' }}>What is doing the work</div>
               {w.drivers.map((d: any) => (
                 <div key={d.key} className="flex items-baseline justify-between gap-3 px-4 py-2.5">
-                  <span className="text-[0.85rem]">{d.label}</span>
-                  <span className="tnum text-[0.9rem] font-bold" style={{ color: d.worth > 0 ? 'var(--color-sage-strong)' : 'var(--color-ink-faint)' }}>
+                  <span className="text-[0.875rem]">{d.label}</span>
+                  <span className="tnum text-[0.875rem] font-bold" style={{ color: d.worth > 0 ? 'var(--color-sage-strong)' : 'var(--color-ink-faint)' }}>
                     {d.worth > 0 ? '+' : ''}{fmt(Math.round(d.worth))}/yr
                   </span>
                 </div>
               ))}
-              <p className="px-4 pb-3 text-[0.72rem] leading-relaxed" style={{ color: 'var(--color-ink-faint)' }}>
+              <p className="px-4 pb-3 text-[0.8125rem] leading-relaxed" style={{ color: 'var(--color-ink-faint)' }}>
                 Each figure is what you give up by removing that piece and leaving the rest in place, so they overlap
                 rather than add up. Both plans are run through the same {w.paths} simulated markets.
               </p>
@@ -567,18 +568,18 @@ function ExploreBody({ plan, dd, estate, mc, plus, onUpgrade, update, picture, s
       {archCmp && (() => {
         return (
           <div>
-            <h3 className="mt-5 text-[0.72rem] font-bold uppercase tracking-widest mb-2" style={{ color: 'var(--color-ink-faint)' }}>If the bad decade starts the day you stop</h3>
+            <h3 className="mt-5 text-[0.8125rem] font-bold uppercase tracking-widest mb-2" style={{ color: 'var(--color-ink-faint)' }}>If the bad decade starts the day you stop</h3>
             <div className="rounded-3xl overflow-hidden" style={{ border: '1px solid var(--color-hairline)' }}>
               {archCmp.stress.map((t: any, i: number) => (
                 <div key={t.key} className="px-4 py-3" style={{ background: 'var(--color-surface)', borderTop: i ? '1px solid var(--color-hairline)' : 'none' }}>
-                  <div className="text-[0.88rem] font-semibold">{t.label}</div>
-                  <div className="mt-1 flex items-baseline justify-between gap-3 text-[0.8rem]">
+                  <div className="text-[0.875rem] font-semibold">{t.label}</div>
+                  <div className="mt-1 flex items-baseline justify-between gap-3 text-[0.875rem]">
                     <span style={{ color: 'var(--color-ink-dim)' }}>With your structure</span>
                     <span className="tnum font-semibold" style={{ color: 'var(--color-sage-strong)' }}>
                       {t.withArch.runsShortAgeA ? `runs short at ${t.withArch.runsShortAgeA}` : `holds · ${fmtK(t.withArch.endReal)} left`}
                     </span>
                   </div>
-                  <div className="flex items-baseline justify-between gap-3 text-[0.8rem]">
+                  <div className="flex items-baseline justify-between gap-3 text-[0.875rem]">
                     <span style={{ color: 'var(--color-ink-dim)' }}>Without it</span>
                     <span className="tnum font-semibold" style={{ color: 'var(--color-hope)' }}>
                       {t.without.runsShortAgeA ? `runs short at ${t.without.runsShortAgeA}` : `holds · ${fmtK(t.without.endReal)} left`}
@@ -587,7 +588,7 @@ function ExploreBody({ plan, dd, estate, mc, plus, onUpgrade, update, picture, s
                 </div>
               ))}
             </div>
-            <p className="mt-2 text-[0.75rem]" style={{ color: 'var(--color-ink-faint)' }}>
+            <p className="mt-2 text-[0.875rem]" style={{ color: 'var(--color-ink-faint)' }}>
               Approximate historic real-return sequences replayed through your growth engine from the year you stop work
               — illustrative shapes of a bad decade, not precise history.
             </p>
@@ -608,7 +609,7 @@ function ExploreBody({ plan, dd, estate, mc, plus, onUpgrade, update, picture, s
       )}
       {strat.length > 0 && plus && (
         <div id="explore-tax">
-          <h3 className="text-[0.72rem] font-bold uppercase tracking-widest mb-2" style={{ color: 'var(--color-ink-faint)' }}>Withdrawal order & lifetime tax (today's money)</h3>
+          <h3 className="text-[0.8125rem] font-bold uppercase tracking-widest mb-2" style={{ color: 'var(--color-ink-faint)' }}>Withdrawal order & lifetime tax (today's money)</h3>
           <div className="space-y-2">
             {strat.map(s => {
               const active = s.id === plan.strategy, best = Math.abs(s.lifetimeTax - bestTax) < 1;
@@ -616,8 +617,8 @@ function ExploreBody({ plan, dd, estate, mc, plus, onUpgrade, update, picture, s
                 <div key={s.id} className="flex items-center justify-between rounded-2xl px-4 py-3"
                      style={{ background: 'var(--color-canvas)', border: '1px solid ' + (active ? 'var(--color-calm)' : 'transparent') }}>
                   <div className="pr-3">
-                    <div className="text-[0.86rem] font-semibold">{s.label}</div>
-                    <div className="text-[0.72rem]" style={{ color: 'var(--color-ink-faint)' }}>
+                    <div className="text-[0.875rem] font-semibold">{s.label}</div>
+                    <div className="text-[0.8125rem]" style={{ color: 'var(--color-ink-faint)' }}>
                       {active ? 'Your current choice' : 'Alternative'}{best ? ' · lowest lifetime tax' : ''}
                     </div>
                   </div>
@@ -626,19 +627,24 @@ function ExploreBody({ plan, dd, estate, mc, plus, onUpgrade, update, picture, s
               );
             })}
           </div>
-          <p className="text-[0.72rem] mt-1.5" style={{ color: 'var(--color-ink-faint)' }}>Lifetime income tax across the whole plan. Change the order in Details → Plan.</p>
+          <p className="text-[0.8125rem] mt-1.5" style={{ color: 'var(--color-ink-faint)' }}>Lifetime income tax across the whole plan. Change the order in Details → Plan.</p>
         </div>
       )}
 
       {/* ── Year by year ────────────────────────────────────────── */}
       <div>
         <div className="flex items-baseline justify-between mb-2">
-          <h3 className="text-[0.72rem] font-bold uppercase tracking-widest" style={{ color: 'var(--color-ink-faint)' }}>Year by year</h3>
+          <h3 className="text-[0.8125rem] font-bold uppercase tracking-widest" style={{ color: 'var(--color-ink-faint)' }}>Year by year</h3>
         </div>
         {!plus ? (
           <Locked title="Every year, in full" onUpgrade={onUpgrade}
             line={`${table.length} years of retirement, opening to closing, per person or combined, with the tax paid each year.`}
             preview={<YearTable rows={table.slice(0, 4)} />} />
+        ) : !years ? (
+          <button id="explore-table" type="button" data-years-toggle aria-expanded="false" onClick={() => setYears(true)}
+            className="w-full min-h-[44px] rounded-2xl px-4 text-left text-[1rem] font-semibold" style={{ background: 'var(--color-canvas)', border: '1px solid var(--color-hairline)', color: 'var(--color-calm-strong)' }}>
+            Each year: what you start with, take out and have left ›
+          </button>
         ) : (<>
         <Segmented small value={tv} onChange={setTv} options={[
           { value: 'combined', label: 'Combined' },
@@ -646,7 +652,7 @@ function ExploreBody({ plan, dd, estate, mc, plus, onUpgrade, update, picture, s
           ...(isSingle(plan) ? [] : [{ value: 'B' as const, label: plan.partnerB.name }]),
         ]} />
         <div id="explore-table"><YearTable rows={table} /></div>
-        <p className="text-[0.72rem] mt-1.5" style={{ color: 'var(--color-ink-faint)' }}>
+        <p className="text-[0.8125rem] mt-1.5" style={{ color: 'var(--color-ink-faint)' }}>
           Today's money. Start − Drawn + Return = Closing. {tv === 'combined' ? 'Both pots and ISAs together.' : `${tv === 'A' ? plan.partnerA.name : plan.partnerB.name}'s pension and ISA only — State Pension and DB income sit outside the pot.`}
         </p>
         </>)}
@@ -660,36 +666,6 @@ function ExploreBody({ plan, dd, estate, mc, plus, onUpgrade, update, picture, s
 // lever, in full. Plus: the whole list.
 // How far it could fall: the most you could spend a month and still last,
 // under each real bad history and the three lenses — against what you plan to.
-function Guardrails({ plan }: { plan: any }) {
-  const key = useMemo(() => JSON.stringify({ ...plan, targetNet: 0, codeSet: null, spendingPlanOn: false }), [plan]);
-  const rails = useInsight<Rail[]>('guardrails', plan, key);
-  const month = Math.round((plan.targetNet || 0) / 12);
-  const list = rails?.filter(r => r.key !== 'good' && r.key !== 'spLow') ?? [];   // market histories only; the State Pension case is in "What could go wrong?"
-  const max = Math.max(month * 1.1, ...list.map(r => r.year / 12)) * 1.04;
-  return (
-    <div className="rounded-2xl p-4" style={{ background: 'var(--color-canvas)' }}>
-      <div className="flex items-baseline justify-between mb-1">
-        <span className="text-[0.9rem] font-semibold">How far it could fall</span>
-        <span className="text-[0.72rem]" style={{ color: 'var(--color-ink-faint)' }}>safe a month · you plan {fmt(month)}</span>
-      </div>
-      {!rails ? <p className="text-[0.8rem]" style={{ color: 'var(--color-ink-dim)' }}>Working it out…</p> : (
-        <div className="relative grid gap-2 mt-2">
-          {list.map(r => { const v = r.year / 12, ok = month <= v + 0.5; return (
-            <div key={r.key}>
-              <div className="flex justify-between text-[0.76rem]" style={{ color: 'var(--color-ink-dim)' }}>
-                <span>{r.label}</span><b className="tnum" style={{ color: ok ? 'var(--color-calm-strong)' : 'var(--color-ink-faint)' }}>{fmt(v)}</b>
-              </div>
-              <div className="h-[5px] rounded mt-[3px]" style={{ background: 'var(--color-hairline)' }}>
-                <div className="h-full rounded" style={{ width: `${(v / max * 100).toFixed(1)}%`, background: ok ? 'var(--color-calm-strong)' : 'var(--color-dusk)', opacity: 0.75 }} />
-              </div>
-            </div>); })}
-          <div className="absolute top-0 bottom-0 w-[1.5px]" style={{ left: `${(month / max * 100).toFixed(1)}%`, background: 'var(--color-ink)' }} aria-hidden="true" />
-        </div>)}
-      <p className="text-[0.72rem] mt-2" style={{ color: 'var(--color-ink-faint)' }}>Each bar is the most you could take home a month and still last to {plan.horizonAge}, if that history repeated. The line is what you plan to take.</p>
-    </div>
-  );
-}
-
 function Levers({ plan, plus, onUpgrade, mc }: { plan: any; plus: boolean; onUpgrade: () => void; mc?: MC | null }) {
   // A faster sample of 500 futures with the same seed as the confidence
   // figure (2,000); the copy below names the sample size. Computed after the sheet has
@@ -703,8 +679,8 @@ function Levers({ plan, plus, onUpgrade, mc }: { plan: any; plus: boolean; onUpg
   if (!res) {
     return (
       <div>
-        <h3 className="text-[0.72rem] font-bold uppercase tracking-widest mb-2" style={{ color: 'var(--color-ink-faint)' }}>What moves the needle</h3>
-        <div className="rounded-3xl px-4 py-5 text-[0.84rem]" style={{ background: 'var(--color-surface)', border: '1px solid var(--color-hairline)', color: 'var(--color-ink-dim)' }}>
+        <h3 className="text-[0.8125rem] font-bold uppercase tracking-widest mb-2" style={{ color: 'var(--color-ink-faint)' }}>What would help</h3>
+        <div className="rounded-3xl px-4 py-5 text-[0.875rem]" style={{ background: 'var(--color-surface)', border: '1px solid var(--color-hairline)', color: 'var(--color-ink-dim)' }}>
           Measuring each lever across the same simulated futures…
         </div>
       </div>
@@ -712,17 +688,25 @@ function Levers({ plan, plus, onUpgrade, mc }: { plan: any; plus: boolean; onUpg
   }
   if (!res.levers.length) return null;
   const top = res.levers[0];
-  const pp = (d: number) => `${d >= 0 ? '+' : '−'}${Math.abs(Math.round(d * 100))} pts`;
+  // In the home's words ("What would help?"): the gain is times in 100, an action that is one of the home's controls is named as the
+  // control names it, and the simple ones carry no line of why (Pension Scout, 25 November 2026; it said "+2 pts" and "points of confidence").
+  const pp = (d: number) => `${d >= 0 ? '+' : '−'}${Math.abs(Math.round(d * 100))}`;
+  const stopAge = plan.retireYear - plan.partnerA.birthYear;
+  const say = (l: any): { label: string; detail: string } =>
+    l.id === 'later1' ? { label: `Stop work at ${stopAge + 1}`, detail: '' }
+      : l.id === 'spend3k' ? { label: 'Live on £250 a month less', detail: '' }
+        : l.id === 'save250' || l.id === 'parttime' ? { label: l.label, detail: '' }
+          : { label: l.label, detail: l.detail };
   const Row = ({ l, i }: { l: any; i: number }) => (
     <div className="px-4 py-3" style={{ borderTop: i ? '1px solid var(--color-hairline)' : 'none' }}>
       <div className="flex items-baseline justify-between gap-3">
-        <div className="text-[0.9rem] font-semibold">{l.label}</div>
+        <div className="text-[0.875rem] font-semibold">{say(l).label}</div>
         <div className="tnum text-right shrink-0">
-          <span className="block text-[0.95rem] font-extrabold" style={{ color: l.dConf > 0.004 ? 'var(--color-sage-strong)' : l.dConf < -0.004 ? 'var(--color-hope)' : 'var(--color-ink-dim)' }}>{pp(l.dConf)}</span>
-          <span className="block text-[0.7rem]" style={{ color: 'var(--color-ink-faint)' }}>{Math.abs(l.dEnd) < 500 ? 'About the same' : `${l.dEnd >= 0 ? '+' : '−'}${fmtK(Math.abs(l.dEnd))}`} left at {plan.horizonAge}{Math.abs(l.dTax || 0) >= 1000 ? ` · ${l.dTax < 0 ? '−' : '+'}${fmtK(Math.abs(l.dTax))} tax` : ''}</span>
+          <span className="block text-[1rem] font-extrabold" style={{ color: l.dConf > 0.004 ? 'var(--color-sage-strong)' : l.dConf < -0.004 ? 'var(--color-hope)' : 'var(--color-ink-dim)' }}>{pp(l.dConf)}</span>
+          <span className="block text-[0.8125rem]" style={{ color: 'var(--color-ink-faint)' }}>{Math.abs(l.dEnd) < 500 ? 'About the same' : `${l.dEnd >= 0 ? '+' : '−'}${fmtK(Math.abs(l.dEnd))}`} left at {plan.horizonAge}{Math.abs(l.dTax || 0) >= 1000 ? ` · ${l.dTax < 0 ? '−' : '+'}${fmtK(Math.abs(l.dTax))} tax` : ''}</span>
         </div>
       </div>
-      <div className="mt-0.5 text-[0.78rem] leading-relaxed" style={{ color: 'var(--color-ink-dim)' }}>{l.detail}</div>
+      {say(l).detail && <div className="mt-0.5 text-[0.875rem] leading-relaxed" style={{ color: 'var(--color-ink-dim)' }}>{say(l).detail}</div>}
       {/* The bar: confidence gain, so the eye ranks before the mind reads. */}
       <div className="mt-2 h-1.5 rounded-full overflow-hidden" style={{ background: 'var(--color-hairline)' }}>
         <div style={{ width: `${Math.min(100, Math.max(2, (Math.max(0, l.dConf) / Math.max(0.01, res.levers[0].dConf)) * 100))}%`, height: '100%', background: l.dConf > 0 ? 'var(--color-sage)' : 'transparent' }} />
@@ -731,13 +715,10 @@ function Levers({ plan, plus, onUpgrade, mc }: { plan: any; plus: boolean; onUpg
   );
   return (
     <div>
-      <h3 className="text-[0.72rem] font-bold uppercase tracking-widest mb-2" style={{ color: 'var(--color-ink-faint)' }}>What moves the needle</h3>
+      <h3 className="text-[0.8125rem] font-bold uppercase tracking-widest mb-2" style={{ color: 'var(--color-ink-faint)' }}>What would help</h3>
       <div className="rounded-3xl overflow-hidden" style={{ background: 'var(--color-surface)', border: '1px solid var(--color-hairline)' }}>
-        <div className="px-4 pt-3 pb-1 text-[0.8rem] leading-relaxed" style={{ color: 'var(--color-ink-dim)' }}>
-          {/* The headline figure is the one already on the home screen (2,000
-              futures); the levers are ranked on a smaller, faster sample. */}
-          Today the plan holds in <b className="tnum" style={{ color: 'var(--color-ink)' }}>{mc ? `${Math.round(mc.successProb * 100)} of 100` : `about ${Math.round((res.base.conf || 0) * 20) * 5} of 100`}</b> simulated futures.
-          Each action below is run through the whole plan and the same {res.paths} of those futures; the first figure is how many more points of confidence it buys, give or take two.
+        <div className="px-4 pt-3 pb-1 text-[0.875rem] leading-relaxed" style={{ color: 'var(--color-ink-dim)' }}>
+          How many more times in 100 the money would last, give or take two; under it, what that leaves at {plan.horizonAge} and the tax.
         </div>
         <Row l={top} i={0} />
         {plus
@@ -745,17 +726,17 @@ function Levers({ plan, plus, onUpgrade, mc }: { plan: any; plus: boolean; onUpg
           : (res.levers.length > 1 && (
             <div className="px-4 py-3" style={{ borderTop: '1px solid var(--color-hairline)' }}>
               <button onClick={onUpgrade} className="w-full text-left flex items-start gap-2">
-                <span className="text-[0.84rem] leading-relaxed" style={{ color: 'var(--color-ink-dim)' }}>
+                <span className="text-[0.875rem] leading-relaxed" style={{ color: 'var(--color-ink-dim)' }}>
                   {res.levers.length - 1} more {res.levers.length === 2 ? 'lever' : 'levers'} measured — {res.levers.slice(1).filter((l: any) => !/^(npa:|order)/.test(l.id)).slice(0, 3).map((l: any) => l.label.toLowerCase()).join(', ')}{res.levers.length > 4 ? '…' : ''}.
                 </span>
-                <span className="ml-auto shrink-0 rounded-full px-2 py-0.5 text-[0.64rem] font-bold uppercase tracking-wider"
+                <span className="ml-auto shrink-0 rounded-full px-2 py-0.5 text-[0.8125rem] font-bold uppercase tracking-wider"
                   style={{ background: 'color-mix(in srgb, var(--color-calm) 18%, transparent)', color: 'var(--color-calm-strong)' }}>Plus</span>
               </button>
             </div>
           ))}
       </div>
-      <p className="text-[0.72rem] mt-1.5 leading-relaxed" style={{ color: 'var(--color-ink-faint)' }}>
-        Each lever is measured on the same simulated futures, with about two points of sampling noise either way; the tax figure is from the central plan. Prompts to explore with an adviser — not advice.
+      <p className="text-[0.8125rem] mt-1.5 leading-relaxed" style={{ color: 'var(--color-ink-faint)' }}>
+        Ideas, not advice.
       </p>
     </div>
   );
@@ -774,39 +755,40 @@ function StressTests({ plan, plus, onUpgrade }: { plan: any; plus: boolean; onUp
     : `Holds in ${s.holds} of ${s.total} stress tests. ${gfc ? (gfc.holds ? 'Holds if 2008 strikes the day you stop' : `If 2008 strikes the day you stop, it runs short at ${gfc.runsShortAgeA}`) : ''}${s.worst && (!gfc || s.worst.label !== gfc.label) ? `; the hardest is “${s.worst.label}”, short at ${s.worst.runsShortAgeA}.` : '.'}`;
   return (
     <div>
-      <h3 className="text-[0.72rem] font-bold uppercase tracking-widest mb-2" style={{ color: 'var(--color-ink-faint)' }}>Stress tests</h3>
+      <h3 className="text-[0.8125rem] font-bold uppercase tracking-widest mb-2" style={{ color: 'var(--color-ink-faint)' }}>Stress tests</h3>
       <div className="rounded-3xl overflow-hidden" style={{ background: 'var(--color-surface)', border: '1px solid var(--color-hairline)' }}>
         <div className="px-4 pt-4 pb-3">
           <div className="flex items-baseline gap-3">
             <span className="tnum text-[1.7rem] font-extrabold tracking-tight" style={{ color: s.fails === 0 ? 'var(--color-sage-strong)' : s.holds >= s.total / 2 ? 'var(--color-calm-strong)' : 'var(--color-hope)' }}>{s.holds}/{s.total}</span>
-            <span className="text-[0.86rem] leading-relaxed" style={{ color: 'var(--color-ink-dim)' }}>{headline}</span>
+            <span className="text-[0.875rem] leading-relaxed" style={{ color: 'var(--color-ink-dim)' }}>{headline}</span>
           </div>
         </div>
         {plus ? st.tests.map((t: any, i: number) => (
           <div key={t.label} className="px-4 py-2.5 flex items-baseline justify-between gap-3" style={{ borderTop: '1px solid var(--color-hairline)' }}>
             <div className="min-w-0">
-              <div className="text-[0.86rem] font-semibold">{t.label}</div>
-              <div className="text-[0.74rem] leading-snug" style={{ color: 'var(--color-ink-faint)' }}>{t.note}</div>
+              <div className="text-[0.875rem] font-semibold">{t.label}</div>
+              {/* A history needs a line saying what happened; "Retire two years earlier" does not. */}
+              {/shape\)/.test(t.note || '') && <div className="text-[0.875rem] leading-snug" style={{ color: 'var(--color-ink-dim)' }}>{t.note}</div>}
             </div>
             <div className="tnum text-right shrink-0">
-              <span className="block text-[0.86rem] font-bold" style={{ color: t.holds ? 'var(--color-sage-strong)' : 'var(--color-hope)' }}>{t.holds ? 'holds' : `short at ${t.runsShortAgeA}`}</span>
-              <span className="block text-[0.7rem]" style={{ color: 'var(--color-ink-faint)' }}>{Math.abs(t.delta) < 500 ? 'No change in what is left at the end' : `${t.delta >= 0 ? '+' : '−'}${fmtK(Math.abs(t.delta))} vs plan`}</span>
+              <span className="block text-[0.875rem] font-bold" style={{ color: t.holds ? 'var(--color-sage-strong)' : 'var(--color-hope)' }}>{t.holds ? 'holds' : `short at ${t.runsShortAgeA}`}</span>
+              <span className="block text-[0.8125rem]" style={{ color: 'var(--color-ink-faint)' }}>{Math.abs(t.delta) < 500 ? 'No change in what is left at the end' : `${t.delta >= 0 ? '+' : '−'}${fmtK(Math.abs(t.delta))} vs plan`}</span>
             </div>
           </div>
         )) : (
           <div className="px-4 py-3" style={{ borderTop: '1px solid var(--color-hairline)' }}>
             <button onClick={onUpgrade} className="w-full text-left flex items-start gap-2">
-              <span className="text-[0.84rem] leading-relaxed" style={{ color: 'var(--color-ink-dim)' }}>
+              <span className="text-[0.875rem] leading-relaxed" style={{ color: 'var(--color-ink-dim)' }}>
                 The full table — 2008 at retirement, a Japan-style lost two decades, 1970s stagflation, a 30% crash, low growth, 4% inflation, stopping early or late — with what each leaves at {plan.horizonAge}.
               </span>
-              <span className="ml-auto shrink-0 rounded-full px-2 py-0.5 text-[0.64rem] font-bold uppercase tracking-wider"
+              <span className="ml-auto shrink-0 rounded-full px-2 py-0.5 text-[0.8125rem] font-bold uppercase tracking-wider"
                 style={{ background: 'color-mix(in srgb, var(--color-calm) 18%, transparent)', color: 'var(--color-calm-strong)' }}>Plus</span>
             </button>
           </div>
         )}
       </div>
-      <p className="text-[0.72rem] mt-1.5 leading-relaxed" style={{ color: 'var(--color-ink-faint)' }}>
-        Central outlook with one thing changed at a time. The historic shapes are approximate equity-market real-return sequences, replayed on everything you hold as if it were all in shares — a harsher test than a balanced portfolio would face. The order of returns, not just the average, is what breaks retirements.
+      <p className="text-[0.8125rem] mt-1.5 leading-relaxed" style={{ color: 'var(--color-ink-faint)' }}>
+        One thing changed at a time. The histories are replayed as if everything you hold were in shares: a harsher test than a balanced portfolio would face.
       </p>
     </div>
   );
@@ -834,21 +816,21 @@ function DbTiming({ plan, plus, onUpgrade }: { plan: any; plus: boolean; onUpgra
   }
   return (
     <div className="space-y-4">
-      <h3 className="text-[0.72rem] font-bold uppercase tracking-widest" style={{ color: 'var(--color-ink-faint)' }}>When to take each public-sector pension</h3>
+      <h3 className="text-[0.8125rem] font-bold uppercase tracking-widest" style={{ color: 'var(--color-ink-faint)' }}>When to take each public-sector pension</h3>
       {items.map((it, i) => {
         const c = cmp[i]; if (!c) return null;
         const best = [...c.options].sort((a: any, b: any) => b.endWealthReal - a.endWealthReal)[0];
         return (
           <div key={it.t.id} className="rounded-3xl overflow-hidden" style={{ background: 'var(--color-surface)', border: '1px solid var(--color-hairline)' }}>
             <div className="px-4 pt-3 pb-2">
-              <div className="text-[0.9rem] font-bold">{it.who.name} · {c.tranche.label}</div>
-              <p className="text-[0.76rem] leading-relaxed mt-0.5" style={{ color: 'var(--color-ink-dim)' }}>
+              <div className="text-[0.875rem] font-bold">{it.who.name} · {c.tranche.label}</div>
+              <p className="text-[0.875rem] leading-relaxed mt-0.5" style={{ color: 'var(--color-ink-dim)' }}>
                 Unreduced at {c.tranche.npa}; planned at {c.tranche.takeAge}. Each row re-runs the whole plan with that start age.
                 {best && best.age !== c.tranche.takeAge && <> On these figures, taking it at <b>{best.age}</b> leaves the most behind at {plan.horizonAge}.</>}
               </p>
             </div>
             <div className="overflow-x-auto" tabIndex={0} role="region" aria-label="Scheme pension timing table, scrolls sideways">
-              <table className="w-full text-[0.74rem]" style={{ borderCollapse: 'collapse', minWidth: 360 }}>
+              <table className="w-full text-[0.875rem]" style={{ borderCollapse: 'collapse', minWidth: 360 }}>
                 <thead><tr style={{ color: 'var(--color-ink-faint)' }}>
                   <th className="text-left font-semibold pl-4 pr-1 py-1.5">Age</th>
                   <th className="text-right font-semibold px-1 py-1.5">Pension/yr</th>
@@ -861,7 +843,7 @@ function DbTiming({ plan, plus, onUpgrade }: { plan: any; plus: boolean; onUpgra
                     const cur = o.age === c.tranche.takeAge;
                     return (
                       <tr key={o.age} style={{ borderTop: '1px solid var(--color-hairline)', background: cur ? 'color-mix(in srgb, var(--color-calm) 12%, transparent)' : 'transparent' }}>
-                        <td className="pl-4 pr-1 py-1.5 tnum font-semibold whitespace-nowrap">{o.age}<span className="text-[0.66rem]" style={{ color: 'var(--color-ink-faint)' }}> · {o.year}{o.age === c.tranche.npa ? ' · unreduced' : ''}</span></td>
+                        <td className="pl-4 pr-1 py-1.5 tnum font-semibold whitespace-nowrap">{o.age}<span className="text-[0.8125rem]" style={{ color: 'var(--color-ink-faint)' }}> · {o.year}{o.age === c.tranche.npa ? ' · unreduced' : ''}</span></td>
                         <td className="px-1 py-1.5 tnum text-right whitespace-nowrap">{fmtK(o.pension)}</td>
                         <td className="px-1 py-1.5 tnum text-right whitespace-nowrap" style={{ color: 'var(--color-ink-dim)' }}>{o.lump > 0 ? fmtK(o.lump) : '—'}</td>
                         <td className="px-1 py-1.5 tnum text-right whitespace-nowrap font-bold" style={{ color: best && o.age === best.age ? 'var(--color-sage-strong)' : 'var(--color-ink)' }}>{fmtK(o.endWealthReal)}</td>
@@ -872,7 +854,7 @@ function DbTiming({ plan, plus, onUpgrade }: { plan: any; plus: boolean; onUpgra
                 </tbody>
               </table>
             </div>
-            <p className="px-4 py-2.5 text-[0.72rem] leading-relaxed" style={{ color: 'var(--color-ink-faint)' }}>
+            <p className="px-4 py-2.5 text-[0.8125rem] leading-relaxed" style={{ color: 'var(--color-ink-faint)' }}>
               Today’s money, central outlook, to {horizonYear}. A reduced pension taken early is paid for longer; whether that wins depends on how long you live and what the pots earn meanwhile — this shows the trade on your plan, not a rule.
             </p>
           </div>
@@ -886,7 +868,7 @@ type YearRow = { year: number; age: string | number; start: number; drawn: numbe
 function YearTable({ rows }: { rows: YearRow[] }) {
   return (
     <div className="mt-2 overflow-x-auto rounded-2xl" tabIndex={0} role="region" aria-label="Year by year table, scrolls sideways" style={{ background: 'var(--color-canvas)' }}>
-      <table className="w-full text-[0.72rem]" style={{ borderCollapse: 'collapse', minWidth: 348 }}>
+      <table className="w-full text-[0.8125rem]" style={{ borderCollapse: 'collapse', minWidth: 348 }}>
         <thead>
           <tr style={{ color: 'var(--color-ink-faint)' }}>
             <th className="text-left font-semibold pl-2.5 pr-1 py-2">Year</th>
@@ -900,7 +882,7 @@ function YearTable({ rows }: { rows: YearRow[] }) {
         <tbody>
           {rows.map((r, i) => (
             <tr key={r.year} style={{ borderTop: '1px solid var(--color-hairline)', background: i % 2 ? 'transparent' : 'color-mix(in srgb, var(--color-surface) 50%, transparent)' }}>
-              <td className="pl-2.5 pr-1 py-2 tnum font-semibold whitespace-nowrap">{r.year}<span className="text-[0.64rem]" style={{ color: 'var(--color-ink-faint)' }}> ·{r.age}</span></td>
+              <td className="pl-2.5 pr-1 py-2 tnum font-semibold whitespace-nowrap">{r.year}<span className="text-[0.8125rem]" style={{ color: 'var(--color-ink-faint)' }}> ·{r.age}</span></td>
               <td className="px-1 py-2 tnum text-right whitespace-nowrap" style={{ color: 'var(--color-ink-dim)' }}>{fmtK(r.start)}</td>
               <td className="px-1 py-2 tnum text-right whitespace-nowrap" style={{ color: 'var(--color-hope)' }}>−{fmtK(r.drawn)}</td>
               <td className="px-1 py-2 tnum text-right whitespace-nowrap" style={{ color: r.ret >= 0 ? 'var(--color-calm-strong)' : 'var(--color-hope)' }}>{r.ret >= 0 ? '+' : '−'}{fmtK(Math.abs(r.ret))}</td>
@@ -931,14 +913,14 @@ function PeaceBody({ plus, onUpgrade, plan, mc }: { plus: boolean; onUpgrade: ()
         style={{ background: 'var(--color-calm)' }}>
         {plus ? <Download size={18} /> : <Sparkles size={18} />} Save the full report (PDF){plus ? '' : ' · Plus'}
       </button>
-      <p className="text-[0.82rem] leading-relaxed px-1" style={{ color: 'var(--color-ink-dim)' }}>
+      <p className="text-[0.875rem] leading-relaxed px-1" style={{ color: 'var(--color-ink-dim)' }}>
         A multi-page report you can read or take to an adviser — your holdings, the plan, year-by-year projections,
         the Monte-Carlo and tax analysis, and every assumption behind the numbers.
       </p>
       {rows.map(([t, d]) => (
         <div key={t} className="rounded-2xl p-4" style={{ background: 'var(--color-canvas)' }}>
           <div className="font-bold mb-0.5">{t}</div>
-          <div className="text-[0.88rem] leading-relaxed" style={{ color: 'var(--color-ink-dim)' }}>{d}</div>
+          <div className="text-[0.875rem] leading-relaxed" style={{ color: 'var(--color-ink-dim)' }}>{d}</div>
         </div>
       ))}
       <Assumptions plan={plan} mc={mc} />
@@ -946,14 +928,14 @@ function PeaceBody({ plus, onUpgrade, plan, mc }: { plus: boolean; onUpgrade: ()
       {PRODUCT.plusOffered && (
         <button onClick={onUpgrade} className="w-full rounded-2xl p-4 text-left" style={{ background: 'var(--color-canvas)' }}>
           <div className="font-bold mb-0.5">{plus ? 'Someday Plus is on' : 'Someday Plus'}</div>
-          <div className="text-[0.88rem] leading-relaxed" style={{ color: 'var(--color-ink-dim)' }}>
+          <div className="text-[0.875rem] leading-relaxed" style={{ color: 'var(--color-ink-dim)' }}>
             {plus ? 'Manage your licence, or move it to another device.' : 'The adviser-ready report, every year in full, tax compared, advanced detail and the estate picture.'}
           </div>
         </button>
       )}
       <div className="flex flex-col gap-1 pt-1 text-center">
-        <a href="story.html" className="py-1.5 text-[0.9rem] font-semibold" style={{ color: 'var(--color-calm-strong)' }}>Why I built this →</a>
-        <a href={PRODUCT.legalUrl} className="py-1.5 text-[0.85rem]" style={{ color: 'var(--color-ink-faint)' }}>Terms, disclaimer &amp; privacy →</a>
+        <a href="story.html" className="py-1.5 text-[0.875rem] font-semibold" style={{ color: 'var(--color-calm-strong)' }}>Why I built this →</a>
+        <a href={PRODUCT.legalUrl} className="py-1.5 text-[0.875rem]" style={{ color: 'var(--color-ink-faint)' }}>Terms, disclaimer &amp; privacy →</a>
       </div>
     </div>
   );

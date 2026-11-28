@@ -138,7 +138,15 @@ const waitPage = async t => {
   } catch { return false; }
 };
 const goPage = async t => {
-  if (!(await tapInSheet(t)) && !(await tap(t))) return false;
+  // A page most people need is on the rail. The rest are a layer down: the
+  // rail's "More" lists them, and a row there opens the page.
+  const hit = async (sel, want) => p.evaluate(([s, w]) => { const e = [...document.querySelectorAll(s)].find(x => (x.getAttribute('data-rail-title') ?? x.getAttribute('data-more-row')) === w); if (e) e.click(); return !!e; }, [sel, want]);
+  if (!(await hit('[data-rail-title]', t))) {
+    if (!(await hit('[data-rail-title]', 'More'))) return false;
+    try { await p.waitForFunction(() => document.querySelector('[data-active]')?.getAttribute('data-title') === 'More', null, { timeout: 10000 }); } catch { return false; }
+    await wait(200);
+    if (!(await hit('[data-more-row]', t))) return false;
+  }
   try {
     await p.waitForFunction(want => {
       const el = document.querySelector('[data-active]');
@@ -410,7 +418,19 @@ await check('35 paying in reads back in plain English', async () => (await p.get
 await loadEx(); await tap('Details'); await wait(800);
 // Editing is the same carousel: a rail of named pages, one idea on each.
 await check('36 details opens the carousel on page one', async () => /^Who/.test(await pageTitle()) && /1 \/ \d/.test(await bodyT()));
-await check('36b the rail names the pages', async () => (await has('Someday')) && (await has('Drawing')) && (await has('Growth rates')));
+await check('36b the rail names the pages most people need, then "More" (Scout, 26 November 2026)', async () => {
+  const rail = await p.$$eval('[data-rail-title]', els => els.map(e => e.getAttribute('data-rail-title')));
+  return rail.length === 8 && rail[0] === 'Who' && rail[1] === 'Someday' && rail[6] === 'Spending' && rail[7] === 'More' && !rail.includes('Tax') && /1 \/ 8/.test(await bodyT()); });
+await check('36b2 the other seven pages are a layer down: not built until one is opened, named on the More page with what each holds', async () => {
+  const before = await p.$$eval('[data-pane]', els => els.map(e => e.getAttribute('data-pane')));
+  await p.locator('[data-rail-title="More"]').click(); if (!(await waitPage('More'))) return false; await wait(200);
+  const rows = await p.$$eval('[data-active] [data-more-row]', els => els.map(e => [e.getAttribute('data-more-row'), e.innerText.replace(/\s+/g, ' ').trim(), e.getBoundingClientRect().height]));
+  const okRows = rows.length === 7 && ['Life events', 'Investing', 'Tax', 'Drawing', 'Growth rates', 'Safe ladder', 'Plan file'].every((t, i) => rows[i][0] === t && rows[i][1].startsWith(t + ' ') && rows[i][1].length > t.length + 12 && rows[i][2] >= 44);
+  await p.locator('[data-active] [data-more-row="Tax"]').click(); const onTax = await waitPage('Tax'); await wait(200);
+  const after = await p.$$eval('[data-pane]', els => els.map(e => e.getAttribute('data-pane'))), rail = await p.$$eval('[data-rail-title]', els => els.map(e => e.getAttribute('data-rail-title')));
+  const ok = before.length === 8 && !before.includes('tax') && !before.includes('file') && okRows && onTax && after.length === 15 && after.indexOf('tax') === 10 && rail.length === 15 && rail[10] === 'Tax' && (await p.locator('[data-active]').getByRole('button', { name: 'Scotland' }).count()) === 1;
+  if (!ok) console.log('  36b2', before.join(','), JSON.stringify(rows), after.join(','));
+  return ok; });
 await check('36c Details: on every page, nothing is set under 13 px and there are at most four text sizes (Scout, 24 November 2026)', async () => {
   const r = await p.evaluate(() => { const d = document.querySelector('[role=dialog]'), px = new Set(); const w = document.createTreeWalker(d, NodeFilter.SHOW_TEXT);
     for (let n = w.nextNode(); n; n = w.nextNode()) { if (!n.nodeValue.trim() || n.parentElement.closest('.sr-only')) continue; px.add(Math.round(parseFloat(getComputedStyle(n.parentElement).fontSize) * 10) / 10); }
@@ -423,6 +443,7 @@ await check('36c off-screen pages are genuinely inert', async () => {
   const total = await p.locator('[data-pane]').count();
   return total > 1 && (await p.locator('[data-pane][inert]').count()) === total - 1;
 });
+await goPage('Who');
 // Committing a figure must keep focus where it was. It did not: an edit
 // re-rendered the app, the sheet's open/close effect re-ran on a fresh
 // onClose, and its teardown threw focus out to the tab bar behind the sheet.
@@ -624,7 +645,7 @@ await check('91 four tab destinations', async () => (await has('Home')) && (awai
 await tap('Details'); await wait(500);
 await check('92 sheet opens (dialog role)', () => sheetOpen());
 await check('93 £ prefix in fields', async () => /£/.test(await bodyT()));
-await goPage('Drawing'); await check('94 drawing page reachable from the rail', () => onPage('Which pot first'));
+await goPage('Drawing'); await check('94 drawing page reachable (a layer down, from More)', () => onPage('Which pot first'));
 await goPage('Spending'); await check('95 spending page reachable from the rail', () => onPage('Ease spending from'));
 await goPage('Plan file'); await check('95b plan file: says where the plan is kept and when it was saved (audit F-06)', async () => /Saved on this device/.test(await p.$eval('[data-save-status]', e => e.innerText).catch(() => '')));
 await closeSheet();
